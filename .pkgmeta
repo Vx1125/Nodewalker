@@ -9,3 +9,4 @@ ignore:
   - .github
   - VERSION
   - CURSEFORGE.md
+  - screenshots
