@@ -1,0 +1,35 @@
+## Interface: 16001
+## Title: Nodewalker
+## Notes: All-in-one professions: farming overlay, gathering routes, and leveling guides priced from the auction house.
+## Author: Austin
+## IconTexture: Interface\AddOns\Nodewalker\Media\Icon
+## Version: @project-version@
+## SavedVariables: NodewalkerDB
+## OptionalDeps: GatherMate2, Auctionator
+## X-Category: Professions
+## X-Curse-Project-ID: 0000000
+
+Data.lua
+OpenMapData\Minimap.lua
+OpenMapData\CaveMinimap.lua
+Core.lua
+Widgets.lua
+Professions\Engine.lua
+Professions\Alchemy.lua
+Professions\Blacksmithing.lua
+Professions\Enchanting.lua
+Professions\Engineering.lua
+Professions\Leatherworking.lua
+Professions\Tailoring.lua
+Professions\Cooking.lua
+Professions\FirstAid.lua
+Professions\Mining.lua
+Professions\Gathering.lua
+Nodes.lua
+Route.lua
+Overlay.lua
+Compass.lua
+Planner.lua
+Guide.lua
+Professions\UI.lua
+Options.lua

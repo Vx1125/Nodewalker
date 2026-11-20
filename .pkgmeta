@@ -1,0 +1,11 @@
+package-as: Nodewalker
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - README.md
+  - .github
+  - VERSION
+  - CURSEFORGE.md

@@ -1,0 +1,71 @@
+name: Package and release
+
+# Two ways to release Nodewalker to CurseForge (project ID from the TOC):
+#   1. Change the number in VERSION and push to main. The "tag" job tags vX.Y.Z, then starts
+#      this workflow again on that tag, where the "release" job packages and uploads it.
+#      (A tag pushed from inside a workflow doesn't start a new run by itself; a
+#      workflow_dispatch does.)
+#   2. Push (or create on GitHub) a tag like v1.0.2: goes straight to the "release" job.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tag:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag the version in VERSION and start the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="v$(tr -d ' \r\n' < VERSION)"
+          if git rev-parse -q --verify "refs/tags/$v" >/dev/null; then
+            if [ "$(git rev-list -n 1 "$v")" != "$(git rev-parse HEAD)" ]; then
+              echo "Tag $v already exists on another commit. Bump VERSION to release."
+              exit 0
+            fi
+            echo "Tag $v already on this commit; starting its release."
+          else
+            git tag "$v"
+            git push origin "$v"
+            echo "Tagged $v"
+          fi
+          gh workflow run release.yml --ref "$v" -R "$GITHUB_REPOSITORY"
+
+  release:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out the code (full history, for the changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Lua syntax
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1
+          rc=0; while IFS= read -r -d '' f; do luac5.1 -p "$f" || rc=1; done < <(find . -name '*.lua' -not -path './.git/*' -print0); exit $rc
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2
+        with:
+          # zip "Nodewalker-v1.0.0.zip", shown on CurseForge as "Nodewalker v1.0.0"
+          args: -n "{package-name}-{project-version}:{package-name} {project-version}"

@@ -1,0 +1,11 @@
+<Bindings>
+  <Binding name="NODEWALKER_TOGGLE" header="NODEWALKER" category="ADDONS">
+    Nodewalker.ToggleOverlay()
+  </Binding>
+  <Binding name="NODEWALKER_PLANNER" category="ADDONS">
+    Nodewalker.TogglePlanner()
+  </Binding>
+  <Binding name="NODEWALKER_NEXT" category="ADDONS">
+    Nodewalker.SkipNext()
+  </Binding>
+</Bindings>
