@@ -400,7 +400,6 @@ function NW.BuildRoute(mapID, callback, opts)
     boxes[#boxes + 1] = { math.min(r[1], r[3]) * w, math.min(r[2], r[4]) * h, math.max(r[1], r[3]) * w, math.max(r[2], r[4]) * h }
   end
   NW.routeStatus = ("Optimizing %d stops..."):format(#stops)
-  if #stops > 40 then NW.Print(("Building a route through %d stops; this can take up to half a minute."):format(#stops)) end
   job = {
     co = coroutine.create(function()
       return optimize(X, Y, boxes, w, function(round, len)
@@ -437,12 +436,6 @@ function NW.InsertIntoRoute(mapID, node)
     return -- a single-herb route only grows with that herb
   end
   if not (route.focus and route.focus[node.name]) and not NW.NodeWanted(node, s) then
-    local why = NW.IsHidden(node.name) and "you've hidden it"
-    if not why then
-      local req, skill = NW.RequiredSkill(node.name), NW.GetSkill(node.kind)
-      if req and skill and skill < req then why = ("it needs skill %d (you have %d)"):format(req, skill) end
-    end
-    NW.Print(("%s isn't added to your route: %s."):format(node.name or "That node", why or "your filters leave it out"))
     return
   end
   if inAvoid(route.avoid, node.x, node.y) then return end
@@ -490,7 +483,6 @@ function NW.InsertIntoRoute(mapID, node)
     end
   end
   for k, v in pairs(shifted) do NW.seenStop[k] = v end
-  NW.Print(("Added a new %s spot to your route (stop %d, +%d yd)."):format(node.name or node.kind, pos, math.floor(bestAdd)))
 end
 
 function NW.AddAvoid(mapID, x1, y1, x2, y2)

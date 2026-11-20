@@ -117,11 +117,7 @@ stats:SetHeight(92)
 local btnOptimize = UI.Button(side, "Optimize loop", SIDE_W, function()
   local id = mapID()
   if not id then return end
-  NW.BuildRoute(id, function(route)
-    local saved = route.quick and route.quick > 0 and math.floor(100 * (1 - route.length / route.quick) + 0.5) or 0
-    NW.Print(("Route ready: %d stops, %d yards (%d%% shorter than a quick route)."):format(#route.stops, math.floor(route.length), saved))
-    refresh()
-  end)
+  NW.BuildRoute(id, function() refresh() end)
 end, 28, "primary")
 btnOptimize:SetPoint("TOPLEFT", stats, "BOTTOMLEFT", 0, -10)
 UI.Tip(btnOptimize, "Optimize loop", "Builds the shortest loop through every node your filters allow in this zone.")
@@ -267,7 +263,6 @@ mapFrame:SetScript("OnMouseUp", function(_, button)
   local id = mapID()
   if id and math.abs(x - dragStart[1]) > 0.01 and math.abs(y - dragStart[2]) > 0.01 then
     NW.AddAvoid(id, dragStart[1], dragStart[2], x, y)
-    NW.Print("Avoid zone added. Press Optimize loop to rebuild the route around it.")
   end
   dragStart = nil
   refresh()

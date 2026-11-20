@@ -298,10 +298,7 @@ for i = 1, ROWS do
   r.build:SetScript("OnClick", function(self)
     local row, herb = self:GetParent().row, selectedHerb
     if not row or not row.mapID then return end
-    NW.BuildRoute(row.mapID, function(route)
-      local here = NW.PlayerPos() == row.mapID
-      NW.Print(("%s route for %s: %d stops, about %s per loop.%s"):format(herb, row.name, #route.stops,
-        fmtTime(route.seconds), here and " It's on your overlay now." or " It'll show on your overlay when you get there."))
+    NW.BuildRoute(row.mapID, function()
       if page:IsShown() then drawPreview(row, herb) end
     end, { focus = { [herb] = true }, alsoOthers = NW.db.settings.guideAlsoOthers })
   end)

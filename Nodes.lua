@@ -259,7 +259,6 @@ NW.session = { started = GetTime(), nodes = 0, loops = 0, loopStarted = nil, las
 
 function NW.ResetSession()
   NW.session = { started = GetTime(), nodes = 0, loops = 0, loopStarted = nil, lastLoopTime = nil }
-  NW.Print("Session reset.")
 end
 
 ------------------------------------------------------------------------
@@ -370,9 +369,6 @@ function NW.ImportGatherMate2()
     NW.Print(("From the GatherMate2_Data pack: %d new nodes (%d read)."):format(pack.added, pack.seen))
   else
     NW.Print("The GatherMate2_Data pack isn't installed or enabled, so only your own nodes were read.")
-  end
-  if mine.added + pack.added > 0 then
-    NW.Print("Saved in Nodewalker. You can turn GatherMate2 off now; /nw plan builds a route from them.")
   end
   if NW.RefreshPlanner then NW.RefreshPlanner() end
 end

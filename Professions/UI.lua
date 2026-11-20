@@ -599,7 +599,6 @@ for _, row in ipairs(stepRows) do
       local focus = {}
       for _, n in ipairs(b.nodes) do focus[n] = true end
       NW.BuildRoute(best.mapID, function(route)
-        NW.Print(("Mining route for %s: %d stops (%d known spots)."):format(best.name, #route.stops, best.count))
       end, { focus = focus })
     end
   end)
@@ -645,7 +644,7 @@ local function drawGather(p)
     local b = steps[1]
     for _, x in ipairs(steps) do if fishRank >= x.from and fishRank < x.to then b = x end end
     lines[#lines + 1] = ("|cffe8c46aCook what you catch|r (Cooking %d)"):format(cook)
-    for _, fid in ipairs(b.fish or {}) do
+    for _, fid in ipairs(b and b.fish or {}) do
       for _, r in ipairs(NW.CookFish(fid)) do
         local col = cook < r.yellow and "ff8040" or cook < r.green and "ffff00" or cook < r.grey and "40bf40" or "808080"
         if (r.orange or r.yellow) > cook then col = "eb5c4c" end
@@ -696,7 +695,7 @@ local function cleanSource(text, oneLine)
   return text
 end
 local function scanOf(key, r)
-  local sc = NW.db.recipeScan[key]
+  local sc = NW.charDB.recipeScan[key]
   return sc and sc[r.name]
 end
 
@@ -721,10 +720,10 @@ end
 
 local missing = {}
 local function buildMissing(key)
-  local known = NW.db.known[key] or {}
+  local known = NW.charDB.known[key] or {}
   local rank = NW.ProfSkill(key)
   local out, have = {}, {}
-  local scan = NW.db.recipeScan[key]
+  local scan = NW.charDB.recipeScan[key]
   for _, r in ipairs(NW.RECIPES[key] or {}) do
     have[r.name] = true
     local e = scan and scan[r.name]
@@ -787,8 +786,8 @@ local function drawMissing(p)
   if viewChanged then stepOffset = 0 end
   clampOffsets()
   local rank = NW.ProfSkill(p.key)
-  local scanned = NW.db.known[p.key] and next(NW.db.known[p.key]) ~= nil
-  local fullList = NW.db.recipeScan[p.key] and next(NW.db.recipeScan[p.key]) ~= nil
+  local scanned = NW.charDB.known[p.key] and next(NW.charDB.known[p.key]) ~= nil
+  local fullList = NW.charDB.recipeScan[p.key] and next(NW.charDB.recipeScan[p.key]) ~= nil
   stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "No missing recipe matches your search."
     or "You know every recipe Nodewalker has for this profession.") or "")
   drawMissingRows(p.key)
@@ -1024,7 +1023,7 @@ local function findTradeFrame()
   if EnumerateFrames then
     local f = EnumerateFrames()
     while f do
-      if f:IsShown() and not f:IsForbidden() and f:GetParent() == UIParent then
+      if not f:IsForbidden() and f:IsShown() and f:GetParent() == UIParent then
         local n = f:GetName()
         if n and (n:find("Profession") or n:find("TradeSkill")) and (f:GetWidth() or 0) > 300 then return f end
       end
@@ -1047,7 +1046,7 @@ local function findSideButtons(f)
   if not (right and top and bottom) then return end
   local found = {}
   local function consider(b)
-    if b == tradeTab or not b:IsShown() or b:IsForbidden() then return end
+    if b == tradeTab or b:IsForbidden() or not b:IsVisible() then return end
     local ot = b:GetObjectType()
     if ot ~= "Button" and ot ~= "CheckButton" then return end
     local l, t, w, h = b:GetLeft(), b:GetTop(), b:GetWidth(), b:GetHeight()
@@ -1066,7 +1065,7 @@ local function findSideButtons(f)
   if #found == 0 and EnumerateFrames then
     local x = EnumerateFrames()
     while x do
-      if x:IsVisible() then consider(x) end
+      if not x:IsForbidden() and x:IsVisible() then consider(x) end
       x = EnumerateFrames(x)
     end
   end
@@ -1229,14 +1228,6 @@ watcher:SetScript("OnUpdate", function(self, dt)
     if f and f.IsShown and f:IsShown() then open = f break end
   end
   if not open and attachedTo and attachedTo:IsShown() then open = attachedTo end
-  -- not found by name yet: a slower search every couple of seconds
-  if not open and not attachedTo then
-    self.slow = (self.slow or 0) + 1
-    if self.slow >= 5 then
-      self.slow = 0
-      open = findTradeFrame()
-    end
-  end
   if open then
     if not tradeTab:IsShown() or tradeTab:GetParent() ~= open then
       attach()

@@ -271,7 +271,6 @@ local function entered(mapID)
     line = spotText .. "   ·   building a route..."
     NW.BuildRoute(mapID, function(r)
       updateBanner(spotText .. "   ·   " .. routeLine(r))
-      NW.Print(("New route for %s: %s."):format(info.name, routeLine(r)))
       if NW.RefreshPlanner then NW.RefreshPlanner() end
     end)
   elseif wanted > 0 then

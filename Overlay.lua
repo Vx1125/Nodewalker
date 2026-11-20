@@ -330,6 +330,30 @@ end
 local markers, markerCount = {}, 0
 local lines, lineCount = {}, 0
 
+local nodeShowKind = {}
+-- Tooltip lines for a known spot, built when you hover it
+local SOURCES = { me = "you gathered it here", gm2 = "your GatherMate2", gm2data = "GatherMate2 data (Wowhead)", seen = "spotted on your minimap" }
+local SKILL_RGB = { red = { 1, 0.2, 0.2 }, orange = { 1, 0.5, 0.25 }, yellow = { 1, 1, 0 }, green = { 0.25, 0.75, 0.25 }, grey = { 0.5, 0.5, 0.5 } }
+local function nodeLines(info)
+  local n, lines = info.n, {}
+  local seenAgo = info.seenAgo
+  if seenAgo then
+    lines[#lines + 1] = { ("Seen up %s ago"):format(seenAgo < 60 and "under a minute" or (math.floor(seenAgo / 60) .. " min")), 0.55, 1, 0.4 }
+  else
+    lines[#lines + 1] = { "Known spot, not confirmed", 0.7, 0.7, 0.7 }
+  end
+  local req, skill = NW.RequiredSkill(n.name), NW.GetSkill(n.kind)
+  if req and skill then
+    local rgb = SKILL_RGB[NW.SkillColor(req, skill)]
+    lines[#lines + 1] = { ("Needs %d (you: %d)"):format(req, skill), rgb and rgb[1], rgb and rgb[2], rgb and rgb[3] }
+  end
+  local mapID, px, py = NW.PlayerPos()
+  local dist = px and mapID == info.mapID and NW.Yards(info.mapID, px, py, n.x, n.y)
+  if dist then lines[#lines + 1] = { ("%d yd"):format(math.floor(dist)), 0.85, 0.81, 0.73 } end
+  lines[#lines + 1] = { "From: " .. (SOURCES[n.src] or n.src or "?"), 0.5, 0.5, 0.5 }
+  return lines
+end
+
 local function getMarker()
   markerCount = markerCount + 1
   local m = markers[markerCount]
@@ -355,6 +379,7 @@ local function getMarker()
     end
     m:SetScript("OnEnter", function(self)
       if not self.info then return end
+      if self.info.n and not self.info.lines then self.info.lines = nodeLines(self.info) end
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       GameTooltip:AddLine(self.info.title, 1, 0.9, 0.66)
       if self.info.sub then GameTooltip:AddLine(self.info.sub, 0.85, 0.81, 0.73) end
@@ -373,7 +398,6 @@ local function getMarker()
       if button == "RightButton" then
         if info.node then
           NW.SetHidden(info.node, true)
-          NW.Print(info.node .. " hidden. Bring it back in /nw options (Nodes page) or with /nw show " .. info.node:lower() .. ".")
         end
       elseif info.stop and NW.progress[info.mapID] then
         NW.progress[info.mapID].index = info.stop
@@ -574,7 +598,7 @@ local function sweepChildren()
   for _, c in ipairs({ Minimap:GetChildren() }) do
     if isQueueButton(c) then
       moveOut(c)
-    elseif c:IsShown() then
+    elseif c:IsShown() and not (c:IsProtected() and InCombatLockdown()) then
       c:Hide()
       if not live.hidden[c] then
         live.hidden[c] = true
@@ -598,7 +622,7 @@ local function startLive()
   for _, c in ipairs({ Minimap:GetChildren() }) do
     if isQueueButton(c) then
       moveOut(c)
-    elseif c:IsShown() then
+    elseif c:IsShown() and not (c:IsProtected() and InCombatLockdown()) then
       c:Hide(); live.children[#live.children + 1] = c; live.hidden[c] = true
     end
   end
@@ -792,49 +816,34 @@ local function drawInner()
 
   -- Saved nodes nearby (small), so you see what's around even off-route
   local route = NW.db.routes[mapID]
-  local SOURCES = { me = "you gathered it here", gm2 = "your GatherMate2", gm2data = "GatherMate2 data (Wowhead)", seen = "spotted on your minimap" }
-  local showKind = { herb = NW.ShowKind("herb", s), ore = NW.ShowKind("ore", s) }
+  local showKind = nodeShowKind
+  showKind.herb, showKind.ore = NW.ShowKind("herb", s), NW.ShowKind("ore", s)
   local hasRoute = NW.db.routes[mapID] and #NW.db.routes[mapID].stops > 1
   for i, n in ipairs(NW.db.nodes[mapID] or {}) do
-    if showKind[n.kind] and not NW.IsHidden(n.name) then
-      local vx, vy = toView(n.x, n.y)
+    local vx, vy = toView(n.x, n.y)
+    -- cheap tests first: most saved spots are off screen
+    if onScreen(vx, vy) and showKind[n.kind] and not NW.IsHidden(n.name) then
       local seenAgo = NW.SeenAgo(mapID, i)
       local pickedAgo = not seenAgo and NW.PickedAgo(mapID, i)
       -- With live dots on, the game shows what's really up near you, so known
       -- spots are only drawn beyond the live circle (and only if asked).
-      local inLive = false
-      if liveRadius then
-        local d = NW.Yards(mapID, px, py, n.x, n.y)
-        inLive = d and d < liveRadius
-      end
       local hideKnown
       if liveRadius then
-        if inLive then hideKnown = hasRoute -- route stops stand in for them
+        local d = NW.Yards(mapID, px, py, n.x, n.y)
+        if d and d < liveRadius then hideKnown = hasRoute -- route stops stand in for them
         else hideKnown = not s.showKnownSpots end
       end
-      if onScreen(vx, vy) and not pickedAgo and not hideKnown and (seenAgo or not s.onlyConfirmed) then
+      if not pickedAgo and not hideKnown and (seenAgo or not s.onlyConfirmed) then
         local m = getMarker()
         styleMarker(m, n.kind, seenAgo and 24 or 20, seenAgo and "seen" or "far", NW.NodeIcon(n.name, n.kind))
         if not seenAgo then m:SetAlpha(s.fadedAlpha or 0.35) end
         m:SetAlpha(m:GetAlpha() * edgeFade(vx, vy))
         m:SetPoint("CENTER", view, "CENTER", vx, vy)
-        local lines = {}
-        if seenAgo then
-          lines[#lines + 1] = { ("Seen up %s ago: should still be there."):format(seenAgo < 60 and "under a minute" or (math.floor(seenAgo / 60) .. " min")), 0.55, 1, 0.4 }
-        else
-          lines[#lines + 1] = { "Known spawn spot, not confirmed.", 0.7, 0.7, 0.7 }
-          lines[#lines + 1] = { ("Hover it on your minimap (with %s on) to confirm."):format(n.kind == "ore" and "Find Minerals" or "Find Herbs"), 0.6, 0.6, 0.6 }
-        end
-        local req, skill = NW.RequiredSkill(n.name), NW.GetSkill(n.kind)
-        if req and skill then
-          local col = NW.SkillColor(req, skill)
-          local rgb = ({ red = { 1, 0.2, 0.2 }, orange = { 1, 0.5, 0.25 }, yellow = { 1, 1, 0 }, green = { 0.25, 0.75, 0.25 }, grey = { 0.5, 0.5, 0.5 } })[col]
-          lines[#lines + 1] = { ("Needs skill %d (you: %d)"):format(req, skill), rgb and rgb[1], rgb and rgb[2], rgb and rgb[3] }
-        end
-        local dist = NW.Yards(mapID, px, py, n.x, n.y)
-        if dist then lines[#lines + 1] = { ("%d yd away"):format(math.floor(dist)), 0.85, 0.81, 0.73 } end
-        lines[#lines + 1] = { "From: " .. (SOURCES[n.src] or n.src or "?"), 0.5, 0.5, 0.5 }
-        m.info = { title = n.name, lines = lines, node = n.name }
+        local info = m.nodeInfo or {}
+        m.nodeInfo = info
+        info.title, info.node, info.n, info.mapID, info.seenAgo, info.lines = n.name, n.name, n, mapID, seenAgo, nil
+        info.sub, info.stop = nil, nil
+        m.info = info
       end
     end
   end
@@ -861,14 +870,13 @@ local function drawInner()
     local now = GetTime()
     for i, st in ipairs(stops) do
       local vx, vy = toView(st.x, st.y)
-      local stopLabel, stopBase = stopName(mapID, st)
-      if onScreen(vx, vy) and not NW.IsHidden(stopBase) then
+      local label, base = stopName(mapID, st)
+      if onScreen(vx, vy) and not NW.IsHidden(base) then
         local state = "stop"
         local seen = prog and prog.visited[i]
         if seen and now - seen < respawn then state = "picked" end
         if i == nextIndex then state = "next" end
         local m = getMarker()
-        local label, base = stopName(mapID, st)
         styleMarker(m, st.kind, state == "next" and 34 or 28, state, NW.NodeIcon(base, st.kind ~= "mixed" and st.kind or "ore"))
         -- faded until a herb there is confirmed up, then full opacity
         local up = state ~= "picked" and NW.StopSeenAgo(mapID, i)
@@ -949,7 +957,7 @@ local function trackingOn()
     local info = C_Minimap.GetTrackingInfo(i)
     local name, active
     if type(info) == "table" then name, active = info.name, info.active
-    else name, _, active = C_Minimap.GetTrackingInfo(i) end
+    else local _; name, _, active = C_Minimap.GetTrackingInfo(i) end
     if active and (name == "Find Herbs" or name == "Find Minerals") then return true end
   end
   return false
@@ -974,7 +982,7 @@ local function updateVisibility()
 end
 NW.UpdateVisibility = updateVisibility
 
-local elapsed = 0
+local elapsed, slow = 0, 0
 overlay:SetScript("OnUpdate", function(_, dt)
   elapsed = elapsed + dt
   if elapsed < 0.01 then return end -- (about every frame: the map glides, it never jumps)
@@ -990,8 +998,12 @@ overlay:SetScript("OnUpdate", function(_, dt)
   lineLayer:SetAlpha(marks)
   markerLayer:SetAlpha(marks)
   draw()
-  if NW.UpdateCompass then NW.UpdateCompass() end
-  if NW.UpdateSession then NW.UpdateSession() end
+  slow = slow + dt
+  if slow >= 0.2 then
+    slow = 0
+    if NW.UpdateCompass then NW.UpdateCompass() end
+    if NW.UpdateSession then NW.UpdateSession() end
+  end
 end)
 
 NW.On("PLAYER_REGEN_DISABLED", function() inCombat = true; updateVisibility() end)

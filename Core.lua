@@ -162,7 +162,9 @@ local function readSkill(want)
   if GetProfessions and GetProfessionInfo then
     local ok, p1, p2 = pcall(GetProfessions)
     if ok then
-      for _, idx in ipairs({ p1, p2 }) do
+      local list = { p1, p2 }
+      for i = 1, 2 do
+        local idx = list[i]
         if idx then
           local name, _, level = GetProfessionInfo(idx)
           if name == want then return level end
@@ -300,9 +302,8 @@ SlashCmdList.NODEWALKER = function(msg)
     for name in pairs(NW.NODES) do if name:lower() == want then found = name end end
     if found then
       NW.SetHidden(found, verb == "hide")
-      NW.Print(("%s is now %s."):format(found, verb == "hide" and "hidden" or "shown"))
     else
-      NW.Print("No herb or vein called \"" .. want .. "\". Check the spelling, or use the Nodes page in /nw options.")
+      NW.Print("Unknown herb or vein: " .. want)
     end
   elseif msg == "hidden" then
     local list = {}

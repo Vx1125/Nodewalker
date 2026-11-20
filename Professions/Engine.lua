@@ -1,4 +1,5 @@
 local ADDON, NW = ...
+NW.charDB = { known = {}, recipeScan = {}, recipeScanAt = {} } -- replaced at login
 
 ------------------------------------------------------------------------
 -- Profession leveling engine
@@ -62,7 +63,9 @@ local function scanSkills()
   if GetProfessions and GetProfessionInfo then
     local ok, a, b, c, d, e, f = pcall(GetProfessions)
     if ok then
-      for _, idx in ipairs({ a, b, c, d, e, f }) do
+      local list = { a, b, c, d, e, f }
+      for i = 1, 6 do
+        local idx = list[i]
         if idx then
           local name, _, rank, max = GetProfessionInfo(idx)
           if name then out[name] = { rank = rank, max = max } end
@@ -98,7 +101,7 @@ end
 
 local function remember(profKey, recipeName)
   if not profKey or not recipeName then return end
-  local known = NW.db.known
+  local known = NW.charDB.known
   known[profKey] = known[profKey] or {}
   known[profKey][recipeName] = true
 end
@@ -115,6 +118,13 @@ end
 local function modernScan()
   local T = C_TradeSkillUI
   if not (T and T.GetAllRecipeIDs and T.GetRecipeInfo) then return false end
+  -- someone else's profession (a link, the guild, an NPC): not yours
+  for _, fn in ipairs({ "IsTradeSkillLinked", "IsTradeSkillGuild", "IsNPCCrafting" }) do
+    if T[fn] then
+      local ok, v = pcall(T[fn])
+      if ok and v then return true end
+    end
+  end
   local key
   if T.GetBaseProfessionInfo then
     local ok, info = pcall(T.GetBaseProfessionInfo)
@@ -133,6 +143,7 @@ local function modernScan()
   local okIDs, ids = pcall(T.GetAllRecipeIDs)
   if not okIDs or not ids or #ids == 0 then return true end
   local scan = {}
+  NW.charDB.known[key] = {} -- the full list is the truth: rebuild what you know
   local catNames = {}
   for _, id in ipairs(ids) do
     local ok, info = pcall(T.GetRecipeInfo, id)
@@ -169,8 +180,8 @@ local function modernScan()
       scan[info.name] = e
     end
   end
-  NW.db.recipeScan[key] = scan
-  NW.db.recipeScanAt[key] = time()
+  NW.charDB.recipeScan[key] = scan
+  NW.charDB.recipeScanAt[key] = time()
   return true
 end
 
@@ -182,6 +193,7 @@ local function scanTradeSkill()
   if modernScan() then return end
   -- Classic-style API: only the recipes you know
   if GetTradeSkillLine and GetNumTradeSkills then
+    if IsTradeSkillLinked and IsTradeSkillLinked() then return end
     local ok, line = pcall(GetTradeSkillLine)
     local key = ok and profKeyFromName(line)
     if key then
@@ -255,12 +267,24 @@ NW.On("SKILL_LINES_CHANGED", function() skillAt = -10; NW.InvalidatePlans() end)
 
 table.insert(NW.OnLoad, function()
   local db = NW.db
-  db.known = db.known or {}
+  -- recipes you know are kept per character
+  db.chars = db.chars or {}
+  local ck = (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
+  local c = db.chars[ck]
+  if not c then
+    c = {}
+    db.chars[ck] = c
+    -- saved before they were per character: the first character to log in keeps them
+    if db.known then c.known, c.recipeScan, c.recipeScanAt = db.known, db.recipeScan, db.recipeScanAt end
+    db.known, db.recipeScan, db.recipeScanAt = nil, nil, nil
+  end
+  c.known = c.known or {}
+  c.recipeScan = c.recipeScan or {}
+  c.recipeScanAt = c.recipeScanAt or {}
+  NW.charDB = c
   db.trainerReq = db.trainerReq or {}
   db.vendorPrices = db.vendorPrices or {}
   db.itemIDs = db.itemIDs or {}
-  db.recipeScan = db.recipeScan or {}
-  db.recipeScanAt = db.recipeScanAt or {}
   local s = db.settings
   if s.planRecipeItems == nil then s.planRecipeItems = false end
   if s.planUseBags == nil then s.planUseBags = true end
@@ -340,7 +364,7 @@ function NW.Price(id, depth)
     local sell = select(11, NW.ItemInfo(id))
     if sell and sell > 0 then best, src = sell * 4, "est" end
   end
-  priceMemo[id] = { best, src }
+  if best then priceMemo[id] = { best, src } else NW.missingPrice = true end
   return best, src
 end
 
@@ -348,6 +372,17 @@ end
 -- Planning
 ------------------------------------------------------------------------
 local planCache = {}
+-- item info arrives a moment after it's asked for: re-price once it has
+local repricing
+NW.On("GET_ITEM_INFO_RECEIVED", function()
+  if not NW.missingPrice or repricing then return end
+  repricing = true
+  C_Timer.After(1, function()
+    repricing, NW.missingPrice = false, false
+    NW.InvalidatePlans()
+  end)
+end)
+
 function NW.InvalidatePlans()
   planCache = {}
   priceMemo = {}
@@ -371,7 +406,7 @@ local function required(key, r)
 end
 
 local function isKnown(key, r)
-  local k = NW.db.known[key]
+  local k = NW.charDB.known[key]
   return k and k[r.name] or false
 end
 
@@ -408,6 +443,7 @@ function NW.BuildPlan(key, from, to)
   if planCache[cacheKey] then return planCache[cacheKey] end
 
   local recipes = NW.RECIPES[key] or {}
+  local _, maxSkill = NW.ProfSkill(key)
   if NW.craftKey ~= key then priceMemo = {}; NW.craftKey = key end
   craftOf = {}
   for _, r in ipairs(recipes) do if r.item and not craftOf[r.item] then craftOf[r.item] = r end end
@@ -448,6 +484,7 @@ function NW.BuildPlan(key, from, to)
     local pk = pick[sk]
     local idx = pk and pk.i or nil
     local rankUp = RANK_AT[sk]
+    if rankUp and maxSkill and maxSkill >= rankUp.cap then rankUp = nil end -- already trained
     if not cur or cur.idx ~= idx or rankUp then
       cur = { idx = idx, from = sk, to = sk + 1, crafts = 0, recipe = idx and recipes[idx], needsRecipe = pk and pk.needs, rankUp = rankUp }
       steps[#steps + 1] = cur
