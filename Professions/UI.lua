@@ -934,8 +934,8 @@ ttHL:SetAllPoints()
 ttHL:SetTexture(ICON)
 ttHL:SetBlendMode("ADD")
 ttHL:SetAlpha(0.35)
-tradeTab:SetScript("OnMouseDown", function() ttIcon:SetPoint("TOPLEFT", 1, -1); ttIcon:SetPoint("BOTTOMRIGHT", 1, -1) end)
-tradeTab:SetScript("OnMouseUp", function() ttIcon:SetAllPoints() end)
+tradeTab:SetScript("OnMouseDown", function() ttIcon:SetVertexColor(0.7, 0.7, 0.7) end)
+tradeTab:SetScript("OnMouseUp", function() ttIcon:SetVertexColor(1, 1, 1) end)
 
 -- next step from the plan, along the bottom of the profession window
 local nextBox = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
@@ -985,8 +985,8 @@ end)
 tradeTab:SetScript("OnEnter", function(self)
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
   GameTooltip:SetText("Nodewalker")
-  GameTooltip:AddLine("Open the leveling plan, shopping list and missing recipes for this profession.", 1, 1, 1, true)
-  GameTooltip:AddLine("Shift-drag to move it. Shift-right-click to put it back.", 0.6, 0.6, 0.6, true)
+  GameTooltip:AddLine("Leveling plan, shopping list, missing recipes", 1, 1, 1, true)
+  GameTooltip:AddLine("Shift-drag: move. Shift-right-click: reset.", 0.6, 0.6, 0.6, true)
   GameTooltip:Show()
 end)
 tradeTab:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1034,7 +1034,14 @@ local function findTradeFrame()
 end
 
 -- The profession buttons down the right side: shown, roughly square buttons
--- just outside the window's right edge. Returns the lowest one and the gap.
+-- just outside the window's right edge. Returns the lowest one and the gap
+-- between one button's bottom and the next one's top.
+local function tabScore(b)
+  local n = 0
+  if b:GetObjectType() == "CheckButton" then n = n + 2 end
+  if b.GetNormalTexture and b:GetNormalTexture() then n = n + 1 end
+  return n
+end
 local function findSideButtons(f)
   local right, top, bottom = f:GetRight(), f:GetTop(), f:GetBottom()
   if not (right and top and bottom) then return end
@@ -1045,7 +1052,7 @@ local function findSideButtons(f)
     if ot ~= "Button" and ot ~= "CheckButton" then return end
     local l, t, w, h = b:GetLeft(), b:GetTop(), b:GetWidth(), b:GetHeight()
     if not (l and t) then return end
-    if l >= right - 12 and l <= right + 40 and t <= top + 5 and t >= bottom and w >= 28 and w <= 110 and math.abs(w - h) <= 14 then
+    if l >= right - 12 and l <= right + 40 and t <= top + 5 and t >= bottom and w >= 24 and w <= 110 and math.abs(w - h) <= 14 then
       found[#found + 1] = b
     end
   end
@@ -1065,46 +1072,109 @@ local function findSideButtons(f)
   end
   if #found == 0 then return end
   table.sort(found, function(a, b) return a:GetTop() > b:GetTop() end)
-  -- a tab and the icon inside it count once: keep one button per row
+  -- a tab and a button inside it count once: keep the real tab of each row
   local rows = {}
   for _, b in ipairs(found) do
     local prev = rows[#rows]
     if prev and math.abs(prev:GetTop() - b:GetTop()) < 12 then
-      if b:GetWidth() > prev:GetWidth() then rows[#rows] = b end
+      local sb, sp = tabScore(b), tabScore(prev)
+      if sb > sp or (sb == sp and b:GetWidth() > prev:GetWidth()) then rows[#rows] = b end
     else
       rows[#rows + 1] = b
     end
   end
-  found = rows
-  local last = found[#found]
-  -- the distance from one button's top to the next, so ours lands in step
-  local pitch = last:GetHeight() + 14
-  if #found >= 2 then pitch = found[#found - 1]:GetTop() - last:GetTop() end
-  return last, pitch
+  local last = rows[#rows]
+  local gap = 17
+  if #rows >= 2 then gap = math.max(0, rows[#rows - 1]:GetBottom() - last:GetTop()) end
+  return last, gap
+end
+
+-- Copy the native tab's frame art (the border drawn outside its click area)
+-- so ours is the same size and look; the icon slot gets our icon.
+local artPool = {}
+local function cloneArt(src, k)
+  for _, t in ipairs(artPool) do t:Hide() end
+  local l, t = src:GetLeft(), src:GetTop()
+  local bw, bh = src:GetWidth(), src:GetHeight()
+  local normal = src.GetNormalTexture and src:GetNormalTexture()
+  local skip = {}
+  for _, fn in ipairs({ "GetHighlightTexture", "GetCheckedTexture", "GetPushedTexture", "GetDisabledTexture" }) do
+    local x = src[fn] and src[fn](src)
+    if x then skip[x] = true end
+  end
+  local n, iconRect = 0
+  for _, r in ipairs({ src:GetRegions() }) do
+    if r:GetObjectType() == "Texture" and r:IsShown() and not skip[r] then
+      local rl, rt, rw, rh = r:GetLeft(), r:GetTop(), r:GetWidth(), r:GetHeight()
+      if rl and rt and rw and rw > 0 then
+        local iconLike = math.abs(rw - bw) <= 4 and math.abs(rh - bh) <= 4
+        if r == normal or iconLike then
+          iconRect = iconRect or { (rl - l) * k, (rt - t) * k, rw * k, rh * k }
+        elseif rw > bw and rh > bh then
+          n = n + 1
+          local c = artPool[n] or tradeTab:CreateTexture()
+          artPool[n] = c
+          c:SetDrawLayer(r:GetDrawLayer())
+          local atlas = r.GetAtlas and r:GetAtlas()
+          if atlas then
+            c:SetAtlas(atlas)
+          else
+            c:SetTexture(r:GetTexture())
+            c:SetTexCoord(r:GetTexCoord())
+          end
+          c:SetVertexColor(r:GetVertexColor())
+          c:SetBlendMode(r:GetBlendMode())
+          c:SetAlpha(r:GetAlpha())
+          c:ClearAllPoints()
+          c:SetPoint("TOPLEFT", tradeTab, "TOPLEFT", (rl - l) * k, (rt - t) * k)
+          c:SetSize(rw * k, rh * k)
+          c:Show()
+        end
+      end
+    end
+  end
+  ttIcon:ClearAllPoints()
+  ttHL:ClearAllPoints()
+  if iconRect then
+    ttIcon:SetPoint("TOPLEFT", tradeTab, "TOPLEFT", iconRect[1], iconRect[2])
+    ttIcon:SetSize(iconRect[3], iconRect[4])
+  else
+    ttIcon:SetAllPoints()
+  end
+  ttHL:SetAllPoints(ttIcon)
 end
 
 local attachedTo
 local attachSoon
-local TAB_SCALE = 1.22 -- the other buttons' frames are bigger than their click area
+local placedOn
 local function place(f)
-  local last, pitch = findSideButtons(f)
+  local last, gap = findSideButtons(f)
+  placedOn = last
   tradeTab:ClearAllPoints()
-  local base = last and math.min(last:GetWidth(), last:GetHeight()) or 40
-  local size = math.floor(base * TAB_SCALE + 0.5)
-  tradeTab:SetSize(size, size)
   local s = st()
-  if s.tradeTabPos and not s.tradeTabCenter then
-    -- older saved spot was the top-left corner at the old size
-    s.tradeTabCenter = { s.tradeTabPos[1] + base / 2, s.tradeTabPos[2] - base / 2 }
-    s.tradeTabPos = nil
+  if not s.tradeTabV2 then
+    -- placement changed: drop spots saved by the old button
+    s.tradeTabV2, s.tradeTabPos, s.tradeTabCenter = true, nil, nil
+  end
+  if last then
+    local k = last:GetEffectiveScale() / tradeTab:GetEffectiveScale()
+    tradeTab:SetSize(last:GetWidth() * k, last:GetHeight() * k)
+    cloneArt(last, k)
+  else
+    tradeTab:SetSize(40, 40)
+    for _, t in ipairs(artPool) do t:Hide() end
+    ttIcon:ClearAllPoints()
+    ttIcon:SetAllPoints()
+    ttHL:ClearAllPoints()
+    ttHL:SetAllPoints()
   end
   if s.tradeTabCenter then
     -- where you dragged it, relative to the window's top-right corner
     tradeTab:SetPoint("CENTER", f, "TOPRIGHT", s.tradeTabCenter[1], s.tradeTabCenter[2])
   elseif last then
-    tradeTab:SetPoint("CENTER", last, "CENTER", 0, -pitch)
+    -- straight under the last tab, same spacing as the others
+    tradeTab:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -gap)
   else
-    -- no column found: same spot as the buttons usually sit
     tradeTab:SetPoint("CENTER", f, "TOPRIGHT", 30, -(f:GetHeight() * 0.62))
   end
   nextBox:ClearAllPoints()
@@ -1168,7 +1238,17 @@ watcher:SetScript("OnUpdate", function(self, dt)
     end
   end
   if open then
-    if not tradeTab:IsShown() or tradeTab:GetParent() ~= open then attach() end
+    if not tradeTab:IsShown() or tradeTab:GetParent() ~= open then
+      attach()
+    elseif not tradeTab.moving then
+      -- tabs come and go as professions change: follow the last one
+      self.check = (self.check or 0) + 1
+      if self.check >= 3 then
+        self.check = 0
+        local last = findSideButtons(open)
+        if last ~= placedOn then place(open) end
+      end
+    end
   end
 end)
 
