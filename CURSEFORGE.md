@@ -1,4 +1,4 @@
-![Nodewalker](https://raw.githubusercontent.com/Vx1125/nodewalker/main/screenshots/overlay.jpg)
+![Nodewalker](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/banner.jpg)
 
 **Gathering and professions for WoW Forever, in one addon.** A Diablo-style farming map, optimized herb and ore routes, and a leveling guide for every profession, priced from the auction house.
 
@@ -6,7 +6,7 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 
 ## Farming overlay
 
-![Farming overlay](https://raw.githubusercontent.com/Vx1125/nodewalker/main/screenshots/overlay.jpg)
+![Farming overlay](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/overlay.jpg)
 
 - A map in the middle of your screen, like Diablo II or Path of Exile. The real minimap terrain scrolls under you, caves and underground cities included.
 - Live herb and ore dots from your minimap, with a ring showing how far they reach.
@@ -18,7 +18,7 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 
 ## Routes
 
-![Route planner](https://raw.githubusercontent.com/Vx1125/nodewalker/main/screenshots/route-planner.jpg)
+![Route planner](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/routes.jpg)
 
 - **Imports GatherMate2**, including its data pack, so you start with thousands of known spots. Turn GatherMate2 off afterwards if you like.
 - Builds the shortest loop through every node your filters allow, then follows it stop by stop.
@@ -30,7 +30,7 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 
 ## Herb Guide
 
-![Herb Guide](https://raw.githubusercontent.com/Vx1125/nodewalker/main/screenshots/herb-guide.jpg)
+![Herb Guide](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/herb-guide.jpg)
 
 - The best zones for every herb, with where to look in each zone.
 - Ranked by spots per minute on a loop, from your own node data.
@@ -38,7 +38,7 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 
 ## Professions
 
-![Professions](https://raw.githubusercontent.com/Vx1125/nodewalker/main/screenshots/professions.jpg)
+![Professions](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/professions.jpg)
 
 - A leveling plan for every profession, from your skill to 300: Alchemy, Blacksmithing, Enchanting, Engineering, Leatherworking, Tailoring, Cooking and First Aid.
 - **Priced with Auctionator.** For each skill point it picks the cheapest recipe at today's prices, counting the chance of a skill-up as recipes turn yellow and green.
@@ -57,16 +57,14 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 
 ### On the profession window
 
-![Profession window button](https://raw.githubusercontent.com/Vx1125/nodewalker/main/screenshots/profession-button.jpg)
+![Profession window button](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/profession-window.jpg)
 
 - A Nodewalker button under your professions opens the plan for the one you're in.
 - Your next step along the bottom: what to craft and how many.
 
 ## Settings
 
-![Overlay settings](https://raw.githubusercontent.com/Vx1125/nodewalker/main/screenshots/overlay-options.jpg)
-
-![Herbs and ore](https://raw.githubusercontent.com/Vx1125/nodewalker/main/screenshots/herbs-ore.jpg)
+![Settings](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/settings.jpg)
 
 - Window size, opacity, zoom, map style and terrain colour.
 - When the overlay shows, what's on screen, and which herbs and ore to include.
