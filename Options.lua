@@ -123,6 +123,7 @@ check(2, "Icon tooltips when live dots are off", "hoverTooltips")
 heading(2, "Which herbs and ore")
 check(2, "Only my professions", "onlyMyProfessions", "Herbs if you have Herbalism, ore if you have Mining.")
 check(2, "Only spots confirmed up", "onlyConfirmed", "Seen on your minimap or in the world recently.")
+checkBeside(2, "Group nearby spots", "groupSpots", "Spots that would overlap share one icon with a count. Hover it to see what's there.")
 place(2, UI.Button(page, "Choose herbs and ore...", 200, function() NW.ShowTab("nodes") end, 24), 28, 2)
 
 -- Controls reference along the bottom

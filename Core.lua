@@ -32,6 +32,7 @@ local DEFAULTS = {
     hoverTooltips = true,     -- hover icons for details (clicks still pass through)
     confirmMinutes = 20,
     fadedAlpha = 0.35,
+    groupSpots = true,    -- spots that overlap on the map share one icon with a count
     hiddenNodes = {},         -- [node name] = true for herbs and ore you don't want to see        -- herb icons not confirmed up are drawn this faint      -- how long a sighting counts as "there"
     zoneBanner = true,        -- banner when you enter a zone
     autoRoute = true,         -- build a route by itself in a zone that has none

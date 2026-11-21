@@ -29,8 +29,9 @@ legend:SetSize(MAP_W, 16)
 do
   local x = 0
   for _, e in ipairs({
-    { C.herbEdge, "Herbs" }, { C.oreEdge, "Ore" }, { C.picked, "Left out by your filters" },
-    { C.route, "Route" }, { { 0.84, 0.35, 0.27 }, "Avoid zone" },
+    { C.herbEdge, "Herbs" }, { C.oreEdge, "Ore" }, { C.picked, "Left out" },
+    { { 1, 0.84, 0.47 }, "Next stop" }, { { 0.95, 0.8, 0.4 }, "Route: gold first" }, { { 0.35, 0.5, 0.95 }, "blue last" },
+    { { 0.84, 0.35, 0.27 }, "Avoid zone" },
   }) do
     local sw = legend:CreateTexture(nil, "ARTWORK")
     sw:SetSize(8, 8)
@@ -70,6 +71,27 @@ local getBox, resetBoxes = UI.Pool(function()
   b:SetBackdropBorderColor(0.84, 0.35, 0.27, 0.9)
   return b
 end)
+
+-- a light shade over the map art so the route stands out
+local shade = mapArt:CreateTexture(nil, "BORDER")
+shade:SetAllPoints()
+shade:SetColorTexture(0, 0, 0, 0.35)
+
+-- The loop's colour runs gold, teal, blue from your next stop, so its order reads at a glance
+local function routeColor(t)
+  if t < 0.5 then
+    local k = t * 2
+    return 0.95 + (0.3 - 0.95) * k, 0.8 + (0.78 - 0.8) * k, 0.4 + (0.8 - 0.4) * k
+  end
+  local k = (t - 0.5) * 2
+  return 0.3 + (0.35 - 0.3) * k, 0.78 + (0.5 - 0.78) * k, 0.8 + (0.95 - 0.8) * k
+end
+
+local nextRing = mapArt:CreateTexture(nil, "OVERLAY", nil, 6)
+nextRing:SetTexture("Interface\\Minimap\\UI-Minimap-Ping-Center")
+nextRing:SetVertexColor(1, 0.84, 0.47)
+nextRing:SetBlendMode("ADD")
+nextRing:SetSize(30, 30)
 
 local playerDot = mapArt:CreateTexture(nil, "OVERLAY", nil, 7)
 playerDot:SetTexture("Interface\\Minimap\\MinimapArrow")
@@ -171,16 +193,21 @@ refresh = function()
   UI.DrawZoneArt(id, mapArt, tiles, MAP_W, MAP_H)
   local st = s()
   local wantedCount = 0
+  local routed = NW.db.routes[id] and #NW.db.routes[id].stops > 1
   for _, n in ipairs(nodes) do
     if not NW.IsHidden(n.name) then
-      local d = getDot()
       local wanted = NW.NodeWanted(n, st)
       if wanted then wantedCount = wantedCount + 1 end
-      local col = wanted and (n.kind == "ore" and C.oreEdge or C.herbEdge) or C.picked
-      d:SetSize(7, 7)
-      d:SetColorTexture(col[1], col[2], col[3], wanted and 1 or 0.6)
-      d:ClearAllPoints()
-      d:SetPoint("CENTER", mapArt, "TOPLEFT", px(n.x, n.y))
+      -- with a route drawn, its stops stand for the nodes on it
+      if not (routed and wanted) then
+        local d = getDot()
+        local col = wanted and (n.kind == "ore" and C.oreEdge or C.herbEdge) or C.picked
+        local size = wanted and 6 or 4
+        d:SetSize(size, size)
+        d:SetColorTexture(col[1], col[2], col[3], wanted and 1 or 0.45)
+        d:ClearAllPoints()
+        d:SetPoint("CENTER", mapArt, "TOPLEFT", px(n.x, n.y))
+      end
     end
   end
   empty:SetText(#nodes == 0 and "No nodes known here yet.\nImport GatherMate2, or gather a few." or "")
@@ -189,22 +216,38 @@ refresh = function()
   local route = NW.db.routes[id]
   if route then
     local stops = route.stops
+    nextRing:Hide()
     if #stops > 1 then
-      for i = 1, #stops do
-        local a, b = stops[i], stops[(i % #stops) + 1]
+      local n = #stops
+      local _, first = NW.NextStop(id, ppx, ppy)
+      first = first or 1
+      -- busy routes get finer lines and smaller dots
+      local thick = n > 200 and 1.5 or (n > 80 and 2 or 3)
+      local base = n > 200 and 5 or (n > 80 and 7 or 9)
+      for k = 0, n - 1 do
+        local i = ((first - 1 + k) % n) + 1
+        local a, b = stops[i], stops[(i % n) + 1]
         local l = getLine()
-        l:SetColorTexture(C.route[1], C.route[2], C.route[3], 0.95)
+        l:SetThickness(thick)
+        local r, g, bl = routeColor(k / n)
+        l:SetColorTexture(r, g, bl, 0.95)
         l:SetStartPoint("TOPLEFT", mapArt, px(a.x, a.y))
         l:SetEndPoint("TOPLEFT", mapArt, px(b.x, b.y))
       end
-      for _, a in ipairs(stops) do
+      for i, a in ipairs(stops) do
         local d = getDot()
-        local fill = a.kind == "herb" and C.herbFill or C.oreFill
-        d:SetSize(12, 12)
+        local fill = a.kind == "herb" and C.herbEdge or C.oreEdge
+        -- a stop with several nodes is a little bigger
+        local size = base + math.min(4, (a.count or 1) - 1)
+        if i == first then size = size + 3; fill = C.next end
+        d:SetSize(size, size)
         d:SetColorTexture(fill[1], fill[2], fill[3], 1)
         d:ClearAllPoints()
         d:SetPoint("CENTER", mapArt, "TOPLEFT", px(a.x, a.y))
       end
+      nextRing:ClearAllPoints()
+      nextRing:SetPoint("CENTER", mapArt, "TOPLEFT", px(stops[first].x, stops[first].y))
+      nextRing:Show()
     end
     for _, r in ipairs(route.avoid or {}) do
       local b = getBox()
@@ -215,6 +258,7 @@ refresh = function()
       b:SetSize((x2 - x1) * MAP_W, (y2 - y1) * MAP_H)
     end
   end
+  if not route then nextRing:Hide() end
   btnClear:SetEnabled(route and route.avoid and #route.avoid > 0 or false)
   playerDot:ClearAllPoints()
   playerDot:SetPoint("CENTER", mapArt, "TOPLEFT", px(ppx, ppy))
@@ -244,6 +288,42 @@ refresh = function()
   end
 end
 NW.RefreshPlanner = function() if page:IsShown() then refresh() end end
+
+-- Hover a stop: which one it is and what's there
+local hoverStop
+mapFrame:SetScript("OnUpdate", function(self)
+  if drawMode or not self:IsMouseOver() then
+    if hoverStop then hoverStop = nil; GameTooltip:Hide() end
+    return
+  end
+  local id, ppx, ppy = NW.PlayerPos()
+  local route = id and NW.db.routes[id]
+  if not (route and #route.stops > 1) then return end
+  local cx, cy = GetCursorPosition()
+  local scale = mapArt:GetEffectiveScale()
+  local mx, my = cx / scale - mapArt:GetLeft(), mapArt:GetTop() - cy / scale
+  local best, bestD = nil, 9 * 9
+  for i, a in ipairs(route.stops) do
+    local dx, dy = a.x * MAP_W - mx, a.y * MAP_H - my
+    local d = dx * dx + dy * dy
+    if d < bestD then best, bestD = i, d end
+  end
+  if best == hoverStop then return end
+  hoverStop = best
+  if not best then GameTooltip:Hide() return end
+  local a = route.stops[best]
+  local n = #route.stops
+  local _, first = NW.NextStop(id, ppx, ppy)
+  local away = first and ((best - first) % n) or nil
+  GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+  GameTooltip:SetText(("Stop %d of %d"):format(best, n), 1, 0.9, 0.66)
+  local what = {}
+  if (a.herbs or 0) > 0 then what[#what + 1] = ("%d herb"):format(a.herbs) end
+  if (a.ores or 0) > 0 then what[#what + 1] = ("%d ore"):format(a.ores) end
+  if #what > 0 then GameTooltip:AddLine(table.concat(what, ", "), 0.85, 0.81, 0.73) end
+  if away then GameTooltip:AddLine(away == 0 and "Your next stop" or ("%d stops from now"):format(away), 0.6, 0.6, 0.6) end
+  GameTooltip:Show()
+end)
 
 -- Drawing avoid zones by dragging on the map
 local function cursorOnMap()

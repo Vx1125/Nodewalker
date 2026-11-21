@@ -377,6 +377,9 @@ local function getMarker()
     m.glow = m:CreateTexture(nil, "BACKGROUND")
     m.glow:SetPoint("TOPLEFT", -6, 6)
     m.glow:SetPoint("BOTTOMRIGHT", 6, -6)
+    m.count = m:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    m.count:SetPoint("BOTTOMRIGHT", 5, -4)
+    m.count:SetTextColor(1, 0.95, 0.75)
     for _, tex in ipairs({ m.edge, m.fill, m.icon, m.glow }) do
       local mask = m:CreateMaskTexture()
       mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
@@ -411,6 +414,7 @@ local function getMarker()
     end)
     markers[markerCount] = m
   end
+  m.count:Hide()
   m:Show()
   return m
 end
@@ -791,6 +795,7 @@ local function zoom(s)
   return zoomNow
 end
 
+local items, heads, stopItem = {}, {}, {} -- reused each rebuild
 local built = {}   -- where you were when the icons were last placed
 local lastBuild = 0
 local NEAR_YARDS = 100
@@ -862,6 +867,19 @@ local function drawInner(force)
 
   -- Saved nodes nearby (small), so you see what's around even off-route
   local route = NW.db.routes[mapID]
+  -- Everything to draw is collected first, so spots that would sit on top of
+  -- each other can share one icon with a count.
+  local nItems = 0
+  local function item(vx, vy, rank)
+    nItems = nItems + 1
+    local it = items[nItems]
+    if not it then it = {} items[nItems] = it end
+    it.vx, it.vy, it.rank = vx, vy, rank
+    it.cluster, it.stopCount, it.nodeCount, it.names = nil, 0, 0, nil
+    it.stop, it.node, it.picked = nil, nil, nil
+    return it
+  end
+
   local showKind = nodeShowKind
   showKind.herb, showKind.ore = NW.ShowKind("herb", s), NW.ShowKind("ore", s)
   local hasRoute = NW.db.routes[mapID] and #NW.db.routes[mapID].stops > 1
@@ -881,55 +899,111 @@ local function drawInner(force)
       end
       if not pickedAgo and (seenAgo or not s.onlyConfirmed) and vx * vx + vy * vy < nearPx * nearPx then near = true end
       if not pickedAgo and not hideKnown and (seenAgo or not s.onlyConfirmed) then
-        local m = getMarker()
-        styleMarker(m, n.kind, seenAgo and 24 or 20, seenAgo and "seen" or "far", NW.NodeIcon(n.name, n.kind))
-        if not seenAgo then m:SetAlpha(s.fadedAlpha or 0.35) end
-        m:SetAlpha(m:GetAlpha() * edgeFade(vx, vy))
-        m:SetPoint("CENTER", pan, "CENTER", vx, vy)
-        local info = m.nodeInfo or {}
-        m.nodeInfo = info
-        info.title, info.node, info.n, info.mapID, info.seenAgo, info.lines = n.name, n.name, n, mapID, seenAgo, nil
-        info.sub, info.stop = nil, nil
-        m.info = info
+        local it = item(vx, vy, seenAgo and 3 or 1)
+        it.node, it.seenAgo, it.name, it.kind = n, seenAgo, n.name, n.kind
       end
     end
   end
 
-  -- Route: lines first, then stops
+  -- Route stops
   local nextIndex
-  if route and #route.stops > 1 then
+  local stops = route and #route.stops > 1 and route.stops
+  local prog = NW.progress[mapID]
+  local respawn = s.respawnMinutes * 60
+  local now = GetTime()
+  if stops then
     NW.UpdateProgress(mapID, px, py)
     local _, idx = NW.NextStop(mapID, px, py)
     nextIndex = idx
-    local stops = route.stops
-    for i = 1, #stops do
-      local a, b = stops[i], stops[(i % #stops) + 1]
-      local ax, ay = toView(a.x, a.y)
-      local bx, by = toView(b.x, b.y)
-      if onScreen(ax, ay) or onScreen(bx, by) then
-        local l = getLine()
-        l:SetStartPoint("CENTER", pan, ax, ay)
-        l:SetEndPoint("CENTER", pan, bx, by)
-      end
-    end
-    local prog = NW.progress[mapID]
-    local respawn = s.respawnMinutes * 60
-    local now = GetTime()
+    prog = NW.progress[mapID]
     for i, st in ipairs(stops) do
       local vx, vy = toView(st.x, st.y)
       local label, base = stopName(mapID, st)
+      stopItem[i] = nil
       if onScreen(vx, vy) and not NW.IsHidden(base) then
         local state = "stop"
         local seen = prog and prog.visited[i]
         if seen and now - seen < respawn then state = "picked" end
         if i == nextIndex then state = "next" end
         if state ~= "picked" and vx * vx + vy * vy < nearPx * nearPx then near = true end
-        local m = getMarker()
-        styleMarker(m, st.kind, state == "next" and 34 or 28, state, NW.NodeIcon(base, st.kind ~= "mixed" and st.kind or "ore"))
-        -- faded until a herb there is confirmed up, then full opacity
         local up = state ~= "picked" and NW.StopSeenAgo(mapID, i)
-        if up then
-          if state ~= "next" then styleMarker(m, st.kind, 30, "seen", NW.NodeIcon(base, st.kind ~= "mixed" and st.kind or "ore")) end
+        local it = item(vx, vy, state == "next" and 5 or (up and 4 or (state == "picked" and 0 or 2)))
+        it.stop, it.st, it.state, it.up, it.label, it.name, it.kind = i, st, state, up, label, base, st.kind
+        it.picked, it.seen = state == "picked", seen
+        stopItem[i] = it
+      end
+    end
+  end
+
+  -- Group what overlaps: the most important icon stays, the rest join it
+  local R = s.groupSpots and (s.groupPx or 26) or 0
+  local nHeads = 0
+  if R > 0 then
+    for rank = 5, 0, -1 do
+      for k = 1, nItems do
+        local it = items[k]
+        if it.rank == rank then
+          local head
+          for h = 1, nHeads do
+            local c = heads[h]
+            local dx, dy = c.vx - it.vx, c.vy - it.vy
+            if dx * dx + dy * dy < R * R then head = c break end
+          end
+          if not head then
+            nHeads = nHeads + 1
+            heads[nHeads] = it
+            head = it
+          end
+          it.cluster = head
+          if not it.picked then
+            local c = it.stop and (it.st.count or 1) or 1
+            if it.stop then head.stopCount = head.stopCount + c else head.nodeCount = head.nodeCount + 1 end
+            head.names = head.names or {}
+            -- loose spots under a stop are the stop's own: don't list them twice
+            if it.stop or head.stopCount == 0 then head.names[it.name] = (head.names[it.name] or 0) + c end
+          end
+        end
+      end
+    end
+  else
+    for k = 1, nItems do items[k].cluster = items[k] end
+  end
+
+  -- Route lines; hops inside one group aren't drawn
+  if stops then
+    for i = 1, #stops do
+      local j = (i % #stops) + 1
+      local a, b = stops[i], stops[j]
+      local ia, ib = stopItem[i], stopItem[j]
+      if not (ia and ib and ia.cluster == ib.cluster) then
+        local ax, ay = toView(a.x, a.y)
+        local bx, by = toView(b.x, b.y)
+        if ia then ax, ay = ia.cluster.vx, ia.cluster.vy end
+        if ib then bx, by = ib.cluster.vx, ib.cluster.vy end
+        if onScreen(ax, ay) or onScreen(bx, by) then
+          local l = getLine()
+          l:SetStartPoint("CENTER", pan, ax, ay)
+          l:SetEndPoint("CENTER", pan, bx, by)
+        end
+      end
+    end
+  end
+
+  -- One icon per group
+  for k = 1, nItems do
+    local it = items[k]
+    if it.cluster == it then
+      local vx, vy = it.vx, it.vy
+      local m = getMarker()
+      -- a group holding stops counts its stops' spots; a group of loose spots counts those
+      local count = it.stopCount > 0 and it.stopCount or it.nodeCount
+      if it.stop then
+        local st, state = it.st, it.state
+        local icon = NW.NodeIcon(it.name, st.kind ~= "mixed" and st.kind or "ore")
+        styleMarker(m, st.kind, state == "next" and 34 or 28, state, icon)
+        -- faded until a herb there is confirmed up, then full opacity
+        if it.up then
+          if state ~= "next" then styleMarker(m, st.kind, 30, "seen", icon) end
           m:SetAlpha(1)
         elseif state == "picked" then
           m:SetAlpha(0.2)
@@ -937,12 +1011,41 @@ local function drawInner(force)
           m:SetAlpha(state == "next" and math.max(0.6, s.fadedAlpha or 0.35) or (s.fadedAlpha or 0.35))
         end
         if state ~= "next" then m:SetAlpha(m:GetAlpha() * edgeFade(vx, vy)) end
-        m:SetPoint("CENTER", pan, "CENTER", vx, vy)
-        local sub = ("Stop %d of %d"):format(i, #stops)
+        local sub = ("Stop %d of %d"):format(it.stop, #stops)
         if state == "picked" then
-          sub = sub .. (" · respawn ~%d min"):format(math.ceil((respawn - (now - seen)) / 60))
+          sub = sub .. (" · respawn ~%d min"):format(math.ceil((respawn - (now - it.seen)) / 60))
         end
-        m.info = { title = label, sub = sub, stop = i, mapID = mapID, node = base }
+        local info = m.stopInfo or {}
+        m.stopInfo = info
+        info.title, info.sub, info.stop, info.mapID, info.node = it.label, sub, it.stop, mapID, it.name
+        info.n, info.lines = nil, nil
+        m.info = info
+      else
+        local n, seenAgo = it.node, it.seenAgo
+        styleMarker(m, n.kind, seenAgo and 24 or 20, seenAgo and "seen" or "far", NW.NodeIcon(n.name, n.kind))
+        if not seenAgo then m:SetAlpha(s.fadedAlpha or 0.35) end
+        m:SetAlpha(m:GetAlpha() * edgeFade(vx, vy))
+        local info = m.nodeInfo or {}
+        m.nodeInfo = info
+        info.title, info.node, info.n, info.mapID, info.seenAgo, info.lines = n.name, n.name, n, mapID, seenAgo, nil
+        info.sub, info.stop = nil, nil
+        m.info = info
+      end
+      m:SetPoint("CENTER", pan, "CENTER", vx, vy)
+      -- several spots under one icon: show how many, and list them on hover
+      local members = 0
+      for kk = 1, nItems do if items[kk].cluster == it and not items[kk].picked then members = members + 1 end end
+      if members > 1 and count > 1 then
+        m.count:SetText(count)
+        m.count:Show()
+        local lines = {}
+        for name, c in pairs(it.names or {}) do lines[#lines + 1] = { ("%d  %s"):format(c, name), 0.85, 0.81, 0.73 } end
+        table.sort(lines, function(x, y) return x[1] > y[1] end)
+        local info = m.info
+        info.n = nil
+        info.title = ("%d spots"):format(count)
+        info.lines = lines
+        if #lines > 1 then info.node = nil end -- a mixed group: nothing single to hide
       end
     end
   end
