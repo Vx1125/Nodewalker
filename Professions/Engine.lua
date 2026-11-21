@@ -94,6 +94,32 @@ function NW.RecipeBelongs(name, key)
   return o[key] or false
 end
 
+-- The same question asked of the game, by recipe ID: is this recipe filed
+-- under this profession's skill line? nil when the game can't say.
+local SKILL_LINE = { alchemy = 171, blacksmithing = 164, enchanting = 333, engineering = 202, leatherworking = 165,
+  tailoring = 197, cooking = 185, firstaid = 129, mining = 186, herbalism = 182, skinning = 393, fishing = 356 }
+local lineMemo = {}
+function NW.RecipeLineIs(id, key, baseID, baseName)
+  local T = C_TradeSkillUI
+  if not (id and T and T.GetTradeSkillLineForRecipe) then return nil end
+  local m = lineMemo[id]
+  if not m then
+    local ok, line, lineName, parent = pcall(T.GetTradeSkillLineForRecipe, id)
+    if not ok or not line then return nil end
+    m = { line, parent, lineName }
+    lineMemo[id] = m
+  end
+  local want = SKILL_LINE[key]
+  if want and (m[1] == want or m[2] == want) then return true end
+  if baseID and (m[1] == baseID or m[2] == baseID) then return true end
+  if baseName and m[3] == baseName then return true end
+  -- only a clear "another profession's" counts as no
+  for _, other in pairs(SKILL_LINE) do
+    if m[1] == other or m[2] == other then return false end
+  end
+  return nil
+end
+
 -- Recipes never used for leveling: cooldowns (transmutes), camp objects, raid-only
 NW.NO_LEVEL = {}
 for _, n in ipairs({ "Gold Bar", "Truesilver Bar", "Essence of Fire", "Arcanite Bar", "Living Essence", "Essence of Water",
@@ -264,10 +290,8 @@ local function modernScan()
   local function mine(id, name)
     local belongs = NW.RecipeBelongs(name, key)
     if belongs ~= nil then return belongs end
-    if baseID and T.GetTradeSkillLineForRecipe then
-      local ok, line, lineName, parent = pcall(T.GetTradeSkillLineForRecipe, id)
-      if ok and line then return line == baseID or parent == baseID or lineName == baseName end
-    end
+    local byLine = NW.RecipeLineIs(id, key, baseID, baseName)
+    if byLine ~= nil then return byLine end
     return true
   end
   for _, id in ipairs(ids) do
