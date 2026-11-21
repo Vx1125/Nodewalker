@@ -10,7 +10,6 @@
 - Professions: Shift-click a recipe or shopping item to link it in chat.
 - Fixed: errors every frame with Hide in combat off.
 - Fixed: quest objective tooltips popping up over the overlay.
-- Fixed: minimap button flashing mid-screen at login.
 
 ## 1.1.1
 
