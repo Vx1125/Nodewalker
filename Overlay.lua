@@ -454,13 +454,19 @@ local function getLine()
   lineCount = lineCount + 1
   local l = lines[lineCount]
   if not l then
-    l = lineLayer:CreateLine(nil, "ARTWORK")
+    l = lineLayer:CreateLine(nil, "ARTWORK", nil, 1)
     l:SetThickness(3)
     if l.AddMaskTexture then pcall(l.AddMaskTexture, l, lineMask) end
+    -- a dark edge under the line keeps it readable over bright ground
+    l.under = lineLayer:CreateLine(nil, "ARTWORK", nil, 0)
+    l.under:SetThickness(5.5)
+    l.under:SetColorTexture(0, 0, 0, 0.5)
+    if l.under.AddMaskTexture then pcall(l.under.AddMaskTexture, l.under, lineMask) end
     lines[lineCount] = l
   end
   l:SetColorTexture(C.route[1], C.route[2], C.route[3], 0.95)
   l:Show()
+  l.under:Show()
   return l
 end
 
@@ -475,7 +481,7 @@ local function finishPools()
     local m = markers[i]
     if m:IsShown() then m:Hide(); m.info = nil end
   end
-  for i = lineCount + 1, #lines do lines[i]:Hide() end
+  for i = lineCount + 1, #lines do lines[i]:Hide(); lines[i].under:Hide() end
 end
 
 local tipRefresh = 0
@@ -754,7 +760,7 @@ end)
 -- Range ring: the edge of the minimap's tracking range around you, i.e.
 -- where live herb dots can appear.
 ------------------------------------------------------------------------
-local RING_SEGMENTS = 96
+local RING_SEGMENTS = 120
 local ringLayer = CreateFrame("Frame", nil, view)
 ringLayer:SetAllPoints(view)
 ringLayer:SetFrameLevel(lineLayer:GetFrameLevel() + 1)
@@ -772,15 +778,15 @@ local function drawRing(radiusPx)
     local l = ringLines[i]
     if not l then
       l = ringLayer:CreateLine(nil, "ARTWORK")
-      l:SetThickness(2)
-      l:SetColorTexture(0.75, 1, 0.6, 0.55)
+      l:SetThickness(1.5)
+      l:SetColorTexture(0.75, 1, 0.6, 0.3)
       ringLines[i] = l
     end
     local a1 = (i - 1) / RING_SEGMENTS * 2 * math.pi
     local a2 = i / RING_SEGMENTS * 2 * math.pi
     l:SetStartPoint("CENTER", view, math.cos(a1) * radiusPx, math.sin(a1) * radiusPx)
     l:SetEndPoint("CENTER", view, math.cos(a2) * radiusPx, math.sin(a2) * radiusPx)
-    l:Show()
+    l:SetShown(i % 2 == 0) -- dashed: a quiet edge for where live dots reach
   end
 end
 
@@ -984,6 +990,8 @@ local function drawInner(force)
           local l = getLine()
           l:SetStartPoint("CENTER", pan, ax, ay)
           l:SetEndPoint("CENTER", pan, bx, by)
+          l.under:SetStartPoint("CENTER", pan, ax, ay)
+          l.under:SetEndPoint("CENTER", pan, bx, by)
         end
       end
     end
