@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.1
+
+- Minimap button: click for the overlay, right-click for the window.
+- Session panel: value gathered and gold per hour.
+- Overlay presets: Farming, Questing, Minimal.
+- Zoom out when mounted; fading eases and lifts near a node.
+- Lighter overlay: icons and route glide with the map.
+- Train Artisan (Cooking) lists the quest items; the shopping list includes them.
+- Plans count the cost of buying a recipe before choosing it.
+- Fixed: Count sale value made the plan pick dozens of recipes.
+- Fixed: other professions' recipes showing in the Recipes view.
+- Fixed: wrong skill on a few recipes (Goblin Mortar and others).
+- Gather and tracking spells recognised in any game language.
+
 ## 1.1.0
 
 - Recipes: every recipe in the game, with vendors, drops and quests. Search by recipe, material, mob or zone.
