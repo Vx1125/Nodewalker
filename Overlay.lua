@@ -1053,26 +1053,6 @@ local function drawInner(force)
         end
       end
     end
-    -- The leg you're on: from you to your next stop, in gold. Its near end
-    -- stays on you as the map glides.
-    local nextSt = nextIndex and stops[nextIndex]
-    if nextSt then
-      local bx, by = toView(nextSt.x, nextSt.y)
-      local it = stopItem[nextIndex]
-      if it then bx, by = it.cluster.vx, it.cluster.vy end
-      local len = math.sqrt(bx * bx + by * by)
-      if len > 40 then
-        local ux, uy = bx / len, by / len
-        local l = getLine()
-        l:SetThickness(4)
-        l:SetColorTexture(1, 0.84, 0.47, 0.95)
-        l.under:SetColorTexture(0, 0, 0, 0.5)
-        l:SetStartPoint("CENTER", view, ux * 16, uy * 16)
-        l:SetEndPoint("CENTER", pan, bx - ux * 14, by - uy * 14)
-        l.under:SetStartPoint("CENTER", view, ux * 16, uy * 16)
-        l.under:SetEndPoint("CENTER", pan, bx - ux * 14, by - uy * 14)
-      end
-    end
   end
 
   -- One icon per group
