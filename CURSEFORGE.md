@@ -92,3 +92,7 @@ Key bindings under Options > Keybindings > AddOns > Nodewalker.
 ## Credits
 
 Minimap tile data from [OpenMap](https://github.com/openmap-world/openmap) (MIT). Recipe data from SeeMeta's WoW Forever recipe database, the full recipe list, sources and trainer fees are derived from One For All by Smoergi (GPL-3.0-or-later).
+
+## License
+
+GPL-3.0-or-later.

@@ -23,3 +23,8 @@ Settings > Actions > General > Workflow permissions set to "Read and write".
 
 Minimap tile tables in `OpenMapData/` come from [OpenMap](https://github.com/openmap-world/openmap) (MIT, see `LICENSES/`).
 Recipe data: SeeMeta's WoW Forever recipe database.
+The full recipe list, sources and trainer fees are derived from [One For All](https://www.curseforge.com/wow/addons/oneforall) by Smoergi (GPL-3.0-or-later, see `LICENSES/`).
+
+## License
+
+GPL-3.0-or-later. See `LICENSE`.
