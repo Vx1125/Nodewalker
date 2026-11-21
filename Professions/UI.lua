@@ -1014,7 +1014,7 @@ end
 
 -- Find the profession window: known names first, then any big shown frame
 -- whose name mentions professions or trade skills.
-local KNOWN_FRAMES = { "ProfessionsBookFrame", "ProfessionsFrame", "TradeSkillFrame", "CraftFrame", "SpellBookFrame", "PlayerSpellsFrame" }
+local KNOWN_FRAMES = { "ProfessionsBookFrame", "ProfessionsFrame", "TradeSkillFrame", "CraftFrame" }
 local function findTradeFrame()
   for _, name in ipairs(KNOWN_FRAMES) do
     local f = _G[name]
@@ -1253,7 +1253,7 @@ NW.On("CRAFT_SHOW", attachSoon)
 NW.On("TRADE_SKILL_DATA_SOURCE_CHANGED", attachSoon)
 NW.On("TRADE_SKILL_CLOSE", function() poller:Hide() end)
 -- K opens the professions book: catch that directly too
-for _, fn in ipairs({ "ToggleProfessionsBook", "ToggleSpellBook", "ToggleProfessionsFrame" }) do
+for _, fn in ipairs({ "ToggleProfessionsBook", "ToggleProfessionsFrame" }) do
   if type(_G[fn]) == "function" then hooksecurefunc(fn, function() attachSoon() end) end
 end
 
