@@ -206,6 +206,12 @@ for i = 1, STEP_ROWS do
       or "Recipe from a vendor or drop"
     GameTooltip:AddDoubleLine("Source", src, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     if stp.needsRecipe then GameTooltip:AddLine("You need this recipe first.", 1, 0.5, 0.25, true) end
+    if stp.rankUp then
+      local who, where = NW.RankWhere(selected, stp.rankUp.name)
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine(("Train %s first (level %d)"):format(stp.rankUp.name, stp.rankUp.level), 0.91, 0.77, 0.42)
+      GameTooltip:AddLine(who and (who .. ", " .. where) or "Any trainer", 1, 1, 1, true)
+    end
     if (r.yield or 1) > 1 then GameTooltip:AddDoubleLine("Makes", r.yield .. " per craft", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     GameTooltip:Show()
   end)
@@ -441,9 +447,11 @@ local function rankNote(key, from)
   for _, r in ipairs(NW.RANKS) do
     if max and max < r.cap and r.skill then
       if rank >= r.skill then
-        return ("  ·  |cffe8c46aTrain %s now|r (cap %d)"):format(r.name, max)
+        local who, where = NW.RankWhere(key, r.name)
+        return ("  ·  |cffe8c46aTrain %s now|r%s"):format(r.name, who and (": " .. who .. ", " .. where) or (" (cap %d)"):format(max))
       end
-      return ("  ·  train %s at skill %d, level %d"):format(r.name, r.skill, r.level)
+      local _, where = NW.RankWhere(key, r.name)
+      return ("  ·  train %s at skill %d, level %d%s"):format(r.name, r.skill, r.level, where and (": " .. where) or "")
     end
   end
   return ""
@@ -469,7 +477,8 @@ drawSteps = function()
         row.cost:SetText(NW.Money(stp.cost, true) .. (stp.unknown > 0 and " |cffeb5c4c?|r" or ""))
         local tag = stp.needsRecipe and "|cffff8040needs recipe|r  ·  " or ""
         if stp.rankUp then
-          tag = ("|cffe8c46aTrain %s first|r (level %d)  ·  "):format(stp.rankUp.name, stp.rankUp.level) .. tag
+          local _, where = NW.RankWhere(selected, stp.rankUp.name)
+          tag = ("|cffe8c46aTrain %s first|r%s (level %d)  ·  "):format(stp.rankUp.name, where and (": " .. where) or "", stp.rankUp.level) .. tag
         end
         row.mats:SetText(tag .. matsText(r))
       else

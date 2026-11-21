@@ -54,6 +54,50 @@ NW.RANKS = {
   { cap = 300, name = "Artisan",    skill = 200, level = 35 },
 }
 
+-- Where the higher ranks are taught, from the original game: { who or what, where }.
+-- Journeyman is taught by any trainer.
+NW.RANK_WHERE = {
+  alchemy = {
+    Expert = { Horde = { "Doctor Herbert Halsey", "Undercity" }, Alliance = { "Ainethil", "Darnassus" } },
+    Artisan = { Horde = { "Rogvar", "Stonard, Swamp of Sorrows" }, Alliance = { "Kylanna Windwhisper", "Feathermoon, Feralas" } },
+  },
+  blacksmithing = {
+    Expert = { Horde = { "Saru Steelfury", "Orgrimmar" }, Alliance = { "Bengus Deepforge", "Ironforge" } },
+    Artisan = { Horde = { "Brikk Keencraft", "Booty Bay, Stranglethorn Vale" }, Alliance = { "Brikk Keencraft", "Booty Bay, Stranglethorn Vale" } },
+  },
+  enchanting = {
+    Expert = { Horde = { "Hgarth", "Sun Rock Retreat, Stonetalon Mountains" }, Alliance = { "Kitta Firewind", "Tower of Azora, Elwynn Forest" } },
+    Artisan = { Horde = { "Annora", "inside Uldaman, Badlands" }, Alliance = { "Annora", "inside Uldaman, Badlands" } },
+  },
+  engineering = {
+    Expert = { Horde = { "Roxxik", "Orgrimmar" }, Alliance = { "Springspindle Fizzlegear", "Ironforge" } },
+    Artisan = { Horde = { "Buzzek Bracketswing", "Gadgetzan, Tanaris" }, Alliance = { "Buzzek Bracketswing", "Gadgetzan, Tanaris" } },
+  },
+  leatherworking = {
+    Expert = { Horde = { "Una", "Thunder Bluff" }, Alliance = { "Telonis", "Darnassus" } },
+    Artisan = { Horde = { "Hahrana Ironhide", "Camp Mojache, Feralas" }, Alliance = { "Drakk Stonehand", "Aerie Peak, The Hinterlands" } },
+  },
+  tailoring = {
+    Expert = { Horde = { "Josef Gregorian", "Undercity" }, Alliance = { "Georgio Bolero", "Stormwind" } },
+    Artisan = { Horde = { "Daryl Stack", "Tarren Mill, Hillsbrad Foothills" }, Alliance = { "Timothy Worthington", "Theramore, Dustwallow Marsh" } },
+  },
+  cooking = {
+    Expert = { Horde = { "Expert Cookbook, sold by Wulan", "Shadowprey Village, Desolace" }, Alliance = { "Expert Cookbook, sold by Shandrina", "Mystral Lake, Ashenvale" } },
+    Artisan = { Horde = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris" }, Alliance = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris" } },
+  },
+  firstaid = {
+    Expert = { Horde = { "Expert First Aid book, sold by Balai Lok'Wein", "Brackenwall Village, Dustwallow Marsh" }, Alliance = { "Expert First Aid book, sold by Deneb Walker", "Stromgarde, Arathi Highlands" } },
+    Artisan = { Horde = { "Quest from Doctor Gregory Victor", "Hammerfall, Arathi Highlands" }, Alliance = { "Quest from Doctor Gustaf VanHowzen", "Theramore, Dustwallow Marsh" } },
+  },
+}
+-- Returns who and where for your faction
+function NW.RankWhere(key, rankName)
+  local w = NW.RANK_WHERE[key] and NW.RANK_WHERE[key][rankName]
+  if not w then return end
+  local e = w[UnitFactionGroup and UnitFactionGroup("player") or "Horde"] or w.Horde
+  return e[1], e[2]
+end
+
 ------------------------------------------------------------------------
 -- Your skill in each profession
 ------------------------------------------------------------------------
