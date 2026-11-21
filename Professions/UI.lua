@@ -933,8 +933,37 @@ ttHL:SetAllPoints()
 ttHL:SetTexture(ICON)
 ttHL:SetBlendMode("ADD")
 ttHL:SetAlpha(0.35)
-tradeTab:SetScript("OnMouseDown", function() ttIcon:SetVertexColor(0.7, 0.7, 0.7) end)
-tradeTab:SetScript("OnMouseUp", function() ttIcon:SetVertexColor(1, 1, 1) end)
+-- The game's own side tab (the template its profession and Group Finder tabs
+-- are made from) drawn inside our button, so size and frame art are the game's.
+local skin
+local function buildSkin()
+  if skin ~= nil then return skin end
+  skin = false
+  local ok, f = pcall(CreateFrame, "Frame", nil, tradeTab, "LargeSideTabButtonTemplate")
+  if not ok or not f then return false end
+  if not f.Icon then f:Hide() return false end
+  f:EnableMouse(false)
+  f:SetPoint("CENTER")
+  f.Icon:SetTexture(ICON)
+  if f.SetFillToInterior then pcall(f.SetFillToInterior, f, true) end
+  if f.SetChecked then pcall(f.SetChecked, f, false) end
+  f.glow = f:CreateTexture(nil, "OVERLAY")
+  f.glow:SetAllPoints(f.Icon)
+  f.glow:SetTexture(ICON)
+  f.glow:SetBlendMode("ADD")
+  f.glow:SetAlpha(0.35)
+  f.glow:Hide()
+  ttIcon:Hide()
+  ttHL:SetAlpha(0)
+  skin = f
+  return f
+end
+local function tint(v)
+  ttIcon:SetVertexColor(v, v, v)
+  if skin then skin.Icon:SetVertexColor(v, v, v) end
+end
+tradeTab:SetScript("OnMouseDown", function() tint(0.7) end)
+tradeTab:SetScript("OnMouseUp", function() tint(1) end)
 
 -- next step from the plan, along the bottom of the profession window
 local nextBox = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
@@ -988,7 +1017,8 @@ tradeTab:SetScript("OnEnter", function(self)
   GameTooltip:AddLine("Shift-drag: move. Shift-right-click: reset.", 0.6, 0.6, 0.6, true)
   GameTooltip:Show()
 end)
-tradeTab:SetScript("OnLeave", function() GameTooltip:Hide() end)
+tradeTab:SetScript("OnLeave", function() GameTooltip:Hide() if skin then skin.glow:Hide() end end)
+tradeTab:HookScript("OnEnter", function() if skin then skin.glow:Show() end end)
 
 local function updateNext()
   local key = NW.currentTradeKey
@@ -1038,6 +1068,7 @@ end
 local function tabScore(b)
   local n = 0
   if b:GetObjectType() == "CheckButton" then n = n + 2 end
+  if b.Icon and b.SetChecked then n = n + 3 end -- the game's side tab template
   if b.GetNormalTexture and b:GetNormalTexture() then n = n + 1 end
   return n
 end
@@ -1048,7 +1079,12 @@ local function findSideButtons(f)
   local function consider(b)
     if b == tradeTab or b:IsForbidden() or not b:IsVisible() then return end
     local ot = b:GetObjectType()
-    if ot ~= "Button" and ot ~= "CheckButton" then return end
+    if ot == "Frame" then
+      -- the game's side tabs are plain frames that take the mouse
+      if not b:IsMouseEnabled() or b:GetParent() == tradeTab then return end
+    elseif ot ~= "Button" and ot ~= "CheckButton" then
+      return
+    end
     local l, t, w, h = b:GetLeft(), b:GetTop(), b:GetWidth(), b:GetHeight()
     if not (l and t) then return end
     if l >= right - 12 and l <= right + 40 and t <= top + 5 and t >= bottom and w >= 24 and w <= 110 and math.abs(w - h) <= 14 then
@@ -1083,7 +1119,7 @@ local function findSideButtons(f)
     end
   end
   local last = rows[#rows]
-  local gap = 17
+  local gap = 2
   if #rows >= 2 then gap = math.max(0, rows[#rows - 1]:GetBottom() - last:GetTop()) end
   return last, gap
 end
@@ -1155,7 +1191,18 @@ local function place(f)
     -- placement changed: drop spots saved by the old button
     s.tradeTabV2, s.tradeTabPos, s.tradeTabCenter = true, nil, nil
   end
-  if last then
+  if buildSkin() then
+    for _, t in ipairs(artPool) do t:Hide() end
+    local w, h = skin:GetSize()
+    if last and w and w > 0 then
+      local k = last:GetEffectiveScale() / tradeTab:GetEffectiveScale()
+      tradeTab:SetSize(last:GetWidth() * k, last:GetHeight() * k)
+      skin:SetScale(tradeTab:GetWidth() / w)
+    else
+      skin:SetScale(1)
+      tradeTab:SetSize(w, h)
+    end
+  elseif last then
     local k = last:GetEffectiveScale() / tradeTab:GetEffectiveScale()
     tradeTab:SetSize(last:GetWidth() * k, last:GetHeight() * k)
     cloneArt(last, k)
