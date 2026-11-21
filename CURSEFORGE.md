@@ -44,10 +44,11 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 - **Priced with Auctionator.** For each skill point it picks the cheapest recipe at today's prices, counting the chance of a skill-up as recipes turn yellow and green.
 - Vendor prices are learned at merchants. Bolts, bars and parts you can make yourself are priced that way when it's cheaper.
 - Uses WoW Forever's own recipes and skill-up colours, including the new ones.
-- Marks when to train the next rank and which steps need a bought or found recipe.
-- **Shopping list** of everything left to buy, minus what's in your bags and bank. One button searches it all in Auctionator.
-- **Recipes I'm missing**: every recipe you don't know yet, and where it comes from (trainer, Merchant's Favor vendors, drops).
-- Search box for recipes, materials and zones.
+- **Train rows** show where to learn Expert and Artisan; click one to pin the trainer on your map.
+- **Level to** slider: stop the plan at any skill.
+- Counts trainer fees and adds a few spare crafts per step.
+- **Shopping list** of everything left to buy, recipes included, minus what's in your bags and bank. Click an item, or one button for the whole list, to search Auctionator for what you still need.
+- **Recipes**: every recipe in the game and where it comes from (trainer, vendors, drops, quests, Merchant's Favor). Shows what you're missing; search by recipe, material, mob or zone to find anything.
 
 ### Gathering and Fishing
 
