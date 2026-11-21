@@ -1023,9 +1023,12 @@ local function drawInner(force)
         if onScreen(ax, ay) or onScreen(bx, by) then
           local dx, dy = bx - ax, by - ay
           local len = math.sqrt(dx * dx + dy * dy)
-          if len > GAP * 2 + 4 then
+          -- stop short of an icon, but only where one is actually drawn
+          local ga = ia and (ia.cluster.picked and 7 or GAP) or 0
+          local gb = ib and (ib.cluster.picked and 7 or GAP) or 0
+          if len > ga + gb + 4 then
             local ux, uy = dx / len, dy / len
-            ax, ay, bx, by = ax + ux * GAP, ay + uy * GAP, bx - ux * GAP, by - uy * GAP
+            ax, ay, bx, by = ax + ux * ga, ay + uy * ga, bx - ux * gb, by - uy * gb
             -- bright near you, fainter toward the edge of the map
             local mx0, my0 = (ax + bx) / 2, (ay + by) / 2
             local far = math.sqrt(mx0 * mx0 + my0 * my0) / fadeRadius
