@@ -231,7 +231,10 @@ for i = 1, STEP_ROWS do
     local src = r.src == "trainer" and "Trainer" or r.src == "rank" and "Learned with the profession"
       or "Recipe from a vendor or drop"
     GameTooltip:AddDoubleLine("Source", src, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-    if stp.needsRecipe then GameTooltip:AddLine("You need this recipe first.", 1, 0.5, 0.25, true) end
+    if stp.needsRecipe then
+      GameTooltip:AddLine("You need this recipe first.", 1, 0.5, 0.25, true)
+      if not st().planRecipeItems then GameTooltip:AddLine("No trainer recipe gives skill-ups here.", S.dim[1], S.dim[2], S.dim[3], true) end
+    end
     if stp.rankUp then
       local who, where = NW.RankWhere(selected, stp.rankUp.name)
       GameTooltip:AddLine(" ")
@@ -388,6 +391,7 @@ for i = 1, SHOP_ROWS do
     if e.recipe then
       GameTooltip:SetText(e.term, 1, 0.5, 0.25)
       GameTooltip:AddLine((sourceText(e.key, e.recipe)), 1, 1, 1, true)
+      if not st().planRecipeItems then GameTooltip:AddLine("Needed: no trainer recipe gives skill-ups at that point.", S.dim[1], S.dim[2], S.dim[3], true) end
       if e.price then GameTooltip:AddDoubleLine(e.src == "vendor" and "Vendor" or "Auction house", NW.Money(e.price), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
       GameTooltip:Show()
       return
