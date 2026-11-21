@@ -491,10 +491,12 @@ drawSteps = function()
         row.range:SetText(tostring(stp.from))
         row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
         row.icon:Show()
-        row.name:SetText(("|cffe8c46aTrain %s|r"):format(ru.name))
+        local who, where, mapID = NW.RankWhere(selected, ru.name)
+        row.name:SetText(("|cffe8c46aTrain %s|r%s"):format(ru.name, who and ("  |cffffffff" .. who .. "|r") or ""))
         row.crafts:SetText("")
         row.cost:SetText(stp.rankFee and stp.rankFee > 0 and NW.Money(stp.rankFee, true) or "")
-        row.mats:SetText(("|cffffffff%s|r  ·  from skill %d, level %d"):format(rankWhereText(selected, ru.name), ru.skill, ru.level))
+        row.mats:SetText(("|cffffffff%s|r  ·  skill %d, level %d%s"):format(where or "Any trainer in a capital city", ru.skill, ru.level,
+          mapID and "  ·  |cff8cdb7aclick to pin|r" or ""))
       elseif stp.recipe then
         local r = stp.recipe
         row.icon:SetTexture(recipeIcon(r))
@@ -1010,6 +1012,13 @@ for _, row in ipairs(stepRows) do
       GameTooltip:AddLine((sourceText(selected, r, NW.ProfSkill(selected))), 1, 1, 1, true)
     end
     GameTooltip:Show()
+  end)
+  row:HookScript("OnClick", function(self)
+    -- a Train row: pin the trainer on the map
+    local stp = self.step
+    if not (stp and stp.banner) then return end
+    local who, _, mapID, x, y = NW.RankWhere(selected, stp.rankUp.name)
+    if mapID then NW.PinMap(mapID, x, y, who) end
   end)
   row:HookScript("OnClick", function(self)
     local r = self.missingRecipe

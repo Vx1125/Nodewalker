@@ -92,36 +92,36 @@ NW.RANKS = {
 -- Journeyman is taught by any trainer.
 NW.RANK_WHERE = {
   alchemy = {
-    Expert = { Horde = { "Doctor Herbert Halsey", "Undercity" }, Alliance = { "Ainethil", "Darnassus" } },
-    Artisan = { Horde = { "Rogvar", "Stonard, Swamp of Sorrows" }, Alliance = { "Kylanna Windwhisper", "Feathermoon, Feralas" } },
+    Expert = { Horde = { "Doctor Herbert Halsey", "Undercity", 1458, 47.8, 73.3 }, Alliance = { "Ainethil", "Darnassus", 1457, 54.9, 24.0 } },
+    Artisan = { Horde = { "Rogvar", "Stonard, Swamp of Sorrows", 1435, 48.5, 55.9 }, Alliance = { "Kylanna Windwhisper", "Feathermoon, Feralas", 1444, 32.6, 43.8 } },
   },
   blacksmithing = {
-    Expert = { Horde = { "Saru Steelfury", "Orgrimmar" }, Alliance = { "Bengus Deepforge", "Ironforge" } },
-    Artisan = { Horde = { "Brikk Keencraft", "Booty Bay, Stranglethorn Vale" }, Alliance = { "Brikk Keencraft", "Booty Bay, Stranglethorn Vale" } },
+    Expert = { Horde = { "Saru Steelfury", "Orgrimmar", 1454, 82.4, 23.0 }, Alliance = { "Bengus Deepforge", "Ironforge", 1455, 52.6, 41.5 } },
+    Artisan = { Horde = { "Brikk Keencraft", "Booty Bay, Stranglethorn Vale", 1434, 29.0, 75.6 }, Alliance = { "Brikk Keencraft", "Booty Bay, Stranglethorn Vale", 1434, 29.0, 75.6 } },
   },
   enchanting = {
-    Expert = { Horde = { "Hgarth", "Sun Rock Retreat, Stonetalon Mountains" }, Alliance = { "Kitta Firewind", "Tower of Azora, Elwynn Forest" } },
-    Artisan = { Horde = { "Annora", "inside Uldaman, Badlands" }, Alliance = { "Annora", "inside Uldaman, Badlands" } },
+    Expert = { Horde = { "Hgarth", "Sun Rock Retreat, Stonetalon Mountains", 1442, 49.2, 57.2 }, Alliance = { "Kitta Firewind", "Tower of Azora, Elwynn Forest", 1429, 64.9, 70.7 } },
+    Artisan = { Horde = { "Annora", "inside Uldaman, Badlands", 1418, 44.6, 12.1 }, Alliance = { "Annora", "inside Uldaman, Badlands", 1418, 44.6, 12.1 } },
   },
   engineering = {
-    Expert = { Horde = { "Roxxik", "Orgrimmar" }, Alliance = { "Springspindle Fizzlegear", "Ironforge" } },
-    Artisan = { Horde = { "Buzzek Bracketswing", "Gadgetzan, Tanaris" }, Alliance = { "Buzzek Bracketswing", "Gadgetzan, Tanaris" } },
+    Expert = { Horde = { "Roxxik", "Orgrimmar", 1454, 76.2, 25.2 }, Alliance = { "Springspindle Fizzlegear", "Ironforge", 1455, 68.5, 43.5 } },
+    Artisan = { Horde = { "Buzzek Bracketswing", "Gadgetzan, Tanaris", 1446, 52.3, 27.7 }, Alliance = { "Buzzek Bracketswing", "Gadgetzan, Tanaris", 1446, 52.3, 27.7 } },
   },
   leatherworking = {
-    Expert = { Horde = { "Una", "Thunder Bluff" }, Alliance = { "Telonis", "Darnassus" } },
-    Artisan = { Horde = { "Hahrana Ironhide", "Camp Mojache, Feralas" }, Alliance = { "Drakk Stonehand", "Aerie Peak, The Hinterlands" } },
+    Expert = { Horde = { "Una", "Thunder Bluff", 1456, 41.5, 42.6 }, Alliance = { "Telonis", "Darnassus", 1457, 64.4, 21.5 } },
+    Artisan = { Horde = { "Hahrana Ironhide", "Camp Mojache, Feralas", 1444, 74.4, 43.0 }, Alliance = { "Drakk Stonehand", "Aerie Peak, The Hinterlands", 1425, 13.4, 43.5 } },
   },
   tailoring = {
-    Expert = { Horde = { "Josef Gregorian", "Undercity" }, Alliance = { "Georgio Bolero", "Stormwind" } },
-    Artisan = { Horde = { "Daryl Stack", "Tarren Mill, Hillsbrad Foothills" }, Alliance = { "Timothy Worthington", "Theramore, Dustwallow Marsh" } },
+    Expert = { Horde = { "Josef Gregorian", "Undercity", 1458, 70.8, 30.7 }, Alliance = { "Georgio Bolero", "Stormwind", 1453, 53.1, 81.4 } },
+    Artisan = { Horde = { "Daryl Stack", "Tarren Mill, Hillsbrad Foothills", 1424, 63.8, 20.8 }, Alliance = { "Timothy Worthington", "Theramore, Dustwallow Marsh", 1445, 66.2, 51.8 } },
   },
   cooking = {
-    Expert = { Horde = { "Expert Cookbook, sold by Wulan", "Shadowprey Village, Desolace" }, Alliance = { "Expert Cookbook, sold by Shandrina", "Mystral Lake, Ashenvale" } },
-    Artisan = { Horde = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris" }, Alliance = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris" } },
+    Expert = { Horde = { "Expert Cookbook, sold by Wulan", "Shadowprey Village, Desolace", 1443, 26.2, 69.7 }, Alliance = { "Expert Cookbook, sold by Shandrina", "Mystral Lake, Ashenvale", 1440, 49.6, 67.0 } },
+    Artisan = { Horde = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris", 1446, 52.6, 28.1 }, Alliance = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris", 1446, 52.6, 28.1 } },
   },
   firstaid = {
-    Expert = { Horde = { "Expert First Aid book, sold by Balai Lok'Wein", "Brackenwall Village, Dustwallow Marsh" }, Alliance = { "Expert First Aid book, sold by Deneb Walker", "Stromgarde, Arathi Highlands" } },
-    Artisan = { Horde = { "Quest from Doctor Gregory Victor", "Hammerfall, Arathi Highlands" }, Alliance = { "Quest from Doctor Gustaf VanHowzen", "Theramore, Dustwallow Marsh" } },
+    Expert = { Horde = { "Expert First Aid book, sold by Balai Lok'Wein", "Brackenwall Village, Dustwallow Marsh", 1445, 36.5, 30.4 }, Alliance = { "Expert First Aid book, sold by Deneb Walker", "Stromgarde, Arathi Highlands", 1417, 27.0, 58.8 } },
+    Artisan = { Horde = { "Quest from Doctor Gregory Victor", "Hammerfall, Arathi Highlands", 1417, 73.4, 36.9 }, Alliance = { "Quest from Doctor Gustaf VanHowzen", "Theramore, Dustwallow Marsh", 1445, 67.8, 49.0 } },
   },
 }
 -- Returns who and where for your faction
@@ -129,7 +129,21 @@ function NW.RankWhere(key, rankName)
   local w = NW.RANK_WHERE[key] and NW.RANK_WHERE[key][rankName]
   if not w then return end
   local e = w[UnitFactionGroup and UnitFactionGroup("player") or "Horde"] or w.Horde
-  return e[1], e[2]
+  return e[1], e[2], e[3], e[4], e[5]
+end
+
+-- Pin a spot on the world map and track it. x, y are 0-100.
+function NW.PinMap(mapID, x, y, label)
+  local ok = pcall(function()
+    C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x / 100, y / 100))
+    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+  end)
+  if ok and OpenWorldMap then pcall(OpenWorldMap, mapID) end
+  if not ok then
+    local info = C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+    NW.Print(("%s: %s %.1f, %.1f"):format(label or "Go to", info and info.name or "", x, y))
+  end
+  return ok
 end
 
 ------------------------------------------------------------------------
