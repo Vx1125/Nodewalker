@@ -956,6 +956,30 @@ local function buildSkin()
   ttIcon:Hide()
   ttHL:SetAlpha(0)
   skin = f
+  -- Let the game's tab take the mouse, so hovering and pressing it look
+  -- exactly like the profession tabs; clicks and drags are passed on.
+  if f.SetCustomOnMouseUpHandler then
+    f:EnableMouse(true)
+    f.ownMouse = true
+    f:SetCustomOnMouseUpHandler(function(_, button, inside)
+      if f.dragged then f.dragged = nil return end
+      if button == "LeftButton" and inside then tradeTab:GetScript("OnClick")(tradeTab, button) end
+    end)
+    f:HookScript("OnMouseUp", function(_, button)
+      if button == "RightButton" then tradeTab:GetScript("OnClick")(tradeTab, button) end
+    end)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function()
+      tradeTab:GetScript("OnDragStart")(tradeTab)
+      if tradeTab.moving then f.dragged = true end
+    end)
+    f:SetScript("OnDragStop", function()
+      tradeTab:GetScript("OnDragStop")(tradeTab)
+      C_Timer.After(0.2, function() f.dragged = nil end)
+    end)
+    f:HookScript("OnEnter", function() tradeTab:GetScript("OnEnter")(tradeTab) end)
+    f:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  end
   return f
 end
 local function tint(v)
@@ -1018,7 +1042,7 @@ tradeTab:SetScript("OnEnter", function(self)
   GameTooltip:Show()
 end)
 tradeTab:SetScript("OnLeave", function() GameTooltip:Hide() if skin then skin.glow:Hide() end end)
-tradeTab:HookScript("OnEnter", function() if skin then skin.glow:Show() end end)
+tradeTab:HookScript("OnEnter", function() if skin and not skin.ownMouse then skin.glow:Show() end end)
 
 local function updateNext()
   local key = NW.currentTradeKey
