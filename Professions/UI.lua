@@ -297,10 +297,24 @@ rHead:SetPoint("TOPLEFT")
 local rTotal = UI.Text(right, 12, S.text)
 rTotal:SetPoint("TOPLEFT", rHead, "BOTTOMLEFT", 0, -6)
 rTotal:SetWidth(RIGHT_W)
-local shopBox = UI.Box(right, RIGHT_W, 318)
-shopBox:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -8)
+-- How far to level: the plan and the list stop there
+local function targetFor(key)
+  local t = st().planTarget
+  return t and t[key] or 300
+end
+local targetSlider = UI.Slider(right, RIGHT_W, "Level to", 25, 300, 5, function(v) return ("%d"):format(v) end,
+  function() return targetFor(selected) end,
+  function(v)
+    local s = st()
+    s.planTarget = s.planTarget or {}
+    s.planTarget[selected] = v < 300 and v or nil
+    refresh()
+  end)
+targetSlider:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -10)
+local shopBox = UI.Box(right, RIGHT_W, 266)
+shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
 shopBox:EnableMouseWheel(true)
-local SHOP_H, SHOP_ROWS = 26, 12
+local SHOP_H, SHOP_ROWS = 26, 10
 local RECIPE_PREFIX, sourceText -- set further down
 local function searchAH(terms)
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
@@ -354,7 +368,7 @@ for i = 1, SHOP_ROWS do
   shopRows[i] = row
 end
 local drawShop
-local shopScroll = makeScroller(shopBox, 318, SHOP_ROWS, function() return #shop end,
+local shopScroll = makeScroller(shopBox, 266, SHOP_ROWS, function() return #shop end,
   function() return shopOffset end, function(v) shopOffset = v; drawShop() end)
 shopBox:SetScript("OnMouseWheel", function(_, d)
   shopOffset = math.max(0, math.min(math.max(0, #shop - SHOP_ROWS), shopOffset - d))
@@ -506,9 +520,10 @@ end
 local function drawCraft(p)
   local rank = NW.ProfSkill(p.key)
   local from = (st().planFromStart or not rank) and 1 or math.max(1, rank)
-  if from >= 300 then
+  local to = targetFor(p.key)
+  if from >= to then
     steps = {}
-    stepsEmpty:SetText("You've reached 300. Nothing left to level.")
+    stepsEmpty:SetText(("You've reached %d."):format(to))
     drawSteps()
     hCost:SetText("")
     hCostSub:SetText("")
@@ -517,7 +532,7 @@ local function drawCraft(p)
     drawShop()
     return
   end
-  local plan = NW.BuildPlan(p.key, from, 300)
+  local plan = NW.BuildPlan(p.key, from, to)
   steps = filter(plan.steps, stepMatches)
   if viewChanged then
     stepOffset = 0
@@ -531,14 +546,14 @@ local function drawCraft(p)
   drawSteps()
 
   hCost:SetText(NW.Money(plan.total))
-  local sub = ("to 300 from %d"):format(from)
+  local sub = ("to %d from %d"):format(to, from)
   if plan.unknown > 0 then sub = sub .. (" · %d steps without full prices"):format(plan.unknown) end
   -- what bought or found recipes would save
   if not st().planRecipeItems then
     st().planRecipeItems = true
-    local alt = NW.BuildPlan(p.key, from, 300)
+    local alt = NW.BuildPlan(p.key, from, to)
     st().planRecipeItems = false
-    NW.BuildPlan(p.key, from, 300) -- back to this profession's prices
+    NW.BuildPlan(p.key, from, to) -- back to this profession's prices
     if alt.total < plan.total * 0.85 then
       sub = sub .. ("\n|cff8cdb7a%s with recipes you buy or find|r"):format(NW.Money(alt.total, true))
     end
@@ -946,6 +961,8 @@ refresh = function()
   tips:SetShown(isCraft and not isMissing)
   tips:SetText(NW.PROF_TIPS[p.key] or "")
   rTotal:SetShown(isCraft and not isMissing)
+  targetSlider:SetShown(isCraft and not isMissing)
+  if targetSlider:IsShown() then targetSlider:Refresh() end
   info:SetShown(not isCraft or isMissing)
   rHead.text:SetText(isMissing and "Where to get them" or isCraft and "Shopping list" or (p.key == "fishing" and "Fishing + Cooking" or "Notes"))
   scrollDraw = isMissing and function() drawMissingRows(p.key) end
