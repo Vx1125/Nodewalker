@@ -994,7 +994,7 @@ C("Greater Mystic Wand",175,195,215,235,217287,nil,2700,"T","11291:1,11134:1,111
 
 C = NW.CatalogAdder("engineering")
 NW.RANK_FEE.engineering = { Apprentice=10, Journeyman=450, Expert=4500, Artisan=45000 }
-C("Goblin Mortar",205,0,0,0,10577,nil,nil,"T","10577:1,3860:1,10505:3",1)
+C("Goblin Mortar",205,225,235,245,10577,nil,1500,"S","10559:2,3860:4,10505:5,10558:1,7068:1",1)
 C("Reagent Bot",20,20,20,20,279950,nil,nil,"T","4359:1,4361:1",1)
 C("Rough Blasting Powder",1,20,30,40,4357,nil,nil,"B","2835:1",1)
 C("Crafted Light Shot",1,30,45,60,8067,nil,nil,"B","4357:1,2840:1",200)
@@ -1689,7 +1689,7 @@ C("Supple Scorpid Sabatons",280,300,310,320,252601,252935,nil,"","8170:20,15408:
 C("Tooled Leather Pants",280,300,310,320,252560,252889,nil,"","8170:18,14341:1,6261:1,15407:1",1)
 C("Volcanic Shoulders",280,300,310,320,15055,15775,nil,"DFirebrand Legionnaire","8170:10,7078:1,7076:1,14341:2",1)
 C("Wicked Leather Armor",280,300,310,320,15085,15773,nil,"DSpectral Researcher","8170:20,15407:2,14256:6,2325:4,14341:2",1)
-C("Winter Boots",285,0,0,0,34086,34262,nil,"","2840:1,2997:1,8170:4,14341:1",1)
+C("Winter Boots",285,285,285,285,34086,34262,nil,"","2840:1,2997:1,8170:4,14341:1",1)
 C("Bileblister Claws",285,290,292,295,275610,275586,nil,"","8170:12,12810:3,7082:3,14341:6",1)
 C("Broodwatcher's Clenchers",285,290,292,295,275619,275595,nil,"","15408:5,12810:3,7080:3,14341:6",1)
 C("Hivethrasher's Claws",285,290,292,295,275613,275589,nil,"","8170:12,12810:3,7076:3,14341:6",1)

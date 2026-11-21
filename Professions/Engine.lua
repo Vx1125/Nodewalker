@@ -66,7 +66,8 @@ function NW.CatalogAdder(key)
       return
     end
     local trainer = where and (where:find("^[TB]") ~= nil) or false
-    local e = { name = name, orange = learn < y and learn or nil, yellow = y, green = g, grey = gr, yield = yield or 1,
+    -- learn can sit above yellow (taught late): the list shows when you can learn it
+    local e = { name = name, orange = (learn > 0 and learn ~= y) and learn or nil, yellow = y, green = g, grey = gr, yield = yield or 1,
       reagents = {}, fee = fee, where = where, recipeItem = recipeItem, catalog = true, src = trainer and "trainer" or "recipe" }
     if type(id) == "string" then e.spell = tonumber(id:sub(2)) else e.item = id end
     for rid, n in reagents:gmatch("(%d+):(%d+)") do e.reagents[#e.reagents + 1] = { tonumber(rid), tonumber(n) } end

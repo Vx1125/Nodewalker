@@ -961,7 +961,7 @@ local function drawMissingRows(key)
       row:Show()
       row:SetSelected(false)
       local req = r.orange or r.yellow
-      row.range:SetText(req and tostring(req) or "?")
+      row.range:SetText(req and req > 0 and tostring(req) or "?")
       row.icon:SetTexture(r.icon or recipeIcon(r))
       row.icon:Show()
       local col = r.knownNow and "8cdb7a" or (not rank or not req or rank >= req) and "ffffff" or "eb5c4c"
