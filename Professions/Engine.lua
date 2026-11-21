@@ -40,6 +40,13 @@ function NW.RecipeAdder(key)
   end
 end
 
+-- The item that teaches a recipe (Pattern: ..., Plans: ...), by recipe name
+function NW.RecipeItems(key, map)
+  for _, r in ipairs(NW.RECIPES[key] or {}) do
+    if map[r.name] then r.recipeItem = map[r.name] end
+  end
+end
+
 -- Recipes never used for leveling: cooldowns (transmutes), camp objects, raid-only
 NW.NO_LEVEL = {}
 for _, n in ipairs({ "Gold Bar", "Truesilver Bar", "Essence of Fire", "Arcanite Bar", "Living Essence", "Essence of Water",

@@ -91,4 +91,4 @@ Key bindings under Options > Keybindings > AddOns > Nodewalker.
 
 ## Credits
 
-Minimap tile data from [OpenMap](https://github.com/openmap-world/openmap) (MIT). Recipe data from SeeMeta's WoW Forever recipe database.
+Minimap tile data from [OpenMap](https://github.com/openmap-world/openmap) (MIT). Recipe data from SeeMeta's WoW Forever recipe database, cross-checked against One For All's recipe data.

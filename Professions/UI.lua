@@ -362,7 +362,7 @@ for i = 1, SHOP_ROWS do
     if e.recipe then
       GameTooltip:SetText(e.term, 1, 0.5, 0.25)
       GameTooltip:AddLine((sourceText(e.key, e.recipe)), 1, 1, 1, true)
-      if e.price then GameTooltip:AddDoubleLine("Auction house", NW.Money(e.price), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+      if e.price then GameTooltip:AddDoubleLine(e.src == "vendor" and "Vendor" or "Auction house", NW.Money(e.price), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
       GameTooltip:Show()
       return
     end
@@ -595,13 +595,19 @@ local function drawCraft(p)
       local term = (RECIPE_PREFIX[p.key] or "") .. r.name
       local e = { recipe = r, key = p.key, term = term, need = 1, have = 0, buy = 1 }
       -- the game only knows the recipe item once you've seen it
-      local okID, id = pcall(function() return C_Item.GetItemInfoInstant(term) end)
-      if okID and id then
+      local id = r.recipeItem
+      if not id then
+        local okID, found = pcall(function() return C_Item.GetItemInfoInstant(term) end)
+        id = okID and found or nil
+      end
+      if id then
+        local realName, okName = itemName(id)
+        if okName then e.term = realName end
         e.id = id
         e.have = math.min(1, NW.ItemCount(id) or 0)
         e.buy = 1 - e.have
         local price, src = NW.Price(id)
-        if price and src == "ah" then e.price, e.cost = price, price * e.buy end
+        if price and (src == "ah" or src == "vendor") then e.price, e.cost, e.src = price, price * e.buy, src end
       end
       if e.cost then total = total + e.cost end
       recipes[#recipes + 1] = e
