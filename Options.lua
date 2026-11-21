@@ -6,6 +6,7 @@ local function s() return NW.db.settings end
 local function changed()
   if NW.RefreshOverlayArt then NW.RefreshOverlayArt() end
   NW.UpdateVisibility()
+  if NW.UpdateMinimapButton then NW.UpdateMinimapButton() end
 end
 
 ------------------------------------------------------------------------
@@ -114,6 +115,7 @@ check(2, "Only while Find Herbs or Find Minerals is on", "onlyTracking")
 heading(2, "On screen")
 check(2, "Zone banner when you arrive", "zoneBanner", "Shows the zone, its known spots and its route as you enter.")
 check(2, "Compass bar", "showCompass")
+checkBeside(2, "Minimap button", "minimapButton")
 check(2, "Session panel (loops, nodes and gold per hour)", "showSession")
 check(2, "\"Next stop\" label on the map", "showNextLabel")
 check(2, "Icon tooltips when live dots are off", "hoverTooltips")
@@ -236,3 +238,87 @@ end)
 function NW.OpenOptions()
   if NW.window:IsShown() then NW.ShowTab("overlay") else NW.db.settings.lastTab = "overlay"; NW.window:Show() end
 end
+
+------------------------------------------------------------------------
+-- Minimap button: click for the overlay, right-click for the window
+------------------------------------------------------------------------
+local mmBtn
+local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
+
+-- The button sits on the screen where the minimap's edge normally is. It isn't
+-- attached to the minimap, which the overlay borrows for live dots.
+local function minimapHome()
+  if not (NW.IsLive and NW.IsLive()) then
+    local x, y = Minimap:GetCenter()
+    if x then
+      local k = Minimap:GetEffectiveScale() / UIParent:GetEffectiveScale()
+      NW.minimapHome = { x * k, y * k, Minimap:GetWidth() / 2 * k }
+    end
+  end
+  return NW.minimapHome
+end
+local function placeButton()
+  local home = minimapHome()
+  if not home then return end
+  local a = math.rad(s().minimapAngle or 215)
+  local r = home[3] + 5
+  mmBtn:ClearAllPoints()
+  mmBtn:SetPoint("CENTER", UIParent, "BOTTOMLEFT", home[1] + r * math.cos(a), home[2] + r * math.sin(a))
+end
+
+function NW.UpdateMinimapButton()
+  if mmBtn then mmBtn:SetShown(s().minimapButton and true or false) end
+end
+
+table.insert(NW.OnLoad, function()
+  if not Minimap then return end
+  mmBtn = CreateFrame("Button", "NodewalkerMinimapButton", UIParent)
+  NW.minimapButton = mmBtn
+  mmBtn:SetSize(31, 31)
+  mmBtn:SetFrameStrata("MEDIUM")
+  mmBtn:SetFrameLevel(8)
+  mmBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  mmBtn:RegisterForDrag("LeftButton")
+
+  local icon = mmBtn:CreateTexture(nil, "BACKGROUND")
+  icon:SetSize(20, 20)
+  icon:SetPoint("CENTER", 0, 1)
+  icon:SetTexture("Interface\\AddOns\\Nodewalker\\Media\\Icon")
+  local border = mmBtn:CreateTexture(nil, "OVERLAY")
+  border:SetSize(53, 53)
+  border:SetPoint("TOPLEFT")
+  border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+  mmBtn:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+  mmBtn:SetScript("OnClick", function(_, b)
+    if b == "RightButton" then NW.ToggleWindow() else NW.ToggleOverlay() end
+  end)
+  mmBtn:SetScript("OnDragStart", function(self)
+    self.dragging = true
+  end)
+  mmBtn:SetScript("OnDragStop", function(self) self.dragging = nil end)
+  -- follow the cursor while dragged; otherwise keep up if the minimap moves
+  mmBtn:SetScript("OnUpdate", function(self, dt)
+    if self.dragging then
+      local home = minimapHome()
+      if not home then return end
+      local px, py = GetCursorPosition()
+      local scale = UIParent:GetEffectiveScale()
+      s().minimapAngle = math.deg(atan2(py / scale - home[2], px / scale - home[1]))
+      placeButton()
+      return
+    end
+    self.t = (self.t or 0) + dt
+    if self.t > 1 then self.t = 0; placeButton() end
+  end)
+  mmBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:AddLine("Nodewalker", C.gold[1], C.gold[2], C.gold[3])
+    GameTooltip:AddLine("Left-click: overlay", 0.8, 0.8, 0.85)
+    GameTooltip:AddLine("Right-click: window", 0.8, 0.8, 0.85)
+    GameTooltip:Show()
+  end)
+  mmBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  placeButton()
+  NW.UpdateMinimapButton()
+end)

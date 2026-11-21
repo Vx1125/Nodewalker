@@ -636,6 +636,12 @@ local function startLive()
   end
   live.sweepAt = 0
   live.cluster = MinimapCluster and MinimapCluster:IsShown()
+  -- where the minimap normally sits, for our own button
+  local hx, hy = Minimap:GetCenter()
+  if hx then
+    local k = Minimap:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    NW.minimapHome = { hx * k, hy * k, Minimap:GetWidth() / 2 * k }
+  end
 
   Minimap:SetParent(view)
   Minimap:SetFrameStrata(view:GetFrameStrata())
@@ -693,6 +699,8 @@ local function stopLive()
   live.moved = {}
   if MinimapCluster and live.cluster then MinimapCluster:Show() end
 end
+
+function NW.IsLive() return live.active end
 
 function NW.SetLive(on)
   if on then startLive() else stopLive() end
