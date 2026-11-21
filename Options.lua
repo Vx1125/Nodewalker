@@ -40,11 +40,44 @@ local function slider(col, label, minV, maxV, step, fmt, key, after, tip)
   place(col, UI.Slider(page, COL_W, label, minV, maxV, step, fmt,
     function() return s()[key] end, function(v) s()[key] = v; if after then after(v) end end, tip), 44)
 end
+-- A second check on the row just placed
+local function checkBeside(col, label, key, tip)
+  cols[col].y = cols[col].y + 24
+  place(col, UI.Check(page, label, function() return s()[key] end,
+    function(v) s()[key] = v; changed() end, tip), 24, 222)
+end
 local function pct(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end
 
+-- One-click looks
+local PRESETS = {
+  { "Farming", "Half the screen, live dots, ring, compass and session panel.", {
+    overlaySize = 0.5, opacity = 0.55, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.6,
+    brightNear = true, mountZoom = true, liveDots = true, showRangeRing = true, showCompass = true, showSession = true } },
+  { "Questing", "Smaller and fainter, out of the way.", {
+    overlaySize = 0.35, opacity = 0.35, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.4,
+    brightNear = true, mountZoom = true, showRangeRing = false, showCompass = false, showSession = false } },
+  { "Minimal", "Icons and route only, no terrain or panels.", {
+    tint = "none", fadeMoving = false, mountZoom = false, showRangeRing = false, showCompass = false, showSession = false } },
+}
+local function applyPreset(values)
+  for k, v in pairs(values) do s()[k] = v end
+  if NW.SizeOverlay then NW.SizeOverlay() end
+  changed()
+  for _, w in ipairs(widgets) do if w.Refresh then w:Refresh() end end
+end
+
 -- Column 1: the map
-heading(1, "Map window")
+place(1, UI.Heading(page, "Map window", COL_W - 250), 26)
+do
+  local x = COL_X[1] + COL_W - 240
+  for i, pr in ipairs(PRESETS) do
+    local b = UI.Button(page, pr[1], 76, function() applyPreset(pr[3]) end, 20)
+    b:SetPoint("TOPLEFT", page, "TOPLEFT", x + (i - 1) * 82, -8)
+    UI.Tip(b, pr[1], pr[2])
+  end
+end
 check(1, "Show the overlay", "overlayShown", "Same as /nw or your key binding.")
+checkBeside(1, "Zoom out when mounted", "mountZoom")
 slider(1, "Window size", 0.25, 1, 0.05, function(v) return pct(v) .. " of the screen" end, "overlaySize",
   function() if NW.SizeOverlay then NW.SizeOverlay() end end)
 slider(1, "Terrain opacity", 0.1, 1, 0.05, pct, "opacity", nil, "Icons and the route stay easy to read at any setting.")
@@ -71,6 +104,7 @@ check(1, "Build a route by itself in new zones", "autoRoute",
 -- Column 2: when it shows, extras, route
 heading(2, "When to show it")
 check(2, "Fade while moving", "fadeMoving")
+checkBeside(2, "Brighter near a node", "brightNear", "Stops fading when a known spot or your next stop is within 100 yards.")
 slider(2, "Fade to", 0.2, 1, 0.05, pct, "fadeMovingAlpha")
 check(2, "Hide in combat", "hideCombat")
 check(2, "Hide in cities and inns", "hideResting")
@@ -80,7 +114,7 @@ check(2, "Only while Find Herbs or Find Minerals is on", "onlyTracking")
 heading(2, "On screen")
 check(2, "Zone banner when you arrive", "zoneBanner", "Shows the zone, its known spots and its route as you enter.")
 check(2, "Compass bar", "showCompass")
-check(2, "Session panel (loops, nodes per hour)", "showSession")
+check(2, "Session panel (loops, nodes and gold per hour)", "showSession")
 check(2, "\"Next stop\" label on the map", "showNextLabel")
 check(2, "Icon tooltips when live dots are off", "hoverTooltips")
 

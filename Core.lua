@@ -16,6 +16,8 @@ local DEFAULTS = {
     continentDirs = {},   -- [continent ID] = minimap folder, for continents we don't know yet
     fadeMoving = true,
     fadeMovingAlpha = 0.6,
+    brightNear = true,    -- stop fading when a known spot or your next stop is close
+    mountZoom = false,    -- zoom out while mounted
     hideCombat = true,
     hideResting = true,   -- cities and inns
     hideInstances = true,

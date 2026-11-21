@@ -1,6 +1,7 @@
 local ADDON, NW = ...
 
 local GATHER_SPELLS = { ["Herb Gathering"] = "herb", ["Mining"] = "ore" }
+NW.TRACKING_NAMES = { ["Find Herbs"] = true, ["Find Minerals"] = true }
 local SAME_NODE_YARDS = 15
 
 NW.picked = {}      -- [mapID..":"..index] = GetTime() when gathered
@@ -35,6 +36,17 @@ function NW.AddNode(mapID, x, y, name, kind, src)
 end
 
 function NW.PickedKey(mapID, i) return mapID .. ":" .. i end
+
+-- The same spells under their names in your game's language
+table.insert(NW.OnLoad, function()
+  local herb, mine = spellName(2366), spellName(2575)
+  if herb then GATHER_SPELLS[herb] = "herb" end
+  if mine then GATHER_SPELLS[mine] = "ore" end
+  for _, id in ipairs({ 2383, 2580 }) do
+    local n = spellName(id)
+    if n then NW.TRACKING_NAMES[n] = true end
+  end
+end)
 
 ------------------------------------------------------------------------
 -- Recording what you gather
@@ -97,6 +109,7 @@ NW.On("UNIT_SPELLCAST_SUCCEEDED", function(unit, castGUID)
     end
   end
   NW.session.nodes = NW.session.nodes + 1
+  NW.session.lootUntil = GetTime() + 5 -- what you loot next came from this node
   for _, fn in ipairs(NW.gatherListeners) do pcall(fn, mapID, i, x, y, p) end
 end)
 
@@ -255,11 +268,42 @@ end
 ------------------------------------------------------------------------
 -- Session numbers
 ------------------------------------------------------------------------
-NW.session = { started = GetTime(), nodes = 0, loops = 0, loopStarted = nil, lastLoopTime = nil }
+NW.session = { started = GetTime(), nodes = 0, loops = 0, value = 0, loopStarted = nil, lastLoopTime = nil }
 
 function NW.ResetSession()
-  NW.session = { started = GetTime(), nodes = 0, loops = 0, loopStarted = nil, lastLoopTime = nil }
+  NW.session = { started = GetTime(), nodes = 0, loops = 0, value = 0, loopStarted = nil, lastLoopTime = nil }
 end
+
+-- What you gather is worth: loot within a few seconds of gathering a node,
+-- at Auctionator's price (vendor price when it has none).
+local function lootPattern(fmt)
+  if not fmt then return nil end
+  fmt = fmt:gsub("%%%d?%$?s", "\1"):gsub("%%%d?%$?d", "\2")
+  fmt = fmt:gsub("[%^%$%(%)%.%[%]%*%+%-%?%%]", "%%%0")
+  return "^" .. fmt:gsub("\1", "(.+)"):gsub("\2", "(%%d+)") .. "$"
+end
+local LOOT_MANY = lootPattern(LOOT_ITEM_SELF_MULTIPLE)
+local LOOT_ONE = lootPattern(LOOT_ITEM_SELF)
+local PUSH_MANY = lootPattern(LOOT_ITEM_PUSHED_SELF_MULTIPLE)
+local PUSH_ONE = lootPattern(LOOT_ITEM_PUSHED_SELF)
+
+NW.On("CHAT_MSG_LOOT", function(msg)
+  local s = NW.session
+  if not s.lootUntil or GetTime() > s.lootUntil or not NW.Readable(msg) or type(msg) ~= "string" then return end
+  local link, count
+  for _, pat in ipairs({ LOOT_MANY, PUSH_MANY }) do
+    if pat and not link then link, count = msg:match(pat) end
+  end
+  for _, pat in ipairs({ LOOT_ONE, PUSH_ONE }) do
+    if pat and not link then link = msg:match(pat) end
+  end
+  local id = link and tonumber(link:match("|Hitem:(%d+)"))
+  if not id or not NW.Price then return end
+  local price, src = NW.Price(id)
+  if price and (src == "ah" or src == "vendor") then
+    s.value = (s.value or 0) + price * (tonumber(count) or 1)
+  end
+end)
 
 ------------------------------------------------------------------------
 -- GatherMate2 import (one-time, optional)

@@ -173,6 +173,7 @@ end
 
 function NW.UpdateSession()
   if not panel:IsShown() then return end
+  panel:SetHeight((NW.session.value or 0) > 0 and 130 or 112)
   local mapID = NW.PlayerPos()
   local route = mapID and NW.db.routes[mapID]
   local s = NW.session
@@ -181,7 +182,9 @@ function NW.UpdateSession()
     "Route:  " .. (route and #route.stops > 0 and (#route.stops .. " stops") or "none here (/nw plan)"),
     "Loops:  " .. s.loops .. "    Last loop: " .. fmtTime(s.lastLoopTime),
     "Gathered:  " .. s.nodes .. " nodes",
-    ("Per hour:  %d nodes"):format(math.floor(s.nodes / hours)),
+    ("Per hour:  %d nodes"):format(math.floor(s.nodes / hours))
+      .. ((s.value or 0) > 0 and NW.Money and ("  ·  " .. NW.Money(math.floor(s.value / hours), true)) or ""),
+    (s.value or 0) > 0 and NW.Money and ("Value:  " .. NW.Money(s.value, true)) or nil,
   }, "\n"))
 end
 

@@ -62,6 +62,12 @@ local markerLayer = CreateFrame("Frame", nil, view)
 markerLayer:SetAllPoints(view)
 markerLayer:SetFrameLevel(view:GetFrameLevel() + 10)
 
+-- Icons and route lines hang off this point. Between rebuilds only the point
+-- moves, so the map glides without every icon being placed again each frame.
+local pan = CreateFrame("Frame", nil, markerLayer)
+pan:SetSize(1, 1)
+pan:SetPoint("CENTER", view, "CENTER")
+
 local arrow = markerLayer:CreateTexture(nil, "OVERLAY", nil, 7)
 arrow:SetTexture(ARROW)
 arrow:SetSize(32, 32)
@@ -292,8 +298,8 @@ end
 
 local function buildTiles(mapID, W, H)
   local s = NW.db.settings
-  if tileMapID == mapID and tileScale == s.scale and tileTint == s.tint then return end
-  tileMapID, tileScale, tileTint = mapID, s.scale, s.tint
+  if tileMapID == mapID and tileScale == W and tileTint == s.tint then return end
+  tileMapID, tileScale, tileTint = mapID, W, s.tint
   clearTiles()
   canvas:SetSize(W, H)
   if s.tint == "none" then return end
@@ -506,7 +512,7 @@ end
 -- only when a real herb or vein is under the cursor. Our icons then take
 -- the mouse only while Alt is held (Alt-click a route stop). Without live
 -- dots, our icons show their own details on hover.
-local function interact()
+local function interact(rebuilt)
   local alt = IsAltKeyDown()
   if live.active then
     if live.motionOnly then
@@ -526,6 +532,8 @@ local function interact()
   local hover = NW.db.settings.hoverTooltips and not live.active
   -- our icons: Ctrl (or Alt when live dots are off) to see details or pick a stop
   local pick = IsControlKeyDown() or (alt and not live.active)
+  if not rebuilt and hover == live.lastHover and pick == live.lastPick then return end
+  live.lastHover, live.lastPick = hover, pick
   for i = 1, markerCount do
     local m = markers[i]
     if m.SetMouseClickEnabled and m.SetMouseMotionEnabled then
@@ -764,13 +772,29 @@ local function drawRing(radiusPx)
   end
 end
 
-local function drawInner()
+-- Zoom eases out while you're mounted (if asked) and back in on foot
+local zoomNow, frameDt = 1, 0
+local function zoom(s)
+  local target = (s.mountZoom and IsMounted and IsMounted()) and 0.7 or 1
+  if zoomNow ~= target and not InCombatLockdown() then
+    zoomNow = zoomNow + (target - zoomNow) * math.min(1, frameDt * 4)
+    if math.abs(target - zoomNow) < 0.004 then zoomNow = target end
+  end
+  return zoomNow
+end
+
+local built = {}   -- where you were when the icons were last placed
+local lastBuild = 0
+local NEAR_YARDS = 100
+
+-- Returns nil with no map to draw, false for a glide frame, true after a rebuild
+local function drawInner(force)
   local mapID, px, py = NW.PlayerPos()
   if not mapID then return end
   local w, h = NW.MapSize(mapID)
   if not w then return end
   local s = NW.db.settings
-  local scale = s.scale
+  local scale = s.scale * zoom(s)
   local W, H = w * scale, h * scale
   local cx, cy = px, py -- the window is centred on you
   local liveRadius = updateLive(scale) -- live dots cover this many yards around you
@@ -810,6 +834,20 @@ local function drawInner()
     canvas:SetPoint("TOPLEFT", view, "CENTER", -cx * W, cy * H)
   end
 
+  arrow:SetRotation(GetPlayerFacing() or 0)
+  local now = GetTime()
+  if not force and built.mapID == mapID and built.W == W and now - lastBuild < 0.15 then
+    -- glide: slide everything by how far you've moved since the last rebuild
+    pan:SetPoint("CENTER", view, "CENTER", (built.px - px) * W, (py - built.py) * H)
+    return false
+  end
+  lastBuild = now
+  built.mapID, built.px, built.py, built.W = mapID, px, py, W
+  pan:SetPoint("CENTER", view, "CENTER", 0, 0)
+  resetPools()
+  local near = false
+  local nearPx = NEAR_YARDS * scale
+
   local halfW, halfH = view:GetWidth() / 2 + 20, view:GetHeight() / 2 + 20
   local function toView(x, y) return (x - cx) * W, -(y - cy) * H end
   local function onScreen(vx, vy) return math.abs(vx) < halfW and math.abs(vy) < halfH end
@@ -833,12 +871,13 @@ local function drawInner()
         if d and d < liveRadius then hideKnown = hasRoute -- route stops stand in for them
         else hideKnown = not s.showKnownSpots end
       end
+      if not pickedAgo and (seenAgo or not s.onlyConfirmed) and vx * vx + vy * vy < nearPx * nearPx then near = true end
       if not pickedAgo and not hideKnown and (seenAgo or not s.onlyConfirmed) then
         local m = getMarker()
         styleMarker(m, n.kind, seenAgo and 24 or 20, seenAgo and "seen" or "far", NW.NodeIcon(n.name, n.kind))
         if not seenAgo then m:SetAlpha(s.fadedAlpha or 0.35) end
         m:SetAlpha(m:GetAlpha() * edgeFade(vx, vy))
-        m:SetPoint("CENTER", view, "CENTER", vx, vy)
+        m:SetPoint("CENTER", pan, "CENTER", vx, vy)
         local info = m.nodeInfo or {}
         m.nodeInfo = info
         info.title, info.node, info.n, info.mapID, info.seenAgo, info.lines = n.name, n.name, n, mapID, seenAgo, nil
@@ -861,8 +900,8 @@ local function drawInner()
       local bx, by = toView(b.x, b.y)
       if onScreen(ax, ay) or onScreen(bx, by) then
         local l = getLine()
-        l:SetStartPoint("CENTER", view, ax, ay)
-        l:SetEndPoint("CENTER", view, bx, by)
+        l:SetStartPoint("CENTER", pan, ax, ay)
+        l:SetEndPoint("CENTER", pan, bx, by)
       end
     end
     local prog = NW.progress[mapID]
@@ -876,6 +915,7 @@ local function drawInner()
         local seen = prog and prog.visited[i]
         if seen and now - seen < respawn then state = "picked" end
         if i == nextIndex then state = "next" end
+        if state ~= "picked" and vx * vx + vy * vy < nearPx * nearPx then near = true end
         local m = getMarker()
         styleMarker(m, st.kind, state == "next" and 34 or 28, state, NW.NodeIcon(base, st.kind ~= "mixed" and st.kind or "ore"))
         -- faded until a herb there is confirmed up, then full opacity
@@ -889,7 +929,7 @@ local function drawInner()
           m:SetAlpha(state == "next" and math.max(0.6, s.fadedAlpha or 0.35) or (s.fadedAlpha or 0.35))
         end
         if state ~= "next" then m:SetAlpha(m:GetAlpha() * edgeFade(vx, vy)) end
-        m:SetPoint("CENTER", view, "CENTER", vx, vy)
+        m:SetPoint("CENTER", pan, "CENTER", vx, vy)
         local sub = ("Stop %d of %d"):format(i, #stops)
         if state == "picked" then
           sub = sub .. (" · respawn ~%d min"):format(math.ceil((respawn - (now - seen)) / 60))
@@ -917,11 +957,9 @@ local function drawInner()
     nextLabel:Hide()
   end
 
-  -- your arrow, wherever you are on the still map
-  local ax, ay = toView(px, py)
-  arrow:ClearAllPoints()
-  arrow:SetPoint("CENTER", view, "CENTER", ax, ay)
-  arrow:SetRotation(GetPlayerFacing() or 0)
+  NW.nearNode = near
+  finishPools()
+  return true
 end
 
 -- The minimap anchors its tooltip to its own edge, which is far away now
@@ -934,15 +972,20 @@ local function placeMinimapTooltip()
   GameTooltip:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / sc + 18, y / sc + 12)
 end
 
-local function draw()
-  resetPools()
-  drawInner()
-  finishPools()
-  interact()
+local function draw(force)
+  local rebuilt = drawInner(force)
+  if rebuilt == nil and built.mapID then
+    -- nowhere to draw: clear what's there
+    built.mapID = nil
+    resetPools()
+    finishPools()
+    rebuilt = true
+  end
+  interact(rebuilt)
   refreshTooltip()
   placeMinimapTooltip()
 end
-NW.DrawOverlay = draw
+NW.DrawOverlay = function() draw(true) end
 
 ------------------------------------------------------------------------
 -- When to show it
@@ -958,7 +1001,7 @@ local function trackingOn()
     local name, active
     if type(info) == "table" then name, active = info.name, info.active
     else local _; name, _, active = C_Minimap.GetTrackingInfo(i) end
-    if active and (name == "Find Herbs" or name == "Find Minerals") then return true end
+    if active and name and NW.TRACKING_NAMES[name] then return true end
   end
   return false
 end
@@ -982,14 +1025,15 @@ local function updateVisibility()
 end
 NW.UpdateVisibility = updateVisibility
 
-local elapsed, slow = 0, 0
+local slow, alphaNow = 0, nil
 overlay:SetScript("OnUpdate", function(_, dt)
-  elapsed = elapsed + dt
-  if elapsed < 0.01 then return end -- (about every frame: the map glides, it never jumps)
-  elapsed = 0
+  frameDt = dt
   local s = NW.db.settings
   local a = s.opacity
-  if s.fadeMoving and GetUnitSpeed("player") > 0 then a = a * s.fadeMovingAlpha end
+  -- fade while you travel; come back when a spot or your next stop is close
+  if s.fadeMoving and GetUnitSpeed("player") > 0 and not (s.brightNear and NW.nearNode) then a = a * s.fadeMovingAlpha end
+  alphaNow = alphaNow and (alphaNow + (a - alphaNow) * math.min(1, dt * 6)) or a
+  a = alphaNow
   -- The terrain takes the opacity setting; route and markers stay easy to read
   canvas:SetAlpha(a)
   terrain:SetAlpha(a)
