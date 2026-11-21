@@ -1075,8 +1075,23 @@ end
 
 -- The minimap anchors its tooltip to its own edge, which is far away now
 -- that it's big; keep it beside the cursor instead.
+-- The borrowed minimap also has tooltips for quest objectives, players and
+-- the like. Only herbs and veins belong on the overlay.
+local function minimapTipIsNode()
+  local fs = _G.GameTooltipTextLeft1
+  local text = fs and fs:GetText()
+  if not NW.Readable(text) or type(text) ~= "string" then return true end -- can't tell: leave it
+  for line in text:gmatch("[^\n]+") do
+    line = line:gsub("|T.-|t", ""):gsub("|A.-|a", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    line = line:gsub("^%s+", ""):gsub("%s+$", "")
+    if NW.NODES[line] then return true end
+  end
+  return false
+end
+
 local function placeMinimapTooltip()
   if not live.active or not GameTooltip:IsShown() or GameTooltip:GetOwner() ~= Minimap then return end
+  if not minimapTipIsNode() then GameTooltip:Hide() return end
   local x, y = GetCursorPosition()
   local sc = UIParent:GetEffectiveScale()
   GameTooltip:ClearAllPoints()
