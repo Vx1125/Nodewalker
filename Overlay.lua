@@ -1005,11 +1005,12 @@ local function drawInner(force)
     for k = 1, nItems do items[k].cluster = items[k] end
   end
 
-  -- Route lines; hops inside one group aren't drawn. The legs just ahead are
-  -- bright and carry arrows; the rest of the loop fades back.
+  -- Route lines; hops inside one group aren't drawn. Legs near you are bright
+  -- and carry arrows; they fade toward the edge of the map.
   if stops then
     local n = #stops
     local GAP = 11 -- lines stop short of the icons so corners don't stab through them
+    local fadeRadius = math.max(1, math.min(view:GetWidth(), view:GetHeight()) / 2)
     for i = 1, n do
       local j = (i % n) + 1
       local a, b = stops[i], stops[j]
@@ -1025,11 +1026,12 @@ local function drawInner(force)
           if len > GAP * 2 + 4 then
             local ux, uy = dx / len, dy / len
             ax, ay, bx, by = ax + ux * GAP, ay + uy * GAP, bx - ux * GAP, by - uy * GAP
-            -- how many legs ahead of your next stop this one starts
-            local ahead = nextIndex and ((i - nextIndex) % n) or 0
-            local alpha = ahead < 4 and 0.95 or math.max(0.3, 0.95 - (ahead - 3) * 0.11)
+            -- bright near you, fainter toward the edge of the map
+            local mx0, my0 = (ax + bx) / 2, (ay + by) / 2
+            local far = math.sqrt(mx0 * mx0 + my0 * my0) / fadeRadius
+            local alpha = far < 0.3 and 0.95 or math.max(0.3, 0.95 - (far - 0.3) * 0.95)
             local l = getLine()
-            l:SetThickness(ahead < 4 and 3 or 2)
+            l:SetThickness(alpha > 0.6 and 3 or 2)
             l:SetColorTexture(C.route[1], C.route[2], C.route[3], alpha)
             l.under:SetColorTexture(0, 0, 0, 0.5 * alpha)
             l:SetStartPoint("CENTER", pan, ax, ay)
@@ -1037,7 +1039,7 @@ local function drawInner(force)
             l.under:SetStartPoint("CENTER", pan, ax, ay)
             l.under:SetEndPoint("CENTER", pan, bx, by)
             -- an arrowhead mid-leg shows which way the loop runs
-            if ahead < 6 and len > 70 then
+            if alpha > 0.6 and len > 70 then
               local mx, my = (ax + bx) / 2, (ay + by) / 2
               local t1, t2 = getTick(), getTick()
               local c, sn = math.cos(2.6), math.sin(2.6) -- about 150 degrees back from the heading
