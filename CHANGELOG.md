@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.2
+
+- Overlay: spots that overlap share one icon with a count.
+- Overlay: route line has a dark edge, fades with distance and shows direction arrows.
+- Overlay: picked stops shrink to a small dot; quieter dashed range ring.
+- Overlay: Muted and Silhouette terrain colours.
+- Route page: loop coloured gold to blue from your next stop, finer on busy routes, hover a stop for details.
+- Professions: Shift-click a recipe or shopping item to link it in chat.
+- Fixed: errors every frame with Hide in combat off.
+- Fixed: quest objective tooltips popping up over the overlay.
+- Fixed: minimap button flashing mid-screen at login.
+
 ## 1.1.1
 
 - Minimap button: click for the overlay, right-click for the window.
