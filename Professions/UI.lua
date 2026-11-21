@@ -1050,16 +1050,6 @@ local function findTradeFrame()
     local f = _G[name]
     if f and f.IsShown and f:IsShown() then return f end
   end
-  if EnumerateFrames then
-    local f = EnumerateFrames()
-    while f do
-      if not f:IsForbidden() and f:IsShown() and f:GetParent() == UIParent then
-        local n = f:GetName()
-        if n and (n:find("Profession") or n:find("TradeSkill")) and (f:GetWidth() or 0) > 300 then return f end
-      end
-      f = EnumerateFrames(f)
-    end
-  end
 end
 
 -- The profession buttons down the right side: shown, roughly square buttons
@@ -1072,39 +1062,43 @@ local function tabScore(b)
   if b.GetNormalTexture and b:GetNormalTexture() then n = n + 1 end
   return n
 end
+local function isSideTab(b)
+  return b.Icon and b.SetChecked and b.SetCustomOnMouseUpHandler and true or false
+end
 local function findSideButtons(f)
   local right, top, bottom = f:GetRight(), f:GetTop(), f:GetBottom()
   if not (right and top and bottom) then return end
-  local found = {}
+  local found, tabs = {}, {}
   local function consider(b)
-    if b == tradeTab or b:IsForbidden() or not b:IsVisible() then return end
+    if b == tradeTab or b:GetParent() == tradeTab or not b:IsVisible() then return end
+    local l, t, w, h = b:GetLeft(), b:GetTop(), b:GetWidth(), b:GetHeight()
+    if not (l and t and w and h) then return end
+    if isSideTab(b) then
+      -- made from the game's side tab template: no guessing needed
+      if l >= right - 40 then tabs[#tabs + 1] = b end
+      return
+    end
     local ot = b:GetObjectType()
     if ot == "Frame" then
-      -- the game's side tabs are plain frames that take the mouse
-      if not b:IsMouseEnabled() or b:GetParent() == tradeTab then return end
+      if not b:IsMouseEnabled() then return end
     elseif ot ~= "Button" and ot ~= "CheckButton" then
       return
     end
-    local l, t, w, h = b:GetLeft(), b:GetTop(), b:GetWidth(), b:GetHeight()
-    if not (l and t) then return end
     if l >= right - 12 and l <= right + 40 and t <= top + 5 and t >= bottom and w >= 24 and w <= 110 and math.abs(w - h) <= 14 then
       found[#found + 1] = b
     end
   end
   local function walk(frame, depth)
     for _, c in ipairs({ frame:GetChildren() }) do
-      consider(c)
-      if depth < 3 then walk(c, depth + 1) end
+      -- some frames can't be measured by addons: skip those
+      if not c:IsForbidden() then
+        pcall(consider, c)
+        if depth < 6 then walk(c, depth + 1) end
+      end
     end
   end
   walk(f, 1)
-  if #found == 0 and EnumerateFrames then
-    local x = EnumerateFrames()
-    while x do
-      if not x:IsForbidden() and x:IsVisible() then consider(x) end
-      x = EnumerateFrames(x)
-    end
-  end
+  if #tabs > 0 then found = tabs end
   if #found == 0 then return end
   table.sort(found, function(a, b) return a:GetTop() > b:GetTop() end)
   -- a tab and a button inside it count once: keep the real tab of each row
