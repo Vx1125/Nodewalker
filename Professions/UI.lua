@@ -194,6 +194,29 @@ for i = 1, STEP_ROWS do
   row.mats:SetWordWrap(false)
   row:SetScript("OnEnter", function(self)
     local stp = self.step
+    if stp and stp.banner then
+      -- a Train row: who, where, and what to bring
+      local ru = stp.rankUp
+      local who, where, mapID, _, _, needs, note = NW.RankWhere(selected, ru.name)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText("Train " .. ru.name, 0.91, 0.77, 0.42)
+      GameTooltip:AddLine(who and (who .. ", " .. where) or "Any trainer in a capital city", 1, 1, 1, true)
+      GameTooltip:AddDoubleLine("Needs", ("skill %d, level %d"):format(ru.skill, ru.level), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+      if stp.rankFee and stp.rankFee > 0 then GameTooltip:AddDoubleLine("Cost", NW.Money(stp.rankFee), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+      if needs then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Bring", 0.91, 0.77, 0.42)
+        for _, it in ipairs(needs) do
+          local have = math.min(NW.ItemCount(it[1]) or 0, it[2])
+          local c = have >= it[2] and "8cdb7a" or "ffffff"
+          GameTooltip:AddDoubleLine((itemName(it[1])), ("|cff%s%d/%d|r"):format(c, have, it[2]), 1, 1, 1)
+        end
+      end
+      if note then GameTooltip:AddLine(note, 1, 1, 1, true) end
+      if mapID then GameTooltip:AddLine("Click: pin on your map", S.dim[1], S.dim[2], S.dim[3]) end
+      GameTooltip:Show()
+      return
+    end
     if not (stp and stp.recipe) then return end
     local r = stp.recipe
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -372,6 +395,7 @@ for i = 1, SHOP_ROWS do
     GameTooltip:SetItemByID(e.id)
     GameTooltip:AddLine(" ")
     GameTooltip:AddDoubleLine("Need", e.need, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    if e.quest then GameTooltip:AddDoubleLine("For", e.quest .. " quest", S.dim[1], S.dim[2], S.dim[3], 0.91, 0.77, 0.42) end
     if e.buy > 0 and e.src ~= "vendor" then GameTooltip:AddDoubleLine("Click or Shift-click", ("search for %d"):format(e.buy), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     if e.have > 0 then GameTooltip:AddDoubleLine("In your bags and bank", e.have, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     local srcText = ({ ah = "Auction house (Auctionator)", vendor = "Vendor", craft = "Cheaper to make", est = "Estimate (no price yet)" })[e.src or ""] or "No price"
@@ -491,12 +515,19 @@ drawSteps = function()
         row.range:SetText(tostring(stp.from))
         row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
         row.icon:Show()
-        local who, where, mapID = NW.RankWhere(selected, ru.name)
+        local who, where, mapID, _, _, needs = NW.RankWhere(selected, ru.name)
         row.name:SetText(("|cffe8c46aTrain %s|r%s"):format(ru.name, who and ("  |cffffffff" .. who .. "|r") or ""))
         row.crafts:SetText("")
         row.cost:SetText(stp.rankFee and stp.rankFee > 0 and NW.Money(stp.rankFee, true) or "")
-        row.mats:SetText(("|cffffffff%s|r  ·  skill %d, level %d%s"):format(where or "Any trainer in a capital city", ru.skill, ru.level,
-          mapID and "  ·  |cff8cdb7aclick to pin|r" or ""))
+        if needs then
+          -- a quest: what to bring matters most
+          local parts = {}
+          for _, it in ipairs(needs) do parts[#parts + 1] = ("%d %s"):format(it[2], (itemName(it[1]))) end
+          row.mats:SetText(("|cffffffff%s|r  ·  bring %s"):format(where, table.concat(parts, ", ")))
+        else
+          row.mats:SetText(("|cffffffff%s|r  ·  skill %d, level %d%s"):format(where or "Any trainer in a capital city", ru.skill, ru.level,
+            mapID and "  ·  |cff8cdb7aclick to pin|r" or ""))
+        end
       elseif stp.recipe then
         local r = stp.recipe
         row.icon:SetTexture(recipeIcon(r))

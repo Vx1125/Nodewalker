@@ -90,6 +90,8 @@ NW.RANKS = {
 
 -- Where the higher ranks are taught, from the original game: { who or what, where }.
 -- Journeyman is taught by any trainer.
+-- What a rank's quest asks for: { item, count }
+local CLAMLETTE = { { 12207, 12 }, { 7974, 10 }, { 8932, 20 } } -- Giant Egg, Zesty Clam Meat, Alterac Swiss
 NW.RANK_WHERE = {
   alchemy = {
     Expert = { Horde = { "Doctor Herbert Halsey", "Undercity", 1458, 47.8, 73.3 }, Alliance = { "Ainethil", "Darnassus", 1457, 54.9, 24.0 } },
@@ -117,11 +119,11 @@ NW.RANK_WHERE = {
   },
   cooking = {
     Expert = { Horde = { "Expert Cookbook, sold by Wulan", "Shadowprey Village, Desolace", 1443, 26.2, 69.7 }, Alliance = { "Expert Cookbook, sold by Shandrina", "Mystral Lake, Ashenvale", 1440, 49.6, 67.0 } },
-    Artisan = { Horde = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris", 1446, 52.6, 28.1 }, Alliance = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris", 1446, 52.6, 28.1 } },
+    Artisan = { Horde = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris", 1446, 52.6, 28.1, CLAMLETTE }, Alliance = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris", 1446, 52.6, 28.1, CLAMLETTE } },
   },
   firstaid = {
     Expert = { Horde = { "Expert First Aid book, sold by Balai Lok'Wein", "Brackenwall Village, Dustwallow Marsh", 1445, 36.5, 30.4 }, Alliance = { "Expert First Aid book, sold by Deneb Walker", "Stromgarde, Arathi Highlands", 1417, 27.0, 58.8 } },
-    Artisan = { Horde = { "Quest from Doctor Gregory Victor", "Hammerfall, Arathi Highlands", 1417, 73.4, 36.9 }, Alliance = { "Quest from Doctor Gustaf VanHowzen", "Theramore, Dustwallow Marsh", 1445, 67.8, 49.0 } },
+    Artisan = { Horde = { "Quest from Doctor Gregory Victor", "Hammerfall, Arathi Highlands", 1417, 73.4, 36.9, nil, "Triage: save 15 patients. Nothing to bring." }, Alliance = { "Quest from Doctor Gustaf VanHowzen", "Theramore, Dustwallow Marsh", 1445, 67.8, 49.0, nil, "Triage: save 15 patients. Nothing to bring." } },
   },
 }
 -- Returns who and where for your faction
@@ -129,7 +131,7 @@ function NW.RankWhere(key, rankName)
   local w = NW.RANK_WHERE[key] and NW.RANK_WHERE[key][rankName]
   if not w then return end
   local e = w[UnitFactionGroup and UnitFactionGroup("player") or "Horde"] or w.Horde
-  return e[1], e[2], e[3], e[4], e[5]
+  return e[1], e[2], e[3], e[4], e[5], e[6], e[7]
 end
 
 -- Pin a spot on the world map and track it. x, y are 0-100.
@@ -635,8 +637,17 @@ function NW.ShoppingList(key, plan)
     end
   end
   NW.BuildPlan(key, plan.from, plan.to) -- makes sure craftOf is this profession's
+  local forQuest = {}
   for _, st in ipairs(plan.steps) do
     for _, m in ipairs(st.mats or {}) do add(m[1], m[2], 0) end
+    -- what the next rank's quest asks for
+    if st.rankUp then
+      local _, _, _, _, _, needs = NW.RankWhere(key, st.rankUp.name)
+      for _, it in ipairs(needs or {}) do
+        need[it[1]] = (need[it[1]] or 0) + it[2]
+        forQuest[it[1]] = st.rankUp.name
+      end
+    end
   end
   local list, total = {}, 0
   local useBags = NW.db.settings.planUseBags
@@ -646,7 +657,7 @@ function NW.ShoppingList(key, plan)
     local price, src = NW.Price(id)
     local cost = price and price * buy or nil
     if cost then total = total + cost end
-    list[#list + 1] = { id = id, need = n, have = have, buy = buy, price = price, src = src, cost = cost }
+    list[#list + 1] = { id = id, need = n, have = have, buy = buy, price = price, src = src, cost = cost, quest = forQuest[id] }
   end
   table.sort(list, function(a, b) return (a.cost or -1) > (b.cost or -1) end)
   return list, total
