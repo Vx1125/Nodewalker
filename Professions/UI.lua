@@ -929,7 +929,7 @@ local function buildMissing(key)
   end
   -- recipes the game lists that Nodewalker's data doesn't have
   for name, e in pairs(scan or {}) do
-    if not e.learned and not have[name] then
+    if not e.learned and not have[name] and NW.RecipeBelongs(name, key) ~= false then
       out[#out + 1] = { name = name, src = "scan", item = e.item, icon = e.icon, reagents = e.reagents or {}, scanned = e, cat = e.cat }
     end
   end

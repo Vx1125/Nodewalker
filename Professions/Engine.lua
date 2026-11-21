@@ -74,6 +74,26 @@ function NW.CatalogAdder(key)
   end
 end
 
+-- Does this recipe name belong to a profession, going by the recipe lists?
+-- true: yes; false: only to other professions; nil: not in the lists at all
+local ownerOf
+function NW.RecipeBelongs(name, key)
+  if not ownerOf then
+    ownerOf = {}
+    for _, src in ipairs({ NW.RECIPES, NW.CATALOG }) do
+      for k, list in pairs(src) do
+        for _, r in ipairs(list) do
+          ownerOf[r.name] = ownerOf[r.name] or {}
+          ownerOf[r.name][k] = true
+        end
+      end
+    end
+  end
+  local o = ownerOf[name]
+  if not o then return nil end
+  return o[key] or false
+end
+
 -- Recipes never used for leveling: cooldowns (transmutes), camp objects, raid-only
 NW.NO_LEVEL = {}
 for _, n in ipairs({ "Gold Bar", "Truesilver Bar", "Essence of Fire", "Arcanite Bar", "Living Essence", "Essence of Water",
@@ -219,10 +239,11 @@ local function modernScan()
       if ok and v then return true end
     end
   end
-  local key
+  local key, baseID, baseName
   if T.GetBaseProfessionInfo then
     local ok, info = pcall(T.GetBaseProfessionInfo)
     key = ok and info and profKeyFromName(info.professionName)
+    if ok and info then baseID, baseName = info.professionID, info.professionName end
   end
   if not key and T.GetChildProfessionInfo then
     local ok, info = pcall(T.GetChildProfessionInfo)
@@ -239,9 +260,19 @@ local function modernScan()
   local scan = {}
   NW.charDB.known[key] = {} -- the full list is the truth: rebuild what you know
   local catNames = {}
+  -- The game can hand back every profession's recipes: keep this one's
+  local function mine(id, name)
+    local belongs = NW.RecipeBelongs(name, key)
+    if belongs ~= nil then return belongs end
+    if baseID and T.GetTradeSkillLineForRecipe then
+      local ok, line, lineName, parent = pcall(T.GetTradeSkillLineForRecipe, id)
+      if ok and line then return line == baseID or parent == baseID or lineName == baseName end
+    end
+    return true
+  end
   for _, id in ipairs(ids) do
     local ok, info = pcall(T.GetRecipeInfo, id)
-    if ok and info and info.name and not info.isDummyRecipe and not info.isRecraft then
+    if ok and info and info.name and not info.isDummyRecipe and not info.isRecraft and mine(id, info.name) then
       local e = { id = id, icon = info.icon, learned = info.learned and true or false, diff = info.relativeDifficulty }
       if info.categoryID and T.GetCategoryInfo then
         local cname = catNames[info.categoryID]
