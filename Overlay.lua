@@ -465,15 +465,32 @@ local function getLine()
     lines[lineCount] = l
   end
   l:SetColorTexture(C.route[1], C.route[2], C.route[3], 0.95)
+  l:SetThickness(3)
+  l.under:SetThickness(5.5)
   l:Show()
   l.under:Show()
+  return l
+end
+
+-- Short white strokes for the arrowheads on the route
+local ticks, tickCount = {}, 0
+local function getTick()
+  tickCount = tickCount + 1
+  local l = ticks[tickCount]
+  if not l then
+    l = lineLayer:CreateLine(nil, "ARTWORK", nil, 2)
+    l:SetThickness(2)
+    if l.AddMaskTexture then pcall(l.AddMaskTexture, l, lineMask) end
+    ticks[tickCount] = l
+  end
+  l:Show()
   return l
 end
 
 -- Markers are reused frame to frame rather than hidden and shown again,
 -- so a tooltip you're hovering doesn't flicker.
 local function resetPools()
-  markerCount, lineCount = 0, 0
+  markerCount, lineCount, tickCount = 0, 0, 0
 end
 
 local function finishPools()
@@ -482,6 +499,7 @@ local function finishPools()
     if m:IsShown() then m:Hide(); m.info = nil end
   end
   for i = lineCount + 1, #lines do lines[i]:Hide(); lines[i].under:Hide() end
+  for i = tickCount + 1, #ticks do ticks[i]:Hide() end
 end
 
 local tipRefresh = 0
@@ -975,10 +993,13 @@ local function drawInner(force)
     for k = 1, nItems do items[k].cluster = items[k] end
   end
 
-  -- Route lines; hops inside one group aren't drawn
+  -- Route lines; hops inside one group aren't drawn. The legs just ahead are
+  -- bright and carry arrows; the rest of the loop fades back.
   if stops then
-    for i = 1, #stops do
-      local j = (i % #stops) + 1
+    local n = #stops
+    local GAP = 11 -- lines stop short of the icons so corners don't stab through them
+    for i = 1, n do
+      local j = (i % n) + 1
       local a, b = stops[i], stops[j]
       local ia, ib = stopItem[i], stopItem[j]
       if not (ia and ib and ia.cluster == ib.cluster) then
@@ -987,12 +1008,57 @@ local function drawInner(force)
         if ia then ax, ay = ia.cluster.vx, ia.cluster.vy end
         if ib then bx, by = ib.cluster.vx, ib.cluster.vy end
         if onScreen(ax, ay) or onScreen(bx, by) then
-          local l = getLine()
-          l:SetStartPoint("CENTER", pan, ax, ay)
-          l:SetEndPoint("CENTER", pan, bx, by)
-          l.under:SetStartPoint("CENTER", pan, ax, ay)
-          l.under:SetEndPoint("CENTER", pan, bx, by)
+          local dx, dy = bx - ax, by - ay
+          local len = math.sqrt(dx * dx + dy * dy)
+          if len > GAP * 2 + 4 then
+            local ux, uy = dx / len, dy / len
+            ax, ay, bx, by = ax + ux * GAP, ay + uy * GAP, bx - ux * GAP, by - uy * GAP
+            -- how many legs ahead of your next stop this one starts
+            local ahead = nextIndex and ((i - nextIndex) % n) or 0
+            local alpha = ahead < 4 and 0.95 or math.max(0.3, 0.95 - (ahead - 3) * 0.11)
+            local l = getLine()
+            l:SetThickness(ahead < 4 and 3 or 2)
+            l:SetColorTexture(C.route[1], C.route[2], C.route[3], alpha)
+            l.under:SetColorTexture(0, 0, 0, 0.5 * alpha)
+            l:SetStartPoint("CENTER", pan, ax, ay)
+            l:SetEndPoint("CENTER", pan, bx, by)
+            l.under:SetStartPoint("CENTER", pan, ax, ay)
+            l.under:SetEndPoint("CENTER", pan, bx, by)
+            -- an arrowhead mid-leg shows which way the loop runs
+            if ahead < 6 and len > 70 then
+              local mx, my = (ax + bx) / 2, (ay + by) / 2
+              local t1, t2 = getTick(), getTick()
+              local c, sn = math.cos(2.6), math.sin(2.6) -- about 150 degrees back from the heading
+              local w = 8
+              t1:SetColorTexture(1, 1, 1, alpha)
+              t2:SetColorTexture(1, 1, 1, alpha)
+              t1:SetStartPoint("CENTER", pan, mx, my)
+              t1:SetEndPoint("CENTER", pan, mx + (ux * c - uy * sn) * w, my + (ux * sn + uy * c) * w)
+              t2:SetStartPoint("CENTER", pan, mx, my)
+              t2:SetEndPoint("CENTER", pan, mx + (ux * c + uy * sn) * w, my + (-ux * sn + uy * c) * w)
+            end
+          end
         end
+      end
+    end
+    -- The leg you're on: from you to your next stop, in gold. Its near end
+    -- stays on you as the map glides.
+    local nextSt = nextIndex and stops[nextIndex]
+    if nextSt then
+      local bx, by = toView(nextSt.x, nextSt.y)
+      local it = stopItem[nextIndex]
+      if it then bx, by = it.cluster.vx, it.cluster.vy end
+      local len = math.sqrt(bx * bx + by * by)
+      if len > 40 then
+        local ux, uy = bx / len, by / len
+        local l = getLine()
+        l:SetThickness(4)
+        l:SetColorTexture(1, 0.84, 0.47, 0.95)
+        l.under:SetColorTexture(0, 0, 0, 0.5)
+        l:SetStartPoint("CENTER", view, ux * 16, uy * 16)
+        l:SetEndPoint("CENTER", pan, bx - ux * 14, by - uy * 14)
+        l.under:SetStartPoint("CENTER", view, ux * 16, uy * 16)
+        l.under:SetEndPoint("CENTER", pan, bx - ux * 14, by - uy * 14)
       end
     end
   end
@@ -1008,13 +1074,17 @@ local function drawInner(force)
       if it.stop then
         local st, state = it.st, it.state
         local icon = NW.NodeIcon(it.name, st.kind ~= "mixed" and st.kind or "ore")
-        styleMarker(m, st.kind, state == "next" and 34 or 28, state, icon)
+        if state == "picked" then
+          styleMarker(m, st.kind, 12, state, nil) -- picked: a small grey dot until it respawns
+        else
+          styleMarker(m, st.kind, state == "next" and 34 or 28, state, icon)
+        end
         -- faded until a herb there is confirmed up, then full opacity
         if it.up then
           if state ~= "next" then styleMarker(m, st.kind, 30, "seen", icon) end
           m:SetAlpha(1)
         elseif state == "picked" then
-          m:SetAlpha(0.2)
+          m:SetAlpha(0.45)
         else
           m:SetAlpha(state == "next" and math.max(0.6, s.fadedAlpha or 0.35) or (s.fadedAlpha or 0.35))
         end
