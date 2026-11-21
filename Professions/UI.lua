@@ -63,7 +63,7 @@ local mode = "plan" -- plan | missing
 local modeBtns = {}
 modeBtns.plan = UI.Button(page, "Leveling plan", LIST_W, function() mode = "plan"; refresh() end, 24)
 modeBtns.plan:SetPoint("TOPLEFT", list, "BOTTOMLEFT", 0, -8)
-modeBtns.missing = UI.Button(page, "Recipes I'm missing", LIST_W, function() mode = "missing"; refresh() end, 24)
+modeBtns.missing = UI.Button(page, "Recipes", LIST_W, function() mode = "missing"; refresh() end, 24)
 modeBtns.missing:SetPoint("TOPLEFT", modeBtns.plan, "BOTTOMLEFT", 0, -4)
 local listNote = UI.Text(page, 11, S.dim)
 listNote:SetPoint("TOPLEFT", modeBtns.missing, "BOTTOMLEFT", 2, -8)
@@ -201,7 +201,9 @@ for i = 1, STEP_ROWS do
     GameTooltip:AddDoubleLine("Skill-up colours", ("|cffff8040%s|r |cffffff00%d|r |cff40bf40%d|r |cff808080%d|r"):format(
       r.orange or "-", r.yellow, r.green, r.grey), S.dim[1], S.dim[2], S.dim[3])
     GameTooltip:AddDoubleLine("Cost per craft", NW.Money(stp.costEach), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-    GameTooltip:AddDoubleLine("Expected crafts", stp.crafts, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    GameTooltip:AddDoubleLine("Crafts", stp.spare and stp.spare > 0 and ("%d (%d spare)"):format(stp.crafts, stp.spare) or stp.crafts, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    if stp.fee then GameTooltip:AddDoubleLine("Trainer: recipe", NW.Money(stp.fee), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+    if stp.rankFee and stp.rankFee > 0 then GameTooltip:AddDoubleLine("Trainer: " .. stp.rankUp.name, NW.Money(stp.rankFee), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     local src = r.src == "trainer" and "Trainer" or r.src == "rank" and "Learned with the profession"
       or "Recipe from a vendor or drop"
     GameTooltip:AddDoubleLine("Source", src, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
@@ -572,6 +574,7 @@ local function drawCraft(p)
 
   hCost:SetText(NW.Money(plan.total))
   local sub = ("to %d from %d"):format(to, from)
+  if plan.fees and plan.fees > 0 then sub = sub .. (" · %s training"):format(NW.Money(plan.fees, true)) end
   if plan.unknown > 0 then sub = sub .. (" · %d steps without full prices"):format(plan.unknown) end
   -- what bought or found recipes would save
   if not st().planRecipeItems then
@@ -793,6 +796,28 @@ local function scanOf(key, r)
   return sc and sc[r.name]
 end
 
+-- Where a recipe comes from, from the recipe list's source codes
+local function whereText(r)
+  if not r.where then return end
+  local fac = (UnitFactionGroup and UnitFactionGroup("player")) == "Alliance" and "A" or "H"
+  local parts, fav, other = {}, false, false
+  for tok in r.where:gmatch("[^;]+") do
+    local c, rest = tok:sub(1, 1), tok:sub(2)
+    if tok == "F" then fav = true
+    elseif tok == "S" then parts[#parts + 1] = "Specialization trainer"
+    elseif tok == "T" or tok == "B" then -- handled as a trainer recipe
+    elseif c == "V" then
+      local f = rest:sub(1, 1)
+      if f == "*" or f == fac then parts[#parts + 1] = "Vendor: " .. rest:sub(2) else other = true end
+    elseif c == "D" then parts[#parts + 1] = "Drop: " .. rest
+    elseif c == "+" then parts[#parts + 1] = "+" .. rest .. " more"
+    elseif c == "Q" then parts[#parts + 1] = "Quest: " .. rest
+    end
+  end
+  if #parts == 0 and other then parts[1] = "Sold to the other faction: auction house" end
+  return table.concat(parts, "  ·  "), fav
+end
+
 function sourceText(key, r, rank)
   local e = r.scanned or scanOf(key, r)
   if r.src == "scan" or (r.src == "recipe" and e and e.source) then
@@ -808,7 +833,9 @@ function sourceText(key, r, rank)
     if rank >= req then return "|cff8cdb7aTrainer: learn it now|r", "now" end
     return ("Trainer at skill %d"):format(req), "later"
   end
-  if isForeverNew(r) then return "|cffe8c46a" .. MERCHANT .. "|r", "merchant" end
+  local w, fav = whereText(r)
+  if w and w ~= "" then return (fav and ("|cffe8c46a" .. w .. "|r") or w), fav and "merchant" or "drop" end
+  if fav or isForeverNew(r) then return "|cffe8c46a" .. MERCHANT .. "|r", "merchant" end
   return "Vendor or world drop  ·  click to search the AH", "drop"
 end
 
@@ -818,11 +845,15 @@ local function buildMissing(key)
   local rank = NW.ProfSkill(key)
   local out, have = {}, {}
   local scan = NW.charDB.recipeScan[key]
-  for _, r in ipairs(NW.RECIPES[key] or {}) do
-    have[r.name] = true
-    local e = scan and scan[r.name]
-    local learned = known[r.name] or (e and e.learned)
-    if not learned then out[#out + 1] = r end
+  -- searching shows recipes you know too
+  local all = searchText ~= ""
+  for _, list in ipairs({ NW.RECIPES[key] or {}, NW.CATALOG[key] or {} }) do
+    for _, r in ipairs(list) do
+      have[r.name] = true
+      local e = scan and scan[r.name]
+      r.knownNow = (known[r.name] or (e and e.learned) or (r.where and r.where:sub(1, 1) == "B")) and true or false
+      if all or not r.knownNow then out[#out + 1] = r end
+    end
   end
   -- recipes the game lists that Nodewalker's data doesn't have
   for name, e in pairs(scan or {}) do
@@ -859,8 +890,8 @@ local function drawMissingRows(key)
       row.range:SetText(req and tostring(req) or "?")
       row.icon:SetTexture(r.icon or recipeIcon(r))
       row.icon:Show()
-      local col = (not rank or not req or rank >= req) and "ffffff" or "eb5c4c"
-      row.name:SetText(("|cff%s%s|r"):format(col, r.name))
+      local col = r.knownNow and "8cdb7a" or (not rank or not req or rank >= req) and "ffffff" or "eb5c4c"
+      row.name:SetText(("|cff%s%s|r%s"):format(col, r.name, r.knownNow and "  |cff94949aknown|r" or ""))
       row.crafts:SetText("")
       row.cost:SetText("")
       row.mats:SetText((sourceText(key, r, rank)))
@@ -873,7 +904,7 @@ end
 
 local function drawMissing(p)
   steps = filter(buildMissing(p.key), function(r)
-    if has(r.name) then return true end
+    if has(r.name) or has(r.where) then return true end
     for _, re in ipairs(r.reagents) do if has((itemName(re[1]))) then return true end end
     return false
   end)
@@ -882,18 +913,22 @@ local function drawMissing(p)
   local rank = NW.ProfSkill(p.key)
   local scanned = NW.charDB.known[p.key] and next(NW.charDB.known[p.key]) ~= nil
   local fullList = NW.charDB.recipeScan[p.key] and next(NW.charDB.recipeScan[p.key]) ~= nil
-  stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "No missing recipe matches your search."
+  stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "No recipe matches your search."
     or "You know every recipe Nodewalker has for this profession.") or "")
   drawMissingRows(p.key)
   local counts = { now = 0, later = 0, merchant = 0, drop = 0, dim = 0 }
+  local nMissing = 0
   for _, r in ipairs(steps) do
-    local _, kind = sourceText(p.key, r, rank)
-    counts[kind] = counts[kind] + 1
+    if not r.knownNow then
+      nMissing = nMissing + 1
+      local _, kind = sourceText(p.key, r, rank)
+      counts[kind] = counts[kind] + 1
+    end
   end
-  hCost:SetText(("%d missing"):format(#steps))
+  hCost:SetText(searchText ~= "" and ("%d found"):format(#steps) or ("%d missing"):format(nMissing))
   hCostSub:SetText(fullList and "from the game's full recipe list" or scanned and "of the recipes in Nodewalker's data"
     or "|cffeb5c4cOpen your profession window once|r so this knows what you have")
-  priceLine:SetText("Trainer recipes you can learn now come first. Hover a recipe for details; click a bought or found one to search the auction house.")
+  priceLine:SetText("Recipes you don't know. Search by recipe, material, mob or zone to see any recipe, known ones too.")
   local lines = {
     ("|cff8cdb7a%d|r to learn at the trainer now"):format(counts.now),
     ("%d at the trainer later"):format(counts.later + counts.dim),

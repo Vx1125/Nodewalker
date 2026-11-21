@@ -47,6 +47,33 @@ function NW.RecipeItems(key, map)
   end
 end
 
+-- The full recipe list (Professions/Catalog.lua). Recipes already in the
+-- leveling data get what they lack; the rest are kept for the Recipes view.
+NW.CATALOG, NW.RANK_FEE = {}, {}
+function NW.CatalogAdder(key)
+  NW.CATALOG[key] = {}
+  local list, byName, byItem = NW.CATALOG[key], {}, {}
+  for _, r in ipairs(NW.RECIPES[key] or {}) do
+    byName[r.name] = r
+    if r.item then byItem[r.item] = r end
+  end
+  return function(name, learn, y, g, gr, id, recipeItem, fee, where, reagents, yield)
+    if where == "" then where = nil end
+    local r = byName[name] or (type(id) == "number" and byItem[id]) or nil
+    if r then
+      r.fee, r.where = fee, where
+      r.recipeItem = r.recipeItem or recipeItem
+      return
+    end
+    local trainer = where and (where:find("^[TB]") ~= nil) or false
+    local e = { name = name, orange = learn < y and learn or nil, yellow = y, green = g, grey = gr, yield = yield or 1,
+      reagents = {}, fee = fee, where = where, recipeItem = recipeItem, catalog = true, src = trainer and "trainer" or "recipe" }
+    if type(id) == "string" then e.spell = tonumber(id:sub(2)) else e.item = id end
+    for rid, n in reagents:gmatch("(%d+):(%d+)") do e.reagents[#e.reagents + 1] = { tonumber(rid), tonumber(n) } end
+    list[#list + 1] = e
+  end
+end
+
 -- Recipes never used for leveling: cooldowns (transmutes), camp objects, raid-only
 NW.NO_LEVEL = {}
 for _, n in ipairs({ "Gold Bar", "Truesilver Bar", "Essence of Fire", "Arcanite Bar", "Living Essence", "Essence of Water",
@@ -537,25 +564,44 @@ function NW.BuildPlan(key, from, to)
     local rankUp = RANK_AT[sk]
     if rankUp and maxSkill and maxSkill >= rankUp.cap then rankUp = nil end -- already trained
     if not cur or cur.idx ~= idx or rankUp then
-      cur = { idx = idx, from = sk, to = sk + 1, crafts = 0, recipe = idx and recipes[idx], needsRecipe = pk and pk.needs, rankUp = rankUp }
+      cur = { idx = idx, from = sk, to = sk + 1, crafts = 0, var = 0, recipe = idx and recipes[idx], needsRecipe = pk and pk.needs, rankUp = rankUp }
       steps[#steps + 1] = cur
     else
       cur.to = sk + 1
     end
-    if idx then cur.crafts = cur.crafts + 1 / NW.SkillUpChance(recipes[idx], sk) end
+    if idx then
+      local p = NW.SkillUpChance(recipes[idx], sk)
+      cur.crafts = cur.crafts + 1 / p
+      cur.var = cur.var + (1 - p) / (p * p) -- luck: how much the crafts needed can vary
+    end
   end
+  local fees, paid = 0, {}
+  local rankFee = NW.RANK_FEE[key] or {}
   for _, st in ipairs(steps) do
     if st.recipe then
       st.crafts = math.ceil(st.crafts - 0.05)
+      -- a few spare crafts, enough for about 4 runs in 5; none while it's orange
+      st.spare = st.var > 0 and math.ceil(0.85 * math.sqrt(st.var)) or 0
+      st.crafts = st.crafts + st.spare
       st.costEach, st.unknown = costOf[st.idx], unknownOf[st.idx]
       st.cost = st.costEach * st.crafts
+      -- what the trainer charges: the recipe (once) and the next rank
+      local r = st.recipe
+      if r.fee and r.src == "trainer" and not paid[r.name] and not isKnown(key, r) then
+        paid[r.name] = true
+        st.fee = r.fee
+      end
+      if st.rankUp then st.rankFee = rankFee[st.rankUp.name] end
+      st.train = (st.fee or 0) + (st.rankFee or 0)
+      st.cost = st.cost + st.train
+      fees = fees + st.train
       total = total + st.cost
       if st.unknown > 0 then unknownTotal = unknownTotal + 1 end
       st.mats = {}
       for _, re in ipairs(st.recipe.reagents) do st.mats[#st.mats + 1] = { re[1], re[2] * st.crafts } end
     end
   end
-  local plan = { steps = steps, total = total, unknown = unknownTotal, gaps = gaps, from = from, to = to }
+  local plan = { steps = steps, total = total, fees = fees, unknown = unknownTotal, gaps = gaps, from = from, to = to }
   planCache[cacheKey] = plan
   return plan
 end

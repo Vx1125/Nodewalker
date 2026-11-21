@@ -24,6 +24,7 @@ Professions\Tailoring.lua
 Professions\Cooking.lua
 Professions\FirstAid.lua
 Professions\Mining.lua
+Professions\Catalog.lua
 Professions\Gathering.lua
 Nodes.lua
 Route.lua

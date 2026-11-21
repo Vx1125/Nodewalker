@@ -1,0 +1,8 @@
+Professions/Catalog.lua, and the learn levels, recipe items, reagent and yield
+corrections in Professions/*.lua, are derived from the recipe data of One For All
+by Smoergi (https://www.curseforge.com/wow/addons/oneforall), which is licensed
+GPL-3.0-or-later. That data is in turn built from the WoW Forever client data
+(wago.tools), QuestieDB and CMaNGOS classic-db (both GPL).
+
+The full text of the GNU General Public License version 3 is at
+https://www.gnu.org/licenses/gpl-3.0.txt
