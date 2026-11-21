@@ -301,6 +301,13 @@ local shopBox = UI.Box(right, RIGHT_W, 318)
 shopBox:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -8)
 shopBox:EnableMouseWheel(true)
 local SHOP_H, SHOP_ROWS = 26, 12
+local RECIPE_PREFIX, sourceText -- set further down
+local function searchAH(terms)
+  local api = Auctionator and Auctionator.API and Auctionator.API.v1
+  local fn = api and (api.MultiSearchExact or api.MultiSearch)
+  local open = (AuctionHouseFrame and AuctionHouseFrame:IsShown()) or (AuctionFrame and AuctionFrame:IsShown())
+  if fn and open and #terms > 0 then pcall(fn, ADDON, terms) return true end
+end
 local shopRows, shop, shopOffset = {}, {}, 0
 for i = 1, SHOP_ROWS do
   local row = CreateFrame("Button", nil, shopBox)
@@ -321,6 +328,13 @@ for i = 1, SHOP_ROWS do
     local e = self.entry
     if not e then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    if e.recipe then
+      GameTooltip:SetText(e.term, 1, 0.5, 0.25)
+      GameTooltip:AddLine((sourceText(e.key, e.recipe)), 1, 1, 1, true)
+      if e.price then GameTooltip:AddDoubleLine("Auction house", NW.Money(e.price), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+      GameTooltip:Show()
+      return
+    end
     GameTooltip:SetItemByID(e.id)
     GameTooltip:AddLine(" ")
     GameTooltip:AddDoubleLine("Need", e.need, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
@@ -333,6 +347,10 @@ for i = 1, SHOP_ROWS do
     GameTooltip:Show()
   end)
   row:SetScript("OnLeave", GameTooltip_Hide)
+  row:SetScript("OnClick", function(self)
+    local e = self.entry
+    if e and e.recipe then searchAH({ e.term }) end
+  end)
   shopRows[i] = row
 end
 local drawShop
@@ -346,7 +364,9 @@ local searchBtn = UI.Button(right, "Search all in Auctionator", RIGHT_W, functio
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
   local terms = {}
   for _, e in ipairs(shop) do
-    if e.buy > 0 and e.src ~= "vendor" then
+    if e.recipe then
+      if e.buy > 0 then terms[#terms + 1] = e.term end
+    elseif e.buy > 0 and e.src ~= "vendor" then
       local n, ok = itemName(e.id)
       if ok then terms[#terms + 1] = n end
     end
@@ -443,6 +463,12 @@ drawShop = function()
     row.entry = e
     if e then
       row:Show()
+    end
+    if e and e.recipe then
+      row.icon:SetTexture(e.id and itemIcon(e.id) or "Interface\\Icons\\INV_Scroll_03")
+      row.name:SetText("|cffff8040" .. e.term .. "|r")
+      row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (e.cost and NW.Money(e.cost, true)) or "|cff94949afind|r")
+    elseif e then
       row.icon:SetTexture(itemIcon(e.id))
       local have = e.have > 0 and ("|cff8cdb7a%d|r/"):format(math.min(e.have, e.need)) or ""
       row.name:SetText(("%s%d  %s"):format(have, e.need, (itemName(e.id))))
@@ -520,6 +546,28 @@ local function drawCraft(p)
   hCostSub:SetText(sub)
 
   local list, total = NW.ShoppingList(p.key, plan)
+  -- recipes the plan needs you to buy or find go on top
+  local recipes, seen = {}, {}
+  for _, stp in ipairs(plan.steps) do
+    local r = stp.needsRecipe and stp.recipe
+    if r and not seen[r.name] then
+      seen[r.name] = true
+      local term = (RECIPE_PREFIX[p.key] or "") .. r.name
+      local e = { recipe = r, key = p.key, term = term, need = 1, have = 0, buy = 1 }
+      -- the game only knows the recipe item once you've seen it
+      local okID, id = pcall(function() return C_Item.GetItemInfoInstant(term) end)
+      if okID and id then
+        e.id = id
+        e.have = math.min(1, NW.ItemCount(id) or 0)
+        e.buy = 1 - e.have
+        local price, src = NW.Price(id)
+        if price and src == "ah" then e.price, e.cost = price, price * e.buy end
+      end
+      if e.cost then total = total + e.cost end
+      recipes[#recipes + 1] = e
+    end
+  end
+  for i, e in ipairs(recipes) do table.insert(list, i, e) end
   shop = list
   if viewChanged then shopOffset = 0 end
   clampOffsets()
@@ -661,7 +709,7 @@ end
 ------------------------------------------------------------------------
 -- Missing recipes: what you don't know yet, and where it comes from
 ------------------------------------------------------------------------
-local RECIPE_PREFIX = {
+RECIPE_PREFIX = {
   alchemy = "Recipe: ", blacksmithing = "Plans: ", enchanting = "Formula: ", engineering = "Schematic: ",
   leatherworking = "Pattern: ", tailoring = "Pattern: ", cooking = "Recipe: ", firstaid = "Manual: ",
 }
@@ -699,7 +747,7 @@ local function scanOf(key, r)
   return sc and sc[r.name]
 end
 
-local function sourceText(key, r, rank)
+function sourceText(key, r, rank)
   local e = r.scanned or scanOf(key, r)
   if r.src == "scan" or (r.src == "recipe" and e and e.source) then
     if e and e.source then
