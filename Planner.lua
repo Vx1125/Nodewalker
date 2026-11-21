@@ -266,7 +266,7 @@ refresh = function()
   btnClear:SetEnabled(route and route.avoid and #route.avoid > 0 or false)
   playerDot:ClearAllPoints()
   playerDot:SetPoint("CENTER", mapArt, "TOPLEFT", px(ppx, ppy))
-  playerDot:SetRotation(GetPlayerFacing() or 0)
+  playerDot:SetRotation(NW.Facing())
 
   local gold, dim = "|cffe8c46a", "|cff94949a"
   if NW.routeStatus then

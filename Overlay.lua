@@ -847,7 +847,7 @@ local function drawInner(force)
     canvas:SetPoint("TOPLEFT", view, "CENTER", -cx * W, cy * H)
   end
 
-  arrow:SetRotation(GetPlayerFacing() or 0)
+  arrow:SetRotation(NW.Facing())
   local now = GetTime()
   if not force and built.mapID == mapID and built.W == W and now - lastBuild < 0.15 then
     -- glide: slide everything by how far you've moved since the last rebuild
@@ -1142,7 +1142,7 @@ overlay:SetScript("OnUpdate", function(_, dt)
   local s = NW.db.settings
   local a = s.opacity
   -- fade while you travel; come back when a spot or your next stop is close
-  if s.fadeMoving and GetUnitSpeed("player") > 0 and not (s.brightNear and NW.nearNode) then a = a * s.fadeMovingAlpha end
+  if s.fadeMoving and NW.Moving() and not (s.brightNear and NW.nearNode) then a = a * s.fadeMovingAlpha end
   alphaNow = alphaNow and (alphaNow + (a - alphaNow) * math.min(1, dt * 6)) or a
   a = alphaNow
   -- The terrain takes the opacity setting; route and markers stay easy to read

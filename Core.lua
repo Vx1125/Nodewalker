@@ -66,9 +66,25 @@ end
 -- compared or used as table keys, so check before touching them.
 local issecret = _G.issecretvalue
 function NW.Readable(v)
+  if issecret and issecret(v) then return false end -- first: a secret can't even be compared to nil
   if v == nil then return false end
-  if issecret and issecret(v) then return false end
   return true
+end
+
+-- In combat the game hides your speed and facing from addons. These return
+-- the last value that could be read, so the overlay keeps working.
+local lastFacing, lastMoving = 0, false
+function NW.Facing()
+  local f = GetPlayerFacing()
+  if issecret and issecret(f) then return lastFacing end
+  if f then lastFacing = f end
+  return lastFacing
+end
+function NW.Moving()
+  local v = GetUnitSpeed("player")
+  if issecret and issecret(v) then return lastMoving end
+  lastMoving = (v or 0) > 0
+  return lastMoving
 end
 
 -- Item and merchant calls moved into C_ namespaces on newer clients.
@@ -151,7 +167,14 @@ function NW.PlayerPos()
   local pos = C_Map.GetPlayerMapPosition(mapID, "player")
   if not pos then return nil end
   local x, y = pos:GetXY()
+  if issecret and (issecret(x) or issecret(y) or issecret(mapID)) then
+    -- hidden right now: go with where you last were
+    if NW.lastPos then return NW.lastPos[1], NW.lastPos[2], NW.lastPos[3] end
+    return nil
+  end
   if not x or (x == 0 and y == 0) then return nil end
+  NW.lastPos = NW.lastPos or {}
+  NW.lastPos[1], NW.lastPos[2], NW.lastPos[3] = mapID, x, y
   return mapID, x, y
 end
 

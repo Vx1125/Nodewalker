@@ -201,7 +201,7 @@ local function minimapCursorPos()
   local perPx = diam / Minimap:GetWidth()
   local east, north = (cx / scale - mx) * perPx, (cy / scale - my) * perPx
   if GetCVar and GetCVar("rotateMinimap") == "1" then
-    local f = GetPlayerFacing() or 0
+    local f = NW.Facing()
     east, north = east * math.cos(f) - north * math.sin(f), east * math.sin(f) + north * math.cos(f)
   end
   return mapID, px + east / w, py - north / h

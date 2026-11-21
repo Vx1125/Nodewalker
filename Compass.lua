@@ -86,7 +86,7 @@ end
 
 function NW.UpdateCompass()
   if not bar:IsShown() then return end
-  local facing = GetPlayerFacing()
+  local facing = NW.Facing()
   local mapID, px, py = NW.PlayerPos()
   local info = mapID and C_Map.GetMapInfo(mapID)
   bar.zone:SetText(info and info.name or "")
