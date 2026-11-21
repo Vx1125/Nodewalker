@@ -316,11 +316,22 @@ shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
 shopBox:EnableMouseWheel(true)
 local SHOP_H, SHOP_ROWS = 26, 10
 local RECIPE_PREFIX, sourceText -- set further down
-local function searchAH(terms)
+-- Search Auctionator for { { name, quantity }, ... }; the quantity is what
+-- you still need, so its buy box starts on that number.
+local function searchAH(items)
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
-  local fn = api and (api.MultiSearchExact or api.MultiSearch)
   local open = (AuctionHouseFrame and AuctionHouseFrame:IsShown()) or (AuctionFrame and AuctionFrame:IsShown())
-  if fn and open and #terms > 0 then pcall(fn, ADDON, terms) return true end
+  if not (api and open and #items > 0) then return false end
+  if api.MultiSearchAdvanced then
+    local terms = {}
+    for i, it in ipairs(items) do terms[i] = { searchString = it[1], isExact = true, quantity = it[2] } end
+    if pcall(api.MultiSearchAdvanced, ADDON, terms) then return true end
+  end
+  local fn = api.MultiSearchExact or api.MultiSearch
+  if not fn then return false end
+  local names = {}
+  for i, it in ipairs(items) do names[i] = it[1] end
+  return (pcall(fn, ADDON, names))
 end
 local shopRows, shop, shopOffset = {}, {}, 0
 for i = 1, SHOP_ROWS do
@@ -352,6 +363,7 @@ for i = 1, SHOP_ROWS do
     GameTooltip:SetItemByID(e.id)
     GameTooltip:AddLine(" ")
     GameTooltip:AddDoubleLine("Need", e.need, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    if e.buy > 0 and e.src ~= "vendor" then GameTooltip:AddDoubleLine("Click", ("search for %d"):format(e.buy), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     if e.have > 0 then GameTooltip:AddDoubleLine("In your bags and bank", e.have, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     local srcText = ({ ah = "Auction house (Auctionator)", vendor = "Vendor", craft = "Cheaper to make", est = "Estimate (no price yet)" })[e.src or ""] or "No price"
     GameTooltip:AddDoubleLine("Price each", NW.Money(e.price), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
@@ -363,7 +375,13 @@ for i = 1, SHOP_ROWS do
   row:SetScript("OnLeave", GameTooltip_Hide)
   row:SetScript("OnClick", function(self)
     local e = self.entry
-    if e and e.recipe then searchAH({ e.term }) end
+    if not e or e.buy <= 0 then return end
+    if e.recipe then
+      searchAH({ { e.term, 1 } })
+    else
+      local n, ok = itemName(e.id)
+      if ok then searchAH({ { n, e.buy } }) end
+    end
   end)
   shopRows[i] = row
 end
@@ -375,21 +393,16 @@ shopBox:SetScript("OnMouseWheel", function(_, d)
   drawShop()
 end)
 local searchBtn = UI.Button(right, "Search all in Auctionator", RIGHT_W, function()
-  local api = Auctionator and Auctionator.API and Auctionator.API.v1
-  local terms = {}
+  local items = {}
   for _, e in ipairs(shop) do
     if e.recipe then
-      if e.buy > 0 then terms[#terms + 1] = e.term end
+      if e.buy > 0 then items[#items + 1] = { e.term, 1 } end
     elseif e.buy > 0 and e.src ~= "vendor" then
       local n, ok = itemName(e.id)
-      if ok then terms[#terms + 1] = n end
+      if ok then items[#items + 1] = { n, e.buy } end
     end
   end
-  if api and (api.MultiSearchExact or api.MultiSearch) and #terms > 0 then
-    pcall(api.MultiSearchExact or api.MultiSearch, ADDON, terms)
-  else
-    NW.Print("Open the auction house with Auctionator to search for the list.")
-  end
+  if not searchAH(items) then NW.Print("Open the auction house with Auctionator to search for the list.") end
 end, 26, "primary")
 searchBtn:SetPoint("TOPLEFT", shopBox, "BOTTOMLEFT", 0, -8)
 local tips = UI.Text(right, 11, S.dim)
