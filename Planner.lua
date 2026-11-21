@@ -87,11 +87,15 @@ local function routeColor(t)
   return 0.3 + (0.35 - 0.3) * k, 0.78 + (0.5 - 0.78) * k, 0.8 + (0.95 - 0.8) * k
 end
 
-local nextRing = mapArt:CreateTexture(nil, "OVERLAY", nil, 6)
-nextRing:SetTexture("Interface\\Minimap\\UI-Minimap-Ping-Center")
-nextRing:SetVertexColor(1, 0.84, 0.47)
-nextRing:SetBlendMode("ADD")
-nextRing:SetSize(30, 30)
+local nextRing = mapArt:CreateTexture(nil, "ARTWORK", nil, 7)
+nextRing:SetColorTexture(1, 0.84, 0.47, 0.4)
+nextRing:SetSize(26, 26)
+do
+  local mask = mapArt:CreateMaskTexture()
+  mask:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+  mask:SetAllPoints(nextRing)
+  nextRing:AddMaskTexture(mask)
+end
 
 local playerDot = mapArt:CreateTexture(nil, "OVERLAY", nil, 7)
 playerDot:SetTexture("Interface\\Minimap\\MinimapArrow")
