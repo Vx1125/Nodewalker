@@ -351,6 +351,31 @@ shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
 shopBox:EnableMouseWheel(true)
 local SHOP_H, SHOP_ROWS = 26, 10
 local RECIPE_PREFIX, sourceText -- set further down
+-- Shift-click: put an item (or a recipe's spell) into chat. With no chat box
+-- open, `open` starts one. Returns true when the link went somewhere.
+local function chatLink(itemID, spellID, open)
+  local link
+  if itemID then
+    link = select(2, NW.ItemInfo(itemID))
+  elseif spellID then
+    link = (C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(spellID)) or (GetSpellLink and GetSpellLink(spellID))
+  end
+  if not link then return false end
+  local active = ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()
+  if active then
+    if ChatFrameUtil and ChatFrameUtil.InsertLink then return ChatFrameUtil.InsertLink(link) and true or false end
+    return ChatEdit_InsertLink and ChatEdit_InsertLink(link) and true or false
+  end
+  if open then
+    if ChatFrameUtil and ChatFrameUtil.OpenChat then ChatFrameUtil.OpenChat(link) return true end
+    if ChatFrame_OpenChat then ChatFrame_OpenChat(link) return true end
+  end
+  return false
+end
+local function ahOpen()
+  return (AuctionHouseFrame and AuctionHouseFrame:IsShown()) or (AuctionFrame and AuctionFrame:IsShown()) or false
+end
+
 -- Search Auctionator for { { name, quantity }, ... }; the quantity is what
 -- you still need, so its buy box starts on that number.
 local function searchAH(items)
@@ -413,6 +438,11 @@ for i = 1, SHOP_ROWS do
   row:SetScript("OnClick", function(self)
     local e = self.entry
     if not e then return end
+    -- Shift-click links it in chat; at the auction house with no chat box open it searches
+    if IsShiftKeyDown() and e.id then
+      local typing = ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()
+      if (typing or not ahOpen()) and chatLink(e.id, nil, true) then return end
+    end
     -- Shift-click searches even when you already have enough
     if e.buy <= 0 and not IsShiftKeyDown() then return end
     local qty = math.max(1, e.buy)
@@ -750,7 +780,15 @@ end
 
 -- Click a bracket: herbs open the Herb Guide; ore builds a route in the best zone
 for _, row in ipairs(stepRows) do
+  -- Shift-click a recipe: link what it makes in chat, and do nothing else
+  row:SetScript("PreClick", function(self)
+    self.linked = false
+    if not IsShiftKeyDown() then return end
+    local r = self.missingRecipe or (self.step and self.step.recipe)
+    if r then self.linked = chatLink(r.item, r.spell, true) end
+  end)
   row:SetScript("OnClick", function(self)
+    if self.linked then return end
     local b = self.bracket
     if not (b and b.gather and b.nodes) then return end
     if selected == "herbalism" then
@@ -1053,13 +1091,13 @@ for _, row in ipairs(stepRows) do
   row:HookScript("OnClick", function(self)
     -- a Train row: pin the trainer on the map
     local stp = self.step
-    if not (stp and stp.banner) then return end
+    if self.linked or not (stp and stp.banner) then return end
     local who, _, mapID, x, y = NW.RankWhere(selected, stp.rankUp.name)
     if mapID then NW.PinMap(mapID, x, y, who) end
   end)
   row:HookScript("OnClick", function(self)
     local r = self.missingRecipe
-    if not r or (r.src ~= "recipe" and r.src ~= "scan") then return end
+    if self.linked or not r or (r.src ~= "recipe" and r.src ~= "scan") then return end
     local term = (RECIPE_PREFIX[selected] or "") .. r.name
     local api = Auctionator and Auctionator.API and Auctionator.API.v1
     if api and (api.MultiSearchExact or api.MultiSearch) and AuctionHouseFrame and AuctionHouseFrame:IsShown() then
