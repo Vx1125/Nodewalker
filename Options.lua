@@ -248,12 +248,23 @@ local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
 -- The button sits on the screen where the minimap's edge normally is. It isn't
 -- attached to the minimap, which the overlay borrows for live dots.
 local function minimapHome()
+  local ui = UIParent:GetEffectiveScale()
+  local cluster = MinimapCluster
+  local cx, cy = nil, nil
+  if cluster then cx, cy = cluster:GetCenter() end
+  local ck = cluster and cluster:GetEffectiveScale() / ui
   if not (NW.IsLive and NW.IsLive()) then
     local x, y = Minimap:GetCenter()
     if x then
-      local k = Minimap:GetEffectiveScale() / UIParent:GetEffectiveScale()
+      local k = Minimap:GetEffectiveScale() / ui
       NW.minimapHome = { x * k, y * k, Minimap:GetWidth() / 2 * k }
+      -- remember where the minimap sits inside its cluster, for when it's borrowed
+      if cx then s().minimapInCluster = { x * k - cx * ck, y * k - cy * ck, NW.minimapHome[3] } end
     end
+  elseif cx and s().minimapInCluster then
+    -- borrowed: the cluster hasn't moved, so work it out from there
+    local o = s().minimapInCluster
+    NW.minimapHome = { cx * ck + o[1], cy * ck + o[2], o[3] }
   end
   return NW.minimapHome
 end
@@ -266,8 +277,9 @@ local function placeButton()
   mmBtn:SetPoint("CENTER", UIParent, "BOTTOMLEFT", home[1] + r * math.cos(a), home[2] + r * math.sin(a))
 end
 
+local mmReady = false -- not until the game has laid out the minimap
 function NW.UpdateMinimapButton()
-  if mmBtn then mmBtn:SetShown(s().minimapButton and true or false) end
+  if mmBtn then mmBtn:SetShown(mmReady and s().minimapButton and true or false) end
 end
 
 table.insert(NW.OnLoad, function()
@@ -319,6 +331,13 @@ table.insert(NW.OnLoad, function()
     GameTooltip:Show()
   end)
   mmBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  placeButton()
-  NW.UpdateMinimapButton()
+  mmBtn:Hide()
+  -- the minimap isn't in its final place until a moment after you're in the world
+  NW.On("PLAYER_ENTERING_WORLD", function()
+    C_Timer.After(1.5, function()
+      mmReady = true
+      placeButton()
+      NW.UpdateMinimapButton()
+    end)
+  end)
 end)
