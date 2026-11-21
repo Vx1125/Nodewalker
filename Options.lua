@@ -87,7 +87,8 @@ place(1, UI.Dropdown(page, COL_W, "Map style", {
   { "minimap", "Detailed (minimap tiles)" }, { "zonemap", "World map art" },
 }, function() return s().terrainSource end, function(v) s().terrainSource = v; changed() end, 190), 30)
 place(1, UI.Dropdown(page, COL_W, "Terrain colour", {
-  { "natural", "Natural" }, { "gold", "Gold tint" }, { "blue", "Blue tint" }, { "none", "Off (icons and route only)" },
+  { "natural", "Natural" }, { "muted", "Muted" }, { "silhouette", "Silhouette (dark)" },
+  { "gold", "Gold tint" }, { "blue", "Blue tint" }, { "none", "Off (icons and route only)" },
 }, function() return s().tint end, function(v) s().tint = v; changed() end, 190), 30)
 
 heading(1, "Live herb dots")

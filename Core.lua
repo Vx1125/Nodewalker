@@ -11,7 +11,7 @@ local DEFAULTS = {
     opacity = 0.55,
     overlaySize = 0.5,    -- share of the screen the map window covers (0.25 to 1)
     scale = 1.0,          -- UI units per yard
-    tint = "natural",     -- natural | gold | blue | none (nodes and route only)
+    tint = "natural",     -- natural | muted | silhouette | gold | blue | none (nodes and route only)
     terrainSource = "minimap", -- minimap (detailed tiles) | zonemap (world map art)
     continentDirs = {},   -- [continent ID] = minimap folder, for continents we don't know yet
     fadeMoving = true,

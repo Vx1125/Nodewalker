@@ -93,8 +93,20 @@ local TINTS = {
   blue = { 0.55, 0.80, 0.95 },
 }
 
+-- Styles that keep the terrain's shapes but take the noise out:
+-- { how much colour to remove (0-1), r, g, b }
+local STYLES = {
+  muted      = { 0.75, 0.62, 0.62, 0.66 }, -- mostly grey, a hint of the zone's colour, dimmed
+  silhouette = { 1, 0.20, 0.22, 0.27 },    -- a dark shape: roads, walls and water read by outline
+}
+
 local function applyTint(t, tint)
-  if tint == "natural" then
+  local st = STYLES[tint]
+  if st then
+    if t.SetDesaturation then t:SetDesaturation(st[1]) else t:SetDesaturated(true) end
+    t:SetVertexColor(st[2], st[3], st[4])
+  elseif tint == "natural" then
+    if t.SetDesaturation then t:SetDesaturation(0) end
     t:SetDesaturated(false)
     t:SetVertexColor(1, 1, 1)
   else
