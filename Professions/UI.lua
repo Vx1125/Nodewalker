@@ -88,7 +88,8 @@ local hName = UI.Text(mid, 17, S.gold)
 hName:SetPoint("TOPLEFT", hIconBox, "TOPRIGHT", 10, -1)
 local hSkill = UI.Text(mid, 12, S.dim)
 hSkill:SetPoint("TOPLEFT", hName, "BOTTOMLEFT", 0, -5)
-hSkill:SetWidth(MID_W - 50)
+hSkill:SetWidth(MID_W - 200)
+hSkill:SetWordWrap(false)
 local hCost = UI.Text(mid, 15, S.text, "RIGHT")
 hCost:SetPoint("TOPRIGHT", 0, -2)
 local hCostSub = UI.Text(mid, 11, S.dim, "RIGHT")
@@ -443,21 +444,34 @@ local function matsText(r)
   return table.concat(parts, ", ") .. " each"
 end
 
-local function rankNote(key, from)
+-- The next rank you haven't trained: the rank, and whether you can train it now
+local function nextRank(key)
   local rank, max = NW.ProfSkill(key)
-  if not rank then return "" end
+  if not rank then return end
   for _, r in ipairs(NW.RANKS) do
-    if max and max < r.cap and r.skill then
-      if rank >= r.skill then
-        local who, where = NW.RankWhere(key, r.name)
-        return ("  ·  |cffe8c46aTrain %s now|r%s"):format(r.name, who and (": " .. who .. ", " .. where) or (" (cap %d)"):format(max))
-      end
-      local _, where = NW.RankWhere(key, r.name)
-      return ("  ·  train %s at skill %d, level %d%s"):format(r.name, r.skill, r.level, where and (": " .. where) or "")
-    end
+    if max and max < r.cap and r.skill then return r, rank >= r.skill, max end
   end
-  return ""
 end
+-- "Expert Cookbook, sold by Wulan: Shadowprey Village, Desolace"
+local function rankWhereText(key, rankName)
+  local who, where = NW.RankWhere(key, rankName)
+  if who then return who .. ": " .. where end
+  return "Any trainer in a capital city"
+end
+local function rankNote(key)
+  local r, now = nextRank(key)
+  if not r then return "" end
+  if now then return ("  ·  |cffe8c46aTrain %s now|r"):format(r.name) end
+  return ("  ·  %s at %d"):format(r.name, r.skill)
+end
+-- One clear line: what to train next and where to go
+local function rankLine(key)
+  local r, now, max = nextRank(key)
+  if not r then return end
+  return ("|cffe8c46a%s %s|r to pass %d: |cffffffff%s|r  (skill %d, level %d)"):format(
+    now and "Train" or "Next:", r.name, max, rankWhereText(key, r.name), r.skill, r.level)
+end
+
 
 drawSteps = function()
   local rank = NW.ProfSkill(selected) or 0
@@ -470,7 +484,18 @@ drawSteps = function()
       row:Show()
       row:SetSelected(rank >= stp.from and rank < stp.to)
       row.range:SetText(("%d-%d"):format(stp.from, stp.to))
-      if stp.recipe then
+      if stp.banner then
+        -- a stop at the trainer before the next steps
+        local ru = stp.rankUp
+        row:SetSelected(rank >= ru.skill and rank <= stp.from)
+        row.range:SetText(tostring(stp.from))
+        row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+        row.icon:Show()
+        row.name:SetText(("|cffe8c46aTrain %s|r"):format(ru.name))
+        row.crafts:SetText("")
+        row.cost:SetText(stp.rankFee and stp.rankFee > 0 and NW.Money(stp.rankFee, true) or "")
+        row.mats:SetText(("|cffffffff%s|r  ·  from skill %d, level %d"):format(rankWhereText(selected, ru.name), ru.skill, ru.level))
+      elseif stp.recipe then
         local r = stp.recipe
         row.icon:SetTexture(recipeIcon(r))
         row.icon:Show()
@@ -478,9 +503,8 @@ drawSteps = function()
         row.crafts:SetText("x" .. stp.crafts)
         row.cost:SetText(NW.Money(stp.cost, true) .. (stp.unknown > 0 and " |cffeb5c4c?|r" or ""))
         local tag = stp.needsRecipe and "|cffff8040needs recipe|r  ·  " or ""
-        if stp.rankUp then
-          local _, where = NW.RankWhere(selected, stp.rankUp.name)
-          tag = ("|cffe8c46aTrain %s first|r%s (level %d)  ·  "):format(stp.rankUp.name, where and (": " .. where) or "", stp.rankUp.level) .. tag
+        if stp.rankUp and searchText ~= "" then
+          tag = ("|cffe8c46aTrain %s first|r  ·  "):format(stp.rankUp.name) .. tag
         end
         row.mats:SetText(tag .. matsText(r))
       else
@@ -561,11 +585,25 @@ local function drawCraft(p)
   end
   local plan = NW.BuildPlan(p.key, from, to)
   steps = filter(plan.steps, stepMatches)
+  if searchText == "" then
+    -- each new rank gets its own row: where to go before the next steps
+    local list = {}
+    for _, stp in ipairs(steps) do
+      if stp.rankUp then
+        list[#list + 1] = { banner = true, rankUp = stp.rankUp, rankFee = stp.rankFee, from = stp.from, to = stp.from }
+      end
+      list[#list + 1] = stp
+    end
+    steps = list
+  end
   if viewChanged then
     stepOffset = 0
     -- start on the step you're on
     for i, stp in ipairs(steps) do
-      if rank and rank >= stp.from and rank < stp.to then stepOffset = math.max(0, math.min(i - 1, #steps - STEP_ROWS)) end
+      if rank and rank >= stp.from and rank < stp.to then
+        if i > 1 and steps[i - 1].banner then i = i - 1 end
+        stepOffset = math.max(0, math.min(i - 1, #steps - STEP_ROWS))
+      end
     end
   end
   clampOffsets()
@@ -624,8 +662,9 @@ local function drawCraft(p)
   drawShop()
 
   local ah = NW.HasAuctionator()
-  priceLine:SetText(ah and "Prices: Auctionator's last scan, vendor prices, and making it yourself when that's cheaper. Rescan the AH to update."
-    or "|cffeb5c4cAuctionator isn't loaded:|r using vendor prices and rough estimates. Install or enable it for live prices.")
+  local nextUp = rankLine(p.key)
+  priceLine:SetText(not ah and "|cffeb5c4cAuctionator isn't loaded:|r using vendor prices and rough estimates. Install or enable it for live prices."
+    or nextUp or "Prices: Auctionator's last scan, vendor prices, and making it yourself when that's cheaper. Rescan the AH to update.")
 end
 
 ------------------------------------------------------------------------
