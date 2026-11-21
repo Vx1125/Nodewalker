@@ -520,7 +520,9 @@ local function craftCost(r, s)
   r.guessExtra = guess -- planning leans away from guessed prices a little
   if s.planSellBack and r.item then
     local value = auctionator(r.item)
-    if value then cost = cost - value * 0.95 * (r.yield or 1) * 0.5 end -- half: not everything sells
+    -- half: not everything sells. A craft never counts as cheaper than a fifth
+    -- of its materials, or the plan would mass-produce whatever lists highest.
+    if value then cost = math.max(cost * 0.2, cost - value * 0.95 * (r.yield or 1) * 0.5) end
   end
   return math.max(cost, 0), unknown
 end
@@ -545,6 +547,23 @@ function NW.BuildPlan(key, from, to)
   local costOf, unknownOf = {}, {}
   for i, r in ipairs(recipes) do costOf[i], unknownOf[i] = craftCost(r, s) end
 
+  -- What it costs once to get a recipe you don't know: the recipe item, or
+  -- the trainer's fee. Spread over the points it would be used for, so the
+  -- plan doesn't buy a recipe for a handful of skill-ups.
+  local onceOf = {}
+  for i, r in ipairs(recipes) do
+    if isKnown(key, r) then
+      onceOf[i] = 0
+    elseif r.src == "trainer" or r.src == "rank" then
+      onceOf[i] = r.fee or 0
+    else
+      local price, src = nil, nil
+      if r.recipeItem then price, src = NW.Price(r.recipeItem) end
+      onceOf[i] = (price and (src == "ah" or src == "vendor")) and price or 10000 -- unpriced: assume about 1g
+    end
+  end
+  local owned = {}
+
   -- pick the cheapest recipe for each skill point
   local pick = {}
   local gaps = 0
@@ -561,12 +580,16 @@ function NW.BuildPlan(key, from, to)
             -- unknown prices count as expensive so priced options win
             local c = (costOf[i] + (r.guessExtra or 0) + unknownOf[i] * 10000) / p
             if needsRecipe then c = c * 1.15 end -- slight nudge toward what you can learn now
+            if not owned[i] and onceOf[i] > 0 then
+              c = c + onceOf[i] / math.max(1, math.min(r.green, to) - sk)
+            end
             if not best or c < bestCost then best, bestCost, bestNeeds = i, c, needsRecipe end
           end
         end
       end
       if best then break end
     end
+    if best then owned[best] = true end
     pick[sk] = best and { i = best, needs = bestNeeds } or false
     if not best then gaps = gaps + 1 end
   end
