@@ -363,7 +363,7 @@ for i = 1, SHOP_ROWS do
     GameTooltip:SetItemByID(e.id)
     GameTooltip:AddLine(" ")
     GameTooltip:AddDoubleLine("Need", e.need, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-    if e.buy > 0 and e.src ~= "vendor" then GameTooltip:AddDoubleLine("Click", ("search for %d"):format(e.buy), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+    if e.buy > 0 and e.src ~= "vendor" then GameTooltip:AddDoubleLine("Click or Shift-click", ("search for %d"):format(e.buy), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     if e.have > 0 then GameTooltip:AddDoubleLine("In your bags and bank", e.have, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     local srcText = ({ ah = "Auction house (Auctionator)", vendor = "Vendor", craft = "Cheaper to make", est = "Estimate (no price yet)" })[e.src or ""] or "No price"
     GameTooltip:AddDoubleLine("Price each", NW.Money(e.price), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
@@ -375,12 +375,15 @@ for i = 1, SHOP_ROWS do
   row:SetScript("OnLeave", GameTooltip_Hide)
   row:SetScript("OnClick", function(self)
     local e = self.entry
-    if not e or e.buy <= 0 then return end
+    if not e then return end
+    -- Shift-click searches even when you already have enough
+    if e.buy <= 0 and not IsShiftKeyDown() then return end
+    local qty = math.max(1, e.buy)
     if e.recipe then
       searchAH({ { e.term, 1 } })
     else
       local n, ok = itemName(e.id)
-      if ok then searchAH({ { n, e.buy } }) end
+      if ok then searchAH({ { n, qty } }) end
     end
   end)
   shopRows[i] = row
