@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.8
+
+- Fixed the shopping list asking for huge amounts of raw materials (154,000 Light Leather): it no longer chains conversions.
+- Action bar button (Overlay tab): a macro that opens Nodewalker. `/nw window`.
+- Fixed overlapping text in the profession header and list.
+- Fixed "vv" in the version.
+
 ## 1.1.7
 
 - Craft button on Leveling and Profit rows and on recipe cards: makes as many as your bags allow. The first click opens the profession.
