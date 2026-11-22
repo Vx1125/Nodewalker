@@ -613,6 +613,67 @@ local function isKnown(key, r)
   return k and k[r.name] or false
 end
 
+-- Disenchanting: what an item breaks into, by quality and item level.
+-- Each row: top item level, then { item, chance, average count } outcomes.
+local DUST = { 10940, 11083, 11137, 11176, 16204 }
+local DE_GREEN = { -- armour; weapons swap the dust and essence chances
+  { 15, { 10940, 0.80, 1.5 }, { 10938, 0.20, 1.5 } },
+  { 20, { 10940, 0.75, 2.5 }, { 10939, 0.20, 1.5 }, { 10978, 0.05, 1 } },
+  { 25, { 10940, 0.75, 5 }, { 10998, 0.15, 1.5 }, { 10978, 0.10, 1 } },
+  { 30, { 11083, 0.75, 1.5 }, { 11082, 0.20, 1.5 }, { 11084, 0.05, 1 } },
+  { 35, { 11083, 0.75, 3.5 }, { 11134, 0.20, 1.5 }, { 11138, 0.05, 1 } },
+  { 40, { 11137, 0.75, 1.5 }, { 11135, 0.20, 1.5 }, { 11139, 0.05, 1 } },
+  { 45, { 11137, 0.75, 3.5 }, { 11174, 0.20, 1.5 }, { 11177, 0.05, 1 } },
+  { 50, { 11176, 0.75, 1.5 }, { 11175, 0.20, 1.5 }, { 11178, 0.05, 1 } },
+  { 55, { 11176, 0.75, 3.5 }, { 16202, 0.20, 1.5 }, { 14343, 0.05, 1 } },
+  { 60, { 16204, 0.75, 1.5 }, { 16203, 0.20, 1.5 }, { 14344, 0.05, 1 } },
+  { 999, { 16204, 0.75, 3.5 }, { 16203, 0.20, 2.5 }, { 14344, 0.05, 1 } },
+}
+local DE_BLUE = { { 25, 10978 }, { 30, 11084 }, { 35, 11138 }, { 40, 11139 }, { 45, 11177 }, { 50, 11178 }, { 55, 14343 }, { 999, 14344 } }
+local DE_EPIC = { { 45, 11177, 3 }, { 50, 11178, 3 }, { 55, 14343, 3 }, { 60, 20725, 1 }, { 999, 20725, 1.5 } }
+local isDust = {}
+for _, id in ipairs(DUST) do isDust[id] = true end
+
+-- What an item is worth disenchanted, at today's prices; nil if it can't be
+-- (or the game hasn't sent the item yet). Also returns the outcomes used.
+function NW.DisenchantValue(itemID)
+  if type(itemID) ~= "number" then return nil end
+  local _, _, quality, ilvl, _, _, _, _, _, _, _, classID = NW.ItemInfo(itemID)
+  if not quality then
+    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, itemID) end
+    return nil
+  end
+  if (classID ~= 2 and classID ~= 4) or quality < 2 or quality > 4 or not ilvl or ilvl < 5 then return nil end
+  local outcomes
+  if quality == 2 then
+    for _, row in ipairs(DE_GREEN) do
+      if ilvl <= row[1] then
+        outcomes = {}
+        for i = 2, #row do
+          local o = row[i]
+          local chance = o[2]
+          -- weapons: mostly essence, sometimes dust
+          if classID == 2 and chance ~= 0.05 and chance ~= 0.10 then chance = isDust[o[1]] and 0.20 or (1 - 0.20 - (row[4] and row[4][2] or 0)) end
+          outcomes[#outcomes + 1] = { o[1], chance * o[3] }
+        end
+        break
+      end
+    end
+  else
+    for _, row in ipairs(quality == 3 and DE_BLUE or DE_EPIC) do
+      if ilvl <= row[1] then outcomes = { { row[2], row[3] or 1 } } break end
+    end
+  end
+  if not outcomes then return nil end
+  local value = 0
+  for _, o in ipairs(outcomes) do
+    local p = auctionator(o[1])
+    if not p then return nil, outcomes end
+    value = value + p * o[2]
+  end
+  return value, outcomes
+end
+
 -- How much one craft costs, after anything you choose to count as free
 local function craftCost(r, s)
   local cost, unknown = 0, 0
@@ -628,7 +689,11 @@ local function craftCost(r, s)
   end
   r.guessExtra = guess -- planning leans away from guessed prices a little
   r.matCost = cost -- what the materials really cost, before any sale value
-  if s.planSellBack and r.item then
+  if s.planSellBack == "de" and r.item then
+    -- what it breaks into is worth nearly what it lists for; dust always sells
+    local value = NW.DisenchantValue(r.item)
+    if value then cost = math.max(cost * 0.1, cost - value * 0.95 * (r.yield or 1)) end
+  elseif s.planSellBack and r.item then
     local value = auctionator(r.item)
     -- half: not everything sells. A craft never counts as cheaper than a fifth
     -- of its materials, or the plan would mass-produce whatever lists highest.
@@ -645,7 +710,7 @@ for _, r in ipairs(NW.RANKS) do if r.skill then RANK_AT[r.cap - 75] = r end end
 -- Returns { steps = {...}, total, unknown, gaps }
 function NW.BuildPlan(key, from, to)
   local s = NW.db.settings
-  local cacheKey = ("%s:%d:%d:%s%s"):format(key, from, to, s.planRecipeItems and "r" or "", s.planSellBack and "s" or "")
+  local cacheKey = ("%s:%d:%d:%s%s"):format(key, from, to, s.planRecipeItems and "r" or "", s.planSellBack == "de" and "d" or s.planSellBack and "s" or "")
   if planCache[cacheKey] then return planCache[cacheKey] end
 
   local recipes = NW.RECIPES[key] or {}

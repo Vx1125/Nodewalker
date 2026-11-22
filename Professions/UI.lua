@@ -145,13 +145,14 @@ local opts = {
     "Lets the plan use recipes from vendors and drops, not just the trainer. Recipes you already know are always used."),
   UI.Check(optRow, "Whole guide from 1", function() return st().planFromStart end,
     function(v) st().planFromStart = v; refresh() end, "Show every step, not just from your current skill."),
-  UI.Check(optRow, "Count sale value", function() return st().planSellBack end,
-    function(v) st().planSellBack = v; NW.InvalidatePlans() end,
-    "Picks recipes by what they cost after selling what you make. Counts half the auction value, since not everything sells."),
+  UI.Dropdown(optRow, 150, "Crafts", { { false, "Keep" }, { true, "Sell" }, { "de", "Disenchant" } },
+    function() return st().planSellBack or false end,
+    function(v) st().planSellBack = v; NW.InvalidatePlans(); refresh() end, 100,
+    "Picks recipes by what they cost after you sell or disenchant what you make. Sell counts half the auction value."),
 }
 opts[1]:SetPoint("LEFT", 2, 0)
 opts[2]:SetPoint("LEFT", 190, 0)
-opts[3]:SetPoint("LEFT", 335, 0)
+opts[3]:SetPoint("RIGHT", 0, 0)
 
 local priceLine = UI.Text(mid, 11, S.dim)
 priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -6)
@@ -266,6 +267,8 @@ for i = 1, STEP_ROWS do
     GameTooltip:AddDoubleLine("Skill-up colours", ("|cffff8040%s|r |cffffff00%d|r |cff40bf40%d|r |cff808080%d|r"):format(
       r.orange or "-", r.yellow, r.green, r.grey), S.dim[1], S.dim[2], S.dim[3])
     GameTooltip:AddDoubleLine("Cost per craft", NW.Money(stp.recipe and stp.recipe.matCost or stp.costEach), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    local de = stp.recipe and stp.recipe.item and NW.DisenchantValue(stp.recipe.item)
+    if de then GameTooltip:AddDoubleLine("Disenchants for about", NW.Money(de), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     GameTooltip:AddDoubleLine("Crafts", stp.spare and stp.spare > 0 and ("%d (%d spare)"):format(stp.crafts, stp.spare) or stp.crafts, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     if stp.fee then GameTooltip:AddDoubleLine("Trainer: recipe", NW.Money(stp.fee), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     if stp.rankFee and stp.rankFee > 0 then GameTooltip:AddDoubleLine("Trainer: " .. stp.rankUp.name, NW.Money(stp.rankFee), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
@@ -753,7 +756,7 @@ local function drawCraft(p)
   hCost:SetText(NW.Money(plan.spend or plan.total))
   local sub = ("to %d from %d"):format(to, from)
   local back = (plan.spend or plan.total) - plan.total
-  if back > 0 then sub = sub .. (" · about %s back selling"):format(NW.Money(back, true)) end
+  if back > 0 then sub = sub .. (" · about %s back %s"):format(NW.Money(back, true), st().planSellBack == "de" and "disenchanting" or "selling") end
   if plan.fees and plan.fees > 0 then sub = sub .. (" · %s training"):format(NW.Money(plan.fees, true)) end
   if plan.unknown > 0 then sub = sub .. (" · %d steps without full prices"):format(plan.unknown) end
   -- what bought or found recipes would save
