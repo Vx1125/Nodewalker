@@ -91,7 +91,7 @@ place(1, UI.Dropdown(page, COL_W, "Terrain colour", {
   { "gold", "Gold tint" }, { "blue", "Blue tint" }, { "none", "Off (icons and route only)" },
 }, function() return s().tint end, function(v) s().tint = v; changed() end, 190), 30)
 
-heading(1, "Live herb dots")
+heading(1, "Live dots")
 check(1, "Show live dots from your minimap", "liveDots", "Moves your minimap into the window, like FarmHud. Turn off to keep your minimap where it is.")
 check(1, "Range ring around you", "showRangeRing", "Live dots can only appear inside this ring.")
 check(1, "Also show known spots outside the ring", "showKnownSpots")
@@ -103,7 +103,7 @@ slider(1, "Picked stops count as empty for", 1, 20, 1, function(v) return ("%d m
 check(1, "Build a route by itself in new zones", "autoRoute",
   "When you enter a zone with known spots and no route, Nodewalker builds one.")
 
--- Column 2: when it shows, extras, route
+-- Column 2: when it shows, extras, filters
 heading(2, "When to show it")
 check(2, "Fade while moving", "fadeMoving")
 checkBeside(2, "Brighter near a node", "brightNear", "Stops fading when a known spot or your next stop is within 100 yards.")
@@ -136,8 +136,8 @@ helpText:SetPoint("RIGHT", -12, 0)
 helpText:SetSpacing(3)
 helpText:SetText("|cffe8c46aAlt|r + hover a live dot: identify it   ·   |cffe8c46aCtrl|r + hover a stop: details   ·   "
   .. "|cffe8c46aCtrl-click|r: next stop   ·   |cffe8c46aCtrl-right-click|r: hide that herb\n"
-  .. "|cffe8c46a/nw|r overlay   ·   |cffe8c46a/nw plan|r route   ·   |cffe8c46a/nw guide|r herb guide   ·   "
-  .. "|cffe8c46a/nw options|r settings   ·   Key bindings: Options > Keybindings > AddOns")
+  .. "|cffe8c46a/nw|r overlay   ·   |cffe8c46a/nw plan|r route   ·   |cffe8c46a/nw guide|r farm guide   ·   |cffe8c46a/nw prof|r professions   ·   |cffe8c46a/nw consumes|r   ·   "
+  .. "|cffe8c46a/nw options|r settings")
 
 ------------------------------------------------------------------------
 -- Nodes tab: tick the herbs and ore you want to see

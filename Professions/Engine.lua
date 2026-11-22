@@ -520,8 +520,12 @@ function NW.RecipeProfit(r)
     if p and src ~= "est" then cost = cost + p * re[2] else unknown = true end
   end
   local value = auctionator(r.item)
-  if not value then return nil, cost, nil, unknown end
-  local sale = value * (r.yield or 1) * 0.95
+  local sale = value and value * (r.yield or 1) * 0.95
+  -- gear nobody buys is still worth its dust: take whichever pays more
+  local de = NW.DisenchantValue(r.item)
+  de = de and de * (r.yield or 1) * 0.95
+  if de and (not sale or de > sale) then return de - cost, cost, de, unknown, true end
+  if not sale then return nil, cost, nil, unknown end
   return sale - cost, cost, sale, unknown
 end
 

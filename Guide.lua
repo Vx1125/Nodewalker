@@ -3,7 +3,7 @@ local ADDON, NW = ...
 local C, S, UI = NW.COLORS, NW.STYLE, NW.UI
 
 ------------------------------------------------------------------------
--- Herb Guide tab: the best zones for one herb, ranked with your own node
+-- Farm Guide tab: the best zones for one herb or ore, ranked with your own node
 -- data, and a one-click route through just that herb.
 ------------------------------------------------------------------------
 local refreshGuide
@@ -14,10 +14,17 @@ local kind = "herb"
 local KIND = {
   herb = { guide = NW.HERB_GUIDE, skill = "Herbalism", word = "herb", edge = "herbEdge" },
   ore = { guide = NW.ORE_GUIDE, skill = "Mining", word = "ore", edge = "oreEdge" },
+  -- everything your skills and filters let you gather, for running both
+  both = { guide = { { "Herbs and ore", "Every herb and ore node your skills and filters allow, ranked by what a loop is worth.", {} } }, edge = "herbEdge" },
 }
 local picked = {} -- last selection per kind
 -- Does a saved node count as this guide entry? (ooze-covered veins do)
-local function matches(entry, name)
+local function matches(entry, nd)
+  local name = nd.name
+  if kind == "both" then
+    local skill, req = NW.GetSkill(nd.kind), NW.RequiredSkill(name)
+    return skill ~= nil and (not req or req <= skill) and NW.NodeWanted(nd, NW.db.settings)
+  end
   if name == entry[1] then return true end
   for _, alt in ipairs(entry[4] or {}) do if alt == name then return true end end
   return false
@@ -93,6 +100,7 @@ end
 local function rankZones(entry)
   local herb = entry[1]
   local sig = totalNodes()
+  if kind == "both" then sig = ("%d:%s:%s"):format(sig, tostring(NW.GetSkill("herb")), tostring(NW.GetSkill("ore"))) end
   local c = cache[herb]
   if c and c.sig == sig then return c.rows end
   local rows, seen = {}, {}
@@ -100,15 +108,26 @@ local function rankZones(entry)
     local w, h = NW.MapSize(id)
     local pts = {}
     for _, nd in ipairs(NW.db.nodes[id] or {}) do
-      if matches(entry, nd.name) then pts[#pts + 1] = { (w and nd.x * w) or nd.x, (h and nd.y * h) or nd.y, nd.x, nd.y } end
+      if matches(entry, nd) then pts[#pts + 1] = { (w and nd.x * w) or nd.x, (h and nd.y * h) or nd.y, nd.x, nd.y, nd.kind, nd.name } end
+    end
+    -- what one lap is worth at today's prices (about two per node)
+    local worth, priced = 0, false
+    for _, pt in ipairs(pts) do
+      local item = NW.NODE_ITEMS[pt[6]]
+      local price, src
+      if item and NW.Price then price, src = NW.Price(item) end
+      if price and src ~= "est" then worth, priced = worth + price * 2, true end
     end
     local row = { mapID = id, name = name, note = note, recommended = rec, count = #pts, pts = pts }
     if w and #pts >= 3 then
       row.loop, row.order = quickLoop(pts)
       local minutes = row.loop / NW.MOUNT_YPS / 60
       row.rate = minutes > 0 and #pts / minutes or 0
+      if priced and minutes > 0 then row.gold = worth / minutes * 60 end
       -- favour zones with enough spots to keep a loop going
       row.score = row.rate * math.min(1, #pts / 25)
+      -- running both professions: what the loop pays matters more than node count
+      if kind == "both" and row.gold then row.score = row.gold * math.min(1, #pts / 25) end
     end
     rows[#rows + 1] = row
   end
@@ -124,7 +143,7 @@ local function rankZones(entry)
   for id, list in pairs(NW.db.nodes) do
     if not seen[id] then
       for _, nd in ipairs(list) do
-        if matches(entry, nd.name) then
+        if matches(entry, nd) then
           seen[id] = true
           local info = C_Map.GetMapInfo(id)
           measure(id, info and info.name or ("Map " .. id), nil, false)
@@ -153,14 +172,15 @@ local LIST_W, ROW_H = 224, 17
 local herbRows = {}
 local MAX_LIST = math.max(#NW.HERB_GUIDE, #NW.ORE_GUIDE)
 local kindBtns = {}
-for i, k in ipairs({ "herb", "ore" }) do
-  local b = UI.Button(page, k == "herb" and "Herbs" or "Ore", (LIST_W - 4) / 2, function()
+local KW = (LIST_W - 8) / 3
+for i, k in ipairs({ "herb", "ore", "both" }) do
+  local b = UI.Button(page, k == "herb" and "Herbs" or k == "ore" and "Ore" or "Both", KW, function()
     if kind == k then return end
     picked[kind] = selectedHerb
     kind, selectedHerb, previewID = k, picked[k], nil
     refreshGuide()
   end, 22)
-  b:SetPoint("TOPLEFT", 16 + (i - 1) * ((LIST_W - 4) / 2 + 4), -6)
+  b:SetPoint("TOPLEFT", 16 + (i - 1) * (KW + 4), -6)
   b.mark = b:CreateTexture(nil, "OVERLAY")
   b.mark:SetPoint("BOTTOMLEFT", 1, 1)
   b.mark:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -279,7 +299,7 @@ local function drawPreview(row, herb)
   UI.DrawZoneArt(row.mapID, pvArt, pvTiles, PV_W, PV_H)
   local function p(x, y) return x * PV_W, -y * PV_H end
   local route = NW.db.routes[row.mapID]
-  local isFocus = route and route.focus and route.focus[herb]
+  local isFocus = route and ((route.focus and route.focus[herb]) or (kind == "both" and not route.focus))
   local edge = C[KIND[kind].edge]
   if isFocus and #route.stops > 1 then
     local st = route.stops
@@ -306,7 +326,8 @@ local function drawPreview(row, herb)
   end
   for _, pt in ipairs(row.pts) do
     local d = getPvDot()
-    d:SetColorTexture(edge[1], edge[2], edge[3], 1)
+    local e = pt[5] == "ore" and C.oreEdge or pt[5] == "herb" and C.herbEdge or edge
+    d:SetColorTexture(e[1], e[2], e[3], 1)
     d:ClearAllPoints()
     d:SetPoint("CENTER", pvArt, "TOPLEFT", p(pt[3], pt[4]))
   end
@@ -338,7 +359,7 @@ for i = 1, ROWS do
     if not row or not row.mapID then return end
     NW.BuildRoute(row.mapID, function()
       if page:IsShown() then drawPreview(row, herb) end
-    end, { focus = focusOf(entryFor(herb)), alsoOthers = NW.db.settings.guideAlsoOthers })
+    end, kind == "both" and {} or { focus = focusOf(entryFor(herb)), alsoOthers = NW.db.settings.guideAlsoOthers })
   end)
   UI.Tip(r.build, "Build route", "Replaces your saved route for this zone with an optimized loop through these spots.")
   zoneRows[i] = r
@@ -351,8 +372,16 @@ refreshGuide = function()
   if not page:IsShown() then return end
   local K = KIND[kind]
   local guide = K.guide
-  local herbSkill = NW.GetSkill(kind)
-  NW.SetWindowSubtitle(herbSkill and (K.skill .. " " .. herbSkill) or ("You don't have " .. K.skill))
+  local both = kind == "both"
+  local herbSkill = not both and NW.GetSkill(kind) or nil
+  if both then
+    local hs, os = NW.GetSkill("herb"), NW.GetSkill("ore")
+    NW.SetWindowSubtitle(("Herbalism %s  ·  Mining %s"):format(hs or "-", os or "-"))
+  else
+    NW.SetWindowSubtitle(herbSkill and (K.skill .. " " .. herbSkill) or ("You don't have " .. K.skill))
+  end
+  alsoOthers:SetShown(not both)
+  listKey:SetShown(not both)
   for k, b in pairs(kindBtns) do
     b.mark:SetShown(k == kind)
     b.label:SetTextColor(unpack(k == kind and S.gold or S.dim))
@@ -377,19 +406,19 @@ refreshGuide = function()
     if e then
       local req = NW.RequiredSkill(e[1])
       local col = SKILL_RGB[NW.SkillColor(req, herbSkill)] or SKILL_RGB.unknown
-      b.icon:SetTexture(NW.NodeIcon(e[1], kind))
+      b.icon:SetTexture(NW.NodeIcon(e[1], both and "herb" or kind))
       b.icon:SetDesaturated(NW.IsHidden(e[1]))
       b.text:SetText(e[1])
       b.text:SetTextColor(col[1], col[2], col[3])
-      b.skill:SetText(req or "?")
+      b.skill:SetText(both and "" or req or "?")
       b:SetSelected(e[1] == selectedHerb)
       if e[1] == selectedHerb then entry = e end
     end
   end
   local req = NW.RequiredSkill(entry[1])
-  hIcon:SetTexture(NW.NodeIcon(entry[1], kind))
+  hIcon:SetTexture(NW.NodeIcon(entry[1], both and "herb" or kind))
   hName:SetText(entry[1])
-  local skillLine = ("Needs %s %s"):format(K.skill, req or "?")
+  local skillLine = both and "What you can gather now, with your Herbs & Ore filters" or ("Needs %s %s"):format(K.skill, req or "?")
   if herbSkill and req then
     local c = NW.SkillColor(req, herbSkill)
     skillLine = skillLine .. (c == "red" and "  ·  |cffeb5c4cskill too low|r"
@@ -409,6 +438,7 @@ refreshGuide = function()
       local stats
       if row.rate then
         stats = ("|cff9be08a%d spots|r  ·  %s loop  ·  |cffffffff%.1f/min|r"):format(row.count, fmtTime(row.loop / NW.MOUNT_YPS), row.rate)
+        if row.gold then stats = stats .. "  ·  " .. NW.Money(row.gold, true) .. "/hr" end
       elseif row.missing then
         stats = "|cff6f6f74not on your client's maps|r"
       elseif row.count > 0 then
@@ -416,8 +446,9 @@ refreshGuide = function()
       else
         stats = "|cff6f6f74no spots saved|r"
       end
-      r.line1:SetText(star .. row.name .. "    " .. stats)
-      r.line2:SetText("   " .. (row.note or (row.recommended and "" or "Found in your data; not in the guides")))
+      local note = row.note or ((row.recommended or both) and "" or "found in your data")
+      r.line1:SetText(star .. row.name .. (note ~= "" and ("  |cff94949a" .. note .. "|r") or ""))
+      r.line2:SetText("   " .. stats)
       r.build:SetEnabled(row.mapID ~= nil and row.count > 0)
       r:Show()
     else
@@ -426,7 +457,9 @@ refreshGuide = function()
   end
   local extra = #rows - ROWS
   moreText:SetText((extra > 0 and ("+%d more zones with fewer spots.   "):format(extra) or "")
-    .. "|cffe8c46a*|r recommended by farming guides")
+    .. (both and "" or "|cffe8c46a*|r recommended by farming guides"))
+  colSub:SetText(both and "Ranked by gold per hour on a loop, from your saved nodes and Auctionator"
+    or "Ranked by spots per minute on a loop, from your saved nodes")
   local pv = rows[1]
   for _, row in ipairs(rows) do if previewID and row.mapID == previewID then pv = row end end
   drawPreview(pv, entry[1])

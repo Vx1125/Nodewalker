@@ -1,6 +1,6 @@
 # Nodewalker
 
-All-in-one professions addon for WoW Forever: a Diablo-style farming overlay, gathering routes, and leveling guides for every profession priced from the auction house.
+All-in-one professions addon for WoW Forever: a Diablo-style farming overlay, gathering routes, leveling guides for every profession priced from the auction house, and raid consumable lists for every class.
 
 CurseForge project: (set in `Nodewalker.toc` as `X-Curse-Project-ID`)
 
@@ -16,7 +16,7 @@ Settings > Actions > General > Workflow permissions set to "Read and write".
 
 ## Commands
 
-`/nw` overlay, `/nw plan` route, `/nw guide` herb guide, `/nw prof` professions, `/nw options`,
+`/nw` overlay, `/nw plan` route, `/nw guide` farm guide, `/nw prof` professions, `/nw consumes`, `/nw options`,
 `/nw import` (GatherMate2), `/nw next`, `/nw status`, `/nw hide <herb>`, `/nw show <herb>`, `/nw frame`.
 
 ## Credits
@@ -24,6 +24,7 @@ Settings > Actions > General > Workflow permissions set to "Read and write".
 Minimap tile tables in `OpenMapData/` come from [OpenMap](https://github.com/openmap-world/openmap) (MIT, see `LICENSES/`).
 Recipe data: SeeMeta's WoW Forever recipe database.
 The full recipe list, sources and trainer fees are derived from [One For All](https://www.curseforge.com/wow/addons/oneforall) by Smoergi (GPL-3.0-or-later, see `LICENSES/`).
+Consumable lists follow Method's and Wowhead's WoW Forever class guides.
 
 ## License
 

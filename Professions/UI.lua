@@ -857,7 +857,7 @@ local function drawGatherRows(key)
   stepScroll:Update()
 end
 
--- Click a bracket: herbs open the Herb Guide; ore builds a route in the best zone
+-- Click a bracket: opens the Farm Guide on the best herb or ore for it
 for _, row in ipairs(stepRows) do
   -- Shift-click a recipe: link what it makes in chat, and do nothing else
   row:SetScript("PreClick", function(self)
@@ -1151,7 +1151,7 @@ local function drawProfitRows(key)
         row.range:SetText(pct and ("|cff%s%s%d%%|r"):format(col, pct > 0 and "+" or "", math.max(-999, math.min(999, pct))) or "")
         row.name:SetText(("|cff%s%s|r%s"):format(e.profit > 0 and "ffffff" or "94949a", r.name, e.known and "" or "  |cff94949anot known|r"))
         row.cost:SetText(signedMoney(e.profit))
-        row.mats:SetText(("Sells %s  ·  materials %s%s%s"):format(NW.Money(e.sale, true), NW.Money(e.cost, true),
+        row.mats:SetText(("%s %s  ·  materials %s%s%s"):format(e.de and "Disenchants" or "Sells", NW.Money(e.sale, true), NW.Money(e.cost, true),
           (r.yield or 1) > 1 and ("  ·  makes %d"):format(r.yield) or "", e.unknown and "  ·  |cffe8c46asome prices missing|r" or ""))
       else
         row.range:SetText("")
@@ -1177,8 +1177,8 @@ local function drawProfit(p)
         local e = scan and scan[r.name]
         local isKnown = (known[r.name] or (e and e.learned)) and true or false
         if isKnown or all then
-          local profit, cost, sale, unknown = NW.RecipeProfit(r)
-          out[#out + 1] = { r = r, profit = profit, cost = cost or 0, sale = sale, unknown = unknown, known = isKnown }
+          local profit, cost, sale, unknown, de = NW.RecipeProfit(r)
+          out[#out + 1] = { r = r, profit = profit, cost = cost or 0, sale = sale, unknown = unknown, known = isKnown, de = de }
         end
       end
     end
@@ -1239,10 +1239,10 @@ local function drawCard()
   shop = list
   shopOffset = 0
   drawShop()
-  local profit, cost, sale = NW.RecipeProfit(r)
+  local profit, cost, sale, _, de = NW.RecipeProfit(r)
   rHead.text:SetText(r.name)
   local parts = {}
-  if sale then parts[#parts + 1] = "Sells " .. NW.Money(sale, true) end
+  if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, true) end
   parts[#parts + 1] = "materials " .. NW.Money(cost or 0, true)
   if profit then parts[#parts + 1] = signedMoney(profit) end
   rTotal:SetText(table.concat(parts, "  ·  "))

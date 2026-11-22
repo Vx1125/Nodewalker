@@ -312,8 +312,10 @@ SlashCmdList.NODEWALKER = function(msg)
     NW.ToggleOverlay()
   elseif msg == "plan" or msg == "route" then
     NW.TogglePlanner()
-  elseif msg == "guide" or msg == "herbs" then
+  elseif msg == "guide" or msg == "herbs" or msg == "ore" or msg == "farm" then
     NW.ToggleGuide()
+  elseif msg == "consumes" or msg == "consume" then
+    NW.ToggleWindow("consumes")
   elseif msg == "prof" or msg == "profs" or msg == "professions" or msg == "level" then
     NW.ToggleProfessions()
   elseif msg == "options" or msg == "config" then
@@ -358,7 +360,7 @@ SlashCmdList.NODEWALKER = function(msg)
       n, mapID and #(NW.db.nodes[mapID] or {}) or 0,
       (mapID and NW.db.routes[mapID]) and (#NW.db.routes[mapID].stops .. " stops") or "none"))
   else
-    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  herb guide · /nw prof  profession leveling · /nw options · /nw import  GatherMate2 nodes · /nw next  skip a stop · /nw status")
+    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  farm guide · /nw prof  professions · /nw consumes · /nw options · /nw import  GatherMate2 nodes · /nw next  skip a stop · /nw status")
   end
 end
 

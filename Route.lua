@@ -357,7 +357,7 @@ runner:Hide()
 
 -- Build and save the route for a zone. callback(route) when finished.
 -- opts.focus = { [herb name] = true }: build only through those herbs (the
--- Herb Guide's routes). opts.alsoOthers: also take any other node your
+-- Farm Guide's routes). opts.alsoOthers: also take any other node your
 -- filters allow.
 function NW.BuildRoute(mapID, callback, opts)
   local s = NW.db.settings
