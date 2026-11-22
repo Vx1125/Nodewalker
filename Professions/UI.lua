@@ -205,6 +205,13 @@ search:SetScript("OnTextChanged", function(self)
   if t ~= searchText then searchText = t; refresh() end
 end)
 
+-- What the last Craft click did, shown on the hint line for a few seconds
+local craftMsg, craftMsgAt
+function NW.CraftStatus(msg)
+  craftMsg, craftMsgAt = msg, GetTime()
+  if page:IsShown() then refresh() end
+  C_Timer.After(4.1, function() if page:IsShown() then refresh() end end)
+end
 local stepsBox = UI.Box(mid, MID_W, 382)
 stepsBox:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -38)
 -- What each column is, per view
@@ -258,6 +265,23 @@ for i = 1, STEP_ROWS do
   row.mats:SetPoint("TOPLEFT", 72, -27)
   row.mats:SetWidth(MID_W - 92)
   row.mats:SetWordWrap(false)
+  -- Craft what this row makes, as many as your bags allow
+  row.craft = UI.Button(row, "", 78, function(self)
+    if not self.r then return end
+    local _, msg = NW.Craft(self.key, self.r, self.n)
+    NW.CraftStatus(msg)
+  end, 18)
+  row.craft:SetPoint("BOTTOMRIGHT", -6, 4)
+  row.craft:Hide()
+  function row:SetCraft(key, r, want)
+    local can = r and NW.CanCraft(key, r)
+    local n = can and math.min(can, want or can) or 0
+    local b = self.craft
+    b:SetShown(can ~= nil and n > 0)
+    self.mats:SetWidth(MID_W - 92 - (b:IsShown() and 84 or 0))
+    b.key, b.r, b.n = key, r, n
+    if n > 0 then b:SetText("Craft " .. n) end
+  end
   row:SetScript("OnEnter", function(self)
     local stp = self.step
     if stp and stp.banner then
@@ -640,6 +664,7 @@ drawSteps = function()
     row.bracket = nil
     row.missingRecipe = nil
     row.profitRow = nil
+    row:SetCraft()
     if stp then
       row:Show()
       row:SetSelected(rank >= stp.from and rank < stp.to)
@@ -670,6 +695,7 @@ drawSteps = function()
         row.icon:Show()
         row.name:SetText(("|cff%s%s|r"):format(colorFor(r, stp.from), r.name))
         row.crafts:SetText("x" .. stp.crafts)
+        row:SetCraft(selected, r, stp.crafts)
         row.cost:SetText(NW.Money(stp.spend or stp.cost, true) .. (stp.unknown > 0 and " |cffeb5c4c?|r" or ""))
         local tag = stp.needsRecipe and "|cffff8040needs recipe|r  ·  " or ""
         if stp.rankUp and searchText ~= "" then
@@ -859,6 +885,7 @@ local function drawGatherRows(key)
   for i, row in ipairs(stepRows) do
     local b = steps[i + stepOffset]
     row.step = nil
+    row:SetCraft()
     row.missingRecipe = nil
     row.profitRow = nil
     if b then
@@ -1125,6 +1152,7 @@ local function drawMissingRows(key)
     local r = steps[i + stepOffset]
     row.step, row.bracket, row.missingRecipe = nil, nil, r
     row.profitRow = nil
+    row:SetCraft()
     if r and r.header then
       -- a section heading, as in the game's own profession window
       row.missingRecipe = nil
@@ -1167,6 +1195,7 @@ local function drawProfitRows(key)
   for i, row in ipairs(stepRows) do
     local e = steps[i + stepOffset]
     row.step, row.bracket, row.missingRecipe, row.profitRow = nil, nil, e and e.r, e and true or nil
+    row:SetCraft(selected, e and e.r)
     if e then
       local r = e.r
       row:Show()
@@ -1509,6 +1538,7 @@ refresh = function()
     or (not isCraft and function() drawGatherRows(p.key) end) or nil
   if isProfit then drawProfit(p) elseif isMissing then drawMissing(p) elseif isCraft then drawCraft(p) else drawGather(p) end
   if showCard then drawCard() end
+  if craftMsg and GetTime() - craftMsgAt < 4 then priceLine:SetText("|cffe8c46a" .. craftMsg .. "|r") end
 end
 NW.RefreshProfessions = function() if page:IsShown() then refresh() end end
 

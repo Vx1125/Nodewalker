@@ -893,3 +893,98 @@ NW.PROF_TIPS = {
   cooking = "Expert Cooking comes from the Expert Cookbook (from 125). Most good recipes are sold by cooking vendors: tick \"Use recipes to buy or find\". Catch your own fish on the Fishing page.",
   firstaid = "Expert First Aid comes from a book (from 125). Heavy Silk and Mageweave Bandages need manuals. Artisan was a quest (Triage) in the original game.",
 }
+
+------------------------------------------------------------------------
+-- Crafting from Nodewalker. The game only needs the profession open behind
+-- the scenes, not its window in front of you; every batch still takes a
+-- click of yours.
+------------------------------------------------------------------------
+local function bagCount(id)
+  if C_Item and C_Item.GetItemCount then return C_Item.GetItemCount(id) or 0 end
+  if GetItemCount then return GetItemCount(id) or 0 end
+  return 0
+end
+
+-- The game's ID for a recipe you know, from the last look at the profession
+local function knownRecipe(key, r)
+  local scan = NW.charDB and NW.charDB.recipeScan[key]
+  local e = scan and scan[r.name]
+  if e and e.learned and e.id then return e end
+end
+
+-- How many you could make right now from your bags; nil if you can't craft
+-- it from here (not known, or the profession was never opened)
+function NW.CanCraft(key, r)
+  if not (r and r.reagents and NW.ProfSkill(key)) then return nil end
+  if not knownRecipe(key, r) then return nil end
+  local n
+  for _, re in ipairs(r.reagents) do
+    local can = math.floor(bagCount(re[1]) / re[2])
+    n = n and math.min(n, can) or can
+  end
+  return n or 0
+end
+
+-- Is this profession the one the game has open?
+local function isOpen(key)
+  local T = C_TradeSkillUI
+  if not T then return false end
+  if T.IsTradeSkillReady then
+    local ok, ready = pcall(T.IsTradeSkillReady)
+    if not (ok and ready) then return false end
+  end
+  if T.GetBaseProfessionInfo then
+    local ok, info = pcall(T.GetBaseProfessionInfo)
+    if ok and info and info.professionID then return info.professionID == SKILL_LINE[key] end
+  end
+  return NW.currentTradeKey == key
+end
+
+local pending
+local function castNow(key, e, count)
+  local T = C_TradeSkillUI
+  if not (T and T.CraftRecipe) then return false, "This client has no craft call for addons" end
+  local ok, err = pcall(T.CraftRecipe, e.id, count)
+  if not ok then return false, tostring(err) end
+  return true
+end
+
+-- Craft `count` of a recipe. Returns ok, message. If the profession isn't
+-- open yet it is opened, and the craft is tried again as soon as it's ready;
+-- the game may want a second click for that one.
+function NW.Craft(key, r, count)
+  if InCombatLockdown and InCombatLockdown() then return false, "Not in combat" end
+  local e = knownRecipe(key, r)
+  if not e then return false, "Open the profession once first" end
+  count = math.max(1, math.floor(count or 1))
+  if isOpen(key) then
+    local ok, err = castNow(key, e, count)
+    return ok, ok and ("Crafting %d %s"):format(count, r.name) or err
+  end
+  local T = C_TradeSkillUI
+  if not (T and T.OpenTradeSkill and SKILL_LINE[key]) then return false, "Open the profession window, then click Craft" end
+  pending = { key = key, e = e, count = count, name = r.name, at = GetTime() }
+  local ok, err = pcall(T.OpenTradeSkill, SKILL_LINE[key])
+  if not ok then pending = nil return false, tostring(err) end
+  return true, "Opening the profession…"
+end
+
+-- Once the profession is ready, finish the craft that was waiting on it
+local function finishPending()
+  local p = pending
+  if not p or GetTime() - p.at > 5 then pending = nil return end
+  if not isOpen(p.key) then return end
+  pending = nil
+  local ok, err = castNow(p.key, p.e, p.count)
+  local casting = false
+  C_Timer.After(0.4, function()
+    if UnitCastingInfo then casting = UnitCastingInfo("player") ~= nil end
+    if NW.CraftStatus then
+      NW.CraftStatus((ok and casting) and ("Crafting %d %s"):format(p.count, p.name)
+        or ok and "Profession opened. Click Craft again."
+        or (err or "Couldn't craft"))
+    end
+  end)
+end
+NW.On("TRADE_SKILL_SHOW", function() C_Timer.After(0.2, finishPending) end)
+NW.On("TRADE_SKILL_LIST_UPDATE", function() C_Timer.After(0.1, finishPending) end)
