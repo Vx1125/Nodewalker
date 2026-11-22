@@ -1474,8 +1474,9 @@ local function drawMissing(p)
     end
   end
   hCost:SetText(searchText ~= "" and ("%d found"):format(found) or ("%d missing"):format(nMissing))
-  hCostSub:SetText(fullList and "from the game's full recipe list" or scanned and "of the recipes in Nodewalker's data"
-    or "|cffeb5c4cOpen your profession window once|r so this knows what you have")
+  -- short, so it can't run into the skill line; no nagging about a profession you don't have
+  hCostSub:SetText(not rank and "of every recipe" or fullList and "from the game's recipe list"
+    or scanned and "of Nodewalker's recipes" or "|cffeb5c4cOpen the profession once|r")
   priceLine:SetText("Recipes you don't know yet. Click one for its materials. Search finds any recipe.")
   local lines = {
     ("|cff8cdb7a%d|r to learn at the trainer now"):format(counts.now),
