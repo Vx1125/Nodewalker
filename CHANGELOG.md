@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.6
+
+- Consumes: lists for every class and spec, with a Budget list of cheaper tiers.
+- Consumes: Stock for a 2, 3 or 4 hour raid, Make and Buy columns, recipe known or where to get it.
+- Consumes: one search for everything you're short of; Farm button; right-click to hide a row.
+- Farm Guide (was Herb Guide): ore list, a Both view for Herbalism + Mining, and gold per hour.
+- Profit counts disenchant value when it pays more than selling.
+- Shift-click always searches at the auction house.
+- Fixed overlapping text in the profession header and the Herbs & Ore list.
+- `/nw consumes`.
+
 ## 1.1.5
 
 - New Consumes tab: raid consumables for Holy Paladin and Warlock, with stock, prices and materials.
