@@ -863,14 +863,9 @@ for _, row in ipairs(stepRows) do
     -- at the auction house (and not typing in chat) it searches instead
     local typing = ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()
     if not typing and ahOpen() then
-      local term
-      if self.missingRecipe and not self.profitRow and r.src ~= "trainer" then
-        term = (RECIPE_PREFIX[selected] or "") .. r.name -- the recipe itself
-      else
-        local n, ok = r.item and itemName(r.item)
-        term = ok and n or nil
-      end
-      if term and searchAH({ { term, 1 } }) then self.linked = true return end
+      -- what it makes, not the recipe
+      local n, ok = r.item and itemName(r.item)
+      if ok and searchAH({ { n, 1 } }) then self.linked = true return end
     end
     self.linked = chatLink(r.item, r.spell, true)
   end)
@@ -1101,7 +1096,7 @@ local function drawMissingRows(key)
       row.mats:SetText("")
     elseif r then
       row:Show()
-      row:SetSelected(false)
+      row:SetSelected(card ~= nil and (card.r == r or (card.stack[1] and card.stack[1].r == r)) or false)
       local req = r.orange or r.yellow
       row.range:SetText(req and req > 0 and tostring(req) or "?")
       row.icon:SetTexture(r.icon or recipeIcon(r))
@@ -1367,28 +1362,22 @@ for _, row in ipairs(stepRows) do
   row:HookScript("OnClick", function(self)
     local r = self.missingRecipe
     if self.linked or not r then return end
-    if self.profitRow then
-      if IsAltKeyDown() then
-        -- Alt-click: look up what it makes at the auction house
+    if r.header or not r.reagents then return end
+    if IsAltKeyDown() then
+      -- Alt-click: Profit looks up what it makes, Recipes the recipe itself
+      local term
+      if self.profitRow then
         local n, ok = r.item and itemName(r.item)
-        if ok then searchAH({ { n, 1 } }) end
-        return
+        term = ok and n or nil
+      elseif r.src == "recipe" or r.src == "scan" then
+        term = (RECIPE_PREFIX[selected] or "") .. r.name
       end
-      -- open it on the right: materials and what each costs
-      card = { r = r, key = selected, stack = {} }
-      refresh()
+      if term then searchAH({ { term, 1 } }) end
       return
     end
-    if r.src ~= "recipe" and r.src ~= "scan" then return end
-    local term = (RECIPE_PREFIX[selected] or "") .. r.name
-    local api = Auctionator and Auctionator.API and Auctionator.API.v1
-    if api and (api.MultiSearchExact or api.MultiSearch) and AuctionHouseFrame and AuctionHouseFrame:IsShown() then
-      pcall(api.MultiSearchExact or api.MultiSearch, ADDON, { term })
-    elseif api and (api.MultiSearchExact or api.MultiSearch) and AuctionFrame and AuctionFrame:IsShown() then
-      pcall(api.MultiSearchExact or api.MultiSearch, ADDON, { term })
-    else
-      NW.Print(("Open the auction house to search for \"%s\"."):format(term))
-    end
+    -- open it on the right: materials and what each costs
+    card = { r = r, key = selected, stack = {} }
+    refresh()
   end)
 end
 
@@ -1438,7 +1427,7 @@ refresh = function()
   end
   -- an opened recipe belongs to the Profit view of one profession
   local cardKey = selected .. ":" .. mode
-  if not isProfit or cardKey ~= lastCardKey then card = nil end
+  if not (isProfit or isMissing) or cardKey ~= lastCardKey then card = nil end
   lastCardKey = cardKey
   local showCard = card ~= nil
   local planPanel = isCraft and not isMissing
