@@ -857,13 +857,16 @@ local function drawCraft(p)
   drawSteps()
 
   -- the headline is what you pay; sale value is shown beside it, never taken off
-  hCost:SetText(NW.Money(plan.spend or plan.total))
+  local spend = plan.spend or plan.total
+  hCost:SetText("|cff94949aSpend|r  " .. NW.Money(spend))
   -- two short lines, so it never runs into the skill line on the left
-  local sub = ("cost to reach %d"):format(to)
-  if plan.fees and plan.fees > 0 then sub = sub .. (" · %s training"):format(NW.Money(plan.fees, true)) end
+  local sub = ("to reach %d"):format(to)
+  if plan.fees and plan.fees > 0 then sub = sub .. (" · incl. %s training"):format(NW.Money(plan.fees, true)) end
   if plan.unknown > 0 then sub = sub .. (" · %d unpriced"):format(plan.unknown) end
-  local back = (plan.spend or plan.total) - plan.total
-  local line2 = back > 0 and ("about %s back %s"):format(NW.Money(back, true), st().planSellBack == "de" and "disenchanting" or "selling") or nil
+  -- what selling or disenchanting might return, and what that leaves you out of pocket
+  local back = spend - plan.total
+  local line2 = back > 0 and ("%s back about %s  ·  |cffe6e6ebnet about %s|r"):format(
+    st().planSellBack == "de" and "Disenchant" or "Sell", NW.Money(back, true), NW.Money(spend - back, true)) or nil
   -- what bought or found recipes would save
   if not st().planRecipeItems then
     st().planRecipeItems = true
