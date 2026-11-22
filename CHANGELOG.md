@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.5
+
+- New Consumes tab: raid consumables for Holy Paladin and Warlock, with stock, prices and materials.
+- Leveling: Crafts dropdown (Keep, Sell, Disenchant) plans around what you do with the items.
+- Leveling cost is what you pay; sale or disenchant value is shown beside it.
+- Recipes view: click a recipe for its materials; Alt-click searches the recipe.
+- Shift-click a recipe at the auction house searches what it makes.
+
 ## 1.1.4
 
 - Profit view: click a recipe to see its materials and what each costs.
