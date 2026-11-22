@@ -165,7 +165,7 @@ btnClear:SetPoint("LEFT", btnAvoid, "RIGHT", 6, 0)
 local btnImport = UI.Button(side, "Import GatherMate2", half, function() NW.ImportGatherMate2(); refresh() end)
 btnImport:SetPoint("TOPLEFT", btnAvoid, "BOTTOMLEFT", 0, -6)
 UI.Tip(btnImport, "Import GatherMate2", "Copies GatherMate2's herb and ore spots (and its data pack) into Nodewalker.")
-local btnGuide = UI.Button(side, "Herb Guide", half, function() NW.ShowTab("guide") end)
+local btnGuide = UI.Button(side, "Farm Guide", half, function() NW.ShowTab("guide") end)
 btnGuide:SetPoint("LEFT", btnImport, "RIGHT", 6, 0)
 
 local btnStart = UI.Button(side, "Start route on overlay", SIDE_W, function()
@@ -288,7 +288,7 @@ refresh = function()
     lines[#lines + 1] = dim .. ("%d herb, %d ore spots"):format(herbs, ores) .. "|r"
     stats:SetText(table.concat(lines, "\n"))
   else
-    stats:SetText(dim .. "No route in this zone yet.\nPress Optimize loop, or pick a herb in the Herb Guide.|r")
+    stats:SetText(dim .. "No route in this zone yet.\nPress Optimize loop, or pick a herb or ore in the Farm Guide.|r")
   end
 end
 NW.RefreshPlanner = function() if page:IsShown() then refresh() end end

@@ -887,6 +887,16 @@ for _, row in ipairs(stepRows) do
       end
       NW.GuideSelectHerb(pickName)
     elseif selected == "mining" then
+      -- the highest ore you can mine in this bracket, if the guide covers it
+      local skill = NW.ProfSkill("mining") or 0
+      local pickName
+      for _, n in ipairs(b.nodes) do
+        local inGuide
+        for _, e in ipairs(NW.ORE_GUIDE) do if e[1] == n then inGuide = true end end
+        local req = NW.RequiredSkill(n)
+        if inGuide and (not pickName or (req and req <= skill)) then pickName = n end
+      end
+      if pickName then NW.GuideSelectHerb(pickName) return end
       local rows = NW.RankZonesForNodes(b.nodes, b.zones)
       local best = rows[1]
       if not (best and best.mapID and best.count > 0) then
@@ -919,7 +929,7 @@ local function drawGather(p)
   local rank = NW.ProfSkill(p.key)
   local lines = { g.intro, "" }
   if p.key == "herbalism" then
-    lines[#lines + 1] = "|cffe8c46aClick a range|r to open the Herb Guide on the best herb for you there."
+    lines[#lines + 1] = "|cffe8c46aClick a range|r to open the Farm Guide on the best herb for you there."
   elseif p.key == "mining" then
     lines[#lines + 1] = "|cffe8c46aClick a range|r to build a mining route in the zone where you know the most of those veins."
     lines[#lines + 1] = ""

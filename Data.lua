@@ -235,3 +235,43 @@ NW.HERB_GUIDE = {
   { "Black Lotus", "Rare; often near elites. Respawn is slow.", {
     { "Burning Steppes" }, { "Winterspring" }, { "Eastern Plaguelands" }, { "Silithus" }, { "Mount Hyjal" } } },
 }
+
+------------------------------------------------------------------------
+-- Ore guide: same shape as the herb guide. A fourth field lists the other
+-- node names that count as the same ore (ooze-covered veins).
+------------------------------------------------------------------------
+NW.ORE_GUIDE = {
+  { "Copper Vein", "Along hills and cliff faces in every starting zone.", {
+    { "Durotar", "Mountain edges all the way round" }, { "Mulgore" }, { "Elwynn Forest" }, { "Dun Morogh" },
+    { "Tirisfal Glades" }, { "Darkshore" }, { "The Barrens", "Hills around the Crossroads" } } },
+  { "Tin Vein", "Hillsides and caves. Can spawn as Silver instead.", {
+    { "The Barrens", "Southern hills and the Stagnant Oasis" }, { "Hillsbrad Foothills", "Mountain rim, both sides" },
+    { "Redridge Mountains" }, { "Loch Modan" }, { "Stonetalon Mountains" }, { "Ashenvale" }, { "Wetlands" },
+    { "Thousand Needles" } } },
+  { "Silver Vein", "Rare; takes the place of a Tin or Iron node.", {
+    { "Hillsbrad Foothills" }, { "The Barrens" }, { "Thousand Needles" }, { "Stonetalon Mountains" },
+    { "Ashenvale" }, { "Arathi Highlands" } }, { "Ooze Covered Silver Vein" } },
+  { "Iron Deposit", "Canyon walls and caves. Can spawn as Gold instead.", {
+    { "Arathi Highlands", "Mountain rim and the troll and ogre caves" }, { "Thousand Needles", "Canyon walls" },
+    { "Desolace" }, { "Alterac Mountains" }, { "Stranglethorn Vale" }, { "Badlands" }, { "Dustwallow Marsh" } } },
+  { "Gold Vein", "Rare; takes the place of an Iron or Mithril node.", {
+    { "Arathi Highlands" }, { "Badlands" }, { "Stranglethorn Vale" }, { "Alterac Mountains" }, { "Tanaris" },
+    { "The Hinterlands" } }, { "Ooze Covered Gold Vein" } },
+  { "Mithril Deposit", "Mountain edges and caves. Can spawn as Truesilver instead.", {
+    { "Badlands", "Outer rim; short loop" }, { "Tanaris", "Mountain rim and the insect hives" },
+    { "The Hinterlands" }, { "Burning Steppes" }, { "Felwood" }, { "Searing Gorge" }, { "Feralas" },
+    { "Azshara" } }, { "Ooze Covered Mithril Deposit" } },
+  { "Truesilver Deposit", "Rare; takes the place of a Mithril or Thorium node.", {
+    { "Badlands" }, { "Tanaris" }, { "Burning Steppes" }, { "Winterspring" }, { "Felwood" },
+    { "Un'Goro Crater" } }, { "Ooze Covered Truesilver Deposit" } },
+  { "Dark Iron Deposit", "Few outdoors; most are inside Blackrock Depths and Molten Core.", {
+    { "Searing Gorge", "The Cauldron and the slag pit" }, { "Burning Steppes" } } },
+  { "Small Thorium Vein", "Everywhere in level 50+ zones.", {
+    { "Un'Goro Crater", "Outer wall, all the way round" }, { "Burning Steppes" }, { "Winterspring" },
+    { "Eastern Plaguelands" }, { "Western Plaguelands" }, { "Felwood" }, { "Silithus" }, { "Searing Gorge" },
+    { "Azshara" } }, { "Ooze Covered Thorium Vein" } },
+  { "Rich Thorium Vein", "Caves and high ground. Chance of Arcane Crystal.", {
+    { "Winterspring", "Caves and the southern canyon" }, { "Eastern Plaguelands" },
+    { "Un'Goro Crater", "Fire Plume Ridge and the outer wall" }, { "Burning Steppes" }, { "Silithus", "The hives" },
+    { "Azshara" }, { "Western Plaguelands" } }, { "Ooze Covered Rich Thorium Vein" } },
+}

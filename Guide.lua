@@ -7,8 +7,29 @@ local C, S, UI = NW.COLORS, NW.STYLE, NW.UI
 -- data, and a one-click route through just that herb.
 ------------------------------------------------------------------------
 local refreshGuide
-local page = UI.AddTab("guide", "Herb Guide", function() refreshGuide() end)
+local page = UI.AddTab("guide", "Farm Guide", function() refreshGuide() end)
 local selectedHerb, previewID, lastHerb
+-- Herbs or ore: the tab shows one list at a time
+local kind = "herb"
+local KIND = {
+  herb = { guide = NW.HERB_GUIDE, skill = "Herbalism", word = "herb", edge = "herbEdge" },
+  ore = { guide = NW.ORE_GUIDE, skill = "Mining", word = "ore", edge = "oreEdge" },
+}
+local picked = {} -- last selection per kind
+-- Does a saved node count as this guide entry? (ooze-covered veins do)
+local function matches(entry, name)
+  if name == entry[1] then return true end
+  for _, alt in ipairs(entry[4] or {}) do if alt == name then return true end end
+  return false
+end
+local function focusOf(entry)
+  local f = { [entry[1]] = true }
+  for _, alt in ipairs(entry[4] or {}) do f[alt] = true end
+  return f
+end
+local function entryFor(name)
+  for _, e in ipairs(KIND[kind].guide) do if e[1] == name then return e end end
+end
 
 
 -- Zone name -> map ID, from the game's own map tree
@@ -79,7 +100,7 @@ local function rankZones(entry)
     local w, h = NW.MapSize(id)
     local pts = {}
     for _, nd in ipairs(NW.db.nodes[id] or {}) do
-      if nd.name == herb then pts[#pts + 1] = { (w and nd.x * w) or nd.x, (h and nd.y * h) or nd.y, nd.x, nd.y } end
+      if matches(entry, nd.name) then pts[#pts + 1] = { (w and nd.x * w) or nd.x, (h and nd.y * h) or nd.y, nd.x, nd.y } end
     end
     local row = { mapID = id, name = name, note = note, recommended = rec, count = #pts, pts = pts }
     if w and #pts >= 3 then
@@ -103,7 +124,7 @@ local function rankZones(entry)
   for id, list in pairs(NW.db.nodes) do
     if not seen[id] then
       for _, nd in ipairs(list) do
-        if nd.name == herb then
+        if matches(entry, nd.name) then
           seen[id] = true
           local info = C_Map.GetMapInfo(id)
           measure(id, info and info.name or ("Map " .. id), nil, false)
@@ -130,15 +151,32 @@ end
 ------------------------------------------------------------------------
 local LIST_W, ROW_H = 224, 17
 local herbRows = {}
-local list = UI.Box(page, LIST_W, #NW.HERB_GUIDE * ROW_H + 10)
-list:SetPoint("TOPLEFT", 16, -8)
+local MAX_LIST = math.max(#NW.HERB_GUIDE, #NW.ORE_GUIDE)
+local kindBtns = {}
+for i, k in ipairs({ "herb", "ore" }) do
+  local b = UI.Button(page, k == "herb" and "Herbs" or "Ore", (LIST_W - 4) / 2, function()
+    if kind == k then return end
+    picked[kind] = selectedHerb
+    kind, selectedHerb, previewID = k, picked[k], nil
+    refreshGuide()
+  end, 22)
+  b:SetPoint("TOPLEFT", 16 + (i - 1) * ((LIST_W - 4) / 2 + 4), -6)
+  b.mark = b:CreateTexture(nil, "OVERLAY")
+  b.mark:SetPoint("BOTTOMLEFT", 1, 1)
+  b.mark:SetPoint("BOTTOMRIGHT", -1, 1)
+  b.mark:SetHeight(2)
+  b.mark:SetColorTexture(unpack(S.gold))
+  kindBtns[k] = b
+end
+local list = UI.Box(page, LIST_W, MAX_LIST * ROW_H + 10)
+list:SetPoint("TOPLEFT", 16, -32)
 
 local SKILL_RGB = {
   red = { 1, 0.25, 0.2 }, orange = { 1, 0.5, 0.25 }, yellow = { 1, 0.9, 0.2 },
   green = { 0.35, 0.8, 0.35 }, grey = { 0.55, 0.55, 0.55 }, unknown = { 0.85, 0.85, 0.85 },
 }
 
-for i, entry in ipairs(NW.HERB_GUIDE) do
+for i = 1, MAX_LIST do
   local b = CreateFrame("Button", nil, list)
   b:SetSize(LIST_W - 2, ROW_H)
   b:SetPoint("TOPLEFT", 1, -5 - (i - 1) * ROW_H)
@@ -151,13 +189,12 @@ for i, entry in ipairs(NW.HERB_GUIDE) do
   b.text:SetPoint("LEFT", b.icon, "RIGHT", 6, 0)
   b.skill = UI.Text(b, 11, S.dim, "RIGHT")
   b.skill:SetPoint("RIGHT", -8, 0)
-  b.entry = entry
-  b:SetScript("OnClick", function() selectedHerb = entry[1]; refreshGuide() end)
+  b:SetScript("OnClick", function(self) if self.entry then selectedHerb = self.entry[1]; refreshGuide() end end)
   herbRows[i] = b
 end
 local listKey = UI.Text(page, 11, S.dim)
 listKey:SetPoint("TOPLEFT", list, "BOTTOMLEFT", 2, -6)
-listKey:SetText("Colour: skill-ups at your Herbalism")
+listKey:SetText("Colour: skill-ups at your skill")
 
 ------------------------------------------------------------------------
 -- Right: details
@@ -185,10 +222,10 @@ hTip:SetWidth(TEXT_W)
 hTip:SetHeight(30)
 hTip:SetJustifyV("TOP")
 
-local alsoOthers = UI.Check(right, "Also pick other herbs on the way",
+local alsoOthers = UI.Check(right, "Also pick other herbs and ore on the way",
   function() return NW.db.settings.guideAlsoOthers end,
   function(v) NW.db.settings.guideAlsoOthers = v end,
-  "Built routes also stop at every other herb your filters allow.")
+  "Built routes also stop at every other herb and ore node your filters allow.")
 alsoOthers:SetPoint("TOPLEFT", hTip, "BOTTOMLEFT", 2, -6)
 
 local colHead = UI.Heading(right, "Best zones", TEXT_W)
@@ -243,6 +280,7 @@ local function drawPreview(row, herb)
   local function p(x, y) return x * PV_W, -y * PV_H end
   local route = NW.db.routes[row.mapID]
   local isFocus = route and route.focus and route.focus[herb]
+  local edge = C[KIND[kind].edge]
   if isFocus and #route.stops > 1 then
     local st = route.stops
     for i = 1, #st do
@@ -268,7 +306,7 @@ local function drawPreview(row, herb)
   end
   for _, pt in ipairs(row.pts) do
     local d = getPvDot()
-    d:SetColorTexture(C.herbEdge[1], C.herbEdge[2], C.herbEdge[3], 1)
+    d:SetColorTexture(edge[1], edge[2], edge[3], 1)
     d:ClearAllPoints()
     d:SetPoint("CENTER", pvArt, "TOPLEFT", p(pt[3], pt[4]))
   end
@@ -300,9 +338,9 @@ for i = 1, ROWS do
     if not row or not row.mapID then return end
     NW.BuildRoute(row.mapID, function()
       if page:IsShown() then drawPreview(row, herb) end
-    end, { focus = { [herb] = true }, alsoOthers = NW.db.settings.guideAlsoOthers })
+    end, { focus = focusOf(entryFor(herb)), alsoOthers = NW.db.settings.guideAlsoOthers })
   end)
-  UI.Tip(r.build, "Build route", "Replaces your saved route for this zone with an optimized loop through this herb.")
+  UI.Tip(r.build, "Build route", "Replaces your saved route for this zone with an optimized loop through these spots.")
   zoneRows[i] = r
 end
 local moreText = UI.Text(right, 11, S.dim)
@@ -311,36 +349,47 @@ moreText:SetWidth(TEXT_W)
 
 refreshGuide = function()
   if not page:IsShown() then return end
-  local herbSkill = NW.GetSkill("herb")
-  NW.SetWindowSubtitle(herbSkill and ("Herbalism " .. herbSkill) or "You don't have Herbalism")
-  if not selectedHerb then
-    -- start on the highest herb you can pick
+  local K = KIND[kind]
+  local guide = K.guide
+  local herbSkill = NW.GetSkill(kind)
+  NW.SetWindowSubtitle(herbSkill and (K.skill .. " " .. herbSkill) or ("You don't have " .. K.skill))
+  for k, b in pairs(kindBtns) do
+    b.mark:SetShown(k == kind)
+    b.label:SetTextColor(unpack(k == kind and S.gold or S.dim))
+  end
+  if not (selectedHerb and entryFor(selectedHerb)) then
+    selectedHerb = nil
+    -- start on the highest one you can gather
     if herbSkill then
-      for _, e in ipairs(NW.HERB_GUIDE) do
+      for _, e in ipairs(guide) do
         local req = NW.RequiredSkill(e[1])
         if req and req <= herbSkill then selectedHerb = e[1] end
       end
     end
-    selectedHerb = selectedHerb or NW.HERB_GUIDE[1][1]
+    selectedHerb = selectedHerb or guide[1][1]
   end
   if lastHerb ~= selectedHerb then previewID = nil; lastHerb = selectedHerb end
   local entry
-  for _, b in ipairs(herbRows) do
-    local e = b.entry
-    local req = NW.RequiredSkill(e[1])
-    local col = SKILL_RGB[NW.SkillColor(req, herbSkill)] or SKILL_RGB.unknown
-    b.icon:SetTexture(NW.NodeIcon(e[1], "herb"))
-    b.icon:SetDesaturated(NW.IsHidden(e[1]))
-    b.text:SetText(e[1])
-    b.text:SetTextColor(col[1], col[2], col[3])
-    b.skill:SetText(req or "?")
-    b:SetSelected(e[1] == selectedHerb)
-    if e[1] == selectedHerb then entry = e end
+  for i, b in ipairs(herbRows) do
+    local e = guide[i]
+    b.entry = e
+    b:SetShown(e ~= nil)
+    if e then
+      local req = NW.RequiredSkill(e[1])
+      local col = SKILL_RGB[NW.SkillColor(req, herbSkill)] or SKILL_RGB.unknown
+      b.icon:SetTexture(NW.NodeIcon(e[1], kind))
+      b.icon:SetDesaturated(NW.IsHidden(e[1]))
+      b.text:SetText(e[1])
+      b.text:SetTextColor(col[1], col[2], col[3])
+      b.skill:SetText(req or "?")
+      b:SetSelected(e[1] == selectedHerb)
+      if e[1] == selectedHerb then entry = e end
+    end
   end
   local req = NW.RequiredSkill(entry[1])
-  hIcon:SetTexture(NW.NodeIcon(entry[1], "herb"))
+  hIcon:SetTexture(NW.NodeIcon(entry[1], kind))
   hName:SetText(entry[1])
-  local skillLine = ("Needs Herbalism %s"):format(req or "?")
+  local skillLine = ("Needs %s %s"):format(K.skill, req or "?")
   if herbSkill and req then
     local c = NW.SkillColor(req, herbSkill)
     skillLine = skillLine .. (c == "red" and "  ·  |cffeb5c4cskill too low|r"
@@ -387,6 +436,7 @@ function NW.ToggleGuide() NW.ToggleWindow("guide") end
 
 -- Open the guide on one herb (from the Professions tab)
 function NW.GuideSelectHerb(name)
+  kind = (NW.NODES[name] and NW.NODES[name][1] == "ore") and "ore" or "herb"
   selectedHerb = name
   if NW.window:IsShown() then NW.ShowTab("guide") else NW.db.settings.lastTab = "guide"; NW.window:Show() end
 end

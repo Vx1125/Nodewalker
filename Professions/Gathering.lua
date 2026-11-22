@@ -7,7 +7,7 @@ local _, NW = ...
 ------------------------------------------------------------------------
 NW.GATHER_GUIDE = {
   herbalism = {
-    intro = "Pick every herb you can on the way; they're worth more than the skill. The Herb Guide ranks zones by your own node data.",
+    intro = "Pick every herb you can on the way; they're worth more than the skill. The Farm Guide ranks zones by your own node data.",
     brackets = {
       { 1, 70, { "Peacebloom", "Silverleaf", "Earthroot" }, { "Durotar", "Mulgore", "Tirisfal Glades", "Elwynn Forest", "Dun Morogh", "Teldrassil" } },
       { 70, 115, { "Mageroyal", "Briarthorn", "Silverleaf" }, { "The Barrens", "Silverpine Forest", "Westfall", "Darkshore", "Loch Modan" } },
