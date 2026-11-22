@@ -964,7 +964,9 @@ watcher:SetScript("OnUpdate", function(self, dt)
   if not quiet or blizzardWindowShown() then quiet = nil self:Hide() return end
   local busy = (UnitCastingInfo and UnitCastingInfo("player") ~= nil) or (UnitChannelInfo and UnitChannelInfo("player") ~= nil)
   if busy then quietSince = GetTime() return end
-  if GetTime() - quietSince > 1.5 then
+  -- stays ready while you're working in Nodewalker; closed when you leave
+  local away = not (NW.window and NW.window:IsShown())
+  if (away and GetTime() - quietSince > 1.5) or GetTime() - quietSince > 120 then
     quiet = nil
     self:Hide()
     if C_TradeSkillUI and C_TradeSkillUI.CloseTradeSkill then pcall(C_TradeSkillUI.CloseTradeSkill) end
@@ -985,8 +987,7 @@ local function castNow(key, e, count)
 end
 
 -- Craft `count` of a recipe. Returns ok, message. If the profession isn't
--- open yet it is opened, and the craft is tried again as soon as it's ready;
--- the game may want a second click for that one.
+-- open yet this click opens it, and the next click crafts.
 function NW.Craft(key, r, count)
   if InCombatLockdown and InCombatLockdown() then return false, "Not in combat" end
   local e = knownRecipe(key, r)
@@ -1012,22 +1013,15 @@ function NW.Craft(key, r, count)
   return true, "Opening the profession…"
 end
 
--- Once the profession is ready, finish the craft that was waiting on it
+-- The profession is open now. The game only lets a craft start from your
+-- own click, so the one that was waiting is asked for again.
 local function finishPending()
   local p = pending
   if not p or GetTime() - p.at > 5 then pending = nil return end
   if not isOpen(p.key) then return end
   pending = nil
-  local ok, err = castNow(p.key, p.e, p.count)
-  local casting = false
-  C_Timer.After(0.4, function()
-    if UnitCastingInfo then casting = UnitCastingInfo("player") ~= nil end
-    if NW.CraftStatus then
-      NW.CraftStatus((ok and casting) and ("Crafting %d %s"):format(p.count, p.name)
-        or ok and "Profession opened. Click Craft again."
-        or (err or "Couldn't craft"))
-    end
-  end)
+  local prof = NW.PROF_BY_KEY and NW.PROF_BY_KEY[p.key]
+  if NW.CraftStatus then NW.CraftStatus(("%s is ready. Click Craft again."):format(prof and prof.name or "The profession")) end
 end
 NW.On("TRADE_SKILL_SHOW", function() C_Timer.After(0.2, finishPending) end)
 NW.On("TRADE_SKILL_LIST_UPDATE", function() C_Timer.After(0.1, finishPending) end)
