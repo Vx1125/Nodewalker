@@ -809,7 +809,7 @@ function NW.BuildPlan(key, from, to)
   -- What it costs once to get a recipe you don't know: the recipe item, or
   -- the trainer's fee. Spread over the points it would be used for, so the
   -- plan doesn't buy a recipe for a handful of skill-ups.
-  local onceOf = {}
+  local onceOf, buyOf = {}, {} -- buyOf: a recipe item with a real price
   for i, r in ipairs(recipes) do
     if isKnown(key, r) then
       onceOf[i] = 0
@@ -819,6 +819,7 @@ function NW.BuildPlan(key, from, to)
       local price, src = nil, nil
       if r.recipeItem then price, src = NW.Price(r.recipeItem) end
       onceOf[i] = (price and (src == "ah" or src == "vendor")) and price or 10000 -- unpriced: assume about 1g
+      if price and (src == "ah" or src == "vendor") then buyOf[i] = price end
     end
   end
   local owned = {}
@@ -893,7 +894,14 @@ function NW.BuildPlan(key, from, to)
       st.train = (st.fee or 0) + (st.rankFee or 0)
       st.cost = st.cost + st.train
       -- what you pay; st.cost is that minus the sale value you chose to count
-      st.spend = (r.matCost or st.costEach) * st.crafts + st.train
+      -- a recipe you have to buy is paid for once, the first time it's used
+      local recipeCost = 0
+      if buyOf[st.idx] and not paid[r.name] then
+        paid[r.name] = true
+        recipeCost = buyOf[st.idx]
+        st.cost = st.cost + recipeCost
+      end
+      st.spend = (r.matCost or st.costEach) * st.crafts + st.train + recipeCost
       spend = spend + st.spend
       fees = fees + st.train
       total = total + st.cost
