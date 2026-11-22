@@ -171,6 +171,14 @@ priceLine:SetWidth(MID_W)
 priceLine:SetHeight(26)
 priceLine:SetJustifyV("TOP")
 
+-- Profit: only recipes your bags can make now
+local haveMats = UI.Check(mid, "Have materials", function() return st().profitHaveMats end, function(v)
+  st().profitHaveMats = v
+  refresh()
+end, "Only recipes you know and have the materials for in your bags.")
+haveMats:SetPoint("TOPLEFT", optRow, "TOPLEFT", MID_W - 128, -3)
+haveMats:Hide()
+
 -- Search: filters the list below (recipes, materials, zones)
 local search = CreateFrame("EditBox", nil, mid, "BackdropTemplate")
 search:SetSize(176, 24)
@@ -1257,7 +1265,9 @@ local function drawProfit(p)
         seen[r.name] = true
         local e = scan and scan[r.name]
         local isKnown = (known[r.name] or (e and e.learned)) and true or false
-        if isKnown or all then
+        -- "Have materials": only what your bags can make right now
+        local makeable = not st().profitHaveMats or (NW.CanCraft(p.key, r) or 0) > 0
+        if (isKnown or all) and makeable then
           local profit, cost, sale, unknown, de = NW.RecipeProfit(r)
           out[#out + 1] = { r = r, profit = profit, cost = cost or 0, sale = sale, unknown = unknown, known = isKnown, de = de }
         end
@@ -1283,6 +1293,7 @@ local function drawProfit(p)
   end
   local hasKnown = next(known) ~= nil or (scan and next(scan) ~= nil)
   stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "No recipe matches your search."
+    or st().profitHaveMats and "Nothing you can make from your bags right now."
     or hasKnown and "None of your recipes make something that sells."
     or "Open your profession window once so Nodewalker sees which recipes you know.") or "")
   drawProfitRows(p.key)
@@ -1544,6 +1555,9 @@ refresh = function()
     priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -5)
     priceLine:SetHeight(13)
   end
+  haveMats:SetShown(isProfit)
+  if isProfit then haveMats:Refresh() end
+  priceLine:SetWidth(isProfit and MID_W - 150 or MID_W)
   local capSet = CAPS[isProfit and "profit" or isMissing and "missing" or isCraft and "plan" or "gather"]
   for i, t in ipairs(caps) do t:SetText(capSet[i]) end
   -- an opened recipe belongs to the Profit view of one profession
