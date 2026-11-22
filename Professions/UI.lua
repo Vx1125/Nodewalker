@@ -1379,6 +1379,8 @@ for _, row in ipairs(stepRows) do
   end)
 end
 
+NW.SearchAH, NW.AHOpen, NW.ChatLink = searchAH, ahOpen, chatLink
+
 ------------------------------------------------------------------------
 refresh = function()
   if not page:IsShown() then return end

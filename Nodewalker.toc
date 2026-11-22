@@ -34,4 +34,5 @@ Compass.lua
 Planner.lua
 Guide.lua
 Professions\UI.lua
+Consumes.lua
 Options.lua
