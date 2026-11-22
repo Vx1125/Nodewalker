@@ -487,7 +487,8 @@ for i = 1, SHOP_ROWS do
     GameTooltip:AddDoubleLine("From", srcText, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     -- every price there is for it, so you can see why that one was used
     local vendor, ah, craft = NW.PriceParts(e.id)
-    if vendor or ah or craft then
+    -- only worth listing when there is more than one price to compare
+    if (vendor and 1 or 0) + (ah and 1 or 0) + (craft and 1 or 0) > 1 then
       GameTooltip:AddLine(" ")
       if ah then GameTooltip:AddDoubleLine("Auction", NW.Money(ah), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
       if vendor then GameTooltip:AddDoubleLine("Vendor", NW.Money(vendor), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
@@ -1221,7 +1222,10 @@ local function drawProfit(p)
     "",
     "|cff94949aThe percentage is profit over material cost. It doesn't count the listing deposit, or whether the item actually sells. Rescan the auction house to update.|r",
     "",
-    "|cff94949aClick a recipe to search the auction house for what it makes. Shift-click links it in chat.|r",
+    "|cff94949aGear counts its disenchant value when that pays more than selling.|r",
+    "",
+    "|cffe8c46aClick|r a recipe for its materials.",
+    "|cffe8c46aShift-click|r: search the auction house for it, or link it in chat.",
   }
   infoText:SetText(table.concat(lines, "\n"))
 end
@@ -1415,6 +1419,15 @@ refresh = function()
     b.icon:SetDesaturated(not rank)
     b:SetSelected(b.prof.key == selected)
   end
+  -- only nag about the profession window while a craft you have is unread
+  local unread = false
+  for _, pr in ipairs(NW.PROFS) do
+    if pr.kind == "craft" and NW.ProfSkill(pr.key) then
+      local k = NW.charDB.known[pr.key]
+      if not (k and next(k) ~= nil) then unread = true end
+    end
+  end
+  listNote:SetShown(unread)
   local p = NW.PROF_BY_KEY[selected]
   local vk = selected .. ":" .. mode .. ":" .. searchText
   viewChanged = vk ~= lastView

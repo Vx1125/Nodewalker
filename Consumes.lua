@@ -570,6 +570,18 @@ local function useText(id)
   if ok2 and type(text) == "string" and text ~= "" then return text end
 end
 
+-- How long a buff lasts, read from the game's text ("Lasts 30 min", "for 1
+-- hour"). Short effects (a 30 second potion) don't count.
+local function minutesOf(id)
+  local text = useText(id)
+  if not text then return nil end
+  text = text:lower()
+  local h = text:match("(%d+) ho?u?rs?")
+  if h then return tonumber(h) * 60 end
+  local m = tonumber(text:match("(%d+) min"))
+  if m and m >= 10 then return m end
+end
+
 -- Herb or ore an item is gathered from, for the Farm Guide
 local nodeOfItem
 local function nodeFor(itemID)
@@ -603,7 +615,7 @@ local stockDrop = UI.Dropdown(page, 170, "Stock", { { 0, "One of each" }, { 2, "
   function() return st().consumeHours or 0 end, function(v)
     st().consumeHours = v
     refresh()
-  end, 120, "How much to carry. Counts flasks at 2 hours, elixirs at 1 hour, food, oils and stones at 30 minutes.")
+  end, 120, "How much to carry. Buffs are counted by how long the game says they last; potions at 5 an hour.")
 stockDrop:SetPoint("LEFT", specDrop, "RIGHT", 18, 0)
 local budget = UI.Check(page, "Budget", function() return st().consumeBudget end, function(v)
   st().consumeBudget = v
@@ -848,8 +860,12 @@ refresh = function()
         local m = makeInfo(c[1])
         -- only what you could make yourself counts as a way to get it
         local make = m and m.skill and m.cost or nil
+        -- a buff with a stated duration is counted exactly
+        local mine = need
+        local lasts = hours > 0 and minutesOf(c[1])
+        if lasts then mine = math.max(1, math.ceil(hours * 60 / lasts)) end
         local e = { id = c[1], effect = c[2], price = price, have = have, make = make, m = m,
-          need = need, short = math.max(0, need - have), hidden = isHidden }
+          need = mine, short = math.max(0, mine - have), hidden = isHidden }
         shown[#shown + 1] = e
         shown.byId[e.id] = e
         if not isHidden and e.short > 0 then

@@ -110,13 +110,16 @@ local function rankZones(entry)
     for _, nd in ipairs(NW.db.nodes[id] or {}) do
       if matches(entry, nd) then pts[#pts + 1] = { (w and nd.x * w) or nd.x, (h and nd.y * h) or nd.y, nd.x, nd.y, nd.kind, nd.name } end
     end
-    -- what one lap is worth at today's prices (about two per node)
+    -- what one lap is worth at today's prices (about two per node). Rare
+    -- spawns are only up at a few of their spots at a time.
+    local RARE = { ["Black Lotus"] = 0.02, ["Silver Vein"] = 0.15, ["Ooze Covered Silver Vein"] = 0.15, ["Gold Vein"] = 0.15,
+      ["Ooze Covered Gold Vein"] = 0.15, ["Truesilver Deposit"] = 0.15, ["Ooze Covered Truesilver Deposit"] = 0.15 }
     local worth, priced = 0, false
     for _, pt in ipairs(pts) do
       local item = NW.NODE_ITEMS[pt[6]]
       local price, src
       if item and NW.Price then price, src = NW.Price(item) end
-      if price and src ~= "est" then worth, priced = worth + price * 2, true end
+      if price and src ~= "est" then worth, priced = worth + price * 2 * (RARE[pt[6]] or 1), true end
     end
     local row = { mapID = id, name = name, note = note, recommended = rec, count = #pts, pts = pts }
     if w and #pts >= 3 then
