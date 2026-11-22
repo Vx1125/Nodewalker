@@ -467,11 +467,72 @@ local VENDOR = {
 }
 NW.VENDOR_PRICES = VENDOR
 
-local function auctionator(id)
+-- Today's lowest listing, as Auctionator last saw it
+local function latest(id)
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
   if not (api and api.GetAuctionPriceByItemID) then return nil end
   local ok, price = pcall(api.GetAuctionPriceByItemID, ADDON, id)
   if ok and type(price) == "number" and price > 0 then return price end
+end
+
+local function median(t)
+  table.sort(t)
+  local n = #t
+  if n == 0 then return nil end
+  if n % 2 == 1 then return t[(n + 1) / 2] end
+  return (t[n / 2] + t[n / 2 + 1]) / 2
+end
+
+-- What Auctionator has seen of an item over the last two weeks of scans:
+-- { today, typical, low, high, days, listed, flag }
+--   typical: the middle of each day's lowest price
+--   listed:  how many are usually up
+--   flag:    "low" or "high" when today's price is far from typical
+-- nil without Auctionator or any price.
+local statsMemo = {}
+local HISTORY_DAYS, OUTLIER = 14, 0.6
+function NW.PriceStats(id)
+  local memo = statsMemo[id]
+  if memo ~= nil then return memo or nil end
+  local today = latest(id)
+  local st = false
+  if today then
+    st = { today = today, typical = today, low = today, high = today, days = 0 }
+    local db = Auctionator and Auctionator.Database
+    local ok, hist
+    if db and db.GetPriceHistory then ok, hist = pcall(db.GetPriceHistory, db, tostring(id)) end
+    if ok and type(hist) == "table" and #hist > 0 then
+      local newest = tonumber(hist[1].rawDay) or 0
+      local lows, counts = {}, {}
+      for _, d in ipairs(hist) do
+        local day = tonumber(d.rawDay) or 0
+        if newest - day < HISTORY_DAYS and d.minSeen then
+          lows[#lows + 1] = d.minSeen
+          if d.minSeen < st.low then st.low = d.minSeen end
+          if (d.maxSeen or d.minSeen) > st.high then st.high = d.maxSeen or d.minSeen end
+          if d.available then counts[#counts + 1] = d.available end
+        end
+      end
+      st.days = #lows
+      st.typical = median(lows) or today
+      st.listed = median(counts)
+      -- three days of scans is enough to call today's price odd
+      if st.days >= 3 then
+        if today < st.typical * OUTLIER then st.flag = "low"
+        elseif today * OUTLIER > st.typical then st.flag = "high" end
+      end
+    end
+  end
+  statsMemo[id] = st
+  return st or nil
+end
+
+-- The auction price to plan with: today's, unless today is a stray listing
+-- far from what the item usually goes for
+local function auctionator(id)
+  local st = NW.PriceStats(id)
+  if not st then return nil end
+  return st.flag and st.typical or st.today
 end
 
 -- The recipe that makes an item, in any profession: recipe, profession key
@@ -605,6 +666,7 @@ end)
 function NW.InvalidatePlans()
   planCache = {}
   priceMemo = {}
+  statsMemo = {}
   if NW.RefreshProfessions then NW.RefreshProfessions() end
 end
 
@@ -654,6 +716,12 @@ for _, id in ipairs(DUST) do isDust[id] = true end
 -- (or the game hasn't sent the item yet). Also returns the outcomes used.
 function NW.DisenchantValue(itemID)
   if type(itemID) ~= "number" then return nil end
+  -- Auctionator's own disenchant figure, when it has one for this client
+  local api = Auctionator and Auctionator.API and Auctionator.API.v1
+  if api and api.GetDisenchantPriceByItemID then
+    local ok, v = pcall(api.GetDisenchantPriceByItemID, ADDON, itemID)
+    if ok and type(v) == "number" and v > 0 then return v end
+  end
   local _, _, quality, ilvl, _, _, _, _, _, _, _, classID = NW.ItemInfo(itemID)
   if not quality then
     if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, itemID) end
@@ -877,7 +945,16 @@ function NW.ShoppingList(key, plan)
     local price, src = NW.Price(id)
     local cost = price and price * buy or nil
     if cost then total = total + cost end
-    list[#list + 1] = { id = id, need = n, have = have, buy = buy, price = price, src = src, cost = cost, quest = forQuest[id] }
+    local e = { id = id, need = n, have = have, buy = buy, price = price, src = src, cost = cost, quest = forQuest[id] }
+    if src == "ah" then
+      local ps = NW.PriceStats(id)
+      if ps then
+        e.stats = ps
+        -- more than the auction house usually holds: the price won't last
+        if ps.listed and buy > ps.listed then e.scarce = true end
+      end
+    end
+    list[#list + 1] = e
   end
   table.sort(list, function(a, b) return (a.cost or -1) > (b.cost or -1) end)
   return list, total

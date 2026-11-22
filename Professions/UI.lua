@@ -478,7 +478,7 @@ local cardCraft = UI.Button(right, "Craft", 96, function(self) craftClick(self) 
 cardCraft:SetPoint("TOPRIGHT", rTotal, "BOTTOMLEFT", RIGHT_W, -14)
 cardCraft:Hide()
 local KEY = "|cffff8040Orange|r recipes always skill up, |cffffff00yellow|r often, |cff40bf40green|r rarely.\n"
-  .. "|cffe6e6eb6/78|r is have / need.  |cffe6e6ebv|r a vendor sells it.  |cffe6e6ebfind|r it isn't on the auction house.\n"
+  .. "|cffe6e6eb6/78|r is have / need.  |cffe6e6ebv|r a vendor sells it.  |cffe6e6ebfind|r it isn't on the auction house.  |cffffd133!|r odd price or too few listed: hover it.\n"
   .. "Shift-click anything to search the auction house.\n\n"
 local shopBox = UI.Box(right, RIGHT_W, 240)
 shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
@@ -580,6 +580,24 @@ for i = 1, SHOP_ROWS do
       GameTooltip:AddDoubleLine(("x%d"):format(e.need), NW.Money(e.price * e.need), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     end
     if card and e.maker then GameTooltip:AddLine("Click: how to make it", 0.91, 0.77, 0.42) end
+    -- what the auction house has looked like lately
+    local ps = e.src == "ah" and NW.PriceStats(e.id)
+    if ps and ps.days > 1 then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddDoubleLine("Usually", NW.Money(ps.typical), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+      GameTooltip:AddDoubleLine(("Last %d scan days"):format(ps.days), NW.Money(ps.low, true) .. " - " .. NW.Money(ps.high, true), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+      if ps.flag then
+        GameTooltip:AddDoubleLine("Today", NW.Money(ps.today), S.dim[1], S.dim[2], S.dim[3], 1, 0.82, 0.2)
+        GameTooltip:AddLine(ps.flag == "low" and "Today's listing is far below usual. Planned at the usual price."
+          or "Today's listing is far above usual. Planned at the usual price.", 1, 0.82, 0.2, true)
+      end
+      if ps.listed then
+        local r, g, b = 1, 1, 1
+        if e.scarce then r, g, b = 1, 0.82, 0.2 end
+        GameTooltip:AddDoubleLine("Usually listed", math.floor(ps.listed + 0.5), S.dim[1], S.dim[2], S.dim[3], r, g, b)
+        if e.scarce then GameTooltip:AddLine(("You need %d. Expect to pay more for the rest."):format(e.buy), 1, 0.82, 0.2, true) end
+      end
+    end
     local age = e.src == "ah" and NW.PriceAge(e.id)
     if age then GameTooltip:AddDoubleLine("Last scanned", age == 0 and "today" or (age .. " days ago"), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     GameTooltip:Show()
@@ -763,7 +781,8 @@ drawShop = function()
       row.icon:SetTexture(itemIcon(e.id))
       local have = e.have > 0 and ("|cff8cdb7a%d|r/"):format(math.min(e.have, e.need)) or ""
       row.name:SetText(("%s%d  %s%s|r"):format(have, e.need, e.maker and card and "|cffe8c46a" or "|cffe6e6eb", (itemName(e.id))))
-      local tag = e.src == "vendor" and " |cff94949av|r" or e.src == "est" and " |cffeb5c4c~|r" or ""
+      local tag = e.src == "vendor" and " |cff94949av|r" or e.src == "est" and " |cffeb5c4c~|r"
+        or (e.scarce or (e.stats and e.stats.flag)) and " |cffffd133!|r" or ""
       row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (NW.Money(e.cost, true) .. tag))
     else
       row:Hide()
@@ -889,7 +908,9 @@ local function drawCraft(p)
   shop = list
   if viewChanged then shopOffset = 0 end
   clampOffsets()
-  rTotal:SetText(("%d items  ·  %s to buy"):format(#list, NW.Money(total)))
+  local odd = 0
+  for _, e in ipairs(list) do if e.buy > 0 and (e.scarce or (e.stats and e.stats.flag)) then odd = odd + 1 end end
+  rTotal:SetText(("%d items  ·  %s to buy%s"):format(#list, NW.Money(total), odd > 0 and ("  ·  |cffffd133%d to check|r"):format(odd) or ""))
   drawShop()
 
   local ah = NW.HasAuctionator()
