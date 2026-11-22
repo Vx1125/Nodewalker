@@ -318,6 +318,8 @@ SlashCmdList.NODEWALKER = function(msg)
     NW.ToggleWindow("consumes")
   elseif msg == "prof" or msg == "profs" or msg == "professions" or msg == "level" then
     NW.ToggleProfessions()
+  elseif msg == "window" or msg == "open" then
+    NW.ToggleWindow()
   elseif msg == "options" or msg == "config" then
     NW.OpenOptions()
   elseif msg == "import" then

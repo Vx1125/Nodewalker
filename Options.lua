@@ -125,7 +125,28 @@ heading(2, "Which herbs and ore")
 check(2, "Only my professions", "onlyMyProfessions", "Herbs if you have Herbalism, ore if you have Mining.")
 check(2, "Only spots confirmed up", "onlyConfirmed", "Seen on your minimap or in the world recently.")
 checkBeside(2, "Group nearby spots", "groupSpots", "Spots that would overlap share one icon with a count. Hover it to see what's there.")
-place(2, UI.Button(page, "Choose herbs and ore...", 200, function() NW.ShowTab("nodes") end, 24), 28, 2)
+local chooseBtn = UI.Button(page, "Choose herbs and ore...", 200, function() NW.ShowTab("nodes") end, 24)
+place(2, chooseBtn, 28, 2)
+
+-- A button for your action bars: a macro that opens the window, handed to
+-- your cursor to drop where you like
+local barBtn
+barBtn = UI.Button(page, "Action bar button", 170, function()
+  if InCombatLockdown and InCombatLockdown() then return end
+  local idx = GetMacroIndexByName and GetMacroIndexByName("Nodewalker") or 0
+  if idx == 0 and CreateMacro then
+    local ok, made = pcall(CreateMacro, "Nodewalker", "INV_Misc_Map_01", "/nw window", nil)
+    idx = ok and made or 0
+  end
+  if idx and idx > 0 and PickupMacro then
+    PickupMacro(idx)
+  else
+    barBtn:SetText("No free macro slot")
+    C_Timer.After(3, function() barBtn:SetText("Action bar button") end)
+  end
+end, 24)
+barBtn:SetPoint("LEFT", chooseBtn, "RIGHT", 8, 0)
+UI.Tip(barBtn, "Action bar button", "Puts a Nodewalker button on your cursor. Drop it on an action bar; it opens this window.")
 
 -- Controls reference along the bottom
 local help = UI.Box(page, UI.CONTENT_W - 48, 40)
