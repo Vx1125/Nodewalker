@@ -895,9 +895,8 @@ NW.PROF_TIPS = {
 }
 
 ------------------------------------------------------------------------
--- Crafting from Nodewalker. The game only needs the profession open behind
--- the scenes, not its window in front of you; every batch still takes a
--- click of yours.
+-- Crafting from Nodewalker. The profession has to be open (the game shows
+-- its own window for that), and every batch takes a click of yours.
 ------------------------------------------------------------------------
 local function bagCount(id)
   if C_Item and C_Item.GetItemCount then return C_Item.GetItemCount(id) or 0 end
@@ -948,35 +947,6 @@ local function isOpen(key)
   return NW.currentTradeKey == key
 end
 
--- A profession Nodewalker opened without the game's window. It's closed
--- again once the crafting stops, so your spellbook button works as usual.
-local quiet, quietSince
-local function blizzardWindowShown()
-  local f = ProfessionsFrame or TradeSkillFrame
-  return f and f:IsShown() or false
-end
-local watcher = CreateFrame("Frame")
-watcher:Hide()
-watcher:SetScript("OnUpdate", function(self, dt)
-  self.t = (self.t or 0) + dt
-  if self.t < 0.3 then return end
-  self.t = 0
-  if not quiet or blizzardWindowShown() then quiet = nil self:Hide() return end
-  local busy = (UnitCastingInfo and UnitCastingInfo("player") ~= nil) or (UnitChannelInfo and UnitChannelInfo("player") ~= nil)
-  if busy then quietSince = GetTime() return end
-  -- stays ready while you're working in Nodewalker; closed when you leave
-  local away = not (NW.window and NW.window:IsShown())
-  if (away and GetTime() - quietSince > 1.5) or GetTime() - quietSince > 120 then
-    quiet = nil
-    self:Hide()
-    if C_TradeSkillUI and C_TradeSkillUI.CloseTradeSkill then pcall(C_TradeSkillUI.CloseTradeSkill) end
-  end
-end)
-local function keepQuiet()
-  quiet, quietSince = true, GetTime() + 1 -- a moment for the first cast to start
-  watcher:Show()
-end
-
 local pending
 local function castNow(key, e, count)
   local T = C_TradeSkillUI
@@ -995,21 +965,13 @@ function NW.Craft(key, r, count)
   count = math.max(1, math.floor(count or 1))
   if isOpen(key) then
     local ok, err = castNow(key, e, count)
-    if ok and quiet then quietSince = GetTime() + 1 end
     return ok, ok and ("Crafting %d %s"):format(count, r.name) or err
   end
   local T = C_TradeSkillUI
   if not (T and T.OpenTradeSkill and SKILL_LINE[key]) then return false, "Open the profession window, then click Craft" end
   pending = { key = key, e = e, count = count, name = r.name, at = GetTime() }
-  -- the game's own window opens on this event: skip it for this one open
-  local held = UIParent and UIParent.IsEventRegistered and UIParent:IsEventRegistered("TRADE_SKILL_SHOW")
-  if held then
-    UIParent:UnregisterEvent("TRADE_SKILL_SHOW")
-    C_Timer.After(1, function() UIParent:RegisterEvent("TRADE_SKILL_SHOW") end)
-  end
   local ok, err = pcall(T.OpenTradeSkill, SKILL_LINE[key])
   if not ok then pending = nil return false, tostring(err) end
-  if held then keepQuiet() end
   return true, "Opening the profession…"
 end
 
