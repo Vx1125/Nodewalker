@@ -738,7 +738,7 @@ drawSteps = function()
         row.name:SetText("|cffeb5c4cNo recipe in the data covers this range|r")
         row.crafts:SetText("")
         row.cost:SetText("")
-        row.mats:SetText("Tick \"Use recipes to buy or find\", or level with anything that is still yellow.")
+        row.mats:SetText("Tick \"Allow recipes I must buy\", or level with anything that is still yellow.")
       end
     else
       row:Hide()

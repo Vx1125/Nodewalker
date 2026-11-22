@@ -885,12 +885,12 @@ end
 -- Things the plan can't know: tools, rank books, left-out recipes
 NW.PROF_TIPS = {
   alchemy = "Vials come from alchemy and trade supply vendors. In Forever the six Healing Potions moved to First Aid; Alchemy keeps the Discolored ones.",
-  blacksmithing = "Weapons and armor need a Blacksmith Hammer from a trade supply vendor. Weaponsmith and Armorsmith recipes are left out. From about 260 only plans give skill-ups, so tick \"Use recipes to buy or find\" or plan to buy plans.",
+  blacksmithing = "Weapons and armor need a Blacksmith Hammer from a trade supply vendor. Weaponsmith and Armorsmith recipes are left out. From about 260 only plans give skill-ups, so tick \"Allow recipes I must buy\" or plan to buy plans.",
   enchanting = "Make your rods as you go: Runed Copper Rod first, then Runed Silver (around 130), Runed Golden (around 175) and Runed Truesilver (around 220); later enchants need them. Each enchant needs an item to go on. Artisan is taught by Annora in Uldaman.",
   engineering = "Make an Arclight Spanner and buy a Blacksmith Hammer first. Gnomish, Goblin and seasonal firework recipes are left out. The Artisan trainer is Buzzek Bracketswing in Tanaris (from the original game).",
   leatherworking = "Salt for curing hides comes from leatherworking suppliers. Dragonscale, Elemental and Tribal recipes are left out. From about 250 most skill-ups come from patterns you buy or find.",
   tailoring = "Thread and dyes come from trade supply vendors. Mooncloth has a cooldown, so it isn't used for leveling. From about 250, patterns you buy or find are much cheaper.",
-  cooking = "Expert Cooking comes from the Expert Cookbook (from 125). Most good recipes are sold by cooking vendors: tick \"Use recipes to buy or find\". Catch your own fish on the Fishing page.",
+  cooking = "Expert Cooking comes from the Expert Cookbook (from 125). Most good recipes are sold by cooking vendors: tick \"Allow recipes I must buy\". Catch your own fish on the Fishing page.",
   firstaid = "Expert First Aid comes from a book (from 125). Heavy Silk and Mageweave Bandages need manuals. Artisan was a quest (Triage) in the original game.",
 }
 
