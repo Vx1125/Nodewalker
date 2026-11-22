@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.7
+
+- Craft button on Leveling and Profit rows and on recipe cards: makes as many as your bags allow. The first click opens the profession.
+- Profit: Have materials filter.
+- Professions: labelled cost and columns, plainer option names, a key under the shopping list.
+- "Recipes" is now "Missing recipes"; a profession at 300 opens on Profit.
+- Consumes: alternatives show as "or" and are stocked once (Winterfall or Distilled Firewater, flasks, food, oils).
+- Consumes: runes, rogue poisons, Lobster Stew, Smoked Desert Dumplings; corrected effect numbers.
+- Fixed shift-click on a recipe linking to chat with the auction house open.
+
 ## 1.1.6
 
 - Consumes: lists for every class and spec, with a Budget list of cheaper tiers.

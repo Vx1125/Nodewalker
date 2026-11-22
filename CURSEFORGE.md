@@ -51,6 +51,7 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 - Counts trainer fees and adds a few spare crafts per step.
 - **Shopping list** of everything left to buy, recipes included, minus what's in your bags and bank. Click an item, or one button for the whole list, to search Auctionator for what you still need.
 - **Profit**: what each craft earns at today's prices, sold or disenchanted, best first. Click one for its materials; click a material to see how to make it.
+- **Craft** straight from a step or recipe: one click makes as many as your bags allow.
 - **Crafts: Keep, Sell or Disenchant**: plan your leveling around what you'll do with the items.
 - **Recipes**: every recipe in the game and where it comes from (trainer, vendors, drops, quests, Merchant's Favor). Shows what you're missing; search by recipe, material, mob or zone to find anything.
 
