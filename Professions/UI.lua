@@ -94,7 +94,7 @@ local hName = UI.Text(mid, 17, S.gold)
 hName:SetPoint("TOPLEFT", hIconBox, "TOPRIGHT", 10, -1)
 local hSkill = UI.Text(mid, 12, S.dim)
 hSkill:SetPoint("TOPLEFT", hName, "BOTTOMLEFT", 0, -5)
-hSkill:SetWidth(MID_W - 200)
+hSkill:SetWidth(MID_W - 270)
 hSkill:SetWordWrap(false)
 local hCost = UI.Text(mid, 15, S.text, "RIGHT")
 hCost:SetPoint("TOPRIGHT", 0, -2)
@@ -840,7 +840,7 @@ local function drawCraft(p)
   -- the headline is what you pay; sale value is shown beside it, never taken off
   hCost:SetText(NW.Money(plan.spend or plan.total))
   -- two short lines, so it never runs into the skill line on the left
-  local sub = ("cost to reach %d from %d"):format(to, from)
+  local sub = ("cost to reach %d"):format(to)
   if plan.fees and plan.fees > 0 then sub = sub .. (" · %s training"):format(NW.Money(plan.fees, true)) end
   if plan.unknown > 0 then sub = sub .. (" · %d unpriced"):format(plan.unknown) end
   local back = (plan.spend or plan.total) - plan.total
@@ -852,7 +852,7 @@ local function drawCraft(p)
     st().planRecipeItems = false
     NW.BuildPlan(p.key, from, to) -- back to this profession's prices
     if not line2 and alt.total < plan.total * 0.85 then
-      line2 = ("|cff8cdb7a%s with recipes you buy or find|r"):format(NW.Money(alt.spend or alt.total, true))
+      line2 = ("|cff8cdb7a%s if you allow bought recipes|r"):format(NW.Money(alt.spend or alt.total, true))
     end
   end
   hCostSub:SetText(line2 and (sub .. "\n" .. line2) or sub)
@@ -1514,7 +1514,7 @@ refresh = function()
   end
   for _, b in ipairs(profRows) do
     local rank, max = NW.ProfSkill(b.prof.key)
-    b.skill:SetText(rank and ("%d/%d"):format(rank, max or 300) or "")
+    b.skill:SetText(rank and tostring(rank) or "") -- the cap is in the header; long names need the room
     b.name:SetTextColor(unpack(rank and S.text or S.dim))
     b.icon:SetDesaturated(not rank)
     b:SetSelected(b.prof.key == selected)

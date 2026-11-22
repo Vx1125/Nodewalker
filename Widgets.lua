@@ -448,7 +448,7 @@ end
 win:SetScript("OnShow", function()
   local v = C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")
     or (GetAddOnMetadata and GetAddOnMetadata(ADDON, "Version"))
-  win.version:SetText((v and not v:find("@")) and ("v" .. v) or "")
+  win.version:SetText((v and not v:find("@")) and ("v" .. v:gsub("^[vV]", "")) or "")
   NW.ShowTab((NW.db and NW.db.settings.lastTab) or tabOrder[1])
   ticker = C_Timer.NewTicker(1, function()
     if current and current.onTick then current.onTick() end
