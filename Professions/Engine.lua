@@ -954,12 +954,25 @@ function NW.ShoppingList(key, plan)
     local cost = price and price * buy or nil
     if cost then total = total + cost end
     local e = { id = id, need = n, have = have, buy = buy, price = price, src = src, cost = cost, quest = forQuest[id] }
+    -- priced from the listings you just searched, when there are any
+    if src == "ah" and buy > 0 then
+      local fill, got, complete, seen = NW.FillCost(id, buy)
+      if fill and got > 0 then
+        e.live = { cost = fill, got = got, complete = complete, seen = seen }
+        local rest = (buy - got) * (price or 0)
+        if cost then total = total - cost end
+        e.cost = fill + rest
+        total = total + e.cost
+      end
+    end
     if src == "ah" then
       local ps = NW.PriceStats(id)
       if ps then
         e.stats = ps
         -- more than the auction house usually holds: the price won't last
         if ps.listed and buy > ps.listed then e.scarce = true end
+        -- the listings themselves say whether there's enough
+        if e.live then e.scarce = e.live.complete and e.live.got < buy or false end
       end
     end
     list[#list + 1] = e
@@ -1087,3 +1100,79 @@ local function finishPending()
 end
 NW.On("TRADE_SKILL_SHOW", function() C_Timer.After(0.2, finishPending) end)
 NW.On("TRADE_SKILL_LIST_UPDATE", function() C_Timer.After(0.1, finishPending) end)
+
+------------------------------------------------------------------------
+-- Live listings. When Auctionator searches the auction house, the listings
+-- it gets back (cheapest first) are kept here for a few minutes, so a big
+-- purchase can be priced by what it really takes to fill, not by the single
+-- lowest listing.
+------------------------------------------------------------------------
+local depth = {} -- [itemID] = { query, at, complete, pages = { [page] = { {unit, count}, ... } } }
+local DEPTH_AGE = 600
+
+local function onScanPage(results, gotAll)
+  if type(results) ~= "table" then return end
+  local me = UnitName and UnitName("player")
+  local now = GetTime()
+  local touched = {}
+  for _, entry in ipairs(results) do
+    local info = entry.info
+    local id, count, buyout, owner = info and info[17], info and info[3], info and info[10], info and info[14]
+    if type(id) == "number" and count and count > 0 and buyout and buyout > 0 and owner ~= me then
+      local d = depth[id]
+      if not d or d.query ~= entry.query then
+        d = { query = entry.query, pages = {} }
+        depth[id] = d
+      end
+      d.at = now
+      local page = entry.page or 0
+      if not touched[id] or touched[id] ~= page then
+        d.pages[page] = {} -- this page again: replace, never add twice
+        touched[id] = page
+      end
+      local rows = d.pages[page]
+      rows[#rows + 1] = { buyout / count, count }
+    end
+  end
+  if gotAll then
+    local q = results[1] and results[1].query
+    for _, d in pairs(depth) do if d.query == q then d.complete = true end end
+  end
+  if NW.OnLiveListings then NW.OnLiveListings() end
+end
+
+NW.LiveListings = onScanPage
+
+table.insert(NW.OnLoad, function()
+  local bus = Auctionator and Auctionator.EventBus
+  local ev = Auctionator and Auctionator.AH and Auctionator.AH.Events and Auctionator.AH.Events.ScanResultsUpdate
+  if not (bus and bus.Register and ev) then return end
+  pcall(bus.Register, bus, {
+    ReceiveEvent = function(_, _, results, gotAll) pcall(onScanPage, results, gotAll) end,
+  }, { ev })
+end)
+
+-- What it costs to buy `qty` of an item from the listings last seen:
+-- cost (copper, for the part that can be filled), how many that covers, and
+-- whether every listing was seen. nil with no recent listings.
+function NW.FillCost(id, qty)
+  local d = depth[id]
+  if not d or GetTime() - d.at > DEPTH_AGE then return nil end
+  local rows = {}
+  for _, page in pairs(d.pages) do
+    for _, r in ipairs(page) do rows[#rows + 1] = r end
+  end
+  if #rows == 0 then return nil end
+  table.sort(rows, function(a, b) return a[1] < b[1] end)
+  local cost, got, seen = 0, 0, 0
+  for _, r in ipairs(rows) do
+    seen = seen + r[2]
+    if got < qty then
+      -- stacks sell whole, but what you pay per piece is what matters here
+      local take = math.min(r[2], qty - got)
+      cost = cost + r[1] * take
+      got = got + take
+    end
+  end
+  return cost, got, d.complete or false, seen
+end

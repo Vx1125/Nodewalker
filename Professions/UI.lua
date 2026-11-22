@@ -235,6 +235,17 @@ function craftClick(b)
   NW.CraftStatus(msg)
 end
 
+-- New listings came in from a search: reprice the shopping list (not on every page)
+local livePending
+function NW.OnLiveListings()
+  if livePending then return end
+  livePending = true
+  C_Timer.After(0.6, function()
+    livePending = nil
+    if page:IsShown() then refresh() end
+  end)
+end
+
 -- What the last Craft click did, shown on the hint line for a few seconds
 local craftMsg, craftMsgAt
 function NW.CraftStatus(msg)
@@ -580,6 +591,17 @@ for i = 1, SHOP_ROWS do
       GameTooltip:AddDoubleLine(("x%d"):format(e.need), NW.Money(e.price * e.need), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     end
     if card and e.maker then GameTooltip:AddLine("Click: how to make it", 0.91, 0.77, 0.42) end
+    -- what the listings you just searched add up to
+    if e.live then
+      local lv = e.live
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddDoubleLine(("Listed now: %d for"):format(lv.got), NW.Money(lv.cost), 0.55, 0.86, 0.48, 1, 1, 1)
+      if lv.got > 0 then GameTooltip:AddDoubleLine("Average each", NW.Money(lv.cost / lv.got), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+      if lv.got < e.buy then
+        GameTooltip:AddLine(lv.complete and ("Only %d listed. You need %d."):format(lv.got, e.buy)
+          or ("The search showed the cheapest %d. The other %d are counted at the usual price."):format(lv.got, e.buy - lv.got), 1, 0.82, 0.2, true)
+      end
+    end
     -- what the auction house has looked like lately
     local ps = e.src == "ah" and NW.PriceStats(e.id)
     if ps and ps.days > 1 then
@@ -913,7 +935,11 @@ local function drawCraft(p)
   clampOffsets()
   local odd = 0
   for _, e in ipairs(list) do if e.buy > 0 and (e.scarce or (e.stats and e.stats.flag)) then odd = odd + 1 end end
-  rTotal:SetText(("%d items  ·  %s to buy%s"):format(#list, NW.Money(total), odd > 0 and ("  ·  |cffffd133%d to check|r"):format(odd) or ""))
+  local live = 0
+  for _, e in ipairs(list) do if e.live then live = live + 1 end end
+  rTotal:SetText(("%d items  ·  %s to buy%s%s"):format(#list, NW.Money(total),
+    live > 0 and ("  ·  |cff8cdb7a%d live|r"):format(live) or "",
+    odd > 0 and ("  ·  |cffffd133%d to check|r"):format(odd) or ""))
   drawShop()
 
   local ah = NW.HasAuctionator()
