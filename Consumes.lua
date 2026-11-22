@@ -637,7 +637,7 @@ local stockDrop = UI.Dropdown(page, 170, "Stock", { { 0, "One of each" }, { 2, "
   function() return st().consumeHours or 0 end, function(v)
     st().consumeHours = v
     refresh()
-  end, 120, "How much to carry. Buffs are counted by how long the game says they last; potions at 5 an hour.")
+  end, 120, "How much to carry: buffs by their duration, potions at 5 an hour.")
 stockDrop:SetPoint("LEFT", specDrop, "RIGHT", 18, 0)
 local budget = UI.Check(page, "Budget", function() return st().consumeBudget end, function(v)
   st().consumeBudget = v

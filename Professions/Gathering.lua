@@ -7,7 +7,7 @@ local _, NW = ...
 ------------------------------------------------------------------------
 NW.GATHER_GUIDE = {
   herbalism = {
-    intro = "Pick every herb you can on the way; they're worth more than the skill. The Farm Guide ranks zones by your own node data.",
+    intro = "Pick every herb on the way. The Farm Guide ranks zones from your own nodes.",
     brackets = {
       { 1, 70, { "Peacebloom", "Silverleaf", "Earthroot" }, { "Durotar", "Mulgore", "Tirisfal Glades", "Elwynn Forest", "Dun Morogh", "Teldrassil" } },
       { 70, 115, { "Mageroyal", "Briarthorn", "Silverleaf" }, { "The Barrens", "Silverpine Forest", "Westfall", "Darkshore", "Loch Modan" } },
@@ -19,7 +19,7 @@ NW.GATHER_GUIDE = {
     },
   },
   mining = {
-    intro = "Mine every vein on the route. Smelting also gives skill-ups early on (Copper to 70, Tin to 75, Bronze to 115).",
+    intro = "Mine every vein on the route. Smelting gives skill-ups early: Copper to 70, Tin to 75, Bronze to 115.",
     brackets = {
       { 1, 65, { "Copper Vein" }, { "Durotar", "Elwynn Forest", "Dun Morogh", "Mulgore", "Tirisfal Glades", "Darkshore" } },
       { 65, 125, { "Tin Vein", "Silver Vein", "Copper Vein" }, { "The Barrens", "Westfall", "Redridge Mountains", "Loch Modan", "Silverpine Forest", "Hillsbrad Foothills" } },
@@ -29,7 +29,7 @@ NW.GATHER_GUIDE = {
     },
   },
   skinning = {
-    intro = "Skin everything you kill. You can skin a beast up to level skill/10 + 10 below 100 skill, then skill/5. Train Journeyman at 75, Expert at 150, Artisan at 225.",
+    intro = "Skin everything you kill. Journeyman at 75, Expert at 150, Artisan at 225.",
     brackets = {
       { 1, 50, nil, { "Durotar", "Dun Morogh", "Mulgore", "Elwynn Forest", "Teldrassil", "Tirisfal Glades" }, "Boars, scorpids, wolves and cats" },
       { 50, 75, nil, { "The Barrens", "Loch Modan", "Westfall", "Darkshore" }, "Hyenas, plainstriders, bears and boars" },
@@ -40,7 +40,7 @@ NW.GATHER_GUIDE = {
     },
   },
   fishing = {
-    intro = "Fishing and Cooking level together: cook what you catch. Expert Fishing is the book \"The Bass and You\" (needs 125 and level 20); Artisan was Nat Pagle's quest in Dustwallow Marsh. Lures: Nightcrawlers (+50), Bright Baubles (+75), Aquadynamic Fish Attractor (+100).",
+    intro = "Expert: the book \"The Bass and You\" (125, level 20). Artisan: Nat Pagle's quest, Dustwallow Marsh. Lures: Nightcrawlers +50, Bright Baubles +75, Aquadynamic Fish Attractor +100.",
     brackets = {
       { 1, 75, nil, { "Durotar", "Elwynn Forest", "Dun Morogh", "Mulgore", "Tirisfal Glades", "Teldrassil" },
         "Any water in a starting zone", { 6291, 6303 } },

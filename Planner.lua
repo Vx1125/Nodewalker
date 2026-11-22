@@ -278,7 +278,7 @@ refresh = function()
     if route.focus then
       local names = {}
       for n in pairs(route.focus) do names[#names + 1] = n end
-      lines[#lines + 1] = gold .. "Herb route: " .. table.concat(names, ", ") .. "|r" .. (route.alsoOthers and (dim .. " + others|r") or "")
+      lines[#lines + 1] = gold .. "Route: " .. table.concat(names, ", ") .. "|r" .. (route.alsoOthers and (dim .. " + others|r") or "")
     end
     lines[#lines + 1] = ("%d stops  ·  %d yd loop"):format(#route.stops, math.floor(route.length))
     lines[#lines + 1] = ("About %d:%02d per loop on a 60%% mount"):format(math.floor(route.seconds / 60), math.floor(route.seconds % 60))

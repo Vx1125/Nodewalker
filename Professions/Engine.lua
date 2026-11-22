@@ -1004,14 +1004,14 @@ end
 
 -- Things the plan can't know: tools, rank books, left-out recipes
 NW.PROF_TIPS = {
-  alchemy = "Vials come from alchemy and trade supply vendors. In Forever the six Healing Potions moved to First Aid; Alchemy keeps the Discolored ones.",
-  blacksmithing = "Weapons and armor need a Blacksmith Hammer from a trade supply vendor. Weaponsmith and Armorsmith recipes are left out. From about 260 only plans give skill-ups, so tick \"Allow recipes I must buy\" or plan to buy plans.",
-  enchanting = "Make your rods as you go: Runed Copper Rod first, then Runed Silver (around 130), Runed Golden (around 175) and Runed Truesilver (around 220); later enchants need them. Each enchant needs an item to go on. Artisan is taught by Annora in Uldaman.",
-  engineering = "Make an Arclight Spanner and buy a Blacksmith Hammer first. Gnomish, Goblin and seasonal firework recipes are left out. The Artisan trainer is Buzzek Bracketswing in Tanaris (from the original game).",
-  leatherworking = "Salt for curing hides comes from leatherworking suppliers. Dragonscale, Elemental and Tribal recipes are left out. From about 250 most skill-ups come from patterns you buy or find.",
-  tailoring = "Thread and dyes come from trade supply vendors. Mooncloth has a cooldown, so it isn't used for leveling. From about 250, patterns you buy or find are much cheaper.",
-  cooking = "Expert Cooking comes from the Expert Cookbook (from 125). Most good recipes are sold by cooking vendors: tick \"Allow recipes I must buy\". Catch your own fish on the Fishing page.",
-  firstaid = "Expert First Aid comes from a book (from 125). Heavy Silk and Mageweave Bandages need manuals. Artisan was a quest (Triage) in the original game.",
+  alchemy = "Vials: trade supply vendors. Healing Potions are First Aid in Forever; Alchemy keeps the Discolored ones.",
+  blacksmithing = "Blacksmith Hammer: trade supply vendors. Weaponsmith and Armorsmith recipes are left out. From about 260 only bought plans give skill-ups: tick \"Allow recipes I must buy\".",
+  enchanting = "Make rods as you go: Runed Copper, Silver (130), Golden (175), Truesilver (220). Artisan: Annora, Uldaman.",
+  engineering = "Make an Arclight Spanner and buy a Blacksmith Hammer first. Gnomish, Goblin and firework recipes are left out.",
+  leatherworking = "Salt: trade supply vendors. Refined Deeprock Salt is a Salt Shaker cooldown. Dragonscale, Elemental and Tribal recipes are left out. From about 250 most skill-ups come from bought patterns.",
+  tailoring = "Thread and dyes: trade supply vendors. Mooncloth is on a cooldown, so the plan skips it. From about 250, bought patterns are much cheaper.",
+  cooking = "Expert: the Expert Cookbook, at 125. Most good recipes are sold by vendors: tick \"Allow recipes I must buy\".",
+  firstaid = "Expert: a book, at 125. Heavy Silk and Mageweave Bandages need manuals. Artisan: the Triage quest.",
 }
 
 ------------------------------------------------------------------------

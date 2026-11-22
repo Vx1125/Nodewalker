@@ -153,13 +153,13 @@ optRow:SetSize(MID_W, 20)
 local opts = {
   UI.Check(optRow, "Allow recipes I must buy", function() return st().planRecipeItems end,
     function(v) st().planRecipeItems = v; NW.InvalidatePlans() end,
-    "On: the plan may use recipes from vendors and drops, and adds them to the shopping list. Off: trainer recipes and ones you know."),
+    "Also plans with vendor and drop recipes, and adds them to the shopping list."),
   UI.Check(optRow, "From skill 1", function() return st().planFromStart end,
-    function(v) st().planFromStart = v; refresh() end, "On: every step from 1. Off: only what's left from your skill."),
+    function(v) st().planFromStart = v; refresh() end, "Plans every step from 1, not from your skill."),
   UI.Dropdown(optRow, 156, "", { { false, "Keep what I make" }, { true, "Sell what I make" }, { "de", "Disenchant it" } },
     function() return st().planSellBack or false end,
     function(v) st().planSellBack = v; NW.InvalidatePlans(); refresh() end, 156,
-    "Keep: cheapest materials. Sell or Disenchant: cheapest after what you get back. Sell counts half the auction value."),
+    "Sell and Disenchant plan for the lowest cost after what comes back. Sell counts half the auction price."),
 }
 opts[1]:SetPoint("LEFT", 2, 0)
 opts[2]:SetPoint("LEFT", 206, 0)
@@ -489,7 +489,7 @@ local cardCraft = UI.Button(right, "Craft", 96, function(self) craftClick(self) 
 cardCraft:SetPoint("TOPRIGHT", rTotal, "BOTTOMLEFT", RIGHT_W, -14)
 cardCraft:Hide()
 local KEY = "|cffff8040Orange|r recipes always skill up, |cffffff00yellow|r often, |cff40bf40green|r rarely.\n"
-  .. "|cffe6e6eb6/78|r is have / need.  |cffe6e6ebv|r a vendor sells it.  |cffe6e6ebfind|r it isn't on the auction house.  |cffffd133!|r odd price or too few listed: hover it.\n"
+  .. "|cffe6e6eb6/78|r have / need  ·  |cffe6e6ebv|r vendor  ·  |cffe6e6ebfind|r not on the auction house  ·  |cffffd133!|r odd price or few listed (hover)\n"
   .. "Shift-click anything to search the auction house.\n\n"
 local shopBox = UI.Box(right, RIGHT_W, 240)
 shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
@@ -842,7 +842,7 @@ local function drawCraft(p)
   if from >= to then
     steps = {}
     stepsEmpty:SetText(("You've reached %d."):format(to))
-    priceLine:SetText(to < 300 and "Raise \"Level to\" on the right to plan further." or "Nothing left to level. Recipes and Profit are up top.")
+    priceLine:SetText(to < 300 and "Raise \"Level to\" on the right to plan further." or "Nothing left to level. Missing recipes and Profit are up top.")
     drawSteps()
     hCost:SetText("")
     hCostSub:SetText("")
@@ -1359,14 +1359,12 @@ local function drawProfit(p)
     ("%d with no auction price"):format(none),
     "",
     "|cffe8c46aHow it's worked out|r",
-    "What one craft sells for at Auctionator's last scan, less the auction house's 5% cut, minus its materials at today's prices (vendor prices where a vendor sells them).",
+    "Sale price less the 5% auction cut, minus materials.",
+    "|cff94949a% is profit over materials. Deposits aren't counted.|r",
+    "|cff94949aGear counts disenchant value when it pays more.|r",
     "",
-    "|cff94949aThe percentage is profit over material cost. It doesn't count the listing deposit, or whether the item actually sells. Rescan the auction house to update.|r",
-    "",
-    "|cff94949aGear counts its disenchant value when that pays more than selling.|r",
-    "",
-    "|cffe8c46aClick|r a recipe for its materials.",
-    "|cffe8c46aShift-click|r: search the auction house for it, or link it in chat.",
+    "|cffe8c46aClick|r: materials",
+    "|cffe8c46aShift-click|r: search the auction house",
   }
   infoText:SetText(table.concat(lines, "\n"))
 end
@@ -1488,10 +1486,10 @@ local function drawMissing(p)
     TRAINERS[p.key] or "",
     "",
     "|cffe8c46aMerchant's Favor|r",
-    "Forever's new recipes are sold at the Durotar Supply and Logistics camp outside the Crossroads (Horde) and the Azeroth Commerce Authority at Three Corners in Redridge (Alliance). Earn Merchant's Favor by filling Waylaid Crates; some recipes need Friendly or Honored reputation from Craftsman's Writs.",
+    "Horde: Durotar Supply and Logistics, Crossroads. Alliance: Azeroth Commerce Authority, Three Corners, Redridge. Favor comes from Waylaid Crates; some recipes need Friendly or Honored.",
     "",
-    fullList and "|cff94949aThe list comes from your profession window, so it has every recipe the game knows about. Open the window again to refresh it.|r"
-      or "|cff94949aOpen your profession window to load the game's full recipe list, with where each one comes from.|r",
+    fullList and "|cff94949aOpen your profession window again to refresh the list.|r"
+      or "|cff94949aOpen your profession window to load the full recipe list.|r",
   }
   infoText:SetText(table.concat(lines, "\n"))
 end

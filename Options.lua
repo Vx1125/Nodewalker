@@ -156,7 +156,7 @@ helpText:SetPoint("LEFT", 12, 0)
 helpText:SetPoint("RIGHT", -12, 0)
 helpText:SetSpacing(3)
 helpText:SetText("|cffe8c46aAlt|r + hover a live dot: identify it   ·   |cffe8c46aCtrl|r + hover a stop: details   ·   "
-  .. "|cffe8c46aCtrl-click|r: next stop   ·   |cffe8c46aCtrl-right-click|r: hide that herb\n"
+  .. "|cffe8c46aCtrl-click|r: next stop   ·   |cffe8c46aCtrl-right-click|r: hide that herb or ore\n"
   .. "|cffe8c46a/nw|r overlay   ·   |cffe8c46a/nw plan|r route   ·   |cffe8c46a/nw guide|r farm guide   ·   |cffe8c46a/nw prof|r professions   ·   |cffe8c46a/nw consumes|r   ·   "
   .. "|cffe8c46a/nw options|r settings")
 

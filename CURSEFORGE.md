@@ -35,6 +35,7 @@ Imports your GatherMate2 nodes. Prices everything with Auctionator.
 - Cheapest way to 300 for every profession, at today's prices
 - Shopping list with one-click Auctionator search
 - Where to train each rank, pinned on your map
+- Every recipe you're missing and where it comes from
 - Craft straight from the plan
 
 ## Profit
@@ -43,7 +44,7 @@ Imports your GatherMate2 nodes. Prices everything with Auctionator.
 
 - What every recipe earns right now, best first
 - Click a recipe for its materials and what each costs
-- Every recipe in the game and where it comes from
+- Counts disenchant value for gear
 
 ## Consumes
 

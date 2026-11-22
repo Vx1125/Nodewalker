@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.10
+
+- Fixed Cured Rugged Hide priced at silver: Refined Deeprock Salt is a cooldown, not a vendor item.
+- Cooldown recipes (Transmutes, Mooncloth) never count as cheaper to make.
+- Shorter tips, tooltips and notes across the Professions tab.
+- Fixed overlapping text in the Missing recipes header.
+
 ## 1.1.9
 
 - Prices now use Auctionator's history: plans are costed at the usual price when today's listing is a stray.
