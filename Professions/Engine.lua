@@ -474,6 +474,22 @@ local function auctionator(id)
   if ok and type(price) == "number" and price > 0 then return price end
 end
 
+-- What one craft earns: the auction price of what it makes, less the 5% cut,
+-- minus its materials at today's prices. Returns profit, cost, sale and
+-- whether a material had no real price. profit is nil with no sale price.
+function NW.RecipeProfit(r)
+  if not r.item then return nil end
+  local cost, unknown = 0, false
+  for _, re in ipairs(r.reagents) do
+    local p, src = NW.Price(re[1])
+    if p and src ~= "est" then cost = cost + p * re[2] else unknown = true end
+  end
+  local value = auctionator(r.item)
+  if not value then return nil, cost, nil, unknown end
+  local sale = value * (r.yield or 1) * 0.95
+  return sale - cost, cost, sale, unknown
+end
+
 function NW.HasAuctionator()
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
   return api and api.GetAuctionPriceByItemID and true or false

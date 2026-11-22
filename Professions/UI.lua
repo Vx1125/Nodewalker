@@ -59,12 +59,14 @@ for i, p in ipairs(NW.PROFS) do
   b:SetScript("OnClick", function() selected = p.key; st().profSelected = p.key; refresh() end)
   profRows[i] = b
 end
-local mode = "plan" -- plan | missing
+local mode = "plan" -- plan | missing | profit
 local modeBtns = {}
 modeBtns.plan = UI.Button(page, "Leveling plan", LIST_W, function() mode = "plan"; refresh() end, 24)
 modeBtns.plan:SetPoint("TOPLEFT", list, "BOTTOMLEFT", 0, -8)
-modeBtns.missing = UI.Button(page, "Recipes", LIST_W, function() mode = "missing"; refresh() end, 24)
+modeBtns.missing = UI.Button(page, "Recipes", (LIST_W - 4) / 2, function() mode = "missing"; refresh() end, 24)
 modeBtns.missing:SetPoint("TOPLEFT", modeBtns.plan, "BOTTOMLEFT", 0, -4)
+modeBtns.profit = UI.Button(page, "Profit", (LIST_W - 4) / 2, function() mode = "profit"; refresh() end, 24)
+modeBtns.profit:SetPoint("LEFT", modeBtns.missing, "RIGHT", 4, 0)
 local listNote = UI.Text(page, 11, S.dim)
 listNote:SetPoint("TOPLEFT", modeBtns.missing, "BOTTOMLEFT", 2, -8)
 listNote:SetWidth(LIST_W)
@@ -538,6 +540,7 @@ drawSteps = function()
     row.step = stp
     row.bracket = nil
     row.missingRecipe = nil
+    row.profitRow = nil
     if stp then
       row:Show()
       row:SetSelected(rank >= stp.from and rank < stp.to)
@@ -753,6 +756,7 @@ local function drawGatherRows(key)
     local b = steps[i + stepOffset]
     row.step = nil
     row.missingRecipe = nil
+    row.profitRow = nil
     if b then
       row:Show()
       row:SetSelected(rank >= b.from and rank < b.to)
@@ -999,9 +1003,11 @@ local function drawMissingRows(key)
   for i, row in ipairs(stepRows) do
     local r = steps[i + stepOffset]
     row.step, row.bracket, row.missingRecipe = nil, nil, r
+    row.profitRow = nil
     if r and r.header then
       -- a section heading, as in the game's own profession window
       row.missingRecipe = nil
+      row.profitRow = nil
       row:Show()
       row:SetSelected(false)
       row.range:SetText("")
@@ -1027,6 +1033,104 @@ local function drawMissingRows(key)
     end
   end
   stepScroll:Update()
+end
+
+------------------------------------------------------------------------
+-- Profit: what each craft earns at today's prices, best first
+------------------------------------------------------------------------
+local function signedMoney(c)
+  if c >= 0 then return "|cff8cdb7a+|r" .. NW.Money(c, true) end
+  return "|cffeb5c4c-|r" .. NW.Money(-c, true)
+end
+local function drawProfitRows(key)
+  for i, row in ipairs(stepRows) do
+    local e = steps[i + stepOffset]
+    row.step, row.bracket, row.missingRecipe, row.profitRow = nil, nil, e and e.r, e and true or nil
+    if e then
+      local r = e.r
+      row:Show()
+      row:SetSelected(false)
+      row.icon:SetTexture(r.icon or recipeIcon(r))
+      row.icon:Show()
+      row.crafts:SetText("")
+      if e.profit then
+        local pct = e.cost > 0 and math.floor(e.profit / e.cost * 100 + 0.5) or nil
+        local col = e.profit > 0 and "8cdb7a" or "eb5c4c"
+        row.range:SetText(pct and ("|cff%s%s%d%%|r"):format(col, pct > 0 and "+" or "", math.max(-999, math.min(999, pct))) or "")
+        row.name:SetText(("|cff%s%s|r%s"):format(e.profit > 0 and "ffffff" or "94949a", r.name, e.known and "" or "  |cff94949anot known|r"))
+        row.cost:SetText(signedMoney(e.profit))
+        row.mats:SetText(("Sells %s  ·  materials %s%s%s"):format(NW.Money(e.sale, true), NW.Money(e.cost, true),
+          (r.yield or 1) > 1 and ("  ·  makes %d"):format(r.yield) or "", e.unknown and "  ·  |cffe8c46asome prices missing|r" or ""))
+      else
+        row.range:SetText("")
+        row.name:SetText(("|cff94949a%s|r"):format(r.name))
+        row.cost:SetText("|cff94949a?|r")
+        row.mats:SetText("No auction price for what it makes")
+      end
+    else
+      row:Hide()
+    end
+  end
+  stepScroll:Update()
+end
+local function drawProfit(p)
+  local known = NW.charDB.known[p.key] or {}
+  local scan = NW.charDB.recipeScan[p.key]
+  local all = searchText ~= ""
+  local out, seen = {}, {}
+  for _, list in ipairs({ NW.RECIPES[p.key] or {}, NW.CATALOG[p.key] or {} }) do
+    for _, r in ipairs(list) do
+      if r.item and not seen[r.name] then
+        seen[r.name] = true
+        local e = scan and scan[r.name]
+        local isKnown = (known[r.name] or (e and e.learned)) and true or false
+        if isKnown or all then
+          local profit, cost, sale, unknown = NW.RecipeProfit(r)
+          out[#out + 1] = { r = r, profit = profit, cost = cost or 0, sale = sale, unknown = unknown, known = isKnown }
+        end
+      end
+    end
+  end
+  steps = filter(out, function(e)
+    local r = e.r
+    if has(r.name) then return true end
+    for _, re in ipairs(r.reagents) do if has((itemName(re[1]))) then return true end end
+    return false
+  end)
+  table.sort(steps, function(a, b)
+    if (a.profit ~= nil) ~= (b.profit ~= nil) then return a.profit ~= nil end
+    if a.profit and a.profit ~= b.profit then return a.profit > b.profit end
+    return a.r.name < b.r.name
+  end)
+  if viewChanged then stepOffset = 0 end
+  clampOffsets()
+  local good, bad, none = 0, 0, 0
+  for _, e in ipairs(steps) do
+    if not e.profit then none = none + 1 elseif e.profit > 0 then good = good + 1 else bad = bad + 1 end
+  end
+  local hasKnown = next(known) ~= nil or (scan and next(scan) ~= nil)
+  stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "No recipe matches your search."
+    or hasKnown and "None of your recipes make something that sells."
+    or "Open your profession window once so Nodewalker sees which recipes you know.") or "")
+  drawProfitRows(p.key)
+  hCost:SetText(("%d worth making"):format(good))
+  hCostSub:SetText(("of %d recipes"):format(#steps))
+  priceLine:SetText(NW.HasAuctionator()
+    and "Profit per craft, best first: sale price less the 5% cut, minus materials. Search to include recipes you don't know."
+    or "|cffeb5c4cAuctionator isn't loaded:|r profit needs its auction prices.")
+  local lines = {
+    ("|cff8cdb7a%d|r make a profit"):format(good),
+    ("|cffeb5c4c%d|r cost more than they sell for"):format(bad),
+    ("%d with no auction price"):format(none),
+    "",
+    "|cffe8c46aHow it's worked out|r",
+    "What one craft sells for at Auctionator's last scan, less the auction house's 5% cut, minus its materials at today's prices (vendor prices where a vendor sells them).",
+    "",
+    "|cff94949aThe percentage is profit over material cost. It doesn't count the listing deposit, or whether the item actually sells. Rescan the auction house to update.|r",
+    "",
+    "|cff94949aClick a recipe to search the auction house for what it makes. Shift-click links it in chat.|r",
+  }
+  infoText:SetText(table.concat(lines, "\n"))
 end
 
 local function drawMissing(p)
@@ -1143,7 +1247,14 @@ for _, row in ipairs(stepRows) do
   end)
   row:HookScript("OnClick", function(self)
     local r = self.missingRecipe
-    if self.linked or not r or (r.src ~= "recipe" and r.src ~= "scan") then return end
+    if self.linked or not r then return end
+    if self.profitRow then
+      -- Profit view: look up what it makes
+      local n, ok = r.item and itemName(r.item)
+      if ok then searchAH({ { n, 1 } }) end
+      return
+    end
+    if r.src ~= "recipe" and r.src ~= "scan" then return end
     local term = (RECIPE_PREFIX[selected] or "") .. r.name
     local api = Auctionator and Auctionator.API and Auctionator.API.v1
     if api and (api.MultiSearchExact or api.MultiSearch) and AuctionHouseFrame and AuctionHouseFrame:IsShown() then
@@ -1184,11 +1295,14 @@ refresh = function()
   NW.SetWindowSubtitle(p.name)
 
   local isCraft = p.kind == "craft"
-  local isMissing = isCraft and mode == "missing"
+  local isProfit = isCraft and mode == "profit"
+  local isMissing = isCraft and (mode == "missing" or isProfit) -- both use the list-and-notes layout
   modeBtns.plan:SetShown(isCraft)
   modeBtns.missing:SetShown(isCraft)
+  modeBtns.profit:SetShown(isCraft)
   modeBtns.plan:SetEnabled(mode ~= "plan")
   modeBtns.missing:SetEnabled(mode ~= "missing")
+  modeBtns.profit:SetEnabled(mode ~= "profit")
   optRow:SetShown(isCraft and not isMissing)
   priceLine:SetShown(isCraft)
   shopBox:SetShown(isCraft and not isMissing)
@@ -1199,10 +1313,11 @@ refresh = function()
   targetSlider:SetShown(isCraft and not isMissing)
   if targetSlider:IsShown() then targetSlider:Refresh() end
   info:SetShown(not isCraft or isMissing)
-  rHead.text:SetText(isMissing and "Where to get them" or isCraft and "Shopping list" or (p.key == "fishing" and "Fishing + Cooking" or "Notes"))
-  scrollDraw = isMissing and function() drawMissingRows(p.key) end
+  rHead.text:SetText(isProfit and "Profit" or isMissing and "Where to get them" or isCraft and "Shopping list" or (p.key == "fishing" and "Fishing + Cooking" or "Notes"))
+  scrollDraw = isProfit and function() drawProfitRows(p.key) end
+    or isMissing and function() drawMissingRows(p.key) end
     or (not isCraft and function() drawGatherRows(p.key) end) or nil
-  if isMissing then drawMissing(p) elseif isCraft then drawCraft(p) else drawGather(p) end
+  if isProfit then drawProfit(p) elseif isMissing then drawMissing(p) elseif isCraft then drawCraft(p) else drawGather(p) end
 end
 NW.RefreshProfessions = function() if page:IsShown() then refresh() end end
 
