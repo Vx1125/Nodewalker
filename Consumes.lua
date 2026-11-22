@@ -150,6 +150,20 @@ searchBtn = UI.Button(page, "Search missing in Auctionator", RIGHT_W, function()
 end)
 searchBtn:SetPoint("BOTTOMLEFT", listBox, "BOTTOMRIGHT", 28, 0)
 
+-- The selected consumable's materials, for making it yourself
+local matsBtn = UI.Button(page, "Search materials in Auctionator", RIGHT_W, function()
+  local r = selectedItem and NW.RecipeFor(selectedItem)
+  if not r then return end
+  local items = {}
+  for _, re in ipairs(r.reagents) do
+    local _, src = NW.Price(re[1])
+    local n, ok = itemName(re[1])
+    if ok and src ~= "vendor" then items[#items + 1] = { n, math.max(1, re[2] - (NW.ItemCount(re[1]) or 0)) } end
+  end
+  NW.SearchAH(items)
+end)
+matsBtn:SetPoint("BOTTOMLEFT", searchBtn, "TOPLEFT", 0, 6)
+
 local function drawDetail()
   local id = selectedItem
   if not id then
@@ -187,7 +201,8 @@ refresh = function()
   wipe(shown)
   local sum, missing = 0, 0
   for _, g in ipairs(list.groups) do
-    shown[#shown + 1] = { header = g[1] }
+    local at = #shown + 1
+    shown[at] = { header = g[1] }
     for _, c in ipairs(g[2]) do
       local tier = c[3]
       if not tier or (tier == "budget") == (wantBudget and true or false) then
@@ -199,6 +214,7 @@ refresh = function()
         if have == 0 then missing = missing + 1 end
       end
     end
+    if #shown == at then shown[at] = nil end -- nothing on this list for the slot
   end
   for i, row in ipairs(rows) do
     local e = shown[i]
@@ -227,5 +243,6 @@ refresh = function()
   end
   total:SetText(("One of each %s  ·  Missing %d"):format(NW.Money(sum, true), missing))
   searchBtn:SetEnabled(missing > 0)
+  matsBtn:SetShown(selectedItem ~= nil and NW.RecipeFor(selectedItem) ~= nil)
   drawDetail()
 end
