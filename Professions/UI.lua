@@ -147,7 +147,7 @@ local opts = {
     function(v) st().planFromStart = v; refresh() end, "Show every step, not just from your current skill."),
   UI.Check(optRow, "Count sale value", function() return st().planSellBack end,
     function(v) st().planSellBack = v; NW.InvalidatePlans() end,
-    "Takes half the auction value of what you make off its cost, since not everything sells."),
+    "Picks recipes by what they cost after selling what you make. Counts half the auction value, since not everything sells."),
 }
 opts[1]:SetPoint("LEFT", 2, 0)
 opts[2]:SetPoint("LEFT", 190, 0)
@@ -265,7 +265,7 @@ for i = 1, STEP_ROWS do
     GameTooltip:AddLine(" ")
     GameTooltip:AddDoubleLine("Skill-up colours", ("|cffff8040%s|r |cffffff00%d|r |cff40bf40%d|r |cff808080%d|r"):format(
       r.orange or "-", r.yellow, r.green, r.grey), S.dim[1], S.dim[2], S.dim[3])
-    GameTooltip:AddDoubleLine("Cost per craft", NW.Money(stp.costEach), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    GameTooltip:AddDoubleLine("Cost per craft", NW.Money(stp.recipe and stp.recipe.matCost or stp.costEach), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     GameTooltip:AddDoubleLine("Crafts", stp.spare and stp.spare > 0 and ("%d (%d spare)"):format(stp.crafts, stp.spare) or stp.crafts, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     if stp.fee then GameTooltip:AddDoubleLine("Trainer: recipe", NW.Money(stp.fee), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     if stp.rankFee and stp.rankFee > 0 then GameTooltip:AddDoubleLine("Trainer: " .. stp.rankUp.name, NW.Money(stp.rankFee), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
@@ -639,7 +639,7 @@ drawSteps = function()
         row.icon:Show()
         row.name:SetText(("|cff%s%s|r"):format(colorFor(r, stp.from), r.name))
         row.crafts:SetText("x" .. stp.crafts)
-        row.cost:SetText(NW.Money(stp.cost, true) .. (stp.unknown > 0 and " |cffeb5c4c?|r" or ""))
+        row.cost:SetText(NW.Money(stp.spend or stp.cost, true) .. (stp.unknown > 0 and " |cffeb5c4c?|r" or ""))
         local tag = stp.needsRecipe and "|cffff8040needs recipe|r  ·  " or ""
         if stp.rankUp and searchText ~= "" then
           tag = ("|cffe8c46aTrain %s first|r  ·  "):format(stp.rankUp.name) .. tag
@@ -749,8 +749,11 @@ local function drawCraft(p)
   stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "Nothing in the plan matches your search." or "No recipes for this profession yet.") or "")
   drawSteps()
 
-  hCost:SetText(NW.Money(plan.total))
+  -- the headline is what you pay; sale value is shown beside it, never taken off
+  hCost:SetText(NW.Money(plan.spend or plan.total))
   local sub = ("to %d from %d"):format(to, from)
+  local back = (plan.spend or plan.total) - plan.total
+  if back > 0 then sub = sub .. (" · about %s back selling"):format(NW.Money(back, true)) end
   if plan.fees and plan.fees > 0 then sub = sub .. (" · %s training"):format(NW.Money(plan.fees, true)) end
   if plan.unknown > 0 then sub = sub .. (" · %d steps without full prices"):format(plan.unknown) end
   -- what bought or found recipes would save

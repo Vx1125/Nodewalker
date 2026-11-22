@@ -627,6 +627,7 @@ local function craftCost(r, s)
     end
   end
   r.guessExtra = guess -- planning leans away from guessed prices a little
+  r.matCost = cost -- what the materials really cost, before any sale value
   if s.planSellBack and r.item then
     local value = auctionator(r.item)
     -- half: not everything sells. A craft never counts as cheaper than a fifth
@@ -723,7 +724,7 @@ function NW.BuildPlan(key, from, to)
       cur.var = cur.var + (1 - p) / (p * p) -- luck: how much the crafts needed can vary
     end
   end
-  local fees, paid = 0, {}
+  local fees, paid, spend = 0, {}, 0
   local rankFee = NW.RANK_FEE[key] or {}
   for _, st in ipairs(steps) do
     if st.recipe then
@@ -742,6 +743,9 @@ function NW.BuildPlan(key, from, to)
       if st.rankUp then st.rankFee = rankFee[st.rankUp.name] end
       st.train = (st.fee or 0) + (st.rankFee or 0)
       st.cost = st.cost + st.train
+      -- what you pay; st.cost is that minus the sale value you chose to count
+      st.spend = (r.matCost or st.costEach) * st.crafts + st.train
+      spend = spend + st.spend
       fees = fees + st.train
       total = total + st.cost
       if st.unknown > 0 then unknownTotal = unknownTotal + 1 end
@@ -749,7 +753,7 @@ function NW.BuildPlan(key, from, to)
       for _, re in ipairs(st.recipe.reagents) do st.mats[#st.mats + 1] = { re[1], re[2] * st.crafts } end
     end
   end
-  local plan = { steps = steps, total = total, fees = fees, unknown = unknownTotal, gaps = gaps, from = from, to = to }
+  local plan = { steps = steps, total = total, spend = spend, fees = fees, unknown = unknownTotal, gaps = gaps, from = from, to = to }
   planCache[cacheKey] = plan
   return plan
 end
