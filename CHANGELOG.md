@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.9
+
+- Prices now use Auctionator's history: plans are costed at the usual price when today's listing is a stray.
+- After a search, the shopping list is priced from the live listings, cheapest first.
+- Yellow ! on materials with an odd price or too few listed; hover for the detail.
+- Leveling header shows Spend, what selling or disenchanting returns, and the net.
+- Leveling cost includes recipes you have to buy.
+- Disenchant values come from Auctionator when it has them.
+
 ## 1.1.8
 
 - Fixed the shopping list asking for huge amounts of raw materials (154,000 Light Leather): it no longer chains conversions.
