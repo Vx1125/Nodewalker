@@ -859,7 +859,20 @@ for _, row in ipairs(stepRows) do
     self.linked = false
     if not IsShiftKeyDown() then return end
     local r = self.missingRecipe or (self.step and self.step.recipe)
-    if r then self.linked = chatLink(r.item, r.spell, true) end
+    if not r then return end
+    -- at the auction house (and not typing in chat) it searches instead
+    local typing = ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()
+    if not typing and ahOpen() then
+      local term
+      if self.missingRecipe and not self.profitRow and r.src ~= "trainer" then
+        term = (RECIPE_PREFIX[selected] or "") .. r.name -- the recipe itself
+      else
+        local n, ok = r.item and itemName(r.item)
+        term = ok and n or nil
+      end
+      if term and searchAH({ { term, 1 } }) then self.linked = true return end
+    end
+    self.linked = chatLink(r.item, r.spell, true)
   end)
   row:SetScript("OnClick", function(self)
     if self.linked then return end
