@@ -240,6 +240,230 @@ NW.CONSUMES = {
   },
 }
 
+-- Shared rows
+local CASTER_FOOD = { "Food", { { 13935, "+28 spell damage", "full" }, { 13931, "+22 spell damage", "budget" } } }
+local CASTER_OIL = { "Weapon oil", { { 20749, "+36 spell damage, 1% spell crit", "full" }, { 20750, "Spell damage", "budget" } } }
+local HEAL_FOOD = { "Food", { { 249870, "+44 healing", "full" }, { 249869, "+33 healing", "budget" } } }
+local HEAL_OIL = { "Weapon oil", {
+  { 20749, "+36 healing, 1% spell crit", "full" },
+  { 20748, "15 mana / 5s, +30 healing", "full" },
+  { 20747, "10 mana / 5s, +20 healing", "budget" },
+} }
+local HEAL_POTS = { "Potions", {
+  { 13444, "1350-2250 mana", "full" },
+  { 13443, "900-1500 mana", "budget" },
+  { 250949, "+88 healing for 30s", "full" },
+  { 18253, "1440-1760 health and mana", "full" },
+} }
+local CASTER_POTS = { "Potions", {
+  { 250937, "+47 spell damage for 30s", "full" },
+  { 250936, "Spell damage for 30s", "budget" },
+  { 13444, "1350-2250 mana", "full" },
+  { 13443, "900-1500 mana", "budget" },
+  { 250954, "+105 spell damage vs elementals", "full" },
+  { 250953, "For mass AoE", "full" },
+} }
+local MELEE_FOOD = { "Food", { { 13934, "+40 attack power", "full" }, { 13932, "+40 attack power", "full" }, { 250071, "+20 Str", "budget" } } }
+local AGI_FOOD = { "Food", { { 13932, "+40 attack power", "full" }, { 13934, "+40 attack power", "full" }, { 250072, "+20 Agi" } } }
+
+local function add(t) NW.CONSUMES[#NW.CONSUMES + 1] = t end
+
+add({ key = "paladin-prot", class = "PALADIN", label = "Protection Paladin", groups = {
+  { "Flask", {
+    { 274275, "+60 Sta, harder to dodge or parry", "full" },
+    { 13510, "+1200 health", "full" },
+    { 13512, "+150 spell damage", "full" },
+  } },
+  { "Elixirs", {
+    { 250329, "+400 health, +500 armor" },
+    { 13445, "+450 armor" },
+    { 13454, "+35 spell damage", "full" },
+    { 21546, "Holy damage", "full" },
+    { 250351, "+25 Str, 2% crit", "full" },
+    { 13452, "+25 Agi, 2% crit", "full" },
+    { 250337, "+25 Int, 2% crit", "full" },
+    { 250341, "20 mana / 5s", "full" },
+    { 9088, "Enemies take more damage", "full" },
+  } },
+  { "Food", { { 250068, "+20 Sta" }, { 13935, "+28 spell damage", "full" } } },
+  { "Weapon oil", { { 20749, "+36 spell damage, 1% spell crit", "full" }, { 20750, "Spell damage", "budget" } } },
+  { "Potions", {
+    { 250937, "+47 spell damage for 30s", "full" },
+    { 13455, "+2000 armor for 2 min" },
+    { 13444, "1350-2250 mana", "full" },
+    { 13446, "1050-1750 health" },
+    { 5634, "Immune to stuns, roots for 30s", "full" },
+  } },
+  { "Other", { { 12662, "Mana for health", "full" }, { 10646, "AoE damage and threat", "full" } } },
+  PROT,
+} })
+add({ key = "paladin-ret", class = "PALADIN", label = "Retribution Paladin", groups = {
+  { "Flask", { { 274275, "+60 Sta, harder to dodge or parry", "full" }, { 274274, "+60 Sta, 4% crit", "full" } } },
+  { "Elixirs", {
+    { 250351, "+25 Str, 2% crit", "full" },
+    { 13452, "+25 Agi, 2% crit", "full" },
+    { 246948, "+35 attack power" },
+    { 21546, "Holy damage", "full" },
+    { 9206, "+25 Str", "budget" },
+  } },
+  MELEE_FOOD,
+  WARRIOR_STONES,
+  { "Potions", {
+    { 250943, "+80 attack power for 30s", "full" },
+    { 13444, "1350-2250 mana", "full" },
+    { 13446, "1050-1750 health" },
+    { 5634, "Immune to stuns, roots for 30s", "full" },
+  } },
+} })
+add({ key = "druid-resto", class = "DRUID", label = "Restoration Druid", groups = {
+  { "Flask", { { 13511, "+2000 mana", "full" }, { 274276, "+60 Sta, 5% haste", "full" } } },
+  { "Elixirs", {
+    { 250333, "+40 healing" },
+    { 13447, "+18 Int, +18 Spirit", "full" },
+    { 250341, "20 mana / 5s" },
+    { 9179, "+25 Int", "budget" },
+  } },
+  HEAL_FOOD, HEAL_OIL,
+  { "Potions", {
+    { 13444, "1350-2250 mana", "full" },
+    { 13443, "900-1500 mana", "budget" },
+    { 250949, "+88 healing for 30s", "full" },
+    { 18253, "1440-1760 health and mana", "full" },
+    { 20008, "Breaks stuns and roots", "full" },
+  } },
+} })
+add({ key = "druid-balance", class = "DRUID", label = "Balance Druid", groups = {
+  { "Flask", { { 13512, "+150 spell damage", "full" } } },
+  { "Elixirs", {
+    { 13454, "+35 spell damage" },
+    { 250343, "Nature damage", "full" },
+    { 250337, "+25 Int, 2% crit", "full" },
+    { 250341, "20 mana / 5s" },
+  } },
+  CASTER_FOOD, CASTER_OIL, CASTER_POTS,
+} })
+add({ key = "druid-cat", class = "DRUID", label = "Feral Druid (Cat)", groups = {
+  { "Flask", { { 274274, "+60 Sta, 4% crit", "full" }, { 274273, "+60 Sta, 5% hit", "full" } } },
+  { "Elixirs", {
+    { 13452, "+25 Agi, 2% crit", "full" },
+    { 250351, "+25 Str, 2% crit", "full" },
+    { 246948, "+35 attack power" },
+    { 9187, "+25 Agi", "budget" },
+    { 9206, "+25 Str", "budget" },
+  } },
+  AGI_FOOD,
+  WARRIOR_STONES,
+  { "Potions", { { 250943, "+80 attack power for 30s", "full" }, { 250942, "Attack power for 30s", "budget" }, { 13446, "1050-1750 health" } } },
+} })
+add({ key = "druid-bear", class = "DRUID", label = "Feral Druid (Bear)", groups = {
+  { "Flask", { { 274275, "+60 Sta, harder to dodge or parry", "full" }, { 13510, "+1200 health", "full" } } },
+  { "Elixirs", {
+    { 250329, "+400 health, +500 armor" },
+    { 13445, "+450 armor" },
+    { 20004, "20 health / 5s", "full" },
+    { 13452, "+25 Agi, 2% crit", "full" },
+    { 250351, "+25 Str, 2% crit", "full" },
+    { 9088, "Enemies take more damage", "full" },
+    { 9187, "+25 Agi", "budget" },
+  } },
+  { "Food", { { 250068, "+20 Sta" }, { 250072, "+20 Agi", "full" } } },
+  WARRIOR_STONES,
+  { "Potions", {
+    { 13455, "+2000 armor for 2 min" },
+    { 13446, "1050-1750 health" },
+    { 13442, "45-75 rage, +60 Str for 20s", "full" },
+    { 5634, "Immune to stuns, roots for 30s", "full" },
+  } },
+  PROT,
+} })
+add({ key = "hunter", class = "HUNTER", label = "Hunter", groups = {
+  { "Flask", { { 274274, "+60 Sta, 4% crit", "full" }, { 274273, "+60 Sta, 5% hit", "full" } } },
+  { "Elixirs", {
+    { 250328, "+25 Agi, +25 Int", "full" },
+    { 13452, "+25 Agi, 2% crit", "full" },
+    { 9187, "+25 Agi", "budget" },
+  } },
+  AGI_FOOD,
+  { "Potions", {
+    { 250943, "+80 attack power for 30s", "full" },
+    { 250955, "+180 attack power vs beasts", "full" },
+    { 250942, "Attack power for 30s", "budget" },
+    { 13444, "1350-2250 mana", "full" },
+    { 13443, "900-1500 mana", "budget" },
+    { 13446, "1050-1750 health" },
+  } },
+} })
+add({ key = "mage", class = "MAGE", label = "Mage", groups = {
+  { "Flask", { { 13512, "+150 spell damage", "full" } } },
+  { "Elixirs", {
+    { 13454, "+35 spell damage" },
+    { 250337, "+25 Int, 2% crit", "full" },
+    { 250341, "20 mana / 5s", "full" },
+    { 17708, "+15 frost damage", "full" },
+    { 6373, "Fire damage", "full" },
+    { 9179, "+25 Int", "budget" },
+  } },
+  CASTER_FOOD, CASTER_OIL, CASTER_POTS,
+} })
+add({ key = "rogue", class = "ROGUE", label = "Rogue", groups = {
+  { "Flask", { { 274273, "+60 Sta, 5% hit", "full" }, { 274274, "+60 Sta, 4% crit", "full" } } },
+  { "Elixirs", {
+    { 13452, "+25 Agi, 2% crit", "full" },
+    { 246948, "+35 attack power" },
+    { 9187, "+25 Agi", "budget" },
+  } },
+  { "Food", { { 13928, "+1% crit" }, { 250072, "+20 Agi", "full" } } },
+  WARRIOR_STONES,
+  { "Potions", {
+    { 250943, "+80 attack power for 30s", "full" },
+    { 250942, "Attack power for 30s", "budget" },
+    { 13446, "1050-1750 health" },
+    { 5634, "Immune to stuns, roots for 30s", "full" },
+    { 3387, "Immune to physical for 6s", "full" },
+  } },
+  { "Other", { { 7676, "Restores energy" }, { 14530, "Bandage" } } },
+} })
+add({ key = "shaman-resto", class = "SHAMAN", label = "Restoration Shaman", groups = {
+  { "Flask", { { 13511, "+2000 mana", "full" } } },
+  { "Elixirs", {
+    { 250333, "+40 healing" },
+    { 250341, "20 mana / 5s" },
+    { 250337, "+25 Int, 2% crit", "full" },
+    { 9179, "+25 Int", "budget" },
+  } },
+  HEAL_FOOD, HEAL_OIL, HEAL_POTS,
+} })
+add({ key = "shaman-ele", class = "SHAMAN", label = "Elemental Shaman", groups = {
+  { "Flask", { { 13512, "+150 spell damage", "full" } } },
+  { "Elixirs", {
+    { 13454, "+35 spell damage" },
+    { 250343, "Nature damage", "full" },
+    { 250337, "+25 Int, 2% crit", "full" },
+    { 250341, "20 mana / 5s" },
+  } },
+  CASTER_FOOD, CASTER_OIL, CASTER_POTS,
+} })
+add({ key = "shaman-enh", class = "SHAMAN", label = "Enhancement Shaman", groups = {
+  { "Flask", { { 274274, "+60 Sta, 4% crit", "full" }, { 274275, "+60 Sta, harder to dodge or parry", "full" } } },
+  { "Elixirs", {
+    { 250351, "+25 Str, 2% crit", "full" },
+    { 13452, "+25 Agi, 2% crit", "full" },
+    { 246948, "+35 attack power" },
+    { 9206, "+25 Str", "budget" },
+  } },
+  MELEE_FOOD,
+  { "Potions", {
+    { 250943, "+80 attack power for 30s", "full" },
+    { 13444, "1350-2250 mana", "full" },
+    { 13443, "900-1500 mana", "budget" },
+    { 13446, "1050-1750 health" },
+  } },
+} })
+table.sort(NW.CONSUMES, function(x, y)
+  if x.class ~= y.class then return x.class < y.class end
+  return x.label < y.label
+end)
+
 local function st() return NW.db.settings end
 local refresh
 local page = UI.AddTab("consumes", "Consumes", function() refresh() end)
