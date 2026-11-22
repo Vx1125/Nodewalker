@@ -421,12 +421,6 @@ local function chatLink(itemID, spellID, open)
   end
   return false
 end
--- A chat box you are actually typing in: an open one left over from an
--- earlier link doesn't count
-local function chatTyping()
-  local box = ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()
-  return box and box:IsShown() and box:HasFocus() and (box:GetText() or "") ~= "" or false
-end
 local function ahOpen()
   return (AuctionHouseFrame and AuctionHouseFrame:IsShown()) or (AuctionFrame and AuctionFrame:IsShown()) or false
 end
@@ -515,10 +509,9 @@ for i = 1, SHOP_ROWS do
       refresh()
       return
     end
-    -- Shift-click links it in chat; at the auction house with no chat box open it searches
+    -- Shift-click links it in chat; at the auction house it searches
     if IsShiftKeyDown() and e.id then
-      local typing = chatTyping()
-      if (typing or not ahOpen()) and chatLink(e.id, nil, true) then return end
+      if not ahOpen() and chatLink(e.id, nil, true) then return end
     end
     -- Shift-click searches even when you already have enough
     if e.buy <= 0 and not IsShiftKeyDown() then return end
@@ -866,9 +859,8 @@ for _, row in ipairs(stepRows) do
     if not IsShiftKeyDown() then return end
     local r = self.missingRecipe or (self.step and self.step.recipe)
     if not r then return end
-    -- at the auction house (and not typing in chat) it searches instead
-    local typing = chatTyping()
-    if not typing and ahOpen() then
+    -- at the auction house it searches instead
+    if ahOpen() then
       -- what it makes, not the recipe
       local n, ok = r.item and itemName(r.item)
       if ok and searchAH({ { n, 1 } }) then self.linked = true return end
