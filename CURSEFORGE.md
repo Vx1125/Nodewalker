@@ -56,11 +56,15 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 
 ## Consumes
 
+![Consumes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/consumes.jpg)
+
 - Raid consumables for every class and spec: flasks, elixirs, food, weapon buffs and potions, with a Budget list of cheaper tiers.
 - **Stock** for a 2, 3 or 4 hour raid: how many you have against how many you need.
 - **Make or Buy**: what each costs to craft if you have the profession, whether you know the recipe, and where to get it if you don't.
 - One button searches Auctionator for everything you're short of: materials for what you'd make, the item for the rest.
 - Farm a consumable's herbs from the Farm Guide in one click. Right-click a row to hide what you don't use.
+
+![Profit](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/profit.jpg)
 
 ### Gathering and Fishing
 
