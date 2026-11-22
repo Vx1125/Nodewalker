@@ -955,7 +955,8 @@ for _, row in ipairs(stepRows) do
     -- at the auction house it searches instead
     if ahOpen() then
       -- what it makes, not the recipe
-      local n, ok = r.item and itemName(r.item)
+      local n, ok
+      if r.item then n, ok = itemName(r.item) end
       if ok and searchAH({ { n, 1 } }) then self.linked = true return end
     end
     self.linked = chatLink(r.item, r.spell, true)
@@ -1484,7 +1485,8 @@ for _, row in ipairs(stepRows) do
       -- Alt-click: Profit looks up what it makes, Recipes the recipe itself
       local term
       if self.profitRow then
-        local n, ok = r.item and itemName(r.item)
+        local n, ok
+      if r.item then n, ok = itemName(r.item) end
         term = ok and n or nil
       elseif r.src == "recipe" or r.src == "scan" then
         term = (RECIPE_PREFIX[selected] or "") .. r.name
