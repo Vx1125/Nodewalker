@@ -148,7 +148,7 @@ local nodesPage = UI.AddTab("nodes", "Herbs & Ore", function() refreshNodes() en
 
 local SKILL_HEX = { red = "ff4040", orange = "ff8040", yellow = "ffe633", green = "59cc59", grey = "8c8c8c", unknown = "d9d9d9" }
 
-local function buildList(kind, title, y)
+local function buildList(kind, title, y, ncols, colW)
   local list = {}
   for name, info in pairs(NW.NODES) do
     if info[1] == kind then list[#list + 1] = { name = name, req = info[2] or 999 } end
@@ -167,7 +167,7 @@ local function buildList(kind, title, y)
   local all = UI.Button(nodesPage, "All", 70, function() setAll(true) end, 20)
   all:SetPoint("RIGHT", none, "LEFT", -6, 0)
 
-  local ncols, colW, rowH = 4, 240, 22
+  local rowH = 22
   for i, e in ipairs(list) do
     local cb = UI.Check(nodesPage, e.name, function() return not NW.IsHidden(e.name) end,
       function(v) NW.SetHidden(e.name, not v) end)
@@ -188,10 +188,12 @@ end
 
 local nodesHelp = UI.Text(nodesPage, 12, S.dim)
 nodesHelp:SetPoint("TOPLEFT", 24, -10)
-nodesHelp:SetText("Untick anything you don't want to farm. It's hidden from the overlay and the planner, and left out of new routes. Number: skill needed; colour: skill-ups at your level.")
+nodesHelp:SetText("Untick what you don't farm: it leaves the overlay, the planner and new routes. Number: skill needed. Colour: skill-ups at your level.")
 nodesHelp:SetWidth(UI.CONTENT_W - 48)
-local nextY = buildList("herb", "Herbs", -38)
-buildList("ore", "Ore", nextY)
+nodesHelp:SetWordWrap(false)
+local nextY = buildList("herb", "Herbs", -36, 4, 240)
+-- ore names run long ("Ooze Covered Rich Thorium Vein"): three wider columns
+buildList("ore", "Ore", nextY, 3, 320)
 
 refreshNodes = function()
   if not nodesPage:IsShown() then return end

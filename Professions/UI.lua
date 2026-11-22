@@ -754,22 +754,23 @@ local function drawCraft(p)
 
   -- the headline is what you pay; sale value is shown beside it, never taken off
   hCost:SetText(NW.Money(plan.spend or plan.total))
+  -- two short lines, so it never runs into the skill line on the left
   local sub = ("to %d from %d"):format(to, from)
-  local back = (plan.spend or plan.total) - plan.total
-  if back > 0 then sub = sub .. (" · about %s back %s"):format(NW.Money(back, true), st().planSellBack == "de" and "disenchanting" or "selling") end
   if plan.fees and plan.fees > 0 then sub = sub .. (" · %s training"):format(NW.Money(plan.fees, true)) end
-  if plan.unknown > 0 then sub = sub .. (" · %d steps without full prices"):format(plan.unknown) end
+  if plan.unknown > 0 then sub = sub .. (" · %d unpriced"):format(plan.unknown) end
+  local back = (plan.spend or plan.total) - plan.total
+  local line2 = back > 0 and ("about %s back %s"):format(NW.Money(back, true), st().planSellBack == "de" and "disenchanting" or "selling") or nil
   -- what bought or found recipes would save
   if not st().planRecipeItems then
     st().planRecipeItems = true
     local alt = NW.BuildPlan(p.key, from, to)
     st().planRecipeItems = false
     NW.BuildPlan(p.key, from, to) -- back to this profession's prices
-    if alt.total < plan.total * 0.85 then
-      sub = sub .. ("\n|cff8cdb7a%s with recipes you buy or find|r"):format(NW.Money(alt.total, true))
+    if not line2 and alt.total < plan.total * 0.85 then
+      line2 = ("|cff8cdb7a%s with recipes you buy or find|r"):format(NW.Money(alt.spend or alt.total, true))
     end
   end
-  hCostSub:SetText(sub)
+  hCostSub:SetText(line2 and (sub .. "\n" .. line2) or sub)
 
   local list, total = NW.ShoppingList(p.key, plan)
   -- recipes the plan needs you to buy or find go on top
