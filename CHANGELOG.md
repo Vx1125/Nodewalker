@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.3
+
+- Professions: Leveling, Recipes and Profit are tabs under the profession's name.
+- Profit view: what each craft earns at today's prices, best first.
+- Recipes view grouped by the game's categories (Stamina Food, Attack Power Food...).
+
 ## 1.1.2
 
 - Overlay: spots that overlap share one icon with a count.
