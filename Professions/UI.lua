@@ -61,14 +61,8 @@ for i, p in ipairs(NW.PROFS) do
 end
 local mode = "plan" -- plan | missing | profit
 local modeBtns = {}
-modeBtns.plan = UI.Button(page, "Leveling plan", LIST_W, function() mode = "plan"; refresh() end, 24)
-modeBtns.plan:SetPoint("TOPLEFT", list, "BOTTOMLEFT", 0, -8)
-modeBtns.missing = UI.Button(page, "Recipes", (LIST_W - 4) / 2, function() mode = "missing"; refresh() end, 24)
-modeBtns.missing:SetPoint("TOPLEFT", modeBtns.plan, "BOTTOMLEFT", 0, -4)
-modeBtns.profit = UI.Button(page, "Profit", (LIST_W - 4) / 2, function() mode = "profit"; refresh() end, 24)
-modeBtns.profit:SetPoint("LEFT", modeBtns.missing, "RIGHT", 4, 0)
 local listNote = UI.Text(page, 11, S.dim)
-listNote:SetPoint("TOPLEFT", modeBtns.missing, "BOTTOMLEFT", 2, -8)
+listNote:SetPoint("TOPLEFT", list, "BOTTOMLEFT", 2, -10)
 listNote:SetWidth(LIST_W)
 listNote:SetText("Open your profession window once so Nodewalker sees which recipes you know.")
 
@@ -97,8 +91,53 @@ hCost:SetPoint("TOPRIGHT", 0, -2)
 local hCostSub = UI.Text(mid, 11, S.dim, "RIGHT")
 hCostSub:SetPoint("TOPRIGHT", hCost, "BOTTOMRIGHT", 0, -4)
 
+-- The three views of a crafting profession, as tabs right under its name
+local viewRow = CreateFrame("Frame", nil, mid)
+viewRow:SetPoint("TOPLEFT", hIconBox, "BOTTOMLEFT", 0, -10)
+viewRow:SetSize(MID_W, 26)
+do
+  local VIEWS = {
+    { "plan", "Leveling", "Cheapest way to level, with a shopping list." },
+    { "missing", "Recipes", "Every recipe: what you're missing and where it comes from." },
+    { "profit", "Profit", "What each craft earns at today's prices." },
+  }
+  local W = 96
+  for i, v in ipairs(VIEWS) do
+    local b = CreateFrame("Button", nil, viewRow, "BackdropTemplate")
+    b:SetSize(W, 26)
+    b:SetPoint("LEFT", (i - 1) * (W + 4), 0)
+    UI.Flat(b, S.cell, S.edge)
+    b.label = UI.Text(b, 12, S.text, "CENTER")
+    b.label:SetPoint("CENTER")
+    b.label:SetText(v[2])
+    b.bar = b:CreateTexture(nil, "OVERLAY")
+    b.bar:SetPoint("BOTTOMLEFT", 1, 1)
+    b.bar:SetPoint("BOTTOMRIGHT", -1, 1)
+    b.bar:SetHeight(2)
+    b.bar:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+    -- the open view is lit, not greyed out
+    function b:SetSelected(on)
+      self.on = on
+      self.bar:SetShown(on)
+      self.label:SetTextColor(unpack(on and S.gold or S.dim))
+      self:SetBackdropColor(unpack(on and S.hover or S.cell))
+      self:SetBackdropBorderColor(unpack(S.edge))
+    end
+    b:SetScript("OnEnter", function(self)
+      if not self.on then self.label:SetTextColor(unpack(S.text)) end
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:SetText(v[2], S.gold[1], S.gold[2], S.gold[3])
+      GameTooltip:AddLine(v[3], 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function(self) self:SetSelected(self.on) GameTooltip:Hide() end)
+    b:SetScript("OnClick", function() mode = v[1]; refresh() end)
+    modeBtns[v[1]] = b
+  end
+end
+
 local optRow = CreateFrame("Frame", nil, mid)
-optRow:SetPoint("TOPLEFT", hIconBox, "BOTTOMLEFT", 0, -10)
+optRow:SetPoint("TOPLEFT", viewRow, "BOTTOMLEFT", 0, -8)
 optRow:SetSize(MID_W, 20)
 local opts = {
   UI.Check(optRow, "Use recipes to buy or find", function() return st().planRecipeItems end,
@@ -115,15 +154,15 @@ opts[2]:SetPoint("LEFT", 190, 0)
 opts[3]:SetPoint("LEFT", 335, 0)
 
 local priceLine = UI.Text(mid, 11, S.dim)
-priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -8)
-priceLine:SetWidth(MID_W - 186)
-priceLine:SetHeight(28)
+priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -6)
+priceLine:SetWidth(MID_W)
+priceLine:SetHeight(26)
 priceLine:SetJustifyV("TOP")
 
 -- Search: filters the list below (recipes, materials, zones)
 local search = CreateFrame("EditBox", nil, mid, "BackdropTemplate")
 search:SetSize(176, 24)
-search:SetPoint("TOPRIGHT", optRow, "BOTTOMRIGHT", 0, -6)
+search:SetPoint("RIGHT", viewRow, "RIGHT", 0, 0)
 UI.Flat(search, S.sunk, S.edge)
 search:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 12, "")
 search:SetTextColor(unpack(S.text))
@@ -155,7 +194,7 @@ search:SetScript("OnTextChanged", function(self)
 end)
 
 local stepsBox = UI.Box(mid, MID_W, 382)
-stepsBox:SetPoint("TOPLEFT", priceLine, "BOTTOMLEFT", 0, -6)
+stepsBox:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -38)
 stepsBox:EnableMouseWheel(true)
 local STEP_H, STEP_ROWS = 47, 8
 local stepRows = {}
@@ -645,6 +684,7 @@ local function drawCraft(p)
   if from >= to then
     steps = {}
     stepsEmpty:SetText(("You've reached %d."):format(to))
+    priceLine:SetText(to < 300 and "Raise \"Level to\" on the right to plan further." or "Nothing left to level. Recipes and Profit are up top.")
     drawSteps()
     hCost:SetText("")
     hCostSub:SetText("")
@@ -1297,12 +1337,20 @@ refresh = function()
   local isCraft = p.kind == "craft"
   local isProfit = isCraft and mode == "profit"
   local isMissing = isCraft and (mode == "missing" or isProfit) -- both use the list-and-notes layout
-  modeBtns.plan:SetShown(isCraft)
-  modeBtns.missing:SetShown(isCraft)
-  modeBtns.profit:SetShown(isCraft)
-  modeBtns.plan:SetEnabled(mode ~= "plan")
-  modeBtns.missing:SetEnabled(mode ~= "missing")
-  modeBtns.profit:SetEnabled(mode ~= "profit")
+  for k, b in pairs(modeBtns) do
+    b:SetShown(isCraft)
+    b:SetSelected(k == mode)
+  end
+  -- Leveling has its options row with one line under it; the list views
+  -- use both rows for their description
+  priceLine:ClearAllPoints()
+  if isMissing then
+    priceLine:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, -2)
+    priceLine:SetHeight(50)
+  else
+    priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -6)
+    priceLine:SetHeight(26)
+  end
   optRow:SetShown(isCraft and not isMissing)
   priceLine:SetShown(isCraft)
   shopBox:SetShown(isCraft and not isMissing)
