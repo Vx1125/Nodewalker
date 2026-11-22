@@ -11,20 +11,25 @@ local PROT = { "Protection", {
   { 13459, "Absorbs 1950-3250 shadow", "full" },
   { 13461, "Absorbs 1950-3250 arcane", "full" },
 } }
+local RUNES = { "Runes", {
+  { 12662, "900-1500 mana for health", "full" },
+  { 20520, "900-1500 mana for health", "full" },
+} }
 local HEALER_PRIEST = {
   { "Flask", {
     { 13511, "+2000 mana", "full" },
   } },
   { "Elixirs", {
     { 250333, "+40 healing", "full" },
-    { 250332, "Healing", "budget" },
+    { 250332, "+30 healing", "budget" },
     { 250341, "20 mana / 5s", "full" },
     { 20007, "12 mana / 5s", "budget" },
     { 250337, "+25 Int, 2% crit", "full" },
-    { 250347, "+18 Spirit" },
+    { 13447, "+18 Int, +18 Spirit", "full" },
+    { 250347, "+18 Spirit", "budget" },
     { 9179, "+25 Int", "budget" },
   } },
-  { "Food", {
+  { "Drink", {
     { 249870, "+44 healing", "full" },
     { 249869, "+33 healing", "budget" },
   } },
@@ -40,6 +45,7 @@ local HEALER_PRIEST = {
     { 250948, "Healing for 30s", "budget" },
     { 18253, "1440-1760 health and mana", "full" },
   } },
+  RUNES,
 }
 local WARRIOR_STONES = { "Weapon", {
   { 12404, "+8 damage, sharp" },
@@ -56,13 +62,13 @@ NW.CONSUMES = {
       } },
       { "Elixirs", {
         { 250333, "+40 healing", "full" },
-        { 250332, "Healing", "budget" },
+        { 250332, "+30 healing", "budget" },
         { 250341, "20 mana / 5s", "full" },
         { 20007, "12 mana / 5s", "budget" },
         { 250337, "+25 Int, 2% crit", "full" },
         { 9179, "+25 Int", "budget" },
       } },
-      { "Food", {
+      { "Drink", {
         { 249870, "+44 healing", "full" },
         { 249869, "+33 healing", "budget" },
       } },
@@ -78,6 +84,7 @@ NW.CONSUMES = {
         { 250948, "Healing for 30s", "budget" },
         { 18253, "1440-1760 health and mana", "full" },
       } },
+      RUNES,
     },
   },
   { key = "priest-holy", class = "PRIEST", label = "Holy Priest", groups = HEALER_PRIEST },
@@ -95,7 +102,7 @@ NW.CONSUMES = {
         { 250341, "20 mana / 5s", "full" },
         { 20007, "12 mana / 5s", "budget" },
         { 250347, "+18 Spirit" },
-        { 250335, "+400 health", "full" },
+        { 250335, "+400 health", "full", "health" },
         { 20004, "20 health / 5s", "full" },
         { 13445, "+450 armor", "full" },
       } },
@@ -105,11 +112,11 @@ NW.CONSUMES = {
       } },
       { "Weapon oil", {
         { 20749, "+36 spell damage, 1% spell crit", "full" },
-        { 20750, "Spell damage", "budget" },
+        { 20750, "+24 spell damage", "budget" },
       } },
       { "Potions", {
         { 250937, "+47 spell damage for 30s", "full" },
-        { 250936, "Spell damage for 30s", "budget" },
+        { 250936, "+28 spell damage for 30s", "budget" },
         { 13444, "1350-2250 mana", "full" },
         { 13443, "900-1500 mana", "budget" },
         { 250954, "+105 spell damage vs elementals", "full" },
@@ -118,6 +125,7 @@ NW.CONSUMES = {
         { 5634, "Immune to stuns, roots for 30s", "full" },
       } },
       PROT,
+      RUNES,
     },
   },
   {
@@ -139,35 +147,36 @@ NW.CONSUMES = {
       } },
       { "Weapon oil", {
         { 20749, "+36 spell damage, 1% spell crit", "full" },
-        { 20750, "Spell damage", "budget" },
+        { 20750, "+24 spell damage", "budget" },
       } },
       { "Potions", {
         { 250937, "+47 spell damage for 30s", "full" },
-        { 250936, "Spell damage for 30s", "budget" },
+        { 250936, "+28 spell damage for 30s", "budget" },
         { 13444, "1350-2250 mana", "full" },
         { 13443, "900-1500 mana", "budget" },
       } },
+      RUNES,
     },
   },
   {
     key = "warrior-prot", class = "WARRIOR", label = "Protection Warrior",
     groups = {
       { "Flask", {
-        { 274275, "+60 Sta, harder to dodge or parry", "full" },
+        { 274275, "Stamina, harder to dodge or parry", "full" },
         { 13510, "+1200 health", "full" },
         { 13513, "+25 all resistances", "full" },
       } },
       { "Elixirs", {
-        { 250329, "+400 health, +500 armor" },
+        { 250329, "+400 health, +500 armor", nil, "health" },
         { 13445, "+450 armor" },
         { 20004, "20 health / 5s", "full" },
         { 13453, "+18 Str, +18 Sta", "full" },
-        { 13452, "+25 Agi, 2% crit", "full" },
-        { 250351, "+25 Str, 2% crit", "full" },
-        { 246948, "+35 attack power", "full" },
-        { 12820, "+35 attack power" },
+        { 13452, "+25 Agi, 2% crit", "full", "crit" },
+        { 250351, "+25 Str, 2% crit", "full", "crit" },
+        { 246948, "+35 attack power", "full", "ap" },
+        { 12820, "+35 attack power", nil, "ap" },
         { 9088, "Enemies take more damage", "full" },
-        { 250335, "+400 health", "budget" },
+        { 250335, "+400 health", "budget", "health" },
       } },
       { "Food", {
         { 250068, "+20 Sta" },
@@ -190,14 +199,14 @@ NW.CONSUMES = {
     key = "warrior-dps", class = "WARRIOR", label = "Arms / Fury Warrior",
     groups = {
       { "Flask", {
-        { 274275, "+60 Sta, harder to dodge or parry", "full" },
-        { 274274, "+60 Sta, 4% crit", "full" },
+        { 274275, "Stamina, harder to dodge or parry", "full" },
+        { 274274, "Stamina and crit", "full" },
       } },
       { "Elixirs", {
-        { 250351, "+25 Str, 2% crit", "full" },
-        { 13452, "+25 Agi, 2% crit", "full" },
-        { 246948, "+35 attack power" },
-        { 12820, "+35 attack power" },
+        { 250351, "+25 Str, 2% crit", "full", "crit" },
+        { 13452, "+25 Agi, 2% crit", "full", "crit" },
+        { 246948, "+35 attack power", nil, "ap" },
+        { 12820, "+35 attack power", nil, "ap" },
         { 9206, "+25 Str", "budget" },
         { 9187, "+25 Agi", "budget" },
       } },
@@ -222,7 +231,7 @@ NW.CONSUMES = {
     groups = {
       { "Flask", {
         { 13512, "+150 spell damage", "full" },
-        { 274274, "+60 Sta, 4% crit", "full" },
+        { 274274, "Stamina and crit", "full" },
       } },
       { "Elixirs", {
         { 9264, "+40 shadow damage" },
@@ -236,27 +245,25 @@ NW.CONSUMES = {
       } },
       { "Weapon oil", {
         { 20749, "+36 spell damage, 1% spell crit", "full" },
-        { 20750, "Spell damage", "budget" },
+        { 20750, "+24 spell damage", "budget" },
       } },
       { "Potions", {
         { 250937, "+47 spell damage for 30s", "full" },
-        { 250936, "Spell damage for 30s", "budget" },
+        { 250936, "+28 spell damage for 30s", "budget" },
         { 13444, "1350-2250 mana", "full" },
         { 13443, "900-1500 mana", "budget" },
         { 20008, "Breaks stuns and roots", "full" },
         { 18253, "1440-1760 health and mana", "full" },
       } },
-      { "Other", {
-        { 12662, "Mana for health" },
-      } },
+      RUNES,
     },
   },
 }
 
 -- Shared rows
-local CASTER_FOOD = { "Food", { { 13935, "+28 spell damage", "full" }, { 13931, "+22 spell damage", "budget" } } }
-local CASTER_OIL = { "Weapon oil", { { 20749, "+36 spell damage, 1% spell crit", "full" }, { 20750, "Spell damage", "budget" } } }
-local HEAL_FOOD = { "Food", { { 249870, "+44 healing", "full" }, { 249869, "+33 healing", "budget" } } }
+local CASTER_FOOD = { "Food", { { 13935, "+28 spell damage", "full" }, { 13933, "+28 spell damage", "full" }, { 13931, "+22 spell damage", "budget" } } }
+local CASTER_OIL = { "Weapon oil", { { 20749, "+36 spell damage, 1% spell crit", "full" }, { 20750, "+24 spell damage", "budget" } } }
+local HEAL_FOOD = { "Drink", { { 249870, "+44 healing", "full" }, { 249869, "+33 healing", "budget" } } }
 local HEAL_OIL = { "Weapon oil", {
   { 20749, "+36 healing, 1% spell crit", "full" },
   { 20748, "15 mana / 5s, +30 healing", "full" },
@@ -271,37 +278,37 @@ local HEAL_POTS = { "Potions", {
 } }
 local CASTER_POTS = { "Potions", {
   { 250937, "+47 spell damage for 30s", "full" },
-  { 250936, "Spell damage for 30s", "budget" },
+  { 250936, "+28 spell damage for 30s", "budget" },
   { 13444, "1350-2250 mana", "full" },
   { 13443, "900-1500 mana", "budget" },
   { 250954, "+105 spell damage vs elementals", "full" },
   { 250953, "For mass AoE", "full" },
 } }
-local MELEE_FOOD = { "Food", { { 13934, "+40 attack power", "full" }, { 13932, "+40 attack power", "full" }, { 250071, "+20 Str", "budget" } } }
+local MELEE_FOOD = { "Food", { { 20452, "+20 Str", "full" }, { 13934, "+40 attack power", "full" }, { 13932, "+40 attack power", "full" }, { 250071, "+20 Str", "budget" } } }
 local AGI_FOOD = { "Food", { { 13932, "+40 attack power", "full" }, { 13934, "+40 attack power", "full" }, { 250072, "+20 Agi" } } }
 
 local function add(t) NW.CONSUMES[#NW.CONSUMES + 1] = t end
 
 add({ key = "paladin-prot", class = "PALADIN", label = "Protection Paladin", groups = {
   { "Flask", {
-    { 274275, "+60 Sta, harder to dodge or parry", "full" },
+    { 274275, "Stamina, harder to dodge or parry", "full" },
     { 13510, "+1200 health", "full" },
     { 13512, "+150 spell damage", "full" },
   } },
   { "Elixirs", {
-    { 250329, "+400 health, +500 armor" },
+    { 250329, "+400 health, +500 armor", nil, "health" },
     { 13445, "+450 armor" },
     { 13454, "+35 spell damage", "full" },
-    { 21546, "Holy damage", "full" },
-    { 250351, "+25 Str, 2% crit", "full" },
-    { 13452, "+25 Agi, 2% crit", "full" },
+    { 21546, "+40 holy damage", "full" },
+    { 250351, "+25 Str, 2% crit", "full", "crit" },
+    { 13452, "+25 Agi, 2% crit", "full", "crit" },
     { 250337, "+25 Int, 2% crit", "full" },
     { 250341, "20 mana / 5s", "full" },
-    { 12820, "+35 attack power", "full" },
+    { 12820, "+35 attack power", "full", "ap" },
     { 9088, "Enemies take more damage", "full" },
   } },
   { "Food", { { 250068, "+20 Sta" }, { 13935, "+28 spell damage", "full" }, { 12217, "Chance to breathe fire", "full" } } },
-  { "Weapon oil", { { 20749, "+36 spell damage, 1% spell crit", "full" }, { 20750, "Spell damage", "budget" } } },
+  { "Weapon oil", { { 20749, "+36 spell damage, 1% spell crit", "full" }, { 20750, "+24 spell damage", "budget" } } },
   { "Potions", {
     { 250937, "+47 spell damage for 30s", "full" },
     { 13455, "+2000 armor for 2 min" },
@@ -310,17 +317,18 @@ add({ key = "paladin-prot", class = "PALADIN", label = "Protection Paladin", gro
     { 3928, "700-900 health", "budget" },
     { 5634, "Immune to stuns, roots for 30s", "full" },
   } },
-  { "Other", { { 12662, "Mana for health", "full" }, { 10646, "AoE damage and threat", "full" } } },
+  RUNES,
+  { "Other", { { 10646, "AoE damage and threat", "full" } } },
   PROT,
 } })
 add({ key = "paladin-ret", class = "PALADIN", label = "Retribution Paladin", groups = {
-  { "Flask", { { 274275, "+60 Sta, harder to dodge or parry", "full" }, { 274274, "+60 Sta, 4% crit", "full" } } },
+  { "Flask", { { 274275, "Stamina, harder to dodge or parry", "full" }, { 274274, "Stamina and crit", "full" } } },
   { "Elixirs", {
-    { 250351, "+25 Str, 2% crit", "full" },
-    { 13452, "+25 Agi, 2% crit", "full" },
-    { 246948, "+35 attack power" },
-    { 12820, "+35 attack power" },
-    { 21546, "Holy damage", "full" },
+    { 250351, "+25 Str, 2% crit", "full", "crit" },
+    { 13452, "+25 Agi, 2% crit", "full", "crit" },
+    { 246948, "+35 attack power", nil, "ap" },
+    { 12820, "+35 attack power", nil, "ap" },
+    { 21546, "+40 holy damage", "full" },
     { 9206, "+25 Str", "budget" },
   } },
   MELEE_FOOD,
@@ -334,10 +342,10 @@ add({ key = "paladin-ret", class = "PALADIN", label = "Retribution Paladin", gro
   } },
 } })
 add({ key = "druid-resto", class = "DRUID", label = "Restoration Druid", groups = {
-  { "Flask", { { 13511, "+2000 mana", "full" }, { 274276, "+60 Sta, 5% haste", "full" } } },
+  { "Flask", { { 13511, "+2000 mana", "full" }, { 274276, "Stamina and haste", "full" } } },
   { "Elixirs", {
     { 250333, "+40 healing", "full" },
-    { 250332, "Healing", "budget" },
+    { 250332, "+30 healing", "budget" },
     { 13447, "+18 Int, +18 Spirit", "full" },
     { 250341, "20 mana / 5s", "full" },
     { 20007, "12 mana / 5s", "budget" },
@@ -352,25 +360,27 @@ add({ key = "druid-resto", class = "DRUID", label = "Restoration Druid", groups 
     { 18253, "1440-1760 health and mana", "full" },
     { 20008, "Breaks stuns and roots", "full" },
   } },
+  RUNES,
 } })
 add({ key = "druid-balance", class = "DRUID", label = "Balance Druid", groups = {
   { "Flask", { { 13512, "+150 spell damage", "full" } } },
   { "Elixirs", {
     { 13454, "+35 spell damage" },
-    { 250343, "Nature damage", "full" },
+    { 250343, "+40 nature damage", "full" },
     { 250337, "+25 Int, 2% crit", "full" },
     { 250341, "20 mana / 5s", "full" },
     { 20007, "12 mana / 5s", "budget" },
   } },
   CASTER_FOOD, CASTER_OIL, CASTER_POTS,
+  RUNES,
 } })
 add({ key = "druid-cat", class = "DRUID", label = "Feral Druid (Cat)", groups = {
-  { "Flask", { { 274274, "+60 Sta, 4% crit", "full" }, { 274273, "+60 Sta, 5% hit", "full" } } },
+  { "Flask", { { 274274, "Stamina and crit", "full" }, { 274273, "Stamina and hit", "full" } } },
   { "Elixirs", {
-    { 13452, "+25 Agi, 2% crit", "full" },
-    { 250351, "+25 Str, 2% crit", "full" },
-    { 246948, "+35 attack power" },
-    { 12820, "+35 attack power" },
+    { 13452, "+25 Agi, 2% crit", "full", "crit" },
+    { 250351, "+25 Str, 2% crit", "full", "crit" },
+    { 246948, "+35 attack power", nil, "ap" },
+    { 12820, "+35 attack power", nil, "ap" },
     { 9187, "+25 Agi", "budget" },
     { 9206, "+25 Str", "budget" },
   } },
@@ -379,14 +389,14 @@ add({ key = "druid-cat", class = "DRUID", label = "Feral Druid (Cat)", groups = 
   { "Potions", { { 250943, "+80 attack power for 30s", "full" }, { 250942, "Attack power for 30s", "budget" }, { 13446, "1050-1750 health" } } },
 } })
 add({ key = "druid-bear", class = "DRUID", label = "Feral Druid (Bear)", groups = {
-  { "Flask", { { 274275, "+60 Sta, harder to dodge or parry", "full" }, { 13510, "+1200 health", "full" } } },
+  { "Flask", { { 274275, "Stamina, harder to dodge or parry", "full" }, { 13510, "+1200 health", "full" } } },
   { "Elixirs", {
-    { 250329, "+400 health, +500 armor" },
+    { 250329, "+400 health, +500 armor", nil, "health" },
     { 13445, "+450 armor" },
     { 20004, "20 health / 5s", "full" },
-    { 13452, "+25 Agi, 2% crit", "full" },
-    { 250351, "+25 Str, 2% crit", "full" },
-    { 12820, "+35 attack power" },
+    { 13452, "+25 Agi, 2% crit", "full", "crit" },
+    { 250351, "+25 Str, 2% crit", "full", "crit" },
+    { 12820, "+35 attack power", nil, "ap" },
     { 9088, "Enemies take more damage", "full" },
     { 9187, "+25 Agi", "budget" },
   } },
@@ -402,10 +412,10 @@ add({ key = "druid-bear", class = "DRUID", label = "Feral Druid (Bear)", groups 
   PROT,
 } })
 add({ key = "hunter", class = "HUNTER", label = "Hunter", groups = {
-  { "Flask", { { 274274, "+60 Sta, 4% crit", "full" }, { 274273, "+60 Sta, 5% hit", "full" } } },
+  { "Flask", { { 274274, "Stamina and crit", "full" }, { 274273, "Stamina and hit", "full" } } },
   { "Elixirs", {
     { 250328, "+25 Agi, +25 Int", "full" },
-    { 13452, "+25 Agi, 2% crit", "full" },
+    { 13452, "+25 Agi, 2% crit", "full", "crit" },
     { 9187, "+25 Agi", "budget" },
   } },
   AGI_FOOD,
@@ -426,17 +436,18 @@ add({ key = "mage", class = "MAGE", label = "Mage", groups = {
     { 250337, "+25 Int, 2% crit", "full" },
     { 250341, "20 mana / 5s", "full" },
     { 17708, "+15 frost damage", "full" },
-    { 6373, "Fire damage", "full" },
+    { 6373, "+10 fire damage", "full" },
     { 9179, "+25 Int", "budget" },
   } },
   CASTER_FOOD, CASTER_OIL, CASTER_POTS,
+  RUNES,
 } })
 add({ key = "rogue", class = "ROGUE", label = "Rogue", groups = {
-  { "Flask", { { 274273, "+60 Sta, 5% hit", "full" }, { 274274, "+60 Sta, 4% crit", "full" } } },
+  { "Flask", { { 274273, "Stamina and hit", "full" }, { 274274, "Stamina and crit", "full" } } },
   { "Elixirs", {
-    { 13452, "+25 Agi, 2% crit", "full" },
-    { 246948, "+35 attack power" },
-    { 12820, "+35 attack power" },
+    { 13452, "+25 Agi, 2% crit", "full", "crit" },
+    { 246948, "+35 attack power", nil, "ap" },
+    { 12820, "+35 attack power", nil, "ap" },
     { 9187, "+25 Agi", "budget" },
   } },
   { "Food", { { 13928, "+1% crit" }, { 250072, "+20 Agi", "full" } } },
@@ -449,38 +460,43 @@ add({ key = "rogue", class = "ROGUE", label = "Rogue", groups = {
     { 5634, "Immune to stuns, roots for 30s", "full" },
     { 3387, "Immune to physical for 6s", "full" },
   } },
-  { "Other", { { 7676, "Restores energy" }, { 14530, "Bandage" } } },
+  { "Poisons", { { 8928, "Main hand" }, { 20844, "Off hand" } } },
+  { "Other", { { 7676, "100 energy" }, { 14530, "Bandage" } } },
 } })
 add({ key = "shaman-resto", class = "SHAMAN", label = "Restoration Shaman", groups = {
   { "Flask", { { 13511, "+2000 mana", "full" } } },
   { "Elixirs", {
     { 250333, "+40 healing", "full" },
-    { 250332, "Healing", "budget" },
+    { 250332, "+30 healing", "budget" },
     { 250341, "20 mana / 5s", "full" },
     { 20007, "12 mana / 5s", "budget" },
     { 250337, "+25 Int, 2% crit", "full" },
     { 9179, "+25 Int", "budget" },
   } },
   HEAL_FOOD, HEAL_OIL, HEAL_POTS,
+  RUNES,
 } })
 add({ key = "shaman-ele", class = "SHAMAN", label = "Elemental Shaman", groups = {
   { "Flask", { { 13512, "+150 spell damage", "full" } } },
   { "Elixirs", {
     { 13454, "+35 spell damage" },
-    { 250343, "Nature damage", "full" },
+    { 250343, "+40 nature damage", "full" },
     { 250337, "+25 Int, 2% crit", "full" },
     { 250341, "20 mana / 5s", "full" },
     { 20007, "12 mana / 5s", "budget" },
   } },
   CASTER_FOOD, CASTER_OIL, CASTER_POTS,
+  RUNES,
 } })
 add({ key = "shaman-enh", class = "SHAMAN", label = "Enhancement Shaman", groups = {
-  { "Flask", { { 274274, "+60 Sta, 4% crit", "full" }, { 274275, "+60 Sta, harder to dodge or parry", "full" } } },
+  { "Flask", { { 13512, "+150 spell damage", "full" }, { 274274, "Stamina and crit", "full" } } },
   { "Elixirs", {
-    { 250351, "+25 Str, 2% crit", "full" },
-    { 13452, "+25 Agi, 2% crit", "full" },
-    { 246948, "+35 attack power" },
-    { 12820, "+35 attack power" },
+    { 250351, "+25 Str, 2% crit", "full", "crit" },
+    { 13452, "+25 Agi, 2% crit", "full", "crit" },
+    { 246948, "+35 attack power", nil, "ap" },
+    { 12820, "+35 attack power", nil, "ap" },
+    { 13454, "+35 spell damage", "full" },
+    { 250343, "+40 nature damage", "full" },
     { 9206, "+25 Str", "budget" },
   } },
   MELEE_FOOD,
@@ -509,12 +525,18 @@ local selectedItem
 local offset = 0
 
 -- How many of each an hour of raiding uses up, by heading
-local PER_HOUR = { Flask = 0.5, Elixirs = 1, Food = 2, ["Weapon oil"] = 2, Weapon = 2, Potions = 5, Protection = 1, Other = 3 }
+local PER_HOUR = { Flask = 0.5, Elixirs = 1, Food = 2, Drink = 2, ["Weapon oil"] = 2, Weapon = 2, Poisons = 2, Potions = 5,
+  Protection = 1, Runes = 3, Other = 3 }
+-- Headings where you only ever use one of the rows
+local PICK_ONE = { Flask = true, Food = true, Drink = true, ["Weapon oil"] = true, Weapon = true, Runes = true }
 -- What can run together, shown beside each heading
 local HINT = {
   Flask = "one at a time",
   Elixirs = "stack together, and with a flask",
   Food = "one at a time",
+  Drink = "one at a time",
+  Poisons = "one per weapon",
+  Runes = "own cooldown, shared with healthstones",
   ["Weapon oil"] = "one per weapon",
   Weapon = "one per weapon",
   Potions = "share a cooldown",
@@ -641,7 +663,7 @@ end, "Right-click a row to hide it, or to bring it back.")
 hiddenCheck:SetPoint("TOPLEFT", listBox, "BOTTOMLEFT", 2, -6)
 local hint = UI.Text(page, 11, S.dim)
 hint:SetPoint("TOPLEFT", listBox, "BOTTOMLEFT", 2, -9)
-hint:SetText("Right-click: hide a row")
+hint:SetText("Right-click: hide a row. \"or\" rows are alternatives: hide the one you don't use.")
 local total = UI.Text(page, 12, S.dim, "RIGHT")
 total:SetPoint("TOPRIGHT", listBox, "BOTTOMRIGHT", 0, -9)
 
@@ -850,6 +872,7 @@ refresh = function()
     local at = #shown + 1
     shown[at] = { header = g[1] }
     local need = hours > 0 and math.max(1, math.ceil((PER_HOUR[g[1]] or 1) * hours)) or 1
+    local sets = {}
     for _, c in ipairs(g[2]) do
       local tier = c[3]
       local isHidden = hidden[c[1]] and true or false
@@ -868,11 +891,28 @@ refresh = function()
           need = mine, short = math.max(0, mine - have), hidden = isHidden }
         shown[#shown + 1] = e
         shown.byId[e.id] = e
-        if not isHidden and e.short > 0 then
-          local cheapest = makes(e) and make or price
-          if cheapest then sum = sum + cheapest * e.short end
-          shortCount = shortCount + 1
+        -- one or the other: the first row you haven't hidden is the one to
+        -- stock, and the rest only show what you already carry
+        local set = (PICK_ONE[g[1]] and g[1]) or c[4]
+        if set and not isHidden then
+          local lead = sets[set]
+          if not lead then
+            sets[set] = e
+            e.setHave = have
+          else
+            e.alt, e.need, e.short = true, 0, 0
+            lead.setHave = lead.setHave + have
+            lead.short = math.max(0, lead.need - lead.setHave)
+          end
         end
+      end
+    end
+    for k = at + 1, #shown do
+      local e = shown[k]
+      if not e.hidden and e.short > 0 then
+        local cheapest = makes(e) and e.make or e.price
+        if cheapest then sum = sum + cheapest * e.short end
+        shortCount = shortCount + 1
       end
     end
     if #shown == at then shown[at] = nil end -- nothing on this list for the slot
@@ -908,7 +948,7 @@ refresh = function()
       row:SetSelected(e.id == selectedItem)
       row.icon:Show()
       row.icon:SetTexture(NW.ItemIcon(e.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
-      row.name:SetText((itemName(e.id)))
+      row.name:SetText((e.alt and "|cff94949aor|r  " or "") .. (itemName(e.id)))
       row.effect:SetWidth(180)
       row.effect:SetText(e.effect)
       -- green: cheaper to make. Grey: you don't know the recipe yet.
@@ -918,7 +958,8 @@ refresh = function()
         mk = col .. NW.Money(e.make, true):gsub("|r", "|r" .. col) .. "|r"
       end
       row.make:SetText(mk)
-      local col = (e.have >= e.need and "|cff8cdb7a") or (e.have == 0 and "|cffeb5c4d") or "|cffffe633"
+      local col = (e.alt and (e.have > 0 and "|cff8cdb7a" or "|cff94949a")) or (e.short == 0 and "|cff8cdb7a")
+        or (e.have == 0 and "|cffeb5c4d") or "|cffffe633"
       row.have:SetText(e.need > 1 and ("%s%d|r|cff94949a/%d|r"):format(col, e.have, e.need) or ("%s%d|r"):format(col, e.have))
       row.price:SetText(e.price and NW.Money(e.price, true) or "|cff94949a?|r")
     end
