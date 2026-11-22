@@ -999,7 +999,18 @@ local function drawMissingRows(key)
   for i, row in ipairs(stepRows) do
     local r = steps[i + stepOffset]
     row.step, row.bracket, row.missingRecipe = nil, nil, r
-    if r then
+    if r and r.header then
+      -- a section heading, as in the game's own profession window
+      row.missingRecipe = nil
+      row:Show()
+      row:SetSelected(false)
+      row.range:SetText("")
+      row.icon:Hide()
+      row.name:SetText(("|cffe8c46a%s|r  |cff94949a%d|r"):format(r.header, r.count))
+      row.crafts:SetText("")
+      row.cost:SetText("")
+      row.mats:SetText("")
+    elseif r then
       row:Show()
       row:SetSelected(false)
       local req = r.orange or r.yellow
@@ -1024,6 +1035,41 @@ local function drawMissing(p)
     for _, re in ipairs(r.reagents) do if has((itemName(re[1]))) then return true end end
     return false
   end)
+  -- Sections, as the game's profession window groups them (Stamina Food,
+  -- Attack Power Food...). They come from your profession window, so this
+  -- needs it to have been opened once.
+  local found = #steps
+  do
+    local groups, order, anyCat = {}, {}, false
+    for _, r in ipairs(steps) do
+      local e = r.scanned or scanOf(p.key, r)
+      local cat = e and e.cat or "Other"
+      if e and e.cat then anyCat = true end
+      local g = groups[cat]
+      if not g then
+        g = { name = cat, rows = {}, order = e and e.catOrder, first = r.orange or r.yellow or 0 }
+        groups[cat] = g
+        order[#order + 1] = g
+      end
+      g.order = g.order or (e and e.catOrder)
+      g.first = math.min(g.first, r.orange or r.yellow or 0)
+      g.rows[#g.rows + 1] = r
+    end
+    if anyCat and #order > 1 then
+      table.sort(order, function(a, b)
+        if (a.name == "Other") ~= (b.name == "Other") then return b.name == "Other" end
+        if a.order and b.order and a.order ~= b.order then return a.order < b.order end
+        if a.first ~= b.first then return a.first < b.first end
+        return a.name < b.name
+      end)
+      local out = {}
+      for _, g in ipairs(order) do
+        out[#out + 1] = { header = g.name, count = #g.rows }
+        for _, r in ipairs(g.rows) do out[#out + 1] = r end
+      end
+      steps = out
+    end
+  end
   if viewChanged then stepOffset = 0 end
   clampOffsets()
   local rank = NW.ProfSkill(p.key)
@@ -1035,13 +1081,13 @@ local function drawMissing(p)
   local counts = { now = 0, later = 0, merchant = 0, drop = 0, dim = 0 }
   local nMissing = 0
   for _, r in ipairs(steps) do
-    if not r.knownNow then
+    if not r.header and not r.knownNow then
       nMissing = nMissing + 1
       local _, kind = sourceText(p.key, r, rank)
       counts[kind] = counts[kind] + 1
     end
   end
-  hCost:SetText(searchText ~= "" and ("%d found"):format(#steps) or ("%d missing"):format(nMissing))
+  hCost:SetText(searchText ~= "" and ("%d found"):format(found) or ("%d missing"):format(nMissing))
   hCostSub:SetText(fullList and "from the game's full recipe list" or scanned and "of the recipes in Nodewalker's data"
     or "|cffeb5c4cOpen your profession window once|r so this knows what you have")
   priceLine:SetText("Recipes you don't know. Search by recipe, material, mob or zone to see any recipe, known ones too.")

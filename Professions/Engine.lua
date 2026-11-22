@@ -286,7 +286,7 @@ local function modernScan()
   if not okIDs or not ids or #ids == 0 then return true end
   local scan = {}
   NW.charDB.known[key] = {} -- the full list is the truth: rebuild what you know
-  local catNames = {}
+  local catNames, catOrder = {}, {}
   -- The game can hand back every profession's recipes: keep this one's
   local function mine(id, name)
     local belongs = NW.RecipeBelongs(name, key)
@@ -305,8 +305,10 @@ local function modernScan()
           local okc, cat = pcall(T.GetCategoryInfo, info.categoryID)
           cname = okc and cat and cat.name or false
           catNames[info.categoryID] = cname
+          if cname and okc and cat.uiOrder then catOrder[cname] = cat.uiOrder end
         end
         e.cat = cname or nil
+        e.catOrder = cname and catOrder[cname] or nil
       end
       if T.GetRecipeSchematic then
         local oks, sch = pcall(T.GetRecipeSchematic, id, false)
