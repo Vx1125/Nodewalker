@@ -54,6 +54,8 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 - **Crafts: Keep, Sell or Disenchant**: plan your leveling around what you'll do with the items.
 - **Recipes**: every recipe in the game and where it comes from (trainer, vendors, drops, quests, Merchant's Favor). Shows what you're missing; search by recipe, material, mob or zone to find anything.
 
+![Profit](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/profit.jpg)
+
 ## Consumes
 
 ![Consumes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/consumes.jpg)
@@ -63,8 +65,6 @@ Nodewalker replaces GatherMate2 + Routes + FarmHud for farming, and adds a profe
 - **Make or Buy**: what each costs to craft if you have the profession, whether you know the recipe, and where to get it if you don't.
 - One button searches Auctionator for everything you're short of: materials for what you'd make, the item for the rest.
 - Farm a consumable's herbs from the Farm Guide in one click. Right-click a row to hide what you don't use.
-
-![Profit](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/profit.jpg)
 
 ### Gathering and Fishing
 
