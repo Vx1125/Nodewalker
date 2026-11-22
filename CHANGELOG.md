@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.4
+
+- Profit view: click a recipe to see its materials and what each costs.
+- Material tooltips show auction, vendor and crafting prices.
+- Click a craftable material to see how to make it.
+- Alt-click a recipe to search the auction house for what it makes.
+
 ## 1.1.3
 
 - Professions: Leveling, Recipes and Profit are tabs under the profession's name.
