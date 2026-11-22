@@ -16,8 +16,10 @@ local HEALER_PRIEST = {
     { 13511, "+2000 mana", "full" },
   } },
   { "Elixirs", {
-    { 250333, "+40 healing" },
-    { 250341, "20 mana / 5s" },
+    { 250333, "+40 healing", "full" },
+    { 250332, "Healing", "budget" },
+    { 250341, "20 mana / 5s", "full" },
+    { 20007, "12 mana / 5s", "budget" },
     { 250337, "+25 Int, 2% crit", "full" },
     { 250347, "+18 Spirit" },
     { 9179, "+25 Int", "budget" },
@@ -35,6 +37,7 @@ local HEALER_PRIEST = {
     { 13444, "1350-2250 mana", "full" },
     { 13443, "900-1500 mana", "budget" },
     { 250949, "+88 healing for 30s", "full" },
+    { 250948, "Healing for 30s", "budget" },
     { 18253, "1440-1760 health and mana", "full" },
   } },
 }
@@ -52,8 +55,10 @@ NW.CONSUMES = {
         { 13511, "+2000 mana", "full" },
       } },
       { "Elixirs", {
-        { 250333, "+40 healing" },
-        { 250341, "20 mana / 5s" },
+        { 250333, "+40 healing", "full" },
+        { 250332, "Healing", "budget" },
+        { 250341, "20 mana / 5s", "full" },
+        { 20007, "12 mana / 5s", "budget" },
         { 250337, "+25 Int, 2% crit", "full" },
         { 9179, "+25 Int", "budget" },
       } },
@@ -70,6 +75,7 @@ NW.CONSUMES = {
         { 13444, "1350-2250 mana", "full" },
         { 13443, "900-1500 mana", "budget" },
         { 250949, "+88 healing for 30s", "full" },
+        { 250948, "Healing for 30s", "budget" },
         { 18253, "1440-1760 health and mana", "full" },
       } },
     },
@@ -86,7 +92,8 @@ NW.CONSUMES = {
         { 9264, "+40 shadow damage" },
         { 13454, "+35 spell damage", "full" },
         { 250337, "+25 Int, 2% crit", "full" },
-        { 250341, "20 mana / 5s" },
+        { 250341, "20 mana / 5s", "full" },
+        { 20007, "12 mana / 5s", "budget" },
         { 250347, "+18 Spirit" },
         { 250335, "+400 health", "full" },
         { 20004, "20 health / 5s", "full" },
@@ -122,7 +129,8 @@ NW.CONSUMES = {
       { "Elixirs", {
         { 13454, "+35 spell damage" },
         { 250337, "+25 Int, 2% crit", "full" },
-        { 250341, "20 mana / 5s" },
+        { 250341, "20 mana / 5s", "full" },
+        { 20007, "12 mana / 5s", "budget" },
         { 250347, "+18 Spirit", "full" },
       } },
       { "Food", {
@@ -168,7 +176,8 @@ NW.CONSUMES = {
       WARRIOR_STONES,
       { "Potions", {
         { 13455, "+2000 armor for 2 min" },
-        { 13446, "1050-1750 health" },
+        { 13446, "1050-1750 health", "full" },
+        { 3928, "700-900 health", "budget" },
         { 13442, "45-75 rage, +60 Str for 20s", "full" },
         { 3387, "Immune to physical for 6s", "full" },
         { 5634, "Immune to stuns, roots for 30s", "full" },
@@ -201,7 +210,8 @@ NW.CONSUMES = {
       { "Potions", {
         { 13442, "45-75 rage, +60 Str for 20s" },
         { 250943, "+80 attack power for 30s", "full" },
-        { 13446, "1050-1750 health" },
+        { 13446, "1050-1750 health", "full" },
+        { 3928, "700-900 health", "budget" },
         { 5634, "Immune to stuns, roots for 30s", "full" },
         { 3387, "Immune to physical for 6s", "full" },
       } },
@@ -256,6 +266,7 @@ local HEAL_POTS = { "Potions", {
   { 13444, "1350-2250 mana", "full" },
   { 13443, "900-1500 mana", "budget" },
   { 250949, "+88 healing for 30s", "full" },
+  { 250948, "Healing for 30s", "budget" },
   { 18253, "1440-1760 health and mana", "full" },
 } }
 local CASTER_POTS = { "Potions", {
@@ -295,7 +306,8 @@ add({ key = "paladin-prot", class = "PALADIN", label = "Protection Paladin", gro
     { 250937, "+47 spell damage for 30s", "full" },
     { 13455, "+2000 armor for 2 min" },
     { 13444, "1350-2250 mana", "full" },
-    { 13446, "1050-1750 health" },
+    { 13446, "1050-1750 health", "full" },
+    { 3928, "700-900 health", "budget" },
     { 5634, "Immune to stuns, roots for 30s", "full" },
   } },
   { "Other", { { 12662, "Mana for health", "full" }, { 10646, "AoE damage and threat", "full" } } },
@@ -316,16 +328,19 @@ add({ key = "paladin-ret", class = "PALADIN", label = "Retribution Paladin", gro
   { "Potions", {
     { 250943, "+80 attack power for 30s", "full" },
     { 13444, "1350-2250 mana", "full" },
-    { 13446, "1050-1750 health" },
+    { 13446, "1050-1750 health", "full" },
+    { 3928, "700-900 health", "budget" },
     { 5634, "Immune to stuns, roots for 30s", "full" },
   } },
 } })
 add({ key = "druid-resto", class = "DRUID", label = "Restoration Druid", groups = {
   { "Flask", { { 13511, "+2000 mana", "full" }, { 274276, "+60 Sta, 5% haste", "full" } } },
   { "Elixirs", {
-    { 250333, "+40 healing" },
+    { 250333, "+40 healing", "full" },
+    { 250332, "Healing", "budget" },
     { 13447, "+18 Int, +18 Spirit", "full" },
-    { 250341, "20 mana / 5s" },
+    { 250341, "20 mana / 5s", "full" },
+    { 20007, "12 mana / 5s", "budget" },
     { 9179, "+25 Int", "budget" },
   } },
   HEAL_FOOD, HEAL_OIL,
@@ -333,6 +348,7 @@ add({ key = "druid-resto", class = "DRUID", label = "Restoration Druid", groups 
     { 13444, "1350-2250 mana", "full" },
     { 13443, "900-1500 mana", "budget" },
     { 250949, "+88 healing for 30s", "full" },
+    { 250948, "Healing for 30s", "budget" },
     { 18253, "1440-1760 health and mana", "full" },
     { 20008, "Breaks stuns and roots", "full" },
   } },
@@ -343,7 +359,8 @@ add({ key = "druid-balance", class = "DRUID", label = "Balance Druid", groups = 
     { 13454, "+35 spell damage" },
     { 250343, "Nature damage", "full" },
     { 250337, "+25 Int, 2% crit", "full" },
-    { 250341, "20 mana / 5s" },
+    { 250341, "20 mana / 5s", "full" },
+    { 20007, "12 mana / 5s", "budget" },
   } },
   CASTER_FOOD, CASTER_OIL, CASTER_POTS,
 } })
@@ -377,7 +394,8 @@ add({ key = "druid-bear", class = "DRUID", label = "Feral Druid (Bear)", groups 
   WARRIOR_STONES,
   { "Potions", {
     { 13455, "+2000 armor for 2 min" },
-    { 13446, "1050-1750 health" },
+    { 13446, "1050-1750 health", "full" },
+    { 3928, "700-900 health", "budget" },
     { 13442, "45-75 rage, +60 Str for 20s", "full" },
     { 5634, "Immune to stuns, roots for 30s", "full" },
   } },
@@ -397,7 +415,8 @@ add({ key = "hunter", class = "HUNTER", label = "Hunter", groups = {
     { 250942, "Attack power for 30s", "budget" },
     { 13444, "1350-2250 mana", "full" },
     { 13443, "900-1500 mana", "budget" },
-    { 13446, "1050-1750 health" },
+    { 13446, "1050-1750 health", "full" },
+    { 3928, "700-900 health", "budget" },
   } },
 } })
 add({ key = "mage", class = "MAGE", label = "Mage", groups = {
@@ -425,7 +444,8 @@ add({ key = "rogue", class = "ROGUE", label = "Rogue", groups = {
   { "Potions", {
     { 250943, "+80 attack power for 30s", "full" },
     { 250942, "Attack power for 30s", "budget" },
-    { 13446, "1050-1750 health" },
+    { 13446, "1050-1750 health", "full" },
+    { 3928, "700-900 health", "budget" },
     { 5634, "Immune to stuns, roots for 30s", "full" },
     { 3387, "Immune to physical for 6s", "full" },
   } },
@@ -434,8 +454,10 @@ add({ key = "rogue", class = "ROGUE", label = "Rogue", groups = {
 add({ key = "shaman-resto", class = "SHAMAN", label = "Restoration Shaman", groups = {
   { "Flask", { { 13511, "+2000 mana", "full" } } },
   { "Elixirs", {
-    { 250333, "+40 healing" },
-    { 250341, "20 mana / 5s" },
+    { 250333, "+40 healing", "full" },
+    { 250332, "Healing", "budget" },
+    { 250341, "20 mana / 5s", "full" },
+    { 20007, "12 mana / 5s", "budget" },
     { 250337, "+25 Int, 2% crit", "full" },
     { 9179, "+25 Int", "budget" },
   } },
@@ -447,7 +469,8 @@ add({ key = "shaman-ele", class = "SHAMAN", label = "Elemental Shaman", groups =
     { 13454, "+35 spell damage" },
     { 250343, "Nature damage", "full" },
     { 250337, "+25 Int, 2% crit", "full" },
-    { 250341, "20 mana / 5s" },
+    { 250341, "20 mana / 5s", "full" },
+    { 20007, "12 mana / 5s", "budget" },
   } },
   CASTER_FOOD, CASTER_OIL, CASTER_POTS,
 } })
@@ -465,7 +488,8 @@ add({ key = "shaman-enh", class = "SHAMAN", label = "Enhancement Shaman", groups
     { 250943, "+80 attack power for 30s", "full" },
     { 13444, "1350-2250 mana", "full" },
     { 13443, "900-1500 mana", "budget" },
-    { 13446, "1050-1750 health" },
+    { 13446, "1050-1750 health", "full" },
+    { 3928, "700-900 health", "budget" },
   } },
 } })
 table.sort(NW.CONSUMES, function(x, y)
@@ -540,6 +564,16 @@ function currentList()
   return mine or first
 end
 
+-- What can run together, shown beside each heading
+local HINT = {
+  Flask = "one at a time",
+  Elixirs = "stack together, and with a flask",
+  Food = "one at a time",
+  ["Weapon oil"] = "one per weapon",
+  Weapon = "one per weapon",
+  Potions = "share a cooldown",
+  Protection = "share the potion cooldown",
+}
 local rows, shown = {}, {}
 listBox:EnableMouseWheel(true)
 listBox:SetScript("OnMouseWheel", function(_, delta)
@@ -693,7 +727,7 @@ refresh = function()
       row:SetSelected(false)
       row.icon:Hide()
       row.name:SetText("|cffe8c46a" .. e.header .. "|r")
-      row.effect:SetText("")
+      row.effect:SetText(HINT[e.header] or "")
       row.have:SetText("")
       row.price:SetText("")
     else
