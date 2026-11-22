@@ -1396,6 +1396,7 @@ for _, row in ipairs(stepRows) do
 end
 
 NW.SearchAH, NW.AHOpen, NW.ChatLink = searchAH, ahOpen, chatLink
+NW.RecipeSourceText = function(key, r) return (sourceText(key, r, NW.ProfSkill(key))) end
 
 ------------------------------------------------------------------------
 refresh = function()

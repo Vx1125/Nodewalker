@@ -504,7 +504,7 @@ NW.On("GET_ITEM_INFO_RECEIVED", function() if page:IsShown() then page.dirty = t
 NW.On("BAG_UPDATE_DELAYED", function() if page:IsShown() then page.dirty = true end end)
 page:SetScript("OnUpdate", function(self) if self.dirty then self.dirty = false refresh() end end)
 
-local LEFT_W, RIGHT_W, ROW_H, MAX_ROWS = 610, 330, 24, 20
+local LEFT_W, RIGHT_W, ROW_H, MAX_ROWS = 610, 330, 24, 19
 local selectedItem
 local offset = 0
 
@@ -530,7 +530,24 @@ local total = UI.Text(page, 12, S.dim, "RIGHT")
 total:SetPoint("TOPRIGHT", head, "BOTTOMRIGHT", 0, -12)
 
 local listBox = UI.Box(page, LEFT_W, MAX_ROWS * ROW_H + 2)
-listBox:SetPoint("TOPLEFT", specDrop, "BOTTOMLEFT", 0, -8)
+listBox:SetPoint("TOPLEFT", specDrop, "BOTTOMLEFT", 0, -22)
+for _, c in ipairs({ { "Have", 462 }, { "Make", 530 }, { "Buy", LEFT_W - 10 } }) do
+  local t = UI.Text(page, 10, S.dim, "RIGHT")
+  t:SetPoint("BOTTOMRIGHT", listBox, "TOPLEFT", c[2], 3)
+  t:SetText(c[1])
+end
+
+-- Making it yourself: the recipe, whether you have the profession, whether
+-- you know it, and what one costs to make (nil without full prices)
+local function makeInfo(id)
+  local r, key = NW.RecipeFor(id)
+  if not r then return nil end
+  local skill = NW.ProfSkill(key)
+  local known = NW.charDB.known[key]
+  local scanned = known and next(known) ~= nil
+  local _, _, craft = NW.PriceParts(id)
+  return { r = r, key = key, skill = skill, scanned = scanned, known = known and known[r.name] or false, cost = craft }
+end
 
 -- Right side: the selected consumable
 local right = CreateFrame("Frame", nil, page)
@@ -599,10 +616,12 @@ for i = 1, MAX_ROWS do
   row.name:SetWordWrap(false)
   row.effect = UI.Text(row, 11, S.dim)
   row.effect:SetPoint("LEFT", 236, 0)
-  row.effect:SetWidth(215)
+  row.effect:SetWidth(190)
   row.effect:SetWordWrap(false)
   row.have = UI.Text(row, 12, S.text, "RIGHT")
-  row.have:SetPoint("RIGHT", row, "LEFT", 500, 0)
+  row.have:SetPoint("RIGHT", row, "LEFT", 462, 0)
+  row.make = UI.Text(row, 12, S.text, "RIGHT")
+  row.make:SetPoint("RIGHT", row, "LEFT", 530, 0)
   row.price = UI.Text(row, 12, S.text, "RIGHT")
   row.price:SetPoint("RIGHT", -10, 0)
   row:SetScript("OnEnter", function(self)
@@ -673,8 +692,19 @@ local function drawDetail()
   if r then
     local prof = NW.PROF_BY_KEY[key]
     local req = r.orange or r.yellow
+    local m = makeInfo(id)
     lines[#lines + 1] = ""
     lines[#lines + 1] = ("|cffe8c46a%s|r%s"):format(prof and prof.name or "", req and req > 0 and (" " .. req) or "")
+    if m.skill then
+      if m.known then
+        lines[#lines + 1] = "|cff8cdb7aRecipe known|r"
+      elseif not m.scanned then
+        lines[#lines + 1] = ("|cff94949aOpen %s once to see which recipes you know|r"):format(prof and prof.name or "it")
+      else
+        lines[#lines + 1] = "|cffeb5c4dRecipe not known|r"
+        lines[#lines + 1] = NW.RecipeSourceText(key, r)
+      end
+    end
     for _, re in ipairs(r.reagents) do
       local p = NW.Price(re[1])
       lines[#lines + 1] = ("%d  %s  |cff94949a%s|r"):format(re[2], (itemName(re[1])), p and NW.Money(p * re[2], true) or "?")
@@ -702,8 +732,13 @@ refresh = function()
         local price, src = NW.Price(c[1])
         if src == "est" then price = nil end
         local have = NW.ItemCount(c[1]) or 0
-        shown[#shown + 1] = { id = c[1], effect = c[2], price = price, have = have }
-        if price then sum = sum + price end
+        local m = makeInfo(c[1])
+        -- only what you could make yourself counts as a way to get it
+        local make = m and m.skill and m.cost or nil
+        shown[#shown + 1] = { id = c[1], effect = c[2], price = price, have = have, make = make, m = m }
+        local cheapest = price
+        if make and m.known and (not price or make < price) then cheapest = make end
+        if cheapest then sum = sum + cheapest end
         if have == 0 then missing = missing + 1 end
       end
     end
@@ -729,7 +764,9 @@ refresh = function()
       row.name:SetText("|cffe8c46a" .. e.header .. "|r")
       row.effect:SetText(HINT[e.header] or "")
       row.have:SetText("")
+      row.make:SetText("")
       row.price:SetText("")
+      row.effect:SetWidth(330)
     else
       row:Show()
       row.item = e.id
@@ -737,7 +774,15 @@ refresh = function()
       row.icon:Show()
       row.icon:SetTexture(NW.ItemIcon(e.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
       row.name:SetText((itemName(e.id)))
+      row.effect:SetWidth(190)
       row.effect:SetText(e.effect)
+      -- green: cheaper to make. Grey: you don't know the recipe yet.
+      local mk = ""
+      if e.make then
+        local col = (not e.m.known and "|cff94949a") or ((not e.price or e.make < e.price) and "|cff8cdb7a") or "|cffe6e6eb"
+        mk = col .. NW.Money(e.make, true):gsub("|r", "|r" .. col) .. "|r"
+      end
+      row.make:SetText(mk)
       row.have:SetText(e.have > 0 and ("|cff8cdb7a%d|r"):format(e.have) or "|cffeb5c4d0|r")
       row.price:SetText(e.price and NW.Money(e.price, true) or "|cff94949a?|r")
     end
