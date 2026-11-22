@@ -40,7 +40,7 @@ local LIST_W = 196
 local list = UI.Box(page, LIST_W, #NW.PROFS * 34 + 10)
 list:SetPoint("TOPLEFT", 16, -8)
 local profRows = {}
-local mode, openMode
+local mode, openMode, craftClick, knowsRecipe
 local firstOpen = true -- the first look picks the view that fits your skill
 for i, p in ipairs(NW.PROFS) do
   local b = CreateFrame("Button", nil, list)
@@ -205,6 +205,28 @@ search:SetScript("OnTextChanged", function(self)
   if t ~= searchText then searchText = t; refresh() end
 end)
 
+-- A Craft button was clicked: make them, or say what's missing
+-- You know it, as far as the last look at the profession window said
+function knowsRecipe(key, r)
+  local k = r and NW.charDB.known[key]
+  return k and k[r.name] and NW.ProfSkill(key) ~= nil or false
+end
+function craftClick(b)
+  if not b.r then return end
+  if NW.CanCraft(b.key, b.r) == nil then
+    local prof = NW.PROF_BY_KEY[b.key]
+    NW.CraftStatus(("Open %s once, then craft from here"):format(prof and prof.name or "the profession"))
+    return
+  end
+  if (b.n or 0) < 1 then
+    local id, short = NW.CraftMissing(b.r)
+    NW.CraftStatus(id and ("Need %d more %s in your bags"):format(short, (itemName(id))) or "Nothing to make it with")
+    return
+  end
+  local _, msg = NW.Craft(b.key, b.r, b.n)
+  NW.CraftStatus(msg)
+end
+
 -- What the last Craft click did, shown on the hint line for a few seconds
 local craftMsg, craftMsgAt
 function NW.CraftStatus(msg)
@@ -266,21 +288,19 @@ for i = 1, STEP_ROWS do
   row.mats:SetWidth(MID_W - 92)
   row.mats:SetWordWrap(false)
   -- Craft what this row makes, as many as your bags allow
-  row.craft = UI.Button(row, "", 78, function(self)
-    if not self.r then return end
-    local _, msg = NW.Craft(self.key, self.r, self.n)
-    NW.CraftStatus(msg)
-  end, 18)
+  row.craft = UI.Button(row, "", 78, function(self) craftClick(self) end, 18)
   row.craft:SetPoint("BOTTOMRIGHT", -6, 4)
   row.craft:Hide()
   function row:SetCraft(key, r, want)
     local can = r and NW.CanCraft(key, r)
     local n = can and math.min(can, want or can) or 0
     local b = self.craft
-    b:SetShown(can ~= nil and n > 0)
+    -- any recipe you know gets the button; it's dim until your bags can make one
+    b:SetShown(can ~= nil or knowsRecipe(key, r))
     self.mats:SetWidth(MID_W - 92 - (b:IsShown() and 84 or 0))
     b.key, b.r, b.n = key, r, n
-    if n > 0 then b:SetText("Craft " .. n) end
+    b:SetText(n > 0 and ("Craft " .. n) or "Craft")
+    b:SetAlpha(n > 0 and 1 or 0.45)
   end
   row:SetScript("OnEnter", function(self)
     local stp = self.step
@@ -446,6 +466,9 @@ local cardBack = UI.Button(right, "", RIGHT_W, function()
 end, 24)
 cardBack:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -14)
 cardBack:Hide()
+local cardCraft = UI.Button(right, "Craft", 96, function(self) craftClick(self) end, 24, "primary")
+cardCraft:SetPoint("TOPRIGHT", rTotal, "BOTTOMLEFT", RIGHT_W, -14)
+cardCraft:Hide()
 local KEY = "|cffff8040Orange|r recipes always skill up, |cffffff00yellow|r often, |cff40bf40green|r rarely.\n"
   .. "|cffe6e6eb6/78|r is have / need.  |cffe6e6ebv|r a vendor sells it.  |cffe6e6ebfind|r it isn't on the auction house.\n"
   .. "Shift-click anything to search the auction house.\n\n"
@@ -1309,6 +1332,14 @@ local function drawCard()
   rTotal:SetText(table.concat(parts, "  ·  "))
   local prev = card.stack[#card.stack]
   cardBack:SetText(prev and ("< " .. prev.r.name) or "< All recipes")
+  -- a recipe you know can be made from here
+  local can = NW.CanCraft(card.key, r)
+  local craftable = can ~= nil or knowsRecipe(card.key, r)
+  cardCraft:SetShown(craftable)
+  cardBack:SetWidth(craftable and RIGHT_W - 102 or RIGHT_W)
+  cardCraft.key, cardCraft.r, cardCraft.n = card.key, r, can or 0
+  cardCraft:SetText((can or 0) > 0 and ("Craft " .. can) or "Craft")
+  cardCraft:SetAlpha((can or 0) > 0 and 1 or 0.45)
   -- how you get to make it
   local prof = NW.PROF_BY_KEY[card.key]
   local req = r.orange or r.yellow
@@ -1529,6 +1560,7 @@ refresh = function()
   tips:SetText(KEY .. (NW.PROF_TIPS[p.key] or ""))
   rTotal:SetShown(planPanel or showCard)
   cardBack:SetShown(showCard)
+  if not showCard then cardCraft:Hide() end
   targetSlider:SetShown(planPanel)
   if targetSlider:IsShown() then targetSlider:Refresh() end
   info:SetShown((not isCraft or isMissing) and not showCard)

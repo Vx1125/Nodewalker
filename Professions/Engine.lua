@@ -925,6 +925,14 @@ function NW.CanCraft(key, r)
   return n or 0
 end
 
+-- What your bags are short of for one craft: itemID, how many more
+function NW.CraftMissing(r)
+  for _, re in ipairs(r.reagents or {}) do
+    local have = bagCount(re[1])
+    if have < re[2] then return re[1], re[2] - have end
+  end
+end
+
 -- Is this profession the one the game has open?
 local function isOpen(key)
   local T = C_TradeSkillUI
