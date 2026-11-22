@@ -34,6 +34,40 @@ NW.CONSUMES = {
       } },
     },
   },
+  {
+    key = "warlock", class = "WARLOCK", label = "Warlock",
+    groups = {
+      { "Flask", {
+        { 13512, "+150 spell damage", "full" },
+        { 274274, "Hyjal Summit, Barrow Deeps", "full" },
+      } },
+      { "Elixirs", {
+        { 9264, "+40 shadow damage" },
+        { 13454, "+35 spell damage", "full" },
+        { 250337, "+25 Int, 2% crit", "full" },
+        { 9155, "Spell damage", "budget" },
+      } },
+      { "Food", {
+        { 13935, "+28 spell damage", "full" },
+        { 13931, "+22 spell damage", "budget" },
+      } },
+      { "Weapon oil", {
+        { 20749, "+36 spell damage, 1% spell crit", "full" },
+        { 20750, "Spell damage", "budget" },
+      } },
+      { "Potions", {
+        { 250937, "+47 spell damage for 30s", "full" },
+        { 250936, "Spell damage for 30s", "budget" },
+        { 13444, "1350-2250 mana", "full" },
+        { 13443, "900-1500 mana", "budget" },
+        { 20008, "Breaks stuns and roots", "full" },
+        { 18253, "1440-1760 health and mana", "full" },
+      } },
+      { "Other", {
+        { 12662, "Mana for health" },
+      } },
+    },
+  },
 }
 
 local function st() return NW.db.settings end
@@ -52,12 +86,21 @@ local budget = UI.Check(page, "Budget", function() return st().consumeBudget end
   st().consumeBudget = v
   refresh()
 end)
-budget:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -8)
+local specItems = {}
+for _, l in ipairs(NW.CONSUMES) do specItems[#specItems + 1] = { l.key, l.label } end
+local currentList
+local specDrop = UI.Dropdown(page, 190, "Spec", specItems, function() return currentList().key end, function(v)
+  st().consumeSpec = v
+  selectedItem = nil
+  refresh()
+end, 150)
+specDrop:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -6)
+budget:SetPoint("LEFT", specDrop, "RIGHT", 18, 0)
 local total = UI.Text(page, 12, S.dim, "RIGHT")
 total:SetPoint("TOPRIGHT", head, "BOTTOMRIGHT", 0, -12)
 
 local listBox = UI.Box(page, LEFT_W, MAX_ROWS * ROW_H + 2)
-listBox:SetPoint("TOPLEFT", budget, "BOTTOMLEFT", 0, -8)
+listBox:SetPoint("TOPLEFT", specDrop, "BOTTOMLEFT", 0, -8)
 
 -- Right side: the selected consumable
 local right = CreateFrame("Frame", nil, page)
@@ -79,7 +122,7 @@ local function itemName(id)
   return "item " .. id, false
 end
 
-local function currentList()
+function currentList()
   local _, class = UnitClass("player")
   local pick = st().consumeSpec
   local first, mine
@@ -197,6 +240,7 @@ refresh = function()
   local list = currentList()
   head.text:SetText(list.label)
   budget:Refresh()
+  specDrop:Refresh()
   local wantBudget = st().consumeBudget
   wipe(shown)
   local sum, missing = 0, 0
