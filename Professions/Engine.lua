@@ -457,7 +457,7 @@ local VENDOR = {
   [3371] = 20, [3372] = 200, [8925] = 2500, [18256] = 20000,          -- vials
   [2320] = 10, [2321] = 100, [4291] = 500, [8343] = 2000, [14341] = 5000, -- thread
   [2880] = 100, [3466] = 2000, [3857] = 500, [18567] = 30000,         -- flux, coal
-  [4289] = 50, [15409] = 1000,                                         -- salt
+  [4289] = 50,                                                         -- salt (Refined Deeprock Salt is a 3-day cooldown, not sold)
   [2678] = 10, [2692] = 40, [3713] = 160, [159] = 25, [1179] = 125,   -- spices, drinks
   [4470] = 38, [11291] = 4500, [6217] = 124, [10940] = nil,           -- wood, copper rod
   [2324] = 25, [2604] = 50, [6260] = 50, [2605] = 100, [4340] = 350,  -- bleach, dyes
@@ -535,6 +535,13 @@ local function auctionator(id)
   return st.flag and st.typical or st.today
 end
 
+-- Recipes on a long cooldown can't be made in bulk, so they never count as
+-- "cheaper to make" (transmutes, Mooncloth)
+local function onCooldown(r)
+  return r.name:find("^Transmute") ~= nil or r.name == "Mooncloth"
+end
+NW.RecipeOnCooldown = onCooldown
+
 -- The recipe that makes an item, in any profession: recipe, profession key
 local makerOf
 function NW.RecipeFor(itemID)
@@ -559,7 +566,7 @@ function NW.PriceParts(itemID)
   local ah = auctionator(itemID)
   local craft
   local r = NW.RecipeFor(itemID)
-  if r then
+  if r and not onCooldown(r) then
     local cost, ok = 0, true
     for _, re in ipairs(r.reagents) do
       local p, src = NW.Price(re[1])
@@ -801,7 +808,7 @@ function NW.BuildPlan(key, from, to)
   local _, maxSkill = NW.ProfSkill(key)
   if NW.craftKey ~= key then priceMemo = {}; NW.craftKey = key end
   craftOf = {}
-  for _, r in ipairs(recipes) do if r.item and not craftOf[r.item] then craftOf[r.item] = r end end
+  for _, r in ipairs(recipes) do if r.item and not craftOf[r.item] and not onCooldown(r) then craftOf[r.item] = r end end
 
   local costOf, unknownOf = {}, {}
   for i, r in ipairs(recipes) do costOf[i], unknownOf[i] = craftCost(r, s) end
