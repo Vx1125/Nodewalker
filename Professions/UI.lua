@@ -387,6 +387,14 @@ local targetSlider = UI.Slider(right, RIGHT_W, "Level to", 25, 300, 5, function(
     refresh()
   end)
 targetSlider:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -10)
+local cardBack = UI.Button(right, "", RIGHT_W, function()
+  if not card then return end
+  local prev = table.remove(card.stack)
+  if prev then card.r, card.key = prev.r, prev.key else card = nil end
+  refresh()
+end, 24)
+cardBack:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -14)
+cardBack:Hide()
 local shopBox = UI.Box(right, RIGHT_W, 266)
 shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
 shopBox:EnableMouseWheel(true)
@@ -435,6 +443,9 @@ local function searchAH(items)
   return (pcall(fn, ADDON, names))
 end
 local shopRows, shop, shopOffset = {}, {}, 0
+-- Profit view: the recipe opened on the right, and the ones you came through
+local card -- { r = recipe, key = profession, stack = { earlier cards } }
+local lastCardKey
 for i = 1, SHOP_ROWS do
   local row = CreateFrame("Button", nil, shopBox)
   row:SetSize(RIGHT_W - 8, SHOP_H)
@@ -471,6 +482,18 @@ for i = 1, SHOP_ROWS do
     local srcText = ({ ah = "Auction house (Auctionator)", vendor = "Vendor", craft = "Cheaper to make", est = "Estimate (no price yet)" })[e.src or ""] or "No price"
     GameTooltip:AddDoubleLine("Price each", NW.Money(e.price), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     GameTooltip:AddDoubleLine("From", srcText, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    -- every price there is for it, so you can see why that one was used
+    local vendor, ah, craft = NW.PriceParts(e.id)
+    if vendor or ah or craft then
+      GameTooltip:AddLine(" ")
+      if ah then GameTooltip:AddDoubleLine("Auction", NW.Money(ah), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+      if vendor then GameTooltip:AddDoubleLine("Vendor", NW.Money(vendor), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+      if craft then GameTooltip:AddDoubleLine("Make it", NW.Money(craft), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+    end
+    if e.need and e.need > 1 and e.price then
+      GameTooltip:AddDoubleLine(("x%d"):format(e.need), NW.Money(e.price * e.need), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    end
+    if card and e.maker then GameTooltip:AddLine("Click: how to make it", 0.91, 0.77, 0.42) end
     local age = e.src == "ah" and NW.PriceAge(e.id)
     if age then GameTooltip:AddDoubleLine("Last scanned", age == 0 and "today" or (age .. " days ago"), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     GameTooltip:Show()
@@ -479,6 +502,13 @@ for i = 1, SHOP_ROWS do
   row:SetScript("OnClick", function(self)
     local e = self.entry
     if not e then return end
+    -- a material you can make: open its recipe
+    if card and e.maker and not IsShiftKeyDown() then
+      card.stack[#card.stack + 1] = { r = card.r, key = card.key }
+      card.r, card.key = e.maker, e.makerKey
+      refresh()
+      return
+    end
     -- Shift-click links it in chat; at the auction house with no chat box open it searches
     if IsShiftKeyDown() and e.id then
       local typing = ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()
@@ -645,7 +675,7 @@ drawShop = function()
     elseif e then
       row.icon:SetTexture(itemIcon(e.id))
       local have = e.have > 0 and ("|cff8cdb7a%d|r/"):format(math.min(e.have, e.need)) or ""
-      row.name:SetText(("%s%d  %s"):format(have, e.need, (itemName(e.id))))
+      row.name:SetText(("%s%d  %s%s|r"):format(have, e.need, e.maker and card and "|cffe8c46a" or "|cffe6e6eb", (itemName(e.id))))
       local tag = e.src == "vendor" and " |cff94949av|r" or e.src == "est" and " |cffeb5c4c~|r" or ""
       row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (NW.Money(e.cost, true) .. tag))
     else
@@ -1089,7 +1119,7 @@ local function drawProfitRows(key)
     if e then
       local r = e.r
       row:Show()
-      row:SetSelected(false)
+      row:SetSelected(card ~= nil and (card.r == r or (card.stack[1] and card.stack[1].r == r)) or false)
       row.icon:SetTexture(r.icon or recipeIcon(r))
       row.icon:Show()
       row.crafts:SetText("")
@@ -1171,6 +1201,42 @@ local function drawProfit(p)
     "|cff94949aClick a recipe to search the auction house for what it makes. Shift-click links it in chat.|r",
   }
   infoText:SetText(table.concat(lines, "\n"))
+end
+
+-- The opened recipe: its materials as a list, each with its price
+local function drawCard()
+  local r = card.r
+  local list = {}
+  for _, re in ipairs(r.reagents) do
+    local price, src = NW.Price(re[1])
+    local have = NW.ItemCount(re[1]) or 0
+    local maker, makerKey = NW.RecipeFor(re[1])
+    list[#list + 1] = { id = re[1], need = re[2], have = have, buy = math.max(0, re[2] - have),
+      price = price, src = src, cost = price and price * re[2] or nil, maker = maker, makerKey = makerKey }
+  end
+  shop = list
+  shopOffset = 0
+  drawShop()
+  local profit, cost, sale = NW.RecipeProfit(r)
+  rHead.text:SetText(r.name)
+  local parts = {}
+  if sale then parts[#parts + 1] = "Sells " .. NW.Money(sale, true) end
+  parts[#parts + 1] = "materials " .. NW.Money(cost or 0, true)
+  if profit then parts[#parts + 1] = signedMoney(profit) end
+  rTotal:SetText(table.concat(parts, "  ·  "))
+  local prev = card.stack[#card.stack]
+  cardBack:SetText(prev and ("< " .. prev.r.name) or "< All recipes")
+  -- how you get to make it
+  local prof = NW.PROF_BY_KEY[card.key]
+  local req = r.orange or r.yellow
+  local lines = {
+    ("|cffe8c46a%s|r%s"):format(prof and prof.name or "", req and req > 0 and (", skill " .. req) or ""),
+    (sourceText(card.key, r, NW.ProfSkill(card.key))),
+  }
+  if (r.yield or 1) > 1 then lines[#lines + 1] = ("Makes %d per craft"):format(r.yield) end
+  lines[#lines + 1] = ""
+  lines[#lines + 1] = "|cff94949aHover a material for its prices. Gold ones can be made: click to see how.|r"
+  tips:SetText(table.concat(lines, "\n"))
 end
 
 local function drawMissing(p)
@@ -1289,9 +1355,15 @@ for _, row in ipairs(stepRows) do
     local r = self.missingRecipe
     if self.linked or not r then return end
     if self.profitRow then
-      -- Profit view: look up what it makes
-      local n, ok = r.item and itemName(r.item)
-      if ok then searchAH({ { n, 1 } }) end
+      if IsAltKeyDown() then
+        -- Alt-click: look up what it makes at the auction house
+        local n, ok = r.item and itemName(r.item)
+        if ok then searchAH({ { n, 1 } }) end
+        return
+      end
+      -- open it on the right: materials and what each costs
+      card = { r = r, key = selected, stack = {} }
+      refresh()
       return
     end
     if r.src ~= "recipe" and r.src ~= "scan" then return end
@@ -1351,21 +1423,29 @@ refresh = function()
     priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -6)
     priceLine:SetHeight(26)
   end
-  optRow:SetShown(isCraft and not isMissing)
+  -- an opened recipe belongs to the Profit view of one profession
+  local cardKey = selected .. ":" .. mode
+  if not isProfit or cardKey ~= lastCardKey then card = nil end
+  lastCardKey = cardKey
+  local showCard = card ~= nil
+  local planPanel = isCraft and not isMissing
+  optRow:SetShown(planPanel)
   priceLine:SetShown(isCraft)
-  shopBox:SetShown(isCraft and not isMissing)
-  searchBtn:SetShown(isCraft and not isMissing)
-  tips:SetShown(isCraft and not isMissing)
+  shopBox:SetShown(planPanel or showCard)
+  searchBtn:SetShown(planPanel or showCard)
+  tips:SetShown(planPanel or showCard)
   tips:SetText(NW.PROF_TIPS[p.key] or "")
-  rTotal:SetShown(isCraft and not isMissing)
-  targetSlider:SetShown(isCraft and not isMissing)
+  rTotal:SetShown(planPanel or showCard)
+  cardBack:SetShown(showCard)
+  targetSlider:SetShown(planPanel)
   if targetSlider:IsShown() then targetSlider:Refresh() end
-  info:SetShown(not isCraft or isMissing)
+  info:SetShown((not isCraft or isMissing) and not showCard)
   rHead.text:SetText(isProfit and "Profit" or isMissing and "Where to get them" or isCraft and "Shopping list" or (p.key == "fishing" and "Fishing + Cooking" or "Notes"))
   scrollDraw = isProfit and function() drawProfitRows(p.key) end
     or isMissing and function() drawMissingRows(p.key) end
     or (not isCraft and function() drawGatherRows(p.key) end) or nil
   if isProfit then drawProfit(p) elseif isMissing then drawMissing(p) elseif isCraft then drawCraft(p) else drawGather(p) end
+  if showCard then drawCard() end
 end
 NW.RefreshProfessions = function() if page:IsShown() then refresh() end end
 

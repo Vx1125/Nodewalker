@@ -474,6 +474,41 @@ local function auctionator(id)
   if ok and type(price) == "number" and price > 0 then return price end
 end
 
+-- The recipe that makes an item, in any profession: recipe, profession key
+local makerOf
+function NW.RecipeFor(itemID)
+  if not makerOf then
+    makerOf = {}
+    for _, src in ipairs({ NW.RECIPES, NW.CATALOG }) do
+      for key, list in pairs(src) do
+        for _, r in ipairs(list) do
+          if r.item and not makerOf[r.item] then makerOf[r.item] = { r, key } end
+        end
+      end
+    end
+  end
+  local m = makerOf[itemID]
+  if m then return m[1], m[2] end
+end
+
+-- Every price Nodewalker has for an item: vendor, auction, and what it costs
+-- to make (each, from its recipe's materials). Any of them can be nil.
+function NW.PriceParts(itemID)
+  local vendor = NW.db.vendorPrices[itemID] or VENDOR[itemID]
+  local ah = auctionator(itemID)
+  local craft
+  local r = NW.RecipeFor(itemID)
+  if r then
+    local cost, ok = 0, true
+    for _, re in ipairs(r.reagents) do
+      local p, src = NW.Price(re[1])
+      if p and src ~= "est" then cost = cost + p * re[2] else ok = false break end
+    end
+    if ok and #r.reagents > 0 then craft = cost / (r.yield or 1) end
+  end
+  return vendor, ah, craft
+end
+
 -- What one craft earns: the auction price of what it makes, less the 5% cut,
 -- minus its materials at today's prices. Returns profit, cost, sale and
 -- whether a material had no real price. profit is nil with no sale price.
