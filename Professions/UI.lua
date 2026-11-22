@@ -40,6 +40,8 @@ local LIST_W = 196
 local list = UI.Box(page, LIST_W, #NW.PROFS * 34 + 10)
 list:SetPoint("TOPLEFT", 16, -8)
 local profRows = {}
+local mode, openMode
+local firstOpen = true -- the first look picks the view that fits your skill
 for i, p in ipairs(NW.PROFS) do
   local b = CreateFrame("Button", nil, list)
   b:SetSize(LIST_W - 2, 34)
@@ -56,10 +58,18 @@ for i, p in ipairs(NW.PROFS) do
   b.skill = UI.Text(b, 11, S.dim, "RIGHT")
   b.skill:SetPoint("RIGHT", -8, 0)
   b.prof = p
-  b:SetScript("OnClick", function() selected = p.key; st().profSelected = p.key; refresh() end)
+  b:SetScript("OnClick", function()
+    if selected ~= p.key then mode = openMode(p.key) end
+    selected = p.key; st().profSelected = p.key; refresh()
+  end)
   profRows[i] = b
 end
-local mode = "plan" -- plan | missing | profit
+mode = "plan" -- plan | missing | profit
+-- Opening a profession: there's nothing to level at 300, so show what pays
+function openMode(key)
+  local skill = NW.ProfSkill(key)
+  return (skill and skill >= 300) and "profit" or "plan"
+end
 local modeBtns = {}
 local listNote = UI.Text(page, 11, S.dim)
 listNote:SetPoint("TOPLEFT", list, "BOTTOMLEFT", 2, -10)
@@ -98,14 +108,15 @@ viewRow:SetSize(MID_W, 26)
 do
   local VIEWS = {
     { "plan", "Leveling", "Cheapest way to level, with a shopping list." },
-    { "missing", "Recipes", "Every recipe: what you're missing and where it comes from." },
+    { "missing", "Missing recipes", "Recipes you don't know yet and where each comes from." },
     { "profit", "Profit", "What each craft earns at today's prices." },
   }
-  local W = 96
+  local WIDTHS, x = { 84, 124, 76 }, 0
   for i, v in ipairs(VIEWS) do
     local b = CreateFrame("Button", nil, viewRow, "BackdropTemplate")
-    b:SetSize(W, 26)
-    b:SetPoint("LEFT", (i - 1) * (W + 4), 0)
+    b:SetSize(WIDTHS[i], 26)
+    b:SetPoint("LEFT", x, 0)
+    x = x + WIDTHS[i] + 4
     UI.Flat(b, S.cell, S.edge)
     b.label = UI.Text(b, 12, S.text, "CENTER")
     b.label:SetPoint("CENTER")
@@ -140,18 +151,18 @@ local optRow = CreateFrame("Frame", nil, mid)
 optRow:SetPoint("TOPLEFT", viewRow, "BOTTOMLEFT", 0, -8)
 optRow:SetSize(MID_W, 20)
 local opts = {
-  UI.Check(optRow, "Use recipes to buy or find", function() return st().planRecipeItems end,
+  UI.Check(optRow, "Allow recipes I must buy", function() return st().planRecipeItems end,
     function(v) st().planRecipeItems = v; NW.InvalidatePlans() end,
-    "Lets the plan use recipes from vendors and drops, not just the trainer. Recipes you already know are always used."),
-  UI.Check(optRow, "Whole guide from 1", function() return st().planFromStart end,
-    function(v) st().planFromStart = v; refresh() end, "Show every step, not just from your current skill."),
-  UI.Dropdown(optRow, 150, "Crafts", { { false, "Keep" }, { true, "Sell" }, { "de", "Disenchant" } },
+    "On: the plan may use recipes from vendors and drops, and adds them to the shopping list. Off: trainer recipes and ones you know."),
+  UI.Check(optRow, "From skill 1", function() return st().planFromStart end,
+    function(v) st().planFromStart = v; refresh() end, "On: every step from 1. Off: only what's left from your skill."),
+  UI.Dropdown(optRow, 156, "", { { false, "Keep what I make" }, { true, "Sell what I make" }, { "de", "Disenchant it" } },
     function() return st().planSellBack or false end,
-    function(v) st().planSellBack = v; NW.InvalidatePlans(); refresh() end, 100,
-    "Picks recipes by what they cost after you sell or disenchant what you make. Sell counts half the auction value."),
+    function(v) st().planSellBack = v; NW.InvalidatePlans(); refresh() end, 156,
+    "Keep: cheapest materials. Sell or Disenchant: cheapest after what you get back. Sell counts half the auction value."),
 }
 opts[1]:SetPoint("LEFT", 2, 0)
-opts[2]:SetPoint("LEFT", 190, 0)
+opts[2]:SetPoint("LEFT", 206, 0)
 opts[3]:SetPoint("RIGHT", 0, 0)
 
 local priceLine = UI.Text(mid, 11, S.dim)
@@ -196,6 +207,19 @@ end)
 
 local stepsBox = UI.Box(mid, MID_W, 382)
 stepsBox:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -38)
+-- What each column is, per view
+local caps = {}
+for i, c in ipairs({ { "BOTTOMLEFT", "TOPLEFT", 9 }, { "BOTTOMLEFT", "TOPLEFT", 73 }, { "BOTTOMRIGHT", "TOPRIGHT", -107 }, { "BOTTOMRIGHT", "TOPRIGHT", -19 } }) do
+  local t = UI.Text(mid, 10, S.dim, i > 2 and "RIGHT" or "LEFT")
+  t:SetPoint(c[1], stepsBox, c[2], c[3], 3)
+  caps[i] = t
+end
+local CAPS = {
+  plan = { "Skill", "Craft this", "How many", "Cost" },
+  missing = { "Skill", "Recipe and where it comes from", "", "" },
+  profit = { "Return", "Recipe", "", "Profit each" },
+  gather = { "Skill", "Gather", "", "" },
+}
 stepsBox:EnableMouseWheel(true)
 local STEP_H, STEP_ROWS = 47, 8
 local stepRows = {}
@@ -398,10 +422,13 @@ local cardBack = UI.Button(right, "", RIGHT_W, function()
 end, 24)
 cardBack:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -14)
 cardBack:Hide()
-local shopBox = UI.Box(right, RIGHT_W, 266)
+local KEY = "|cffff8040Orange|r recipes always skill up, |cffffff00yellow|r often, |cff40bf40green|r rarely.\n"
+  .. "|cffe6e6eb6/78|r is have / need.  |cffe6e6ebv|r a vendor sells it.  |cffe6e6ebfind|r it isn't on the auction house.\n"
+  .. "Shift-click anything to search the auction house.\n\n"
+local shopBox = UI.Box(right, RIGHT_W, 240)
 shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
 shopBox:EnableMouseWheel(true)
-local SHOP_H, SHOP_ROWS = 26, 10
+local SHOP_H, SHOP_ROWS = 26, 9
 local RECIPE_PREFIX, sourceText -- set further down
 -- Shift-click: put an item (or a recipe's spell) into chat. With no chat box
 -- open, `open` starts one. Returns true when the link went somewhere.
@@ -530,7 +557,7 @@ for i = 1, SHOP_ROWS do
   shopRows[i] = row
 end
 local drawShop
-local shopScroll = makeScroller(shopBox, 266, SHOP_ROWS, function() return #shop end,
+local shopScroll = makeScroller(shopBox, 240, SHOP_ROWS, function() return #shop end,
   function() return shopOffset end, function(v) shopOffset = v; drawShop() end)
 shopBox:SetScript("OnMouseWheel", function(_, d)
   shopOffset = math.max(0, math.min(math.max(0, #shop - SHOP_ROWS), shopOffset - d))
@@ -756,7 +783,7 @@ local function drawCraft(p)
   -- the headline is what you pay; sale value is shown beside it, never taken off
   hCost:SetText(NW.Money(plan.spend or plan.total))
   -- two short lines, so it never runs into the skill line on the left
-  local sub = ("to %d from %d"):format(to, from)
+  local sub = ("cost to reach %d from %d"):format(to, from)
   if plan.fees and plan.fees > 0 then sub = sub .. (" · %s training"):format(NW.Money(plan.fees, true)) end
   if plan.unknown > 0 then sub = sub .. (" · %d unpriced"):format(plan.unknown) end
   local back = (plan.spend or plan.total) - plan.total
@@ -811,7 +838,7 @@ local function drawCraft(p)
   local ah = NW.HasAuctionator()
   local nextUp = rankLine(p.key)
   priceLine:SetText(not ah and "|cffeb5c4cAuctionator isn't loaded:|r using vendor prices and rough estimates. Install or enable it for live prices."
-    or nextUp or "Prices: Auctionator's last scan, vendor prices, and making it yourself when that's cheaper. Rescan the AH to update.")
+    or nextUp or "Buy the shopping list on the right, then craft each step in order.")
 end
 
 ------------------------------------------------------------------------
@@ -1210,7 +1237,7 @@ local function drawProfit(p)
   hCost:SetText(("%d worth making"):format(good))
   hCostSub:SetText(("of %d recipes"):format(#steps))
   priceLine:SetText(NW.HasAuctionator()
-    and "Profit per craft, best first: sale price less the 5% cut, minus materials. Search to include recipes you don't know."
+    and "What each craft earns at today's prices, best first. Click one for its materials."
     or "|cffeb5c4cAuctionator isn't loaded:|r profit needs its auction prices.")
   local lines = {
     ("|cff8cdb7a%d|r make a profit"):format(good),
@@ -1327,7 +1354,7 @@ local function drawMissing(p)
   hCost:SetText(searchText ~= "" and ("%d found"):format(found) or ("%d missing"):format(nMissing))
   hCostSub:SetText(fullList and "from the game's full recipe list" or scanned and "of the recipes in Nodewalker's data"
     or "|cffeb5c4cOpen your profession window once|r so this knows what you have")
-  priceLine:SetText("Recipes you don't know. Search by recipe, material, mob or zone to see any recipe, known ones too.")
+  priceLine:SetText("Recipes you don't know yet. Click one for its materials. Search finds any recipe.")
   local lines = {
     ("|cff8cdb7a%d|r to learn at the trainer now"):format(counts.now),
     ("%d at the trainer later"):format(counts.later + counts.dim),
@@ -1438,6 +1465,7 @@ refresh = function()
   hSkill:SetText((rank and ("Skill %d / %d"):format(rank, max or 300) or "You don't have this profession")
     .. rankNote(p.key))
   NW.SetWindowSubtitle(p.name)
+  if firstOpen then firstOpen = nil mode = openMode(selected) end
 
   local isCraft = p.kind == "craft"
   local isProfit = isCraft and mode == "profit"
@@ -1451,11 +1479,13 @@ refresh = function()
   priceLine:ClearAllPoints()
   if isMissing then
     priceLine:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, -2)
-    priceLine:SetHeight(50)
+    priceLine:SetHeight(36)
   else
-    priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -6)
-    priceLine:SetHeight(26)
+    priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -5)
+    priceLine:SetHeight(13)
   end
+  local capSet = CAPS[isProfit and "profit" or isMissing and "missing" or isCraft and "plan" or "gather"]
+  for i, t in ipairs(caps) do t:SetText(capSet[i]) end
   -- an opened recipe belongs to the Profit view of one profession
   local cardKey = selected .. ":" .. mode
   if not (isProfit or isMissing) or cardKey ~= lastCardKey then card = nil end
@@ -1467,7 +1497,7 @@ refresh = function()
   shopBox:SetShown(planPanel or showCard)
   searchBtn:SetShown(planPanel or showCard)
   tips:SetShown(planPanel or showCard)
-  tips:SetText(NW.PROF_TIPS[p.key] or "")
+  tips:SetText(KEY .. (NW.PROF_TIPS[p.key] or ""))
   rTotal:SetShown(planPanel or showCard)
   cardBack:SetShown(showCard)
   targetSlider:SetShown(planPanel)
@@ -1489,7 +1519,7 @@ function NW.ToggleProfessions() NW.ToggleWindow("profs") end
 ------------------------------------------------------------------------
 function NW.OpenProfession(key)
   if key then selected = key; st().profSelected = key end
-  mode = "plan"
+  mode = openMode(selected or key or "alchemy")
   if NW.window:IsShown() then NW.ShowTab("profs") else st().lastTab = "profs"; NW.window:Show() end
 end
 
