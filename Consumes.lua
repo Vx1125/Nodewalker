@@ -30,7 +30,7 @@ local HEALER_PRIEST = {
     { 9179, "+25 Int", "budget" },
   } },
   { "Drink", {
-    { 249870, "+44 healing", "full" },
+    { 238639, "+55 healing, +10 Sta", "full" }, { 249870, "+44 healing", "full" },
     { 249869, "+33 healing", "budget" },
   } },
   { "Weapon oil", {
@@ -69,7 +69,7 @@ NW.CONSUMES = {
         { 9179, "+25 Int", "budget" },
       } },
       { "Drink", {
-        { 249870, "+44 healing", "full" },
+        { 238639, "+55 healing, +10 Sta", "full" }, { 249870, "+44 healing", "full" },
         { 249869, "+33 healing", "budget" },
       } },
       { "Weapon oil", {
@@ -263,7 +263,7 @@ NW.CONSUMES = {
 -- Shared rows
 local CASTER_FOOD = { "Food", { { 13935, "+28 spell damage", "full" }, { 13933, "+28 spell damage", "full" }, { 13931, "+22 spell damage", "budget" } } }
 local CASTER_OIL = { "Weapon oil", { { 20749, "+36 spell damage, 1% spell crit", "full" }, { 20750, "+24 spell damage", "budget" } } }
-local HEAL_FOOD = { "Drink", { { 249870, "+44 healing", "full" }, { 249869, "+33 healing", "budget" } } }
+local HEAL_FOOD = { "Drink", { { 238639, "+55 healing, +10 Sta", "full" }, { 249870, "+44 healing", "full" }, { 249869, "+33 healing", "budget" } } }
 local HEAL_OIL = { "Weapon oil", {
   { 20749, "+36 healing, 1% spell crit", "full" },
   { 20748, "15 mana / 5s, +30 healing", "full" },
@@ -284,8 +284,8 @@ local CASTER_POTS = { "Potions", {
   { 250954, "+105 spell damage vs elementals", "full" },
   { 250953, "For mass AoE", "full" },
 } }
-local MELEE_FOOD = { "Food", { { 20452, "+20 Str", "full" }, { 13934, "+40 attack power", "full" }, { 13932, "+40 attack power", "full" }, { 250071, "+20 Str", "budget" } } }
-local AGI_FOOD = { "Food", { { 13932, "+40 attack power", "full" }, { 13934, "+40 attack power", "full" }, { 250072, "+20 Agi" } } }
+local MELEE_FOOD = { "Food", { { 238637, "+25 Str, +10 Sta", "full" }, { 20452, "+20 Str", "full" }, { 13934, "+40 attack power", "full" }, { 13932, "+40 attack power", "full" }, { 250071, "+20 Str", "budget" } } }
+local AGI_FOOD = { "Food", { { 238638, "+25 Agi, +10 Sta", "full" }, { 13932, "+40 attack power", "full" }, { 13934, "+40 attack power", "full" }, { 250072, "+20 Agi" } } }
 
 local function add(t) NW.CONSUMES[#NW.CONSUMES + 1] = t end
 
@@ -544,6 +544,7 @@ local HINT = {
   Suggested = "best you can use at your level",
   ["Also helpful"] = "for your other buff slots",
   Situational = "when the fight calls for it",
+  Camp = "at a campfire, 1 hour shared cooldown",
 }
 
 local function itemName(id)
@@ -660,11 +661,15 @@ local LADDER = {
   sSpi = { 10306, 4424, 1712, 1181 },
   sSta = { 10307, 4422, 1711, 1180 },
   sArm = { 10305, 4421, 1478, 3013 },
-  fStr = { { 250071, 20452, 13934 }, { 13932 }, { 250065 }, { 250074, 274976, 8364 }, { 5480, 2685 }, { 4592 }, { 3726, 3220, 2687, 724 }, { 787 }, { 2888, 2681, 6890 } },
-  fAgi = { { 250072, 13934 }, { 13932 }, { 12212, 18045 }, { 13928, 13929 }, { 13851, 20074, 3728 }, { 8364 }, { 3664, 3727, 12209, 1017 }, { 4592 }, { 2684, 3662 }, { 787 }, { 2680 } },
+  fStr = { { 238637 }, { 250071, 250070, 20452, 13934 }, { 13932 }, { 250065 }, { 250074, 274976, 8364 }, { 5480, 2685 }, { 4592 }, { 3726, 3220, 2687, 724 }, { 787 }, { 2888, 2681, 6890 } },
+  fAgi = { { 238638 }, { 250072, 250069, 13934 }, { 13932 }, { 12212, 18045 }, { 13928, 13929 }, { 13851, 20074, 3728 }, { 8364 }, { 3664, 3727, 12209, 1017 }, { 4592 }, { 2684, 3662 }, { 787 }, { 2680 } },
   fSpell = { { 13935, 13933 }, { 13931, 6887 }, { 274971 }, { 4457, 250073, 12216 }, { 21217 }, { 12210 }, { 21072 }, { 2683, 1082, 250077 }, { 2682, 12224, 5477, 250079 } },
-  fHeal = { { 249870 }, { 249869 }, { 4457, 250073, 12216 }, { 12210 }, { 249866 }, { 2683, 1082, 250077 }, { 249865 } },
+  fHeal = { 238639, 249870, 249869, 249868, 249867, 249866, 249865 },
   fArmor = { 286152 },
+  rum = { 21151, { 21114, 17048 }, 20709 },
+  instant = { 8928, 8927, 8926, 6950, 6949, 6947 }, deadly = { 20844, 8985, 8984, 2893, 2892 },
+  familiar = { 277493, 277483, 275069 },
+  wheel = { 279944 }, lodestone = { 279960 }, chair = { 279979 }, well = { 279956 }, bannerH = { 279972 }, bannerA = { 279973 },
   bandage = { 14530, 14529, 8545, 8544, 6451, 6450, 3531, 3530, 2581, 1251 },
   freeAction = { 5634 }, swift = { 2459 }, stoneshield = { 13455, 4623 }, invuln = { 3387 },
   rejuv = { 18253, 2456 }, discolored = { 247242, 247241, 247240, 247239, 4596 },
@@ -723,6 +728,16 @@ local ITEM = {
   [3665] = { 15, "+5 Sta" }, [5527] = { 15, "+5 Sta" }, [3666] = { 15, "+5 Sta" }, [12214] = { 15, "+5 Sta" }, [3729] = { 15, "+5 Sta" },
   [3663] = { 1, "+3 Sta" }, [250080] = { 5, "+3 Sta" }, [12213] = { 5, "+3 Sta" }, [5526] = { 5, "+3 Sta" }, [5479] = { 5, "+3 Sta" },
   [6888] = { 1, "+1 Sta" }, [5472] = { 1, "+1 Sta" }, [5474] = { 1, "+1 Sta" }, [5525] = { 1, "+1 Sta" },
+  [238637] = { 55, "+25 Str, +10 Sta" }, [238638] = { 55, "+25 Agi, +10 Sta" }, [238639] = { 55, "+55 healing, +10 Sta" },
+  [250070] = { 45, "+20 Str" }, [250069] = { 45, "+20 Agi" }, [249868] = { 25, "+22 healing" }, [249867] = { 15, "+11 healing" },
+  [21151] = { 0, "+15 Sta, stacks with food" }, [21114] = { 0, "+10 Sta, stacks with food" }, [17048] = { 0, "+10 Sta, stacks with food" },
+  [20709] = { 0, "+5 Sta, stacks with food" },
+  [8928] = { 60, "main hand" }, [8927] = { 52, "main hand" }, [8926] = { 44, "main hand" }, [6950] = { 36, "main hand" },
+  [6949] = { 28, "main hand" }, [6947] = { 20, "main hand" },
+  [20844] = { 60, "off hand" }, [8985] = { 54, "off hand" }, [8984] = { 46, "off hand" }, [2893] = { 38, "off hand" }, [2892] = { 30, "off hand" },
+  [277493] = { 25, "+12 Int" }, [277483] = { 16, "+6 Int" }, [275069] = { 5, "+2 Int" },
+  [279944] = { 0, "+34 Str" }, [279960] = { 0, "+90 attack power" }, [279979] = { 0, "+2% crit" }, [279956] = { 0, "29 mana / 5s" },
+  [279972] = { 0, "+32 Spirit" }, [279973] = { 0, "+32 Spirit" },
   [286152] = { 35, "+150 armor" }, [250336] = { 55, "9 health, 10 mana / 5s" },
   [5634] = { 20, "no stuns or roots, 30s" }, [2459] = { 5, "+50% run speed, 15s" },
   [13455] = { 46, "+2000 armor, 2 min" }, [4623] = { 33, "+1000 armor, 90s" }, [3387] = { 45, "immune to physical, 6s" },
@@ -829,7 +844,7 @@ local function levelList(spec)
   local out = { key = spec.key .. ":level", label = ("%s  ·  level %d"):format(spec.label, level), groups = {} }
   local roleKey = ROLE_OF[spec.key] or "str"
   local firstAid = NW.ProfSkill("firstaid")
-  for gi, heading in ipairs({ "Suggested", "Also helpful", "Situational" }) do
+  for gi, heading in ipairs({ "Suggested", "Also helpful", "Situational", "Camp" }) do
     local rows = {}
     local function put(sl)
       if sl == "school" then
@@ -851,7 +866,19 @@ local function levelList(spec)
     if gi == 1 and MANA_TOO[spec.key] then put(slot("Potion", "manapot", 3)) end
     if gi == 1 and firstAid then put(slot("Bandage", "bandage", 3)) end
     if gi == 2 and spec.class == "WARRIOR" then put(slot("Potion", "rage", 3)) end
+    if gi == 1 and spec.key == "rogue" then put(slot("Poison", "instant", 2)) put(slot("Poison", "deadly", 2)) end
     if gi == 2 and roleKey == "tank" then put(slot("Food", "fArmor", 2)) end
+    if gi == 2 and spec.key == "mage" then put(slot("Scroll", "familiar")) end
+    if gi == 2 then put(slot("Drink", "rum", 4)) end
+    if gi == 4 then
+      if roleKey == "str" or roleKey == "tank" then put(slot("Camp", "wheel", 1, "camp")) put(slot("Camp", "lodestone", 1, "camp")) end
+      if roleKey == "agi" then put(slot("Camp", "lodestone", 1, "camp")) end
+      if roleKey == "caster" or roleKey == "heal" then put(slot("Camp", "well", 1, "camp")) end
+      if roleKey ~= "tank" then put(slot("Camp", "chair", 1, "camp")) end
+      if roleKey == "heal" then
+        put(slot("Camp", UnitFactionGroup and UnitFactionGroup("player") == "Alliance" and "bannerA" or "bannerH", 1, "camp"))
+      end
+    end
     if gi == 2 and MANA_TOO[spec.key] then put(slot("Elixir", "wicked")) end
     if gi == 3 then
       put(slot("Potion", "freeAction")) put(slot("Potion", "swift")) put(slot("Potion", "discolored"))
