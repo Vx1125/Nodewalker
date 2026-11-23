@@ -541,6 +541,8 @@ local HINT = {
   Weapon = "one per weapon",
   Potions = "share a cooldown",
   Protection = "share the potion cooldown",
+  Suggested = "best you can use at your level",
+  ["Also helpful"] = "for your other buff slots",
 }
 
 local function itemName(id)
@@ -620,6 +622,136 @@ local function nodeFor(itemID)
 end
 
 ------------------------------------------------------------------------
+-- Leveling: the best of each kind you can use at your level
+------------------------------------------------------------------------
+-- Ladders run best first. The game says what level each item needs, so an
+-- item it doesn't know is never offered.
+local LADDER = {
+  strength = { 250351, 13453, 9206, 250349, 3391, 2454 },
+  agility = { 13452, 250328, 9187, 8949, 3390, 2457 },
+  intellect = { 250337, 9179, 250354, 250353, 3383 },
+  spirit = { 250347, 250346, 250345, 250344 },
+  spell = { 13454, 9155, 250342, 247754 },
+  healing = { 250333, 250332, 250331, 250330 },
+  regen = { 250341, 20007, 250340, 250339 },
+  health = { 250335, 250334, 3825, 2458 },
+  armor = { 250329, 13445, 8951, 3389, 5997 },
+  troll = { 20004, 3826, 3388, 3382 },
+  fire = { 6373 }, frost = { 17708 }, shadow = { 9264 }, holy = { 21546 }, nature = { 250343 },
+  healpot = { 13446, 3928, 1710, 929, 858, 118 },
+  manapot = { 13444, 13443, 6149, 3827, 3385, 2455 },
+  frenzy = { 250943, 250942, 250941, 250940, 250939, 250938 },
+  blast = { 250937, 250936, 250935, 250934, 250933, 250932 },
+  mender = { 250949, 250948, 250947, 250946, 250945, 250944 },
+  rage = { 13442, 5633, 5631 },
+  sharp = { 12404, 7964, 2871, 2863, 2862 },
+  blunt = { 12643, 7965, 3241, 3240, 3239 },
+  wizard = { 20749, 20750, 20746, 20744 },
+  manaoil = { 20748, 20747, 20745 },
+  sStr = { 10310, 4426, 2289, 954 }, sAgi = { 10309, 4425, 1477, 3012 },
+  sInt = { 10308, 4419, 2290, 955 }, sSpi = { 10306, 4424, 1712, 1181 },
+  sSta = { 10307, 4422, 1711, 1180 }, sArm = { 10305, 4421, 1478, 3013 },
+  -- food: the stat foods first, then plain Well Fed food by tier
+  fStr = { 250071, 13932, 250065, 13851, 3726, 1017, 2683, 2680 },
+  fAgi = { 250072, 13928, 18045, 13851, 3726, 1017, 2683, 2680 },
+  fSpell = { 13931, 250075, 250076, 13851, 3726, 1017, 2683, 2680 },
+  fHeal = { 249870, 249869, 250075, 250076, 13851, 3726, 1017, 2683, 2680 },
+  fSta = { 250068, 17222, 13851, 3726, 1017, 2683, 2680 },
+}
+-- { label, ladder, uses per hour, "or" set }
+local function slot(label, ladder, perHour, set) return { label, ladder, perHour, set } end
+local STONES = { slot("Weapon, sharp", "sharp", 2, "stone"), slot("Weapon, blunt", "blunt", 2, "stone") }
+local ROLES = {
+  str = {
+    { slot("Food", "fStr", 2), slot("Elixir, Strength", "strength"), slot("Elixir, Agility", "agility"), STONES, slot("Potion, health", "healpot", 3) },
+    { slot("Elixir, Health", "health"), slot("Elixir, Armor", "armor"), slot("Elixir, Health regen", "troll"),
+      slot("Potion, attack power", "frenzy", 3), slot("Scroll, Strength", "sStr", 2), slot("Scroll, Agility", "sAgi", 2) },
+  },
+  agi = {
+    { slot("Food", "fAgi", 2), slot("Elixir, Agility", "agility"), slot("Elixir, Strength", "strength"), STONES, slot("Potion, health", "healpot", 3) },
+    { slot("Elixir, Health", "health"), slot("Elixir, Health regen", "troll"),
+      slot("Potion, attack power", "frenzy", 3), slot("Scroll, Agility", "sAgi", 2), slot("Scroll, Strength", "sStr", 2) },
+  },
+  tank = {
+    { slot("Food", "fSta", 2), slot("Elixir, Health", "health"), slot("Elixir, Armor", "armor"), STONES, slot("Potion, health", "healpot", 3) },
+    { slot("Elixir, Strength", "strength"), slot("Elixir, Agility", "agility"), slot("Elixir, Health regen", "troll"),
+      slot("Scroll, Stamina", "sSta", 2), slot("Scroll, Armor", "sArm", 2) },
+  },
+  caster = {
+    { slot("Food", "fSpell", 2), slot("Elixir, Spell damage", "spell"), slot("Elixir, Intellect", "intellect"),
+      slot("Weapon oil", "wizard", 2), slot("Potion, mana", "manapot", 3), slot("Potion, health", "healpot", 3) },
+    { "school", slot("Elixir, Mana regen", "regen"), slot("Elixir, Spirit", "spirit"), slot("Elixir, Health", "health"),
+      slot("Potion, spell damage", "blast", 3), slot("Scroll, Intellect", "sInt", 2), slot("Scroll, Spirit", "sSpi", 2) },
+  },
+  heal = {
+    { slot("Food", "fHeal", 2), slot("Elixir, Healing", "healing"), slot("Elixir, Mana regen", "regen"), slot("Elixir, Intellect", "intellect"),
+      slot("Weapon oil", "manaoil", 2), slot("Potion, mana", "manapot", 3) },
+    { slot("Elixir, Spirit", "spirit"), slot("Elixir, Health", "health"), slot("Potion, healing", "mender", 3),
+      slot("Potion, health", "healpot", 3), slot("Scroll, Intellect", "sInt", 2), slot("Scroll, Spirit", "sSpi", 2) },
+  },
+}
+local ROLE_OF = {
+  ["paladin-holy"] = "heal", ["priest-holy"] = "heal", ["priest-disc"] = "heal", ["druid-resto"] = "heal", ["shaman-resto"] = "heal",
+  ["priest-shadow"] = "caster", ["priest-smite"] = "caster", warlock = "caster", mage = "caster", ["druid-balance"] = "caster", ["shaman-ele"] = "caster",
+  ["warrior-dps"] = "str", ["paladin-ret"] = "str", ["shaman-enh"] = "str",
+  rogue = "agi", hunter = "agi", ["druid-cat"] = "agi",
+  ["warrior-prot"] = "tank", ["paladin-prot"] = "tank", ["druid-bear"] = "tank",
+}
+-- A caster's own school
+local SCHOOL = {
+  mage = { slot("Elixir, Fire", "fire"), slot("Elixir, Frost", "frost") }, warlock = { slot("Elixir, Shadow", "shadow"), slot("Elixir, Fire", "fire") },
+  ["priest-shadow"] = { slot("Elixir, Shadow", "shadow") }, ["priest-smite"] = { slot("Elixir, Holy", "holy") },
+  ["druid-balance"] = { slot("Elixir, Nature", "nature") }, ["shaman-ele"] = { slot("Elixir, Nature", "nature") },
+}
+-- no weapon stones, or no mana, for these
+local NO_STONE = { hunter = true, ["druid-cat"] = true, ["druid-bear"] = true }
+local MANA_TOO = { ["paladin-ret"] = true, ["shaman-enh"] = true, hunter = true, ["paladin-prot"] = true }
+
+-- Best item on a ladder you're high enough for; nil until the game has told us
+local function bestFor(ladder, level)
+  for _, id in ipairs(LADDER[ladder]) do
+    local name, _, _, _, minLevel = NW.ItemInfo(id)
+    if name and (minLevel or 0) <= level then return id end
+    if not name and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+  end
+end
+
+local function playerLevel() return UnitLevel and UnitLevel("player") or 60 end
+
+-- The same shape as a raid list, built for your level
+local function levelList(spec)
+  local level = playerLevel()
+  local role = ROLES[ROLE_OF[spec.key] or "str"]
+  local out = { key = spec.key .. ":level", label = ("%s  ·  level %d"):format(spec.label, level), groups = {} }
+  for gi, heading in ipairs({ "Suggested", "Also helpful" }) do
+    local rows = {}
+    local function put(sl)
+      if sl == "school" then
+        for _, x in ipairs(SCHOOL[spec.key] or {}) do put(x) end
+      elseif type(sl[1]) == "table" then
+        if not NO_STONE[spec.key] then for _, x in ipairs(sl) do put(x) end end
+      else
+        local id = bestFor(sl[2], level)
+        if id then rows[#rows + 1] = { id, sl[1], nil, sl[4], sl[3] } end
+      end
+    end
+    for _, sl in ipairs(role[gi]) do put(sl) end
+    if gi == 1 and MANA_TOO[spec.key] then put(slot("Potion, mana", "manapot", 3)) end
+    if gi == 2 and spec.class == "WARRIOR" then put(slot("Potion, rage", "rage", 3)) end
+    out.groups[gi] = { heading, rows }
+  end
+  return out
+end
+
+-- Which list: "level", "raid" or "budget". Below 60 it starts on your level.
+local function listMode()
+  local m = st().consumeList
+  if m then return m end
+  if playerLevel() < 60 then return "level" end
+  return st().consumeBudget and "budget" or "raid"
+end
+
+------------------------------------------------------------------------
 -- Top row
 ------------------------------------------------------------------------
 local head = UI.Heading(page, "", LEFT_W)
@@ -633,17 +765,20 @@ local specDrop = UI.Dropdown(page, 190, "Spec", specItems, function() return cur
   refresh()
 end, 150)
 specDrop:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -6)
-local stockDrop = UI.Dropdown(page, 170, "Stock", { { 0, "One of each" }, { 2, "2 hour raid" }, { 3, "3 hour raid" }, { 4, "4 hour raid" } },
+local stockDrop = UI.Dropdown(page, 170, "Stock", { { 0, "One of each" }, { 2, "2 hours" }, { 3, "3 hours" }, { 4, "4 hours" } },
   function() return st().consumeHours or 0 end, function(v)
     st().consumeHours = v
     refresh()
   end, 120, "How much to carry: buffs by their duration, potions at 5 an hour.")
 stockDrop:SetPoint("LEFT", specDrop, "RIGHT", 18, 0)
-local budget = UI.Check(page, "Budget", function() return st().consumeBudget end, function(v)
-  st().consumeBudget = v
-  offset = 0
-  refresh()
-end)
+local budget = UI.Dropdown(page, 140, "List", { { "level", "My level" }, { "raid", "Raid best" }, { "budget", "Raid budget" } },
+  listMode, function(v)
+    st().consumeList = v
+    st().consumeBudget = v == "budget"
+    selectedItem = nil
+    offset = 0
+    refresh()
+  end, 108)
 budget:SetPoint("LEFT", stockDrop, "RIGHT", 18, 0)
 
 local listBox = UI.Box(page, LEFT_W, MAX_ROWS * ROW_H + 2)
@@ -725,7 +860,7 @@ for i = 1, MAX_ROWS do
   row:SetScript("OnClick", function(self, button)
     if not self.item then return end
     if button == "RightButton" then
-      local h = hiddenOf(currentList().key)
+      local h = hiddenOf(currentList().key .. (listMode() == "level" and ":level" or ""))
       h[self.item] = (not h[self.item]) or nil
       refresh()
       return
@@ -855,11 +990,13 @@ end
 refresh = function()
   if not page:IsShown() then return end
   local list = currentList()
+  local mode = listMode()
+  if mode == "level" then list = levelList(list) end
   head.text:SetText(list.label)
   budget:Refresh()
   specDrop:Refresh()
   stockDrop:Refresh()
-  local wantBudget = st().consumeBudget
+  local wantBudget = mode == "budget"
   local hours = st().consumeHours or 0
   local hidden = hiddenOf(list.key)
   local nHidden = 0
@@ -871,7 +1008,7 @@ refresh = function()
   for _, g in ipairs(list.groups) do
     local at = #shown + 1
     shown[at] = { header = g[1] }
-    local need = hours > 0 and math.max(1, math.ceil((PER_HOUR[g[1]] or 1) * hours)) or 1
+    local perHour = PER_HOUR[g[1]] or 1
     local sets = {}
     for _, c in ipairs(g[2]) do
       local tier = c[3]
@@ -884,7 +1021,7 @@ refresh = function()
         -- only what you could make yourself counts as a way to get it
         local make = m and m.skill and m.cost or nil
         -- a buff with a stated duration is counted exactly
-        local mine = need
+        local mine = hours > 0 and math.max(1, math.ceil((c[5] or perHour) * hours)) or 1
         local lasts = hours > 0 and minutesOf(c[1])
         if lasts then mine = math.max(1, math.ceil(hours * 60 / lasts)) end
         local e = { id = c[1], effect = c[2], price = price, have = have, make = make, m = m,
