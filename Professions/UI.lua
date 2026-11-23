@@ -770,6 +770,7 @@ drawSteps = function()
     row.step = stp
     row.bracket = nil
     row.missingRecipe = nil
+    row.sectionRow = nil
     row.profitRow = nil
     row:SetCraft()
     if stp then
@@ -1008,6 +1009,7 @@ local function drawGatherRows(key)
     row.step = nil
     row:SetCraft()
     row.missingRecipe = nil
+    row.sectionRow = nil
     row.profitRow = nil
     if b then
       row:Show()
@@ -1268,11 +1270,19 @@ local function buildMissing(key)
   return out
 end
 
+-- Sections you've folded away, per profession
+local function collapsedOf(key)
+  local all = st().recipeCollapsed
+  if not all then all = {} st().recipeCollapsed = all end
+  all[key] = all[key] or {}
+  return all[key]
+end
 local function drawMissingRows(key)
   local rank = NW.ProfSkill(key)
   for i, row in ipairs(stepRows) do
     local r = steps[i + stepOffset]
     row.step, row.bracket, row.missingRecipe = nil, nil, r
+    row.sectionRow = r and r.header and r or nil
     row.profitRow = nil
     row:SetCraft()
     if r and r.header then
@@ -1283,7 +1293,8 @@ local function drawMissingRows(key)
       row:SetSelected(false)
       row.range:SetText("")
       row.icon:Hide()
-      row.name:SetText(("|cffe8c46a%s|r  |cff94949a%d|r"):format(r.header, r.count))
+      row.name:SetText(("|TInterface\\Buttons\\UI-%sButton-Up:14:14:-2:0|t |cffe8c46a%s|r  |cff94949a%d|r"):format(
+        r.collapsed and "Plus" or "Minus", r.header, r.count))
       row.crafts:SetText("")
       row.cost:SetText("")
       row.mats:SetText("")
@@ -1317,6 +1328,7 @@ local function drawProfitRows(key)
   for i, row in ipairs(stepRows) do
     local e = steps[i + stepOffset]
     row.step, row.bracket, row.missingRecipe, row.profitRow = nil, nil, e and e.r, e and true or nil
+    row.sectionRow = nil
     row:SetCraft(selected, e and e.r)
     if e then
       local r = e.r
@@ -1463,7 +1475,9 @@ local function drawMissing(p)
   -- Attack Power Food...). They come from your profession window, so this
   -- needs it to have been opened once.
   local found = #steps
+  local everything = steps -- for the counts, whatever is folded away
   do
+    local folded = collapsedOf(p.key)
     local groups, order, anyCat = {}, {}, false
     for _, r in ipairs(steps) do
       local e = r.scanned or scanOf(p.key, r)
@@ -1488,8 +1502,10 @@ local function drawMissing(p)
       end)
       local out = {}
       for _, g in ipairs(order) do
-        out[#out + 1] = { header = g.name, count = #g.rows }
-        for _, r in ipairs(g.rows) do out[#out + 1] = r end
+        -- a search opens every section
+        local shut = folded[g.name] and searchText == "" or false
+        out[#out + 1] = { header = g.name, count = #g.rows, collapsed = shut }
+        if not shut then for _, r in ipairs(g.rows) do out[#out + 1] = r end end
       end
       steps = out
     end
@@ -1504,7 +1520,7 @@ local function drawMissing(p)
   drawMissingRows(p.key)
   local counts = { now = 0, later = 0, merchant = 0, drop = 0, dim = 0 }
   local nMissing = 0
-  for _, r in ipairs(steps) do
+  for _, r in ipairs(everything) do
     if not r.header and not r.knownNow then
       nMissing = nMissing + 1
       local _, kind = sourceText(p.key, r, rank)
@@ -1567,6 +1583,14 @@ for _, row in ipairs(stepRows) do
     if mapID then NW.PinMap(mapID, x, y, who) end
   end)
   row:HookScript("OnClick", function(self)
+    -- a section heading: fold or unfold it
+    local sec = self.sectionRow
+    if sec and not self.linked then
+      local folded = collapsedOf(selected)
+      folded[sec.header] = not folded[sec.header] or nil
+      refresh()
+      return
+    end
     local r = self.missingRecipe
     if self.linked or not r then return end
     if r.header or not r.reagents then return end
