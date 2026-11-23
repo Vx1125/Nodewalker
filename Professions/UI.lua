@@ -214,6 +214,15 @@ local haveMats = UI.Check(mid, "Have materials", function() return st().profitHa
 end, "Only recipes you know and have the materials for in your bags.")
 haveMats:SetPoint("TOPLEFT", optRow, "TOPLEFT", MID_W - 128, -3)
 haveMats:Hide()
+-- Profit: leave out crafts that earn too little to bother with
+local minProfit = UI.Dropdown(mid, 124, "At least", {
+  { 0, "Any" }, { 1000, NW.Money(1000, true) }, { 5000, NW.Money(5000, true) }, { 10000, NW.Money(10000, true) }, { 50000, NW.Money(50000, true) },
+}, function() return st().profitMin or 1000 end, function(v)
+  st().profitMin = v
+  refresh()
+end, 62, "Hides crafts that earn less than this each.")
+minProfit:SetPoint("TOPRIGHT", haveMats, "TOPLEFT", -12, 2)
+minProfit:Hide()
 
 -- Search: filters the list below (recipes, materials, zones)
 local search = CreateFrame("EditBox", nil, mid, "BackdropTemplate")
@@ -1388,22 +1397,31 @@ local function drawProfit(p)
     if a.profit and a.profit ~= b.profit then return a.profit > b.profit end
     return a.r.name < b.r.name
   end)
+  -- "At least": only what earns enough to be worth the clicks. A search shows everything.
+  local everything, floor = steps, st().profitMin or 1000
+  local worth = 0
+  for _, e in ipairs(everything) do if e.profit and e.profit >= math.max(floor, 1) then worth = worth + 1 end end
+  if floor > 0 and not all then
+    steps = {}
+    for _, e in ipairs(everything) do if e.profit and e.profit >= floor then steps[#steps + 1] = e end end
+  end
   if viewChanged then stepOffset = 0 end
   clampOffsets()
   local good, bad, none = 0, 0, 0
-  for _, e in ipairs(steps) do
+  for _, e in ipairs(everything) do
     if not e.profit then none = none + 1 elseif e.profit > 0 then good = good + 1 else bad = bad + 1 end
   end
   local hasKnown = next(known) ~= nil or (scan and next(scan) ~= nil)
   stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "No recipe matches your search."
+    or #everything > 0 and "Nothing earns that much. Lower \"At least\"."
     or st().profitHaveMats and "Nothing you can make from your bags right now."
     or hasKnown and "None of your recipes make something that sells."
     or "Open your profession window once so Nodewalker sees which recipes you know.") or "")
   drawProfitRows(p.key)
-  hCost:SetText(("%d worth making"):format(good))
-  hCostSub:SetText(("of %d recipes"):format(#steps))
+  hCost:SetText(("%d worth making"):format(worth))
+  hCostSub:SetText(("of %d recipes"):format(#everything))
   priceLine:SetText(NW.HasAuctionator()
-    and "What each craft earns at today's prices, best first. Click one for its materials."
+    and "Best first. Click one for its materials."
     or "|cffeb5c4cAuctionator isn't loaded:|r profit needs its auction prices.")
   local lines = {
     ("|cff8cdb7a%d|r make a profit"):format(good),
@@ -1672,8 +1690,9 @@ refresh = function()
     priceLine:SetHeight(13)
   end
   haveMats:SetShown(isProfit)
-  if isProfit then haveMats:Refresh() end
-  priceLine:SetWidth(isProfit and MID_W - 150 or MID_W)
+  minProfit:SetShown(isProfit)
+  if isProfit then haveMats:Refresh() minProfit:Refresh() end
+  priceLine:SetWidth(isProfit and MID_W - 290 or MID_W)
   local capSet = CAPS[isProfit and "profit" or isMissing and "missing" or isCraft and "plan" or "gather"]
   for i, t in ipairs(caps) do t:SetText(capSet[i]) end
   -- an opened recipe belongs to the Profit view of one profession
