@@ -1240,7 +1240,7 @@ local function buildMissing(key)
       have[r.name] = true
       local e = scan and scan[r.name]
       r.knownNow = (known[r.name] or (e and e.learned) or (r.where and r.where:sub(1, 1) == "B")) and true or false
-      if all or not r.knownNow then out[#out + 1] = r end
+      if (all or not r.knownNow) and (r.knownNow or not NW.NotYet(r)) then out[#out + 1] = r end
     end
   end
   -- recipes the game lists that Nodewalker's data doesn't have
@@ -1358,7 +1358,7 @@ local function drawProfit(p)
         local isKnown = (known[r.name] or (e and e.learned)) and true or false
         -- "Have materials": only what your bags can make right now
         local makeable = not st().profitHaveMats or (NW.CanCraft(p.key, r) or 0) > 0
-        if (isKnown or all) and makeable then
+        if (isKnown or all) and makeable and (isKnown or not NW.NotYet(r)) then
           local profit, cost, sale, unknown, de = NW.RecipeProfit(r)
           out[#out + 1] = { r = r, profit = profit, cost = cost or 0, sale = sale, unknown = unknown, known = isKnown, de = de }
         end

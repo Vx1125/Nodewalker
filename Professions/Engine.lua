@@ -545,6 +545,15 @@ NW.NOT_YET = {
   [20748] = true, -- Brilliant Mana Oil
   [20749] = true, -- Brilliant Wizard Oil
 }
+local NOT_YET_NAME = {
+  ["Mageblood Elixir"] = true, ["Major Troll's Blood Elixir"] = true, ["Greater Dreamless Sleep Potion"] = true,
+  ["Living Action Potion"] = true, ["Brilliant Mana Oil"] = true, ["Brilliant Wizard Oil"] = true,
+}
+-- A recipe nobody can learn yet
+function NW.NotYet(r)
+  -- Rin'wosho is the Zandalar Tribe's recipe vendor
+  return (r.item and NW.NOT_YET[r.item]) or NOT_YET_NAME[r.name] or (r.where and r.where:find("Rin'wosho", 1, true) ~= nil) or false
+end
 
 -- Recipes on a long cooldown can't be made in bulk, so they never count as
 -- "cheaper to make" (transmutes, Mooncloth)
@@ -830,7 +839,7 @@ function NW.BuildPlan(key, from, to)
   for i, r in ipairs(recipes) do
     if isKnown(key, r) then
       onceOf[i] = 0
-    elseif r.item and NW.NOT_YET[r.item] then
+    elseif NW.NotYet(r) then
       onceOf[i] = 1e9 -- can't be learned yet
     elseif r.src == "trainer" or r.src == "rank" then
       onceOf[i] = r.fee or 0
