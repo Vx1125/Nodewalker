@@ -821,7 +821,9 @@ local function bestFor(ladder, level)
     local pick, pickCost, lowest
     for _, id in ipairs(group) do
       local need = levelOf(id)
-      if need <= level then
+      if NW.NOT_YET and NW.NOT_YET[id] then
+        -- not in the game yet
+      elseif need <= level then
         if (NW.ItemCount(id) or 0) > 0 then return id, nextId, nextAt end
         local cost, src = NW.Price(id)
         if src == "est" then cost = nil end
@@ -1249,10 +1251,17 @@ refresh = function()
     shown[at] = { header = g[1] }
     local perHour = PER_HOUR[g[1]] or 1
     local sets = {}
+    -- what isn't in the game yet is left out; if that was the whole best
+    -- tier of a slot, the budget rows stand in for it
+    local notYet = NW.NOT_YET or {}
+    local bestLeft = false
+    for _, c in ipairs(g[2]) do if c[3] ~= "budget" and not notYet[c[1]] then bestLeft = true end end
     for _, c in ipairs(g[2]) do
       local tier = c[3]
+      if not bestLeft then tier = nil end
+      if notYet[c[1]] then tier = "none" end
       local isHidden = hidden[c[1]] and true or false
-      if (not tier or (tier == "budget") == (wantBudget and true or false)) and (showHidden or not isHidden) then
+      if tier ~= "none" and (not tier or (tier == "budget") == (wantBudget and true or false)) and (showHidden or not isHidden) then
         local price, src = NW.Price(c[1])
         if src == "est" then price = nil end
         local have = NW.ItemCount(c[1]) or 0

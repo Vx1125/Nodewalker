@@ -535,6 +535,17 @@ local function auctionator(id)
   return st.flag and st.typical or st.today
 end
 
+-- Not obtainable yet: these recipes come from Zandalar Tribe reputation, and
+-- Zul'Gurub isn't open. Empty this table when it is.
+NW.NOT_YET = {
+  [20007] = true, -- Mageblood Elixir
+  [20004] = true, -- Major Troll's Blood Elixir
+  [20002] = true, -- Greater Dreamless Sleep Potion
+  [20008] = true, -- Living Action Potion
+  [20748] = true, -- Brilliant Mana Oil
+  [20749] = true, -- Brilliant Wizard Oil
+}
+
 -- Recipes on a long cooldown can't be made in bulk, so they never count as
 -- "cheaper to make" (transmutes, Mooncloth)
 local function onCooldown(r)
@@ -819,6 +830,8 @@ function NW.BuildPlan(key, from, to)
   for i, r in ipairs(recipes) do
     if isKnown(key, r) then
       onceOf[i] = 0
+    elseif r.item and NW.NOT_YET[r.item] then
+      onceOf[i] = 1e9 -- can't be learned yet
     elseif r.src == "trainer" or r.src == "rank" then
       onceOf[i] = r.fee or 0
     else
