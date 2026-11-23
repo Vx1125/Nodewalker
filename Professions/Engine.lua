@@ -994,6 +994,8 @@ function NW.Money(c, short)
   local G, S, Cc = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:1:0|t", "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:1:0|t",
     "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:1:0|t"
   if g > 0 then
+    -- "mid": short, but keeps the silver while it still matters
+    if short == "mid" and g < 10 and s > 0 then return ("%d%s %d%s"):format(g, G, s, S) end
     if short or g >= 100 then return ("%d%s"):format(g, G) end
     return ("%d%s %d%s"):format(g, G, s, S)
   end

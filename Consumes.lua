@@ -29,7 +29,7 @@ local HEALER_PRIEST = {
     { 250347, "+18 Spirit", "budget" },
     { 9179, "+25 Int", "budget" },
   } },
-  { "Drink", {
+  { "Food", {
     { 238639, "+55 healing, +10 Sta", "full" }, { 249870, "+44 healing", "full" },
     { 249869, "+33 healing", "budget" },
   } },
@@ -68,7 +68,7 @@ NW.CONSUMES = {
         { 250337, "+25 Int, 2% crit", "full" },
         { 9179, "+25 Int", "budget" },
       } },
-      { "Drink", {
+      { "Food", {
         { 238639, "+55 healing, +10 Sta", "full" }, { 249870, "+44 healing", "full" },
         { 249869, "+33 healing", "budget" },
       } },
@@ -263,7 +263,7 @@ NW.CONSUMES = {
 -- Shared rows
 local CASTER_FOOD = { "Food", { { 13935, "+28 spell damage", "full" }, { 13933, "+28 spell damage", "full" }, { 13931, "+22 spell damage", "budget" } } }
 local CASTER_OIL = { "Weapon oil", { { 20749, "+36 spell damage, 1% spell crit", "full" }, { 20750, "+24 spell damage", "budget" } } }
-local HEAL_FOOD = { "Drink", { { 238639, "+55 healing, +10 Sta", "full" }, { 249870, "+44 healing", "full" }, { 249869, "+33 healing", "budget" } } }
+local HEAL_FOOD = { "Food", { { 238639, "+55 healing, +10 Sta", "full" }, { 249870, "+44 healing", "full" }, { 249869, "+33 healing", "budget" } } }
 local HEAL_OIL = { "Weapon oil", {
   { 20749, "+36 healing, 1% spell crit", "full" },
   { 20748, "15 mana / 5s, +30 healing", "full" },
@@ -1216,7 +1216,7 @@ local function drawDetail()
     local best = 0
     for _, re in ipairs(r.reagents) do
       local p = NW.Price(re[1])
-      lines[#lines + 1] = ("%d  %s  |cff94949a%s|r"):format(re[2], (itemName(re[1])), p and NW.Money(p * re[2], true) or "?")
+      lines[#lines + 1] = ("%d  %s  |cff94949a%s|r"):format(re[2], (itemName(re[1])), p and NW.Money(p * re[2], "mid") or "?")
       local node = nodeFor(re[1])
       local worth = (p or 1) * re[2]
       if node and worth > best then farmNode, best = node, worth end
@@ -1333,19 +1333,21 @@ refresh = function()
       local mk = ""
       if e.make then
         local col = (not e.m.known and "|cff94949a") or ((not e.price or e.make < e.price) and "|cff8cdb7a") or "|cffe6e6eb"
-        mk = col .. NW.Money(e.make, true):gsub("|r", "|r" .. col) .. "|r"
+        mk = col .. NW.Money(e.make, "mid"):gsub("|r", "|r" .. col) .. "|r"
       end
       row.make:SetText(mk)
       local col = ((e.alt or e.optional) and (e.have > 0 and "|cff8cdb7a" or "|cff94949a")) or (e.short == 0 and "|cff8cdb7a")
         or (e.have == 0 and "|cffeb5c4d") or "|cffffe633"
-      row.have:SetText(e.need > 1 and ("%s%d|r|cff94949a/%d|r"):format(col, e.have, e.need) or ("%s%d|r"):format(col, e.have))
-      row.price:SetText(e.price and NW.Money(e.price, true) or "|cff94949a?|r")
+      -- the row to stock counts its alternatives too, so 0/9 never shows green
+      local have = not e.alt and e.setHave or e.have
+      row.have:SetText(e.need > 1 and ("%s%d|r|cff94949a/%d|r"):format(col, have, e.need) or ("%s%d|r"):format(col, have))
+      row.price:SetText(e.price and NW.Money(e.price, "mid") or "|cff94949a?|r")
     end
   end
   hiddenCheck:SetShown(nHidden > 0)
   hiddenCheck:Refresh()
   hint:SetShown(nHidden == 0)
-  total:SetText(shortCount > 0 and ("Short %d  ·  %s to fill"):format(shortCount, NW.Money(sum, true)) or "|cff8cdb7aStocked|r")
+  total:SetText(shortCount > 0 and ("Short %d  ·  %s to fill"):format(shortCount, NW.Money(sum, "mid")) or "|cff8cdb7aStocked|r")
   searchBtn:SetEnabled(shortCount > 0)
   drawDetail()
   matsBtn:SetShown(selectedItem ~= nil and NW.RecipeFor(selectedItem) ~= nil)
