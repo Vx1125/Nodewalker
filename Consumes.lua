@@ -42,7 +42,7 @@ local HEALER_PRIEST = {
     { 13444, "1350-2250 mana", "full" },
     { 13443, "900-1500 mana", "budget" },
     { 250949, "+88 healing for 30s", "full" },
-    { 250948, "Healing for 30s", "budget" },
+    { 250948, "+62 healing for 30s", "budget" },
     { 18253, "1440-1760 health and mana", "full" },
   } },
   RUNES,
@@ -81,7 +81,7 @@ NW.CONSUMES = {
         { 13444, "1350-2250 mana", "full" },
         { 13443, "900-1500 mana", "budget" },
         { 250949, "+88 healing for 30s", "full" },
-        { 250948, "Healing for 30s", "budget" },
+        { 250948, "+62 healing for 30s", "budget" },
         { 18253, "1440-1760 health and mana", "full" },
       } },
       RUNES,
@@ -116,7 +116,7 @@ NW.CONSUMES = {
       } },
       { "Potions", {
         { 250937, "+47 spell damage for 30s", "full" },
-        { 250936, "+28 spell damage for 30s", "budget" },
+        { 250936, "+33 spell damage for 30s", "budget" },
         { 13444, "1350-2250 mana", "full" },
         { 13443, "900-1500 mana", "budget" },
         { 250954, "+105 spell damage vs elementals", "full" },
@@ -151,7 +151,7 @@ NW.CONSUMES = {
       } },
       { "Potions", {
         { 250937, "+47 spell damage for 30s", "full" },
-        { 250936, "+28 spell damage for 30s", "budget" },
+        { 250936, "+33 spell damage for 30s", "budget" },
         { 13444, "1350-2250 mana", "full" },
         { 13443, "900-1500 mana", "budget" },
       } },
@@ -162,7 +162,7 @@ NW.CONSUMES = {
     key = "warrior-prot", class = "WARRIOR", label = "Protection Warrior",
     groups = {
       { "Flask", {
-        { 274275, "Stamina, harder to dodge or parry", "full" },
+        { 274275, "+30 Sta, harder to dodge in Hyjal", "full" },
         { 13510, "+1200 health", "full" },
         { 13513, "+25 all resistances", "full" },
       } },
@@ -199,8 +199,8 @@ NW.CONSUMES = {
     key = "warrior-dps", class = "WARRIOR", label = "Arms / Fury Warrior",
     groups = {
       { "Flask", {
-        { 274275, "Stamina, harder to dodge or parry", "full" },
-        { 274274, "Stamina and crit", "full" },
+        { 274275, "+30 Sta, harder to dodge in Hyjal", "full" },
+        { 274274, "+30 Sta, 2% crit in Hyjal", "full" },
       } },
       { "Elixirs", {
         { 250351, "+25 Str, 2% crit", "full", "crit" },
@@ -231,13 +231,13 @@ NW.CONSUMES = {
     groups = {
       { "Flask", {
         { 13512, "+150 spell damage", "full" },
-        { 274274, "Stamina and crit", "full" },
+        { 274274, "+30 Sta, 2% crit in Hyjal", "full" },
       } },
       { "Elixirs", {
         { 9264, "+40 shadow damage" },
         { 13454, "+35 spell damage", "full" },
         { 250337, "+25 Int, 2% crit", "full" },
-        { 9155, "Spell damage", "budget" },
+        { 9155, "+20 spell damage", "budget" },
       } },
       { "Food", {
         { 13935, "+28 spell damage", "full" },
@@ -249,7 +249,7 @@ NW.CONSUMES = {
       } },
       { "Potions", {
         { 250937, "+47 spell damage for 30s", "full" },
-        { 250936, "+28 spell damage for 30s", "budget" },
+        { 250936, "+33 spell damage for 30s", "budget" },
         { 13444, "1350-2250 mana", "full" },
         { 13443, "900-1500 mana", "budget" },
         { 20008, "Breaks stuns and roots", "full" },
@@ -273,12 +273,12 @@ local HEAL_POTS = { "Potions", {
   { 13444, "1350-2250 mana", "full" },
   { 13443, "900-1500 mana", "budget" },
   { 250949, "+88 healing for 30s", "full" },
-  { 250948, "Healing for 30s", "budget" },
+  { 250948, "+62 healing for 30s", "budget" },
   { 18253, "1440-1760 health and mana", "full" },
 } }
 local CASTER_POTS = { "Potions", {
   { 250937, "+47 spell damage for 30s", "full" },
-  { 250936, "+28 spell damage for 30s", "budget" },
+  { 250936, "+33 spell damage for 30s", "budget" },
   { 13444, "1350-2250 mana", "full" },
   { 13443, "900-1500 mana", "budget" },
   { 250954, "+105 spell damage vs elementals", "full" },
@@ -291,7 +291,7 @@ local function add(t) NW.CONSUMES[#NW.CONSUMES + 1] = t end
 
 add({ key = "paladin-prot", class = "PALADIN", label = "Protection Paladin", groups = {
   { "Flask", {
-    { 274275, "Stamina, harder to dodge or parry", "full" },
+    { 274275, "+30 Sta, harder to dodge in Hyjal", "full" },
     { 13510, "+1200 health", "full" },
     { 13512, "+150 spell damage", "full" },
   } },
@@ -322,7 +322,7 @@ add({ key = "paladin-prot", class = "PALADIN", label = "Protection Paladin", gro
   PROT,
 } })
 add({ key = "paladin-ret", class = "PALADIN", label = "Retribution Paladin", groups = {
-  { "Flask", { { 274275, "Stamina, harder to dodge or parry", "full" }, { 274274, "Stamina and crit", "full" } } },
+  { "Flask", { { 274275, "+30 Sta, harder to dodge in Hyjal", "full" }, { 274274, "+30 Sta, 2% crit in Hyjal", "full" } } },
   { "Elixirs", {
     { 250351, "+25 Str, 2% crit", "full", "crit" },
     { 13452, "+25 Agi, 2% crit", "full", "crit" },
@@ -342,7 +342,7 @@ add({ key = "paladin-ret", class = "PALADIN", label = "Retribution Paladin", gro
   } },
 } })
 add({ key = "druid-resto", class = "DRUID", label = "Restoration Druid", groups = {
-  { "Flask", { { 13511, "+2000 mana", "full" }, { 274276, "Stamina and haste", "full" } } },
+  { "Flask", { { 13511, "+2000 mana", "full" }, { 274276, "+30 Sta, 2% haste in Hyjal", "full" } } },
   { "Elixirs", {
     { 250333, "+40 healing", "full" },
     { 250332, "+30 healing", "budget" },
@@ -356,7 +356,7 @@ add({ key = "druid-resto", class = "DRUID", label = "Restoration Druid", groups 
     { 13444, "1350-2250 mana", "full" },
     { 13443, "900-1500 mana", "budget" },
     { 250949, "+88 healing for 30s", "full" },
-    { 250948, "Healing for 30s", "budget" },
+    { 250948, "+62 healing for 30s", "budget" },
     { 18253, "1440-1760 health and mana", "full" },
     { 20008, "Breaks stuns and roots", "full" },
   } },
@@ -375,7 +375,7 @@ add({ key = "druid-balance", class = "DRUID", label = "Balance Druid", groups = 
   RUNES,
 } })
 add({ key = "druid-cat", class = "DRUID", label = "Feral Druid (Cat)", groups = {
-  { "Flask", { { 274274, "Stamina and crit", "full" }, { 274273, "Stamina and hit", "full" } } },
+  { "Flask", { { 274274, "+30 Sta, 2% crit in Hyjal", "full" }, { 274273, "+30 Sta, 2% hit in Hyjal", "full" } } },
   { "Elixirs", {
     { 13452, "+25 Agi, 2% crit", "full", "crit" },
     { 250351, "+25 Str, 2% crit", "full", "crit" },
@@ -386,10 +386,10 @@ add({ key = "druid-cat", class = "DRUID", label = "Feral Druid (Cat)", groups = 
   } },
   AGI_FOOD,
   WARRIOR_STONES,
-  { "Potions", { { 250943, "+80 attack power for 30s", "full" }, { 250942, "Attack power for 30s", "budget" }, { 13446, "1050-1750 health" } } },
+  { "Potions", { { 250943, "+80 attack power for 30s", "full" }, { 250942, "+56 attack power for 30s", "budget" }, { 13446, "1050-1750 health" } } },
 } })
 add({ key = "druid-bear", class = "DRUID", label = "Feral Druid (Bear)", groups = {
-  { "Flask", { { 274275, "Stamina, harder to dodge or parry", "full" }, { 13510, "+1200 health", "full" } } },
+  { "Flask", { { 274275, "+30 Sta, harder to dodge in Hyjal", "full" }, { 13510, "+1200 health", "full" } } },
   { "Elixirs", {
     { 250329, "+400 health, +500 armor", nil, "health" },
     { 13445, "+450 armor" },
@@ -412,7 +412,7 @@ add({ key = "druid-bear", class = "DRUID", label = "Feral Druid (Bear)", groups 
   PROT,
 } })
 add({ key = "hunter", class = "HUNTER", label = "Hunter", groups = {
-  { "Flask", { { 274274, "Stamina and crit", "full" }, { 274273, "Stamina and hit", "full" } } },
+  { "Flask", { { 274274, "+30 Sta, 2% crit in Hyjal", "full" }, { 274273, "+30 Sta, 2% hit in Hyjal", "full" } } },
   { "Elixirs", {
     { 250328, "+25 Agi, +25 Int", "full" },
     { 13452, "+25 Agi, 2% crit", "full", "crit" },
@@ -422,7 +422,7 @@ add({ key = "hunter", class = "HUNTER", label = "Hunter", groups = {
   { "Potions", {
     { 250943, "+80 attack power for 30s", "full" },
     { 250955, "+180 attack power vs beasts", "full" },
-    { 250942, "Attack power for 30s", "budget" },
+    { 250942, "+56 attack power for 30s", "budget" },
     { 13444, "1350-2250 mana", "full" },
     { 13443, "900-1500 mana", "budget" },
     { 13446, "1050-1750 health", "full" },
@@ -443,7 +443,7 @@ add({ key = "mage", class = "MAGE", label = "Mage", groups = {
   RUNES,
 } })
 add({ key = "rogue", class = "ROGUE", label = "Rogue", groups = {
-  { "Flask", { { 274273, "Stamina and hit", "full" }, { 274274, "Stamina and crit", "full" } } },
+  { "Flask", { { 274273, "+30 Sta, 2% hit in Hyjal", "full" }, { 274274, "+30 Sta, 2% crit in Hyjal", "full" } } },
   { "Elixirs", {
     { 13452, "+25 Agi, 2% crit", "full", "crit" },
     { 246948, "+35 attack power", nil, "ap" },
@@ -454,14 +454,14 @@ add({ key = "rogue", class = "ROGUE", label = "Rogue", groups = {
   WARRIOR_STONES,
   { "Potions", {
     { 250943, "+80 attack power for 30s", "full" },
-    { 250942, "Attack power for 30s", "budget" },
+    { 250942, "+56 attack power for 30s", "budget" },
     { 13446, "1050-1750 health", "full" },
     { 3928, "700-900 health", "budget" },
     { 5634, "Immune to stuns, roots for 30s", "full" },
     { 3387, "Immune to physical for 6s", "full" },
   } },
   { "Poisons", { { 8928, "Main hand" }, { 20844, "Off hand" } } },
-  { "Other", { { 7676, "100 energy" }, { 14530, "Bandage" } } },
+  { "Other", { { 7676, "100 energy" }, { 14530, "2000 health over 8s" } } },
 } })
 add({ key = "shaman-resto", class = "SHAMAN", label = "Restoration Shaman", groups = {
   { "Flask", { { 13511, "+2000 mana", "full" } } },
@@ -489,7 +489,7 @@ add({ key = "shaman-ele", class = "SHAMAN", label = "Elemental Shaman", groups =
   RUNES,
 } })
 add({ key = "shaman-enh", class = "SHAMAN", label = "Enhancement Shaman", groups = {
-  { "Flask", { { 13512, "+150 spell damage", "full" }, { 274274, "Stamina and crit", "full" } } },
+  { "Flask", { { 13512, "+150 spell damage", "full" }, { 274274, "+30 Sta, 2% crit in Hyjal", "full" } } },
   { "Elixirs", {
     { 250351, "+25 Str, 2% crit", "full", "crit" },
     { 13452, "+25 Agi, 2% crit", "full", "crit" },
@@ -543,6 +543,7 @@ local HINT = {
   Protection = "share the potion cooldown",
   Suggested = "best you can use at your level",
   ["Also helpful"] = "for your other buff slots",
+  Situational = "when the fight calls for it",
 }
 
 local function itemName(id)
@@ -663,6 +664,11 @@ local LADDER = {
   fAgi = { { 250072, 13934 }, { 13932 }, { 12212, 18045 }, { 13928, 13929 }, { 13851, 20074, 3728 }, { 8364 }, { 3664, 3727, 12209, 1017 }, { 4592 }, { 2684, 3662 }, { 787 }, { 2680 } },
   fSpell = { { 13935, 13933 }, { 13931, 6887 }, { 274971 }, { 4457, 250073, 12216 }, { 21217 }, { 12210 }, { 21072 }, { 2683, 1082, 250077 }, { 2682, 12224, 5477, 250079 } },
   fHeal = { { 249870 }, { 249869 }, { 4457, 250073, 12216 }, { 12210 }, { 249866 }, { 2683, 1082, 250077 }, { 249865 } },
+  fArmor = { 286152 },
+  bandage = { 14530, 14529, 8545, 8544, 6451, 6450, 3531, 3530, 2581, 1251 },
+  freeAction = { 5634 }, swift = { 2459 }, stoneshield = { 13455, 4623 }, invuln = { 3387 },
+  rejuv = { 18253, 2456 }, discolored = { 247242, 247241, 247240, 247239, 4596 },
+  resist = { 9036, 3384 }, wicked = { 250336 },
   fSta = { { 250068, 250081 }, { 17222, 12218, 16766 }, { 12215, 250078, 6038 }, { 3665, 5527, 3666, 12214, 3729 }, { 3663, 250080, 12213, 5526, 5479 }, { 6888, 5472, 5474, 5525 } },
 }
 -- { level, effect } as the Forever client reports them (/nw harvest)
@@ -717,6 +723,17 @@ local ITEM = {
   [3665] = { 15, "+5 Sta" }, [5527] = { 15, "+5 Sta" }, [3666] = { 15, "+5 Sta" }, [12214] = { 15, "+5 Sta" }, [3729] = { 15, "+5 Sta" },
   [3663] = { 1, "+3 Sta" }, [250080] = { 5, "+3 Sta" }, [12213] = { 5, "+3 Sta" }, [5526] = { 5, "+3 Sta" }, [5479] = { 5, "+3 Sta" },
   [6888] = { 1, "+1 Sta" }, [5472] = { 1, "+1 Sta" }, [5474] = { 1, "+1 Sta" }, [5525] = { 1, "+1 Sta" },
+  [286152] = { 35, "+150 armor" }, [250336] = { 55, "9 health, 10 mana / 5s" },
+  [5634] = { 20, "no stuns or roots, 30s" }, [2459] = { 5, "+50% run speed, 15s" },
+  [13455] = { 46, "+2000 armor, 2 min" }, [4623] = { 33, "+1000 armor, 90s" }, [3387] = { 45, "immune to physical, 6s" },
+  [18253] = { 50, "1440-1760 health and mana" }, [2456] = { 5, "90-150 health and mana" },
+  [247242] = { 35, "1500-1700 health, 75% taken back" }, [247241] = { 21, "975-1105 health, 75% taken back" },
+  [247240] = { 12, "600-680 health, 75% taken back" }, [4596] = { 5, "150-170 health, 75% taken back" },
+  [247239] = { 3, "300-340 health, 75% taken back" },
+  [9036] = { 32, "+50 all resistances, 3 min" }, [3384] = { 12, "+25 all resistances, 3 min" },
+  [14530] = { 0, "2000 health" }, [14529] = { 0, "1360 health" }, [8545] = { 0, "1104 health" }, [8544] = { 0, "800 health" },
+  [6451] = { 0, "640 health" }, [6450] = { 0, "400 health" }, [3531] = { 0, "301 health" }, [3530] = { 0, "161 health" },
+  [2581] = { 0, "114 health" }, [1251] = { 0, "66 health" },
 }
 -- { label, ladder, uses per hour, "or" set }
 local function slot(label, ladder, perHour, set) return { label, ladder, perHour, set } end
@@ -767,41 +784,52 @@ local SCHOOL = {
 local NO_STONE = { hunter = true, ["druid-cat"] = true, ["druid-bear"] = true }
 local MANA_TOO = { ["paladin-ret"] = true, ["shaman-enh"] = true, hunter = true, ["paladin-prot"] = true }
 
--- Level an item needs: the game's word when it has it, else the harvested one
+-- First Aid skill each bandage needs
+local BANDAGE = { [14530] = 225, [14529] = 200, [8545] = 175, [8544] = 150, [6451] = 125, [6450] = 100, [3531] = 75, [3530] = 50,
+  [2581] = 20, [1251] = 1 }
+-- Level an item needs: the game's word when it has it, else the harvested one.
+-- For a bandage it's First Aid skill.
 local function levelOf(id)
+  if BANDAGE[id] then return BANDAGE[id] end
   local _, _, _, _, minLevel = NW.ItemInfo(id)
   return minLevel or (ITEM[id] and ITEM[id][1]) or 99
 end
--- Best item on a ladder you're high enough for
+-- Best item on a ladder you're high enough for, and the next better one
+-- with the level it unlocks at
 local function bestFor(ladder, level)
+  local nextId, nextAt
   for _, e in ipairs(LADDER[ladder]) do
-    if type(e) ~= "table" then
-      if levelOf(e) <= level then return e end
-    else
-      local pick, pickCost
-      for _, id in ipairs(e) do
-        if levelOf(id) <= level then
-          if (NW.ItemCount(id) or 0) > 0 then return id end
-          local cost, src = NW.Price(id)
-          if src == "est" then cost = nil end
-          if not pick or (cost and (not pickCost or cost < pickCost)) then
-            pick, pickCost = id, cost or pickCost
-          end
-        end
+    local group = type(e) == "table" and e or { e }
+    local pick, pickCost, lowest
+    for _, id in ipairs(group) do
+      local need = levelOf(id)
+      if need <= level then
+        if (NW.ItemCount(id) or 0) > 0 then return id, nextId, nextAt end
+        local cost, src = NW.Price(id)
+        if src == "est" then cost = nil end
+        if not pick or (cost and (not pickCost or cost < pickCost)) then pick, pickCost = id, cost or pickCost end
+      elseif not lowest or need < levelOf(lowest) then
+        lowest = id
       end
-      if pick then return pick end
     end
+    if pick then return pick, nextId, nextAt end
+    -- too high for now: the soonest of these is what to look forward to
+    if lowest and levelOf(lowest) < 99 and (not nextAt or levelOf(lowest) < nextAt) then nextId, nextAt = lowest, levelOf(lowest) end
   end
 end
 
 local function playerLevel() return UnitLevel and UnitLevel("player") or 60 end
 
 -- The same shape as a raid list, built for your level
+local upgradeOf = {} -- [item shown] = { next item, level or skill, is a bandage }
 local function levelList(spec)
   local level = playerLevel()
+  wipe(upgradeOf)
   local role = ROLES[ROLE_OF[spec.key] or "str"]
   local out = { key = spec.key .. ":level", label = ("%s  ·  level %d"):format(spec.label, level), groups = {} }
-  for gi, heading in ipairs({ "Suggested", "Also helpful" }) do
+  local roleKey = ROLE_OF[spec.key] or "str"
+  local firstAid = NW.ProfSkill("firstaid")
+  for gi, heading in ipairs({ "Suggested", "Also helpful", "Situational" }) do
     local rows = {}
     local function put(sl)
       if sl == "school" then
@@ -809,16 +837,29 @@ local function levelList(spec)
       elseif type(sl[1]) == "table" then
         if not NO_STONE[spec.key] then for _, x in ipairs(sl) do put(x) end end
       else
-        local id = bestFor(sl[2], level)
+        local skill = sl[2] == "bandage"
+        local id, nextId, nextAt = bestFor(sl[2], skill and (firstAid or 0) or level)
+        if nextId and id then upgradeOf[id] = { nextId, nextAt, skill } end
         if id then
           local fx = ITEM[id] and ITEM[id][2] or ""
           rows[#rows + 1] = { id, fx ~= "" and (sl[1] .. " · " .. fx) or sl[1], nil, sl[4], sl[3] }
         end
       end
     end
-    for _, sl in ipairs(role[gi]) do put(sl) end
+    for _, sl in ipairs(role[gi] or {}) do put(sl) end
+    local mana = MANA_TOO[spec.key] or roleKey == "caster" or roleKey == "heal" or spec.class == "DRUID"
     if gi == 1 and MANA_TOO[spec.key] then put(slot("Potion", "manapot", 3)) end
+    if gi == 1 and firstAid then put(slot("Bandage", "bandage", 3)) end
     if gi == 2 and spec.class == "WARRIOR" then put(slot("Potion", "rage", 3)) end
+    if gi == 2 and roleKey == "tank" then put(slot("Food", "fArmor", 2)) end
+    if gi == 2 and MANA_TOO[spec.key] then put(slot("Elixir", "wicked")) end
+    if gi == 3 then
+      put(slot("Potion", "freeAction")) put(slot("Potion", "swift")) put(slot("Potion", "discolored"))
+      if mana then put(slot("Potion", "rejuv")) end
+      if roleKey == "tank" or roleKey == "str" then put(slot("Potion", "stoneshield")) end
+      if roleKey == "tank" then put(slot("Potion", "invuln")) end
+      put(slot("Potion", "resist"))
+    end
     out.groups[gi] = { heading, rows }
   end
   return out
@@ -1116,6 +1157,11 @@ local function drawDetail()
   local lines = {}
   local use = useText(id)
   if use then lines[#lines + 1] = "|cff94949a" .. use .. "|r" lines[#lines + 1] = "" end
+  local up = listMode() == "level" and upgradeOf[id]
+  if up then
+    lines[#lines + 1] = ("|cff8cdb7aNext|r  %s at %s%d"):format((itemName(up[1])), up[3] and "First Aid " or "", up[2])
+    lines[#lines + 1] = ""
+  end
   local vendor, ah, craft = NW.PriceParts(id)
   if ah then lines[#lines + 1] = ("|cff94949aAuction|r  %s"):format(NW.Money(ah)) end
   if vendor then lines[#lines + 1] = ("|cff94949aVendor|r  %s"):format(NW.Money(vendor)) end
