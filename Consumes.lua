@@ -834,7 +834,11 @@ function NW.HarvestConsumes()
   for _, l in ipairs(NW.CONSUMES) do
     for _, g in ipairs(l.groups) do for _, c in ipairs(g[2]) do ids[c[1]] = true end end
   end
-  for _, ladder in pairs(LADDER) do for _, id in ipairs(ladder) do ids[id] = true end end
+  for _, ladder in pairs(LADDER) do
+    for _, e in ipairs(ladder) do
+      if type(e) == "table" then for _, id in ipairs(e) do ids[id] = true end else ids[e] = true end
+    end
+  end
   -- The game sends item and spell text only when asked, a little at a time:
   -- ask in batches, wait for each answer, then save whatever came back.
   local queue = {}
