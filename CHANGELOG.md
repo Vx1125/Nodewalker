@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.11
+
+- Leveling cost reads as a short ledger: Spend, what comes back, Net.
+
 ## 1.1.10
 
 - Fixed Cured Rugged Hide priced at silver: Refined Deeprock Salt is a cooldown, not a vendor item.
