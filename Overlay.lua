@@ -1083,7 +1083,9 @@ local function drawInner(force)
         elseif state == "picked" then
           m:SetAlpha(0.45)
         else
-          m:SetAlpha(state == "next" and math.max(0.6, s.fadedAlpha or 0.35) or (s.fadedAlpha or 0.35))
+          -- the next stop is marked by its gold ring, not by brightness:
+          -- bright always means a herb or vein was seen there
+          m:SetAlpha(s.fadedAlpha or 0.35)
         end
         if state ~= "next" then m:SetAlpha(m:GetAlpha() * edgeFade(vx, vy)) end
         local sub = ("Stop %d of %d"):format(it.stop, #stops)
