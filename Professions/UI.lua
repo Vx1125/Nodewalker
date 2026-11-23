@@ -100,6 +100,42 @@ local hCost = UI.Text(mid, 15, S.text, "RIGHT")
 hCost:SetPoint("TOPRIGHT", 0, -2)
 local hCostSub = UI.Text(mid, 11, S.dim, "RIGHT")
 hCostSub:SetPoint("TOPRIGHT", hCost, "BOTTOMRIGHT", 0, -4)
+-- Leveling cost as a small ledger: labels down the left, amounts down the right
+local LEDGER_W = 176
+local ledger = {}
+for i = 1, 5 do
+  local l, v = UI.Text(mid, 11, S.dim), UI.Text(mid, 11, S.text, "RIGHT")
+  ledger[i] = { label = l, val = v }
+end
+-- rows: { label, amount, big, bright }; a row with no amount is a note across the whole width
+local function setLedger(rows)
+  local y = -1
+  for i, row in ipairs(ledger) do
+    local r = rows and rows[i]
+    row.label:SetShown(r ~= nil)
+    row.val:SetShown(r ~= nil)
+    if r then
+      local size = r[3] and 14 or 11
+      row.label:SetFont(UI.FONT, r[2] and (r[3] and 12 or 11) or 10, "")
+      row.val:SetFont(UI.FONT, size, "")
+      row.label:ClearAllPoints()
+      row.val:ClearAllPoints()
+      if r[2] then
+        row.label:SetJustifyH("LEFT")
+        row.label:SetPoint("TOPLEFT", mid, "TOPRIGHT", -LEDGER_W, y - (r[3] and 2 or 0))
+      else
+        row.label:SetJustifyH("RIGHT")
+        row.label:SetPoint("TOPRIGHT", mid, "TOPRIGHT", 0, y - 2)
+      end
+      row.val:SetPoint("TOPRIGHT", mid, "TOPRIGHT", 0, y)
+      row.label:SetText(r[1])
+      row.label:SetTextColor(unpack(r[4] and S.text or S.dim))
+      row.val:SetText(r[2] or "")
+      row.val:SetTextColor(unpack((r[3] or r[4]) and S.text or S.dim))
+      y = y - (r[3] and 19 or 14)
+    end
+  end
+end
 
 -- The three views of a crafting profession, as tabs right under its name
 local viewRow = CreateFrame("Frame", nil, mid)
@@ -880,26 +916,30 @@ local function drawCraft(p)
 
   -- the headline is what you pay; sale value is shown beside it, never taken off
   local spend = plan.spend or plan.total
-  hCost:SetText("|cff94949aSpend|r  " .. NW.Money(spend))
-  -- two short lines, so it never runs into the skill line on the left
-  local sub = ("to reach %d"):format(to)
-  if plan.fees and plan.fees > 0 then sub = sub .. (" · incl. %s training"):format(NW.Money(plan.fees, true)) end
-  if plan.unknown > 0 then sub = sub .. (" · %d unpriced"):format(plan.unknown) end
+  hCost:SetText("")
+  hCostSub:SetText("")
+  local rows = { { ("Spend to %d"):format(to), NW.Money(spend), true } }
   -- what selling or disenchanting might return, and what that leaves you out of pocket
   local back = spend - plan.total
-  local line2 = back > 0 and ("%s back about %s  ·  |cffe6e6ebnet about %s|r"):format(
-    st().planSellBack == "de" and "Disenchant" or "Sell", NW.Money(back, true), NW.Money(spend - back, true)) or nil
+  if back > 0 then
+    rows[#rows + 1] = { st().planSellBack == "de" and "Disenchant back" or "Sell back", "~" .. NW.Money(back, true) }
+    rows[#rows + 1] = { "Net", "~" .. NW.Money(spend - back, true), nil, true }
+  end
+  local note
+  if plan.fees and plan.fees > 0 then note = ("incl. %s training"):format(NW.Money(plan.fees, true)) end
+  if plan.unknown > 0 then note = (note and (note .. " · ") or "") .. ("%d unpriced"):format(plan.unknown) end
+  if note then rows[#rows + 1] = { note } end
   -- what bought or found recipes would save
   if not st().planRecipeItems then
     st().planRecipeItems = true
     local alt = NW.BuildPlan(p.key, from, to)
     st().planRecipeItems = false
     NW.BuildPlan(p.key, from, to) -- back to this profession's prices
-    if not line2 and alt.total < plan.total * 0.85 then
-      line2 = ("|cff8cdb7a%s if you allow bought recipes|r"):format(NW.Money(alt.spend or alt.total, true))
+    if back <= 0 and alt.total < plan.total * 0.85 then
+      rows[#rows + 1] = { "|cff8cdb7aWith bought recipes|r", "|cff8cdb7a" .. NW.Money(alt.spend or alt.total, true):gsub("|r", "|r|cff8cdb7a") .. "|r" }
     end
   end
-  hCostSub:SetText(line2 and (sub .. "\n" .. line2) or sub)
+  setLedger(rows)
 
   local list, total = NW.ShoppingList(p.key, plan)
   -- recipes the plan needs you to buy or find go on top
@@ -1583,6 +1623,7 @@ refresh = function()
   lastView = vk
   hIcon:SetTexture(p.icon)
   hName:SetText(p.name)
+  setLedger(nil)
   local rank, max = NW.ProfSkill(p.key)
   hSkill:SetText((rank and ("Skill %d / %d"):format(rank, max or 300) or "You don't have this profession")
     .. rankNote(p.key))

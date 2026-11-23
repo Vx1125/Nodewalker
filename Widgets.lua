@@ -50,6 +50,7 @@ function UI.Box(parent, w, h)
   return f
 end
 
+UI.FONT = FONT
 function UI.Text(parent, size, color, justify, flags)
   local fs = parent:CreateFontString(nil, "OVERLAY")
   fs:SetFont(FONT, size or 12, flags or "")
