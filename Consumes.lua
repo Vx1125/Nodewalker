@@ -625,12 +625,12 @@ end
 ------------------------------------------------------------------------
 -- Leveling: the best of each kind you can use at your level
 ------------------------------------------------------------------------
--- Ladders run best first. The game says what level each item needs, so an
--- item it doesn't know is never offered.
+-- Ladders run best first. A { } entry is a set of equals: the one in your
+-- bags, or the cheapest, is shown.
 local LADDER = {
-  strength = { 250351, 13453, 9206, 250349, 3391, 2454 },
+  strength = { 250351, 9206, 13453, 250349, 3391, 2454 },
   agility = { 13452, 250328, 9187, 8949, 3390, 2457 },
-  intellect = { 250337, 9179, 250354, 250353, 3383 },
+  intellect = { 250337, 9179, 13447, 250354, 250353, 3383 },
   spirit = { 250347, 250346, 250345, 250344 },
   spell = { 13454, 9155, 250342, 247754 },
   healing = { 250333, 250332, 250331, 250330 },
@@ -638,7 +638,11 @@ local LADDER = {
   health = { 250335, 250334, 3825, 2458 },
   armor = { 250329, 13445, 8951, 3389, 5997 },
   troll = { 20004, 3826, 3388, 3382 },
-  fire = { 6373 }, frost = { 17708 }, shadow = { 9264 }, holy = { 21546 }, nature = { 250343 },
+  fire = { 6373 },
+  frost = { 17708 },
+  shadow = { 9264 },
+  holy = { 21546 },
+  nature = { 250343 },
   healpot = { 13446, 3928, 1710, 929, 858, 118 },
   manapot = { 13444, 13443, 6149, 3827, 3385, 2455 },
   frenzy = { 250943, 250942, 250941, 250940, 250939, 250938 },
@@ -649,46 +653,101 @@ local LADDER = {
   blunt = { 12643, 7965, 3241, 3240, 3239 },
   wizard = { 20749, 20750, 20746, 20744 },
   manaoil = { 20748, 20747, 20745 },
-  sStr = { 10310, 4426, 2289, 954 }, sAgi = { 10309, 4425, 1477, 3012 },
-  sInt = { 10308, 4419, 2290, 955 }, sSpi = { 10306, 4424, 1712, 1181 },
-  sSta = { 10307, 4422, 1711, 1180 }, sArm = { 10305, 4421, 1478, 3013 },
-  -- food: the stat foods first, then plain Well Fed food by tier
-  fStr = { 250071, 13932, 250065, 13851, 3726, 1017, 2683, 2680 },
-  fAgi = { 250072, 13928, 18045, 13851, 3726, 1017, 2683, 2680 },
-  fSpell = { 13931, 250075, 250076, 13851, 3726, 1017, 2683, 2680 },
-  fHeal = { 249870, 249869, 250075, 250076, 13851, 3726, 1017, 2683, 2680 },
-  fSta = { 250068, 17222, 13851, 3726, 1017, 2683, 2680 },
+  sStr = { 10310, 4426, 2289, 954 },
+  sAgi = { 10309, 4425, 1477, 3012 },
+  sInt = { 10308, 4419, 2290, 955 },
+  sSpi = { 10306, 4424, 1712, 1181 },
+  sSta = { 10307, 4422, 1711, 1180 },
+  sArm = { 10305, 4421, 1478, 3013 },
+  fStr = { { 250071, 20452, 13934 }, { 13932 }, { 250065 }, { 250074, 274976, 8364 }, { 5480, 2685 }, { 4592 }, { 3726, 3220, 2687, 724 }, { 787 }, { 2888, 2681, 6890 } },
+  fAgi = { { 250072, 13934 }, { 13932 }, { 12212, 18045 }, { 13928, 13929 }, { 13851, 20074, 3728 }, { 8364 }, { 3664, 3727, 12209, 1017 }, { 4592 }, { 2684, 3662 }, { 787 }, { 2680 } },
+  fSpell = { { 13935, 13933 }, { 13931, 6887 }, { 274971 }, { 4457, 250073, 12216 }, { 21217 }, { 12210 }, { 21072 }, { 2683, 1082, 250077 }, { 2682, 12224, 5477, 250079 } },
+  fHeal = { { 249870 }, { 249869 }, { 4457, 250073, 12216 }, { 12210 }, { 249866 }, { 2683, 1082, 250077 }, { 249865 } },
+  fSta = { { 250068, 250081 }, { 17222, 12218, 16766 }, { 12215, 250078, 6038 }, { 3665, 5527, 3666, 12214, 3729 }, { 3663, 250080, 12213, 5526, 5479 }, { 6888, 5472, 5474, 5525 } },
+}
+-- { level, effect } as the Forever client reports them (/nw harvest)
+local ITEM = {
+  [250351] = { 55, "+25 Str, 2% crit" }, [9206] = { 48, "+25 Str" }, [13453] = { 45, "+18 Str, +18 Sta" }, [250349] = { 45, "+10 Str" },
+  [3391] = { 20, "+8 Str" }, [2454] = { 1, "+4 Str" }, [13452] = { 46, "+25 Agi, 2% crit" }, [250328] = { 55, "+25 Agi, +25 Int" },
+  [9187] = { 38, "+25 Agi" }, [8949] = { 27, "+15 Agi" }, [3390] = { 18, "+8 Agi" }, [2457] = { 2, "+4 Agi" }, [250337] = { 55, "+25 Int, 2% crit" },
+  [9179] = { 37, "+25 Int" }, [13447] = { 38, "+18 Int, +18 Spirit" }, [250354] = { 45, "+10 Int" }, [250353] = { 25, "+6 Int" },
+  [3383] = { 10, "+3 Int" }, [250347] = { 55, "+18 Spirit" }, [250346] = { 45, "+10 Spirit" }, [250345] = { 25, "+6 Spirit" },
+  [250344] = { 5, "+3 Spirit" }, [13454] = { 47, "+35 spell damage" }, [9155] = { 37, "+20 spell damage" }, [250342] = { 25, "+15 spell damage" },
+  [247754] = { 1, "+5 spell damage" }, [250333] = { 55, "+40 healing" }, [250332] = { 45, "+30 healing" }, [250331] = { 25, "+20 healing" },
+  [250330] = { 5, "+10 healing" }, [250341] = { 55, "20 mana / 5s" }, [20007] = { 40, "12 mana / 5s" }, [250340] = { 25, "6 mana / 5s" },
+  [250339] = { 5, "3 mana / 5s" }, [250335] = { 55, "+400 health" }, [250334] = { 45, "+200 health" }, [3825] = { 25, "+120 health" },
+  [2458] = { 2, "+27 health" }, [250329] = { 55, "+400 health, +500 armor" }, [13445] = { 43, "+450 armor" }, [8951] = { 29, "+250 armor" },
+  [3389] = { 16, "+150 armor" }, [5997] = { 1, "+50 armor" }, [20004] = { 53, "20 health / 5s" }, [3826] = { 26, "12 health / 5s" },
+  [3388] = { 15, "6 health / 5s" }, [3382] = { 1, "2 health / 5s" }, [6373] = { 18, "+10 fire damage" }, [17708] = { 28, "+15 frost damage" },
+  [9264] = { 40, "+40 shadow damage" }, [21546] = { 40, "+40 holy damage" }, [250343] = { 55, "+40 nature damage" },
+  [13446] = { 45, "1050-1750 health" }, [3928] = { 35, "700-900 health" }, [1710] = { 21, "455-585 health" }, [929] = { 12, "280-360 health" },
+  [858] = { 3, "140-180 health" }, [118] = { 1, "70-90 health" }, [13444] = { 49, "1350-2250 mana" }, [13443] = { 41, "900-1500 mana" },
+  [6149] = { 31, "700-900 mana" }, [3827] = { 22, "455-585 mana" }, [3385] = { 14, "280-360 mana" }, [2455] = { 5, "140-180 mana" },
+  [250943] = { 55, "+80 attack power, 30s" }, [250942] = { 45, "+56 attack power, 30s" }, [250941] = { 35, "+40 attack power, 30s" },
+  [250940] = { 25, "+28 attack power, 30s" }, [250939] = { 15, "+18 attack power, 30s" }, [250938] = { 5, "+12 attack power, 30s" },
+  [250937] = { 55, "+47 spell damage, 30s" }, [250936] = { 45, "+33 spell damage, 30s" }, [250935] = { 35, "+23 spell damage, 30s" },
+  [250934] = { 25, "+16 spell damage, 30s" }, [250933] = { 15, "+11 spell damage, 30s" }, [250932] = { 5, "+7 spell damage, 30s" },
+  [250949] = { 55, "+88 healing, 30s" }, [250948] = { 45, "+62 healing, 30s" }, [250947] = { 35, "+44 healing, 30s" },
+  [250946] = { 25, "+31 healing, 30s" }, [250945] = { 15, "+20 healing, 30s" }, [250944] = { 5, "+13 healing, 30s" }, [13442] = { 46, "45-75 rage" },
+  [5633] = { 25, "30-60 rage" }, [5631] = { 4, "20-40 rage" }, [12404] = { 35, "+8 damage, sharp" }, [7964] = { 25, "+6 damage, sharp" },
+  [2871] = { 15, "+4 damage, sharp" }, [2863] = { 5, "+3 damage, sharp" }, [2862] = { 1, "+2 damage, sharp" }, [12643] = { 35, "+8 damage, blunt" },
+  [7965] = { 25, "+6 damage, blunt" }, [3241] = { 15, "+4 damage, blunt" }, [3240] = { 5, "+3 damage, blunt" }, [3239] = { 1, "+2 damage, blunt" },
+  [20749] = { 45, "+36 spell, 1% crit" }, [20750] = { 40, "+24 spell damage" }, [20746] = { 30, "+16 spell damage" },
+  [20744] = { 5, "+8 spell damage" }, [20748] = { 45, "15 mana / 5s, +30 healing" }, [20747] = { 40, "10 mana / 5s, +20 healing" },
+  [20745] = { 20, "5 mana / 5s, +10 healing" }, [10310] = { 55, "+17 Str" }, [4426] = { 40, "+13 Str" }, [2289] = { 25, "+9 Str" },
+  [954] = { 10, "+5 Str" }, [10309] = { 55, "+17 Agi" }, [4425] = { 40, "+13 Agi" }, [1477] = { 25, "+9 Agi" }, [3012] = { 10, "+5 Agi" },
+  [10308] = { 50, "+16 Int" }, [4419] = { 35, "+12 Int" }, [2290] = { 20, "+8 Int" }, [955] = { 5, "+4 Int" }, [10306] = { 45, "+15 Spirit" },
+  [4424] = { 30, "+11 Spirit" }, [1712] = { 15, "+7 Spirit" }, [1181] = { 1, "+3 Spirit" }, [10307] = { 50, "+16 Sta" }, [4422] = { 35, "+12 Sta" },
+  [1711] = { 20, "+8 Sta" }, [1180] = { 5, "+4 Sta" }, [10305] = { 45, "+240 armor" }, [4421] = { 30, "+180 armor" }, [1478] = { 15, "+120 armor" },
+  [3013] = { 1, "+60 armor" }, [250071] = { 45, "+20 Str" }, [20452] = { 45, "+20 Str" }, [13934] = { 45, "+40 attack power" },
+  [13932] = { 35, "+40 attack power" }, [250065] = { 35, "+15 Str" }, [250074] = { 25, "+10 Str" }, [274976] = { 25, "+10 Str" },
+  [8364] = { 25, "+20 attack power" }, [5480] = { 15, "+5 Str" }, [2685] = { 15, "+5 Str" }, [4592] = { 5, "+10 attack power" },
+  [3726] = { 5, "+3 Str" }, [3220] = { 5, "+3 Str" }, [2687] = { 5, "+3 Str" }, [724] = { 5, "+3 Str" }, [787] = { 1, "+6 attack power" },
+  [2888] = { 1, "+1 Str" }, [2681] = { 1, "+1 Str" }, [6890] = { 1, "+1 Str" }, [250072] = { 45, "+20 Agi" }, [12212] = { 35, "+15 Agi" },
+  [18045] = { 35, "+15 Agi" }, [13928] = { 35, "+1% crit" }, [13929] = { 35, "+1% crit" }, [13851] = { 25, "+10 Agi" }, [20074] = { 25, "+10 Agi" },
+  [3728] = { 25, "+10 Agi" }, [3664] = { 15, "+5 Agi" }, [3727] = { 15, "+5 Agi" }, [12209] = { 15, "+5 Agi" }, [1017] = { 15, "+5 Agi" },
+  [2684] = { 5, "+3 Agi" }, [3662] = { 5, "+3 Agi" }, [2680] = { 1, "+1 Agi" }, [13935] = { 45, "+28 spell damage" },
+  [13933] = { 45, "+28 spell damage" }, [13931] = { 35, "+22 spell damage" }, [6887] = { 35, "+22 spell damage" },
+  [274971] = { 25, "+14 spell damage" }, [4457] = { 25, "+10 Int" }, [250073] = { 25, "+10 Int" }, [12216] = { 25, "+10 Int" },
+  [21217] = { 30, "+7 spell damage" }, [12210] = { 15, "+5 Int" }, [21072] = { 10, "+4 spell damage" }, [2683] = { 5, "+3 Int" },
+  [1082] = { 5, "+3 Int" }, [250077] = { 5, "+3 Int" }, [2682] = { 1, "+1 Int" }, [12224] = { 1, "+1 Int" }, [5477] = { 1, "+1 Int" },
+  [250079] = { 1, "+1 Int" }, [249870] = { 45, "+44 healing" }, [249869] = { 35, "+33 healing" }, [249866] = { 5, "+7 healing" },
+  [249865] = { 1, "+2 healing" }, [250068] = { 45, "+20 Sta" }, [250081] = { 45, "+20 Sta" }, [17222] = { 35, "+15 Sta" },
+  [12218] = { 35, "+15 Sta" }, [16766] = { 35, "+15 Sta" }, [12215] = { 25, "+10 Sta" }, [250078] = { 25, "+10 Sta" }, [6038] = { 25, "+10 Sta" },
+  [3665] = { 15, "+5 Sta" }, [5527] = { 15, "+5 Sta" }, [3666] = { 15, "+5 Sta" }, [12214] = { 15, "+5 Sta" }, [3729] = { 15, "+5 Sta" },
+  [3663] = { 1, "+3 Sta" }, [250080] = { 5, "+3 Sta" }, [12213] = { 5, "+3 Sta" }, [5526] = { 5, "+3 Sta" }, [5479] = { 5, "+3 Sta" },
+  [6888] = { 1, "+1 Sta" }, [5472] = { 1, "+1 Sta" }, [5474] = { 1, "+1 Sta" }, [5525] = { 1, "+1 Sta" },
 }
 -- { label, ladder, uses per hour, "or" set }
 local function slot(label, ladder, perHour, set) return { label, ladder, perHour, set } end
-local STONES = { slot("Weapon, sharp", "sharp", 2, "stone"), slot("Weapon, blunt", "blunt", 2, "stone") }
+local STONES = { slot("Weapon", "sharp", 2, "stone"), slot("Weapon", "blunt", 2, "stone") }
 local ROLES = {
   str = {
-    { slot("Food", "fStr", 2), slot("Elixir, Strength", "strength"), slot("Elixir, Agility", "agility"), STONES, slot("Potion, health", "healpot", 3) },
-    { slot("Elixir, Health", "health"), slot("Elixir, Armor", "armor"), slot("Elixir, Health regen", "troll"),
-      slot("Potion, attack power", "frenzy", 3), slot("Scroll, Strength", "sStr", 2), slot("Scroll, Agility", "sAgi", 2) },
+    { slot("Food", "fStr", 2), slot("Elixir", "strength"), slot("Elixir", "agility"), STONES, slot("Potion", "healpot", 3) },
+    { slot("Elixir", "health"), slot("Elixir", "armor"), slot("Elixir", "troll"),
+      slot("Potion", "frenzy", 3), slot("Scroll", "sStr", 2), slot("Scroll", "sAgi", 2) },
   },
   agi = {
-    { slot("Food", "fAgi", 2), slot("Elixir, Agility", "agility"), slot("Elixir, Strength", "strength"), STONES, slot("Potion, health", "healpot", 3) },
-    { slot("Elixir, Health", "health"), slot("Elixir, Health regen", "troll"),
-      slot("Potion, attack power", "frenzy", 3), slot("Scroll, Agility", "sAgi", 2), slot("Scroll, Strength", "sStr", 2) },
+    { slot("Food", "fAgi", 2), slot("Elixir", "agility"), slot("Elixir", "strength"), STONES, slot("Potion", "healpot", 3) },
+    { slot("Elixir", "health"), slot("Elixir", "troll"),
+      slot("Potion", "frenzy", 3), slot("Scroll", "sAgi", 2), slot("Scroll", "sStr", 2) },
   },
   tank = {
-    { slot("Food", "fSta", 2), slot("Elixir, Health", "health"), slot("Elixir, Armor", "armor"), STONES, slot("Potion, health", "healpot", 3) },
-    { slot("Elixir, Strength", "strength"), slot("Elixir, Agility", "agility"), slot("Elixir, Health regen", "troll"),
-      slot("Scroll, Stamina", "sSta", 2), slot("Scroll, Armor", "sArm", 2) },
+    { slot("Food", "fSta", 2), slot("Elixir", "health"), slot("Elixir", "armor"), STONES, slot("Potion", "healpot", 3) },
+    { slot("Elixir", "strength"), slot("Elixir", "agility"), slot("Elixir", "troll"),
+      slot("Scroll", "sSta", 2), slot("Scroll", "sArm", 2) },
   },
   caster = {
-    { slot("Food", "fSpell", 2), slot("Elixir, Spell damage", "spell"), slot("Elixir, Intellect", "intellect"),
-      slot("Weapon oil", "wizard", 2), slot("Potion, mana", "manapot", 3), slot("Potion, health", "healpot", 3) },
-    { "school", slot("Elixir, Mana regen", "regen"), slot("Elixir, Spirit", "spirit"), slot("Elixir, Health", "health"),
-      slot("Potion, spell damage", "blast", 3), slot("Scroll, Intellect", "sInt", 2), slot("Scroll, Spirit", "sSpi", 2) },
+    { slot("Food", "fSpell", 2), slot("Elixir", "spell"), slot("Elixir", "intellect"),
+      slot("Oil", "wizard", 2), slot("Potion", "manapot", 3), slot("Potion", "healpot", 3) },
+    { "school", slot("Elixir", "regen"), slot("Elixir", "spirit"), slot("Elixir", "health"),
+      slot("Potion", "blast", 3), slot("Scroll", "sInt", 2), slot("Scroll", "sSpi", 2) },
   },
   heal = {
-    { slot("Food", "fHeal", 2), slot("Elixir, Healing", "healing"), slot("Elixir, Mana regen", "regen"), slot("Elixir, Intellect", "intellect"),
-      slot("Weapon oil", "manaoil", 2), slot("Potion, mana", "manapot", 3) },
-    { slot("Elixir, Spirit", "spirit"), slot("Elixir, Health", "health"), slot("Potion, healing", "mender", 3),
-      slot("Potion, health", "healpot", 3), slot("Scroll, Intellect", "sInt", 2), slot("Scroll, Spirit", "sSpi", 2) },
+    { slot("Food", "fHeal", 2), slot("Elixir", "healing"), slot("Elixir", "regen"), slot("Elixir", "intellect"),
+      slot("Oil", "manaoil", 2), slot("Potion", "manapot", 3) },
+    { slot("Elixir", "spirit"), slot("Elixir", "health"), slot("Potion", "mender", 3),
+      slot("Potion", "healpot", 3), slot("Scroll", "sInt", 2), slot("Scroll", "sSpi", 2) },
   },
 }
 local ROLE_OF = {
@@ -700,20 +759,38 @@ local ROLE_OF = {
 }
 -- A caster's own school
 local SCHOOL = {
-  mage = { slot("Elixir, Fire", "fire"), slot("Elixir, Frost", "frost") }, warlock = { slot("Elixir, Shadow", "shadow"), slot("Elixir, Fire", "fire") },
-  ["priest-shadow"] = { slot("Elixir, Shadow", "shadow") }, ["priest-smite"] = { slot("Elixir, Holy", "holy") },
-  ["druid-balance"] = { slot("Elixir, Nature", "nature") }, ["shaman-ele"] = { slot("Elixir, Nature", "nature") },
+  mage = { slot("Elixir", "fire"), slot("Elixir", "frost") }, warlock = { slot("Elixir", "shadow"), slot("Elixir", "fire") },
+  ["priest-shadow"] = { slot("Elixir", "shadow") }, ["priest-smite"] = { slot("Elixir", "holy") },
+  ["druid-balance"] = { slot("Elixir", "nature") }, ["shaman-ele"] = { slot("Elixir", "nature") },
 }
 -- no weapon stones, or no mana, for these
 local NO_STONE = { hunter = true, ["druid-cat"] = true, ["druid-bear"] = true }
 local MANA_TOO = { ["paladin-ret"] = true, ["shaman-enh"] = true, hunter = true, ["paladin-prot"] = true }
 
--- Best item on a ladder you're high enough for; nil until the game has told us
+-- Level an item needs: the game's word when it has it, else the harvested one
+local function levelOf(id)
+  local _, _, _, _, minLevel = NW.ItemInfo(id)
+  return minLevel or (ITEM[id] and ITEM[id][1]) or 99
+end
+-- Best item on a ladder you're high enough for
 local function bestFor(ladder, level)
-  for _, id in ipairs(LADDER[ladder]) do
-    local name, _, _, _, minLevel = NW.ItemInfo(id)
-    if name and (minLevel or 0) <= level then return id end
-    if not name and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+  for _, e in ipairs(LADDER[ladder]) do
+    if type(e) ~= "table" then
+      if levelOf(e) <= level then return e end
+    else
+      local pick, pickCost
+      for _, id in ipairs(e) do
+        if levelOf(id) <= level then
+          if (NW.ItemCount(id) or 0) > 0 then return id end
+          local cost, src = NW.Price(id)
+          if src == "est" then cost = nil end
+          if not pick or (cost and (not pickCost or cost < pickCost)) then
+            pick, pickCost = id, cost or pickCost
+          end
+        end
+      end
+      if pick then return pick end
+    end
   end
 end
 
@@ -733,12 +810,15 @@ local function levelList(spec)
         if not NO_STONE[spec.key] then for _, x in ipairs(sl) do put(x) end end
       else
         local id = bestFor(sl[2], level)
-        if id then rows[#rows + 1] = { id, sl[1], nil, sl[4], sl[3] } end
+        if id then
+          local fx = ITEM[id] and ITEM[id][2] or ""
+          rows[#rows + 1] = { id, fx ~= "" and (sl[1] .. " · " .. fx) or sl[1], nil, sl[4], sl[3] }
+        end
       end
     end
     for _, sl in ipairs(role[gi]) do put(sl) end
-    if gi == 1 and MANA_TOO[spec.key] then put(slot("Potion, mana", "manapot", 3)) end
-    if gi == 2 and spec.class == "WARRIOR" then put(slot("Potion, rage", "rage", 3)) end
+    if gi == 1 and MANA_TOO[spec.key] then put(slot("Potion", "manapot", 3)) end
+    if gi == 2 and spec.class == "WARRIOR" then put(slot("Potion", "rage", 3)) end
     out.groups[gi] = { heading, rows }
   end
   return out
@@ -900,7 +980,7 @@ for i = 1, MAX_ROWS do
   row.name:SetWordWrap(false)
   row.effect = UI.Text(row, 11, S.dim)
   row.effect:SetPoint("LEFT", 236, 0)
-  row.effect:SetWidth(180)
+  row.effect:SetWidth(190)
   row.effect:SetWordWrap(false)
   row.have = UI.Text(row, 12, S.text, "RIGHT")
   row.have:SetPoint("RIGHT", row, "LEFT", 462, 0)
@@ -1144,7 +1224,7 @@ refresh = function()
       row.icon:Show()
       row.icon:SetTexture(NW.ItemIcon(e.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
       row.name:SetText((e.alt and "|cff94949aor|r  " or "") .. (itemName(e.id)))
-      row.effect:SetWidth(180)
+      row.effect:SetWidth(190)
       row.effect:SetText(e.effect)
       -- green: cheaper to make. Grey: you don't know the recipe yet.
       local mk = ""
