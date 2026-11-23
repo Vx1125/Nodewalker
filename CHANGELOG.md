@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.13
+
+- Consumes: My level list shows the best food, elixirs, potions, scrolls and weapon buffs you can use at your level.
+- Consumes: List dropdown (My level, Raid best, Raid budget) replaces the Budget box.
+- Prices use the game's coin icons.
+- Fixed one-hour elixirs being miscounted for Stock.
+
 ## 1.1.12
 
 - Fixed the shopping list asking for huge amounts of Light Leather when Thick, Heavy and Medium had no auction price.

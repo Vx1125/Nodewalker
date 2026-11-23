@@ -51,6 +51,7 @@ Imports your GatherMate2 nodes. Prices everything with Auctionator.
 ![Consumes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/consumes.jpg)
 
 - Raid consumables for every class and spec
+- **My level**: the best you can use while leveling
 - Stock for a 2, 3 or 4 hour raid: have against need
 - Make or buy, whichever is cheaper
 - One search for everything you're short of
