@@ -634,11 +634,10 @@ function NW.Price(id, depth)
   if r and (depth or 0) < 3 then
     local cost, unknown = 0, false
     for _, re in ipairs(r.reagents) do
-      -- If you can simply buy it, making it only wins when it's clearly
-      -- cheaper from bought materials. Otherwise a chain like Light >
-      -- Medium > Heavy > Thick Leather turns one piece into 120.
-      local p
-      if best then p = NW.BuyPrice(re[1]) else p = NW.Price(re[1], (depth or 0) + 1) end
+      -- Made from materials you can buy, one step down and no further,
+      -- whether or not the item itself has a price. Otherwise a chain like
+      -- Light > Medium > Heavy > Thick Leather turns one piece into 120.
+      local p = NW.BuyPrice(re[1])
       if not p then unknown = true break end
       cost = cost + p * re[2]
     end
@@ -931,10 +930,8 @@ function NW.ShoppingList(key, plan)
     local price, src = NW.Price(id)
     if r and src == "craft" and depth < 3 and not leaf then
       local crafts = math.ceil(n / (r.yield or 1))
-      -- something you could have bought is made from bought materials: one
-      -- step down, never a whole chain
-      local stop = NW.BuyPrice(id) ~= nil
-      for _, re in ipairs(r.reagents) do add(re[1], re[2] * crafts, depth + 1, stop) end
+      -- one step down, never a whole chain
+      for _, re in ipairs(r.reagents) do add(re[1], re[2] * crafts, depth + 1, true) end
     else
       need[id] = (need[id] or 0) + n
     end

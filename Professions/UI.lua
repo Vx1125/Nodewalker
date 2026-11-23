@@ -94,7 +94,7 @@ local hName = UI.Text(mid, 17, S.gold)
 hName:SetPoint("TOPLEFT", hIconBox, "TOPRIGHT", 10, -1)
 local hSkill = UI.Text(mid, 12, S.dim)
 hSkill:SetPoint("TOPLEFT", hName, "BOTTOMLEFT", 0, -5)
-hSkill:SetWidth(MID_W - 270)
+hSkill:SetWidth(MID_W - 240)
 hSkill:SetWordWrap(false)
 local hCost = UI.Text(mid, 15, S.text, "RIGHT")
 hCost:SetPoint("TOPRIGHT", 0, -2)
@@ -525,7 +525,7 @@ local cardCraft = UI.Button(right, "Craft", 96, function(self) craftClick(self) 
 cardCraft:SetPoint("TOPRIGHT", rTotal, "BOTTOMLEFT", RIGHT_W, -14)
 cardCraft:Hide()
 local KEY = "|cffff8040Orange|r recipes always skill up, |cffffff00yellow|r often, |cff40bf40green|r rarely.\n"
-  .. "|cffe6e6eb6/78|r have / need  ·  |cffe6e6ebv|r vendor  ·  |cffe6e6ebfind|r not on the auction house  ·  |cffffd133!|r odd price or few listed (hover)\n"
+  .. "|cffe6e6eb6/78|r have / need  ·  |cffe6e6ebv|r vendor  ·  |cffeb5c4c~|r guessed, no auction price  ·  |cffffd133!|r odd price or few listed (hover)\n"
   .. "Shift-click anything to search the auction house.\n\n"
 local shopBox = UI.Box(right, RIGHT_W, 240)
 shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
@@ -758,8 +758,8 @@ end
 local function rankLine(key)
   local r, now, max = nextRank(key)
   if not r then return end
-  return ("|cffe8c46a%s %s|r to pass %d: |cffffffff%s|r  (skill %d, level %d)"):format(
-    now and "Train" or "Next:", r.name, max, rankWhereText(key, r.name), r.skill, r.level)
+  return ("|cffe8c46a%s %s|r to pass %d: |cffffffff%s|r"):format(
+    now and "Train" or "Next:", r.name, max, rankWhereText(key, r.name))
 end
 
 
@@ -924,11 +924,10 @@ local function drawCraft(p)
   if back > 0 then
     rows[#rows + 1] = { st().planSellBack == "de" and "Disenchant back" or "Sell back", "~" .. NW.Money(back, true) }
     rows[#rows + 1] = { "Net", "~" .. NW.Money(spend - back, true), nil, true }
+  -- three rows at most: that's the room beside the profession name
+  elseif plan.fees and plan.fees > 0 then
+    rows[#rows + 1] = { "incl. training", NW.Money(plan.fees, true) }
   end
-  local note
-  if plan.fees and plan.fees > 0 then note = ("incl. %s training"):format(NW.Money(plan.fees, true)) end
-  if plan.unknown > 0 then note = (note and (note .. " · ") or "") .. ("%d unpriced"):format(plan.unknown) end
-  if note then rows[#rows + 1] = { note } end
   -- what bought or found recipes would save
   if not st().planRecipeItems then
     st().planRecipeItems = true
@@ -977,7 +976,8 @@ local function drawCraft(p)
   for _, e in ipairs(list) do if e.buy > 0 and (e.scarce or (e.stats and e.stats.flag)) then odd = odd + 1 end end
   local live = 0
   for _, e in ipairs(list) do if e.live then live = live + 1 end end
-  rTotal:SetText(("%d items  ·  %s to buy%s%s"):format(#list, NW.Money(total),
+  rTotal:SetText(("%d items  ·  %s to buy%s%s%s"):format(#list, NW.Money(total),
+    plan.unknown > 0 and ("  ·  |cffeb5c4c%d no price|r"):format(plan.unknown) or "",
     live > 0 and ("  ·  |cff8cdb7a%d live|r"):format(live) or "",
     odd > 0 and ("  ·  |cffffd133%d to check|r"):format(odd) or ""))
   drawShop()
