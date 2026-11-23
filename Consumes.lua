@@ -599,7 +599,8 @@ end
 local function minutesOf(id)
   local text = useText(id)
   if not text then return nil end
-  text = text:lower()
+  -- the game writes plurals as "1 |4hour:hrs;"
+  text = text:gsub("|4([^:;]*):[^;]*;", "%1"):lower()
   local h = text:match("(%d+) ho?u?rs?")
   if h then return tonumber(h) * 60 end
   local m = tonumber(text:match("(%d+) min"))
@@ -754,22 +755,50 @@ function NW.HarvestConsumes()
     for _, g in ipairs(l.groups) do for _, c in ipairs(g[2]) do ids[c[1]] = true end end
   end
   for _, ladder in pairs(LADDER) do for _, id in ipairs(ladder) do ids[id] = true end end
-  for id in pairs(ids) do
-    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+  -- The game sends item and spell text only when asked, a little at a time:
+  -- ask in batches, wait for each answer, then save whatever came back.
+  local queue = {}
+  for id in pairs(ids) do queue[#queue + 1] = id end
+  table.sort(queue)
+  local out = NW.db.harvest or {}
+  NW.db.harvest = out
+  local function record(id)
+    local name, _, _, _, minLevel, class, sub = NW.ItemInfo(id)
+    local text = name and useText(id)
+    if text then out[id] = { name = name, level = minLevel, class = class, sub = sub, text = text } end
   end
-  C_Timer.After(6, function()
-    local out, n = {}, 0
-    for id in pairs(ids) do
-      local name, _, _, _, minLevel, class, sub = NW.ItemInfo(id)
-      local text = name and useText(id)
-      if text then
-        out[id] = { name = name, level = minLevel, class = class, sub = sub, text = text }
-        n = n + 1
+  local function ask(id)
+    if not (Item and Item.CreateFromItemID) then record(id) return end
+    local item = Item:CreateFromItemID(id)
+    if item:IsItemEmpty() then return end
+    item:ContinueOnItemLoad(function()
+      local _, spellID = (C_Item and C_Item.GetItemSpell or GetItemSpell)(id)
+      if spellID and Spell and Spell.CreateFromSpellID then
+        Spell:CreateFromSpellID(spellID):ContinueOnSpellLoad(function() record(id) end)
+      else
+        record(id)
       end
+    end)
+  end
+  local at, total = 0, #queue
+  NW.Print(("Harvest: asking the game about %d items. About %d seconds."):format(total, math.ceil(total / 60) + 6))
+  local function step()
+    for _ = 1, 30 do
+      at = at + 1
+      if queue[at] then pcall(ask, queue[at]) end
     end
-    NW.db.harvest = out
-    NW.Print(("Harvest: %d items saved. /reload to write them to disk."):format(n))
-  end)
+    if at < total then
+      C_Timer.After(0.5, step)
+    else
+      C_Timer.After(6, function()
+        for _, id in ipairs(queue) do if not out[id] then pcall(record, id) end end
+        local n = 0
+        for _ in pairs(out) do n = n + 1 end
+        NW.Print(("Harvest: %d of %d saved. /reload to write them to disk."):format(n, total))
+      end)
+    end
+  end
+  step()
 end
 
 -- Which list: "level", "raid" or "budget". Below 60 it starts on your level.

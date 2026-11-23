@@ -990,7 +990,9 @@ function NW.Money(c, short)
   if not c then return "?" end
   c = math.floor(c + 0.5)
   local g, s, cp = math.floor(c / 10000), math.floor(c / 100) % 100, c % 100
-  local G, S, Cc = "|cffffd700g|r", "|cffc7c7cfs|r", "|cffeda55fc|r"
+  -- the game's own coins, sized to the text
+  local G, S, Cc = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:1:0|t", "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:1:0|t",
+    "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:1:0|t"
   if g > 0 then
     if short or g >= 100 then return ("%d%s"):format(g, G) end
     return ("%d%s %d%s"):format(g, G, s, S)
