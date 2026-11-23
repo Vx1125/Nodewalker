@@ -743,6 +743,35 @@ local function levelList(spec)
   return out
 end
 
+-- /nw harvest: saves what the game says about every consumable Nodewalker
+-- knows (name, level, use text), so the ladders can be checked against it
+function NW.HarvestConsumes()
+  local ids = {}
+  for _, key in ipairs({ "alchemy", "cooking", "firstaid", "blacksmithing", "enchanting", "engineering" }) do
+    for _, r in ipairs(NW.RECIPES[key] or {}) do if r.item then ids[r.item] = true end end
+  end
+  for _, l in ipairs(NW.CONSUMES) do
+    for _, g in ipairs(l.groups) do for _, c in ipairs(g[2]) do ids[c[1]] = true end end
+  end
+  for _, ladder in pairs(LADDER) do for _, id in ipairs(ladder) do ids[id] = true end end
+  for id in pairs(ids) do
+    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+  end
+  C_Timer.After(6, function()
+    local out, n = {}, 0
+    for id in pairs(ids) do
+      local name, _, _, _, minLevel, class, sub = NW.ItemInfo(id)
+      local text = name and useText(id)
+      if text then
+        out[id] = { name = name, level = minLevel, class = class, sub = sub, text = text }
+        n = n + 1
+      end
+    end
+    NW.db.harvest = out
+    NW.Print(("Harvest: %d items saved. /reload to write them to disk."):format(n))
+  end)
+end
+
 -- Which list: "level", "raid" or "budget". Below 60 it starts on your level.
 local function listMode()
   local m = st().consumeList
