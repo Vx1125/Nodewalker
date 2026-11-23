@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.14
+
+- Consumes: My level rebuilt from the game's own item data, with each row's real effect.
+- Consumes: bandages, a Situational section and a Camp section; next upgrade shown on the detail panel.
+- Consumes: level 55 raid foods, healer teas, Rumsey Rum, rogue poisons by level, mage familiars.
+- Consumes: prices under 10g show silver; corrected raid effect numbers.
+- Fixed a stocked alternative showing 0 in green.
+
 ## 1.1.13
 
 - Consumes: My level list shows the best food, elixirs, potions, scrolls and weapon buffs you can use at your level.
