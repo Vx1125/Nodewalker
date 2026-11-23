@@ -529,6 +529,8 @@ local PER_HOUR = { Flask = 0.5, Elixirs = 1, Food = 2, Drink = 2, ["Weapon oil"]
   Protection = 1, Runes = 3, Other = 3 }
 -- Headings where you only ever use one of the rows
 local PICK_ONE = { Flask = true, Food = true, Drink = true, ["Weapon oil"] = true, Weapon = true, Runes = true }
+-- Sections that are there to browse, not to stock
+local OPTIONAL = { Situational = true, Camp = true }
 -- What can run together, shown beside each heading
 local HINT = {
   Flask = "one at a time",
@@ -797,7 +799,8 @@ local SCHOOL = {
 }
 -- no weapon stones, or no mana, for these
 local NO_STONE = { hunter = true, ["druid-cat"] = true, ["druid-bear"] = true }
-local MANA_TOO = { ["paladin-ret"] = true, ["shaman-enh"] = true, hunter = true, ["paladin-prot"] = true }
+local MANA_TOO = { ["paladin-ret"] = true, ["shaman-enh"] = true, hunter = true, ["paladin-prot"] = true, ["druid-cat"] = true,
+  ["druid-bear"] = true }
 
 -- First Aid skill each bandage needs
 local BANDAGE = { [14530] = 225, [14529] = 200, [8545] = 175, [8544] = 150, [6451] = 125, [6450] = 100, [3531] = 75, [3530] = 50,
@@ -857,7 +860,7 @@ local function levelList(spec)
         if nextId and id then upgradeOf[id] = { nextId, nextAt, skill } end
         if id then
           local fx = ITEM[id] and ITEM[id][2] or ""
-          rows[#rows + 1] = { id, fx ~= "" and (sl[1] .. " · " .. fx) or sl[1], nil, sl[4], sl[3] }
+          rows[#rows + 1] = { id, fx ~= "" and (sl[1] .. "  |cffe6e6eb" .. fx .. "|r") or sl[1], nil, sl[4], sl[3] }
         end
       end
     end
@@ -865,7 +868,7 @@ local function levelList(spec)
     local mana = MANA_TOO[spec.key] or roleKey == "caster" or roleKey == "heal" or spec.class == "DRUID"
     if gi == 1 and MANA_TOO[spec.key] then put(slot("Potion", "manapot", 3)) end
     if gi == 1 and firstAid then put(slot("Bandage", "bandage", 3)) end
-    if gi == 2 and spec.class == "WARRIOR" then put(slot("Potion", "rage", 3)) end
+    if gi == 2 and (spec.class == "WARRIOR" or spec.key == "druid-bear") then put(slot("Potion", "rage", 3)) end
     if gi == 1 and spec.key == "rogue" then put(slot("Poison", "instant", 2)) put(slot("Poison", "deadly", 2)) end
     if gi == 2 and roleKey == "tank" then put(slot("Food", "fArmor", 2)) end
     if gi == 2 and spec.key == "mage" then put(slot("Scroll", "familiar")) end
@@ -966,7 +969,7 @@ function NW.HarvestConsumes(all)
         for _, id in ipairs(queue) do if not out[id] then pcall(record, id) end end
         local n = 0
         for _ in pairs(out) do n = n + 1 end
-        NW.Print(("Harvest: %d of %d saved. /reload to write them to disk."):format(n, total))
+        NW.Print(("Harvest: %d usable items saved (%d checked). /reload to write them to disk."):format(n, total))
       end)
     end
   end
@@ -1267,6 +1270,8 @@ refresh = function()
         -- one or the other: the first row you haven't hidden is the one to
         -- stock, and the rest only show what you already carry
         local set = (PICK_ONE[g[1]] and g[1]) or c[4]
+        -- nice to have: shown with what you carry, never counted as short
+        if OPTIONAL[g[1]] then e.optional, e.need, e.short = true, 0, 0 end
         if set and not isHidden then
           local lead = sets[set]
           if not lead then
@@ -1331,7 +1336,7 @@ refresh = function()
         mk = col .. NW.Money(e.make, true):gsub("|r", "|r" .. col) .. "|r"
       end
       row.make:SetText(mk)
-      local col = (e.alt and (e.have > 0 and "|cff8cdb7a" or "|cff94949a")) or (e.short == 0 and "|cff8cdb7a")
+      local col = ((e.alt or e.optional) and (e.have > 0 and "|cff8cdb7a" or "|cff94949a")) or (e.short == 0 and "|cff8cdb7a")
         or (e.have == 0 and "|cffeb5c4d") or "|cffffe633"
       row.have:SetText(e.need > 1 and ("%s%d|r|cff94949a/%d|r"):format(col, e.have, e.need) or ("%s%d|r"):format(col, e.have))
       row.price:SetText(e.price and NW.Money(e.price, true) or "|cff94949a?|r")
