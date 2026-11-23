@@ -124,11 +124,11 @@ local checks = {
 }
 for i, cb in ipairs(checks) do cb:SetPoint("TOPLEFT", hFilters, "BOTTOMLEFT", 2, -10 - (i - 1) * 24) end
 
-local merge = UI.Slider(side, SIDE_W, "Merge nodes closer than", 20, 150, 5,
+local merge = UI.Slider(side, SIDE_W, "Merge nodes closer than", 20, 250, 10,
   function(v) return ("%d yd"):format(v) end,
   function() return s().mergeYards end,
   function(v) s().mergeYards = v end,
-  "Nodes this close together become one stop.")
+  "Nodes this close together become one stop. Higher: fewer stops, one pass per patch. Optimize loop to apply.")
 merge:SetPoint("TOPLEFT", checks[#checks], "BOTTOMLEFT", -2, -14)
 
 local hRoute = UI.Heading(side, "This route", SIDE_W)
