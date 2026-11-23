@@ -407,7 +407,6 @@ local function getMarker()
       for _, l in ipairs(self.info.lines or {}) do
         GameTooltip:AddLine(l[1], l[2] or 0.85, l[3] or 0.81, l[4] or 0.73, true)
       end
-      if self.info.stop then GameTooltip:AddLine("Ctrl-click: make this the next stop", 0.6, 0.6, 0.6) end
       if self.info.node then GameTooltip:AddLine("Ctrl-right-click: hide all " .. self.info.node, 0.6, 0.6, 0.6) end
       GameTooltip:Show()
     end)
@@ -960,7 +959,6 @@ local function drawInner(force)
         local state = "stop"
         local seen = prog and prog.visited[i]
         if seen and now - seen < respawn then state = "picked" end
-        if i == nextIndex then state = "next" end
         if state ~= "picked" and vx * vx + vy * vy < nearPx * nearPx then near = true end
         local up = state ~= "picked" and NW.StopSeenAgo(mapID, i)
         local it = item(vx, vy, state == "next" and 5 or (up and 4 or (state == "picked" and 0 or 2)))
@@ -1128,7 +1126,7 @@ local function drawInner(force)
   end
 
   -- Next-stop label
-  if nextIndex and s.showNextLabel then
+  if false then -- the next stop is no longer called out on the map
     local st = route.stops[nextIndex]
     local vx, vy = toView(st.x, st.y)
     -- keep the label inside the window, even when the stop is past its edge

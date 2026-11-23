@@ -106,7 +106,7 @@ check(1, "Build a route by itself in new zones", "autoRoute",
 -- Column 2: when it shows, extras, filters
 heading(2, "When to show it")
 check(2, "Fade while moving", "fadeMoving")
-checkBeside(2, "Brighter near a node", "brightNear", "Stops fading when a known spot or your next stop is within 100 yards.")
+checkBeside(2, "Brighter near a node", "brightNear", "Stops fading when a known spot is within 100 yards.")
 slider(2, "Fade to", 0.2, 1, 0.05, pct, "fadeMovingAlpha")
 check(2, "Hide in combat", "hideCombat")
 check(2, "Hide in cities and inns", "hideResting")
@@ -118,7 +118,6 @@ check(2, "Zone banner when you arrive", "zoneBanner", "Shows the zone, its known
 check(2, "Compass bar", "showCompass")
 checkBeside(2, "Minimap button", "minimapButton")
 check(2, "Session panel (loops, nodes and gold per hour)", "showSession")
-check(2, "\"Next stop\" label on the map", "showNextLabel")
 check(2, "Icon tooltips when live dots are off", "hoverTooltips")
 
 heading(2, "Which herbs and ore")
@@ -156,7 +155,7 @@ helpText:SetPoint("LEFT", 12, 0)
 helpText:SetPoint("RIGHT", -12, 0)
 helpText:SetSpacing(3)
 helpText:SetText("|cffe8c46aAlt|r + hover a live dot: identify it   ·   |cffe8c46aCtrl|r + hover a stop: details   ·   "
-  .. "|cffe8c46aCtrl-click|r: next stop   ·   |cffe8c46aCtrl-right-click|r: hide that herb or ore\n"
+  .. "|cffe8c46aCtrl-right-click|r: hide that herb or ore\n"
   .. "|cffe8c46a/nw|r overlay   ·   |cffe8c46a/nw plan|r route   ·   |cffe8c46a/nw guide|r farm guide   ·   |cffe8c46a/nw prof|r professions   ·   |cffe8c46a/nw consumes|r   ·   "
   .. "|cffe8c46a/nw options|r settings")
 

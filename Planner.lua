@@ -30,7 +30,7 @@ do
   local x = 0
   for _, e in ipairs({
     { C.herbEdge, "Herbs" }, { C.oreEdge, "Ore" }, { C.picked, "Left out" },
-    { { 1, 0.84, 0.47 }, "Next stop" }, { { 0.95, 0.8, 0.4 }, "Route: gold first" }, { { 0.35, 0.5, 0.95 }, "blue last" },
+    { { 0.95, 0.8, 0.4 }, "Route: gold first" }, { { 0.35, 0.5, 0.95 }, "blue last" },
     { { 0.84, 0.35, 0.27 }, "Avoid zone" },
   }) do
     local sw = legend:CreateTexture(nil, "ARTWORK")
@@ -243,7 +243,6 @@ refresh = function()
         local fill = a.kind == "herb" and C.herbEdge or C.oreEdge
         -- a stop with several nodes is a little bigger
         local size = base + math.min(4, (a.count or 1) - 1)
-        if i == first then size = size + 3; fill = C.next end
         d:SetSize(size, size)
         d:SetColorTexture(fill[1], fill[2], fill[3], 1)
         d:ClearAllPoints()
@@ -325,7 +324,7 @@ mapFrame:SetScript("OnUpdate", function(self)
   if (a.herbs or 0) > 0 then what[#what + 1] = ("%d herb"):format(a.herbs) end
   if (a.ores or 0) > 0 then what[#what + 1] = ("%d ore"):format(a.ores) end
   if #what > 0 then GameTooltip:AddLine(table.concat(what, ", "), 0.85, 0.81, 0.73) end
-  if away then GameTooltip:AddLine(away == 0 and "Your next stop" or ("%d stops from now"):format(away), 0.6, 0.6, 0.6) end
+  if away then GameTooltip:AddLine(away == 0 and "First on the route" or ("%d stops from now"):format(away), 0.6, 0.6, 0.6) end
   GameTooltip:Show()
 end)
 

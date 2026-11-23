@@ -128,7 +128,7 @@ function NW.UpdateCompass()
   for i, st in ipairs(route.stops) do
     local dx, dy = (st.x - px) * w, (st.y - py) * h
     local d = math.sqrt(dx * dx + dy * dy)
-    local isNext = prog and prog.index == i
+    local isNext = false -- every stop is drawn alike
     if isNext or d < 300 then
       local x = barX(math.atan2(-dx, -dy), facing)
       if x then

@@ -364,7 +364,7 @@ SlashCmdList.NODEWALKER = function(msg)
       n, mapID and #(NW.db.nodes[mapID] or {}) or 0,
       (mapID and NW.db.routes[mapID]) and (#NW.db.routes[mapID].stops .. " stops") or "none"))
   else
-    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  farm guide · /nw prof  professions · /nw consumes · /nw options · /nw import  GatherMate2 nodes · /nw next  skip a stop · /nw status")
+    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  farm guide · /nw prof  professions · /nw consumes · /nw options · /nw import  GatherMate2 nodes · /nw status")
   end
 end
 
