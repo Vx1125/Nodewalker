@@ -826,7 +826,7 @@ end
 
 -- /nw harvest: saves what the game says about every consumable Nodewalker
 -- knows (name, level, use text), so the ladders can be checked against it
-function NW.HarvestConsumes()
+function NW.HarvestConsumes(all)
   local ids = {}
   for _, key in ipairs({ "alchemy", "cooking", "firstaid", "blacksmithing", "enchanting", "engineering" }) do
     for _, r in ipairs(NW.RECIPES[key] or {}) do if r.item then ids[r.item] = true end end
@@ -839,8 +839,28 @@ function NW.HarvestConsumes()
       if type(e) == "table" then for _, id in ipairs(e) do ids[id] = true end else ids[e] = true end
     end
   end
+  local start
+  -- /nw harvest all: every consumable the client knows, crafted or not. The
+  -- client can say what kind of thing an item ID is without asking the server.
+  if all then
+    local instant = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+    local at, LAST = 0, 300000
+    NW.Print("Harvest: looking through every item for consumables...")
+    local function scan()
+      for _ = 1, 5000 do
+        at = at + 1
+        local ok, _, _, _, _, _, classID = pcall(instant, at)
+        if ok and classID == 0 then ids[at] = true end
+      end
+      if at < LAST then C_Timer.After(0.02, scan) else start() end
+    end
+    C_Timer.After(0, scan)
+  else
+    C_Timer.After(0, function() start() end)
+  end
   -- The game sends item and spell text only when asked, a little at a time:
   -- ask in batches, wait for each answer, then save whatever came back.
+  start = function()
   local queue = {}
   for id in pairs(ids) do queue[#queue + 1] = id end
   table.sort(queue)
@@ -883,6 +903,7 @@ function NW.HarvestConsumes()
     end
   end
   step()
+  end
 end
 
 -- Which list: "level", "raid" or "budget". Below 60 it starts on your level.
