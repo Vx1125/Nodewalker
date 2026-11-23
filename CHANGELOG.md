@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.12
+
+- Fixed the shopping list asking for huge amounts of Light Leather when Thick, Heavy and Medium had no auction price.
+- Leveling cost header keeps to three rows and no longer runs into the search box.
+- Fixed cut-off text beside the skill and on the next-rank line.
+- Key explains the red ~ (guessed price).
+
 ## 1.1.11
 
 - Leveling cost reads as a short ledger: Spend, what comes back, Net.
