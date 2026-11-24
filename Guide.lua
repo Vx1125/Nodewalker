@@ -272,11 +272,28 @@ local pvSub = UI.Text(right, 11, S.dim)
 pvSub:SetPoint("TOPLEFT", pvTitle, "BOTTOMLEFT", 0, -3)
 pvSub:SetWidth(PV_W)
 local pvTiles = {}
+-- drawn like the Route map: the zone fully explored in its own colours,
+-- round dots, and the loop shaded gold to blue so its order reads
+local pvShade = pvArt:CreateTexture(nil, "BORDER")
+pvShade:SetAllPoints()
+pvShade:SetColorTexture(0, 0, 0, 0.18)
 local getPvDot, resetPvDots = UI.Pool(function()
   local t = pvArt:CreateTexture(nil, "OVERLAY")
+  local mask = pvArt:CreateMaskTexture()
+  mask:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+  mask:SetAllPoints(t)
+  t:AddMaskTexture(mask)
   t:SetSize(5, 5)
   return t
 end)
+local function routeColor(t)
+  if t < 0.5 then
+    local k = t * 2
+    return 0.95 + (0.3 - 0.95) * k, 0.8 + (0.78 - 0.8) * k, 0.4 + (0.8 - 0.4) * k
+  end
+  local k = (t - 0.5) * 2
+  return 0.3 + (0.35 - 0.3) * k, 0.78 + (0.5 - 0.78) * k, 0.8 + (0.95 - 0.8) * k
+end
 local getPvLine, resetPvLines = UI.Pool(function()
   local l = pvArt:CreateLine(nil, "ARTWORK")
   l:SetThickness(2)
@@ -299,7 +316,7 @@ local function drawPreview(row, herb)
     pvSub:SetText("This zone isn't on your client's map list.")
     return
   end
-  UI.DrawZoneArt(row.mapID, pvArt, pvTiles, PV_W, PV_H)
+  UI.DrawZoneArt(row.mapID, pvArt, pvTiles, PV_W, PV_H, true)
   local function p(x, y) return x * PV_W, -y * PV_H end
   local route = NW.db.routes[row.mapID]
   local isFocus = route and ((route.focus and route.focus[herb]) or (kind == "both" and not route.focus))
@@ -308,29 +325,40 @@ local function drawPreview(row, herb)
     local st = route.stops
     for i = 1, #st do
       local pts = i == route.open and {} or NW.LegPoints(route, i)
+      local r, g, b = routeColor((i - 1) / #st)
       for q = 1, #pts - 1 do
         local l = getPvLine()
-        l:SetColorTexture(C.route[1], C.route[2], C.route[3], 0.95)
+        l:SetColorTexture(r, g, b, 0.95)
         l:SetStartPoint("TOPLEFT", pvArt, p(pts[q][1], pts[q][2]))
         l:SetEndPoint("TOPLEFT", pvArt, p(pts[q + 1][1], pts[q + 1][2]))
       end
     end
-    pvSub:SetText(("Your optimized route: %d stops, %s per loop."):format(#st, fmtTime(route.seconds or 0)))
+    for _, a in ipairs(st) do
+      local d = getPvDot()
+      local e = a.kind == "ore" and C.oreEdge or C.herbEdge
+      d:SetSize(7, 7)
+      d:SetColorTexture(e[1], e[2], e[3], 1)
+      d:ClearAllPoints()
+      d:SetPoint("CENTER", pvArt, "TOPLEFT", p(a.x, a.y))
+    end
+    pvSub:SetText(("Your route: %d stops, %s %s."):format(#st, fmtTime(route.seconds or 0), route.open and "each way" or "per loop"))
   elseif row.order and #row.pts <= 400 then
     for i = 1, #row.order do
       local a, b = row.pts[row.order[i]], row.pts[row.order[(i % #row.order) + 1]]
       local l = getPvLine()
-      l:SetColorTexture(C.route[1], C.route[2], C.route[3], 0.4)
+      l:SetColorTexture(1, 1, 1, 0.45)
       l:SetStartPoint("TOPLEFT", pvArt, p(a[3], a[4]))
       l:SetEndPoint("TOPLEFT", pvArt, p(b[3], b[4]))
     end
-    pvSub:SetText("Quick preview. Build route makes an optimized loop.")
+    pvSub:SetText("Quick preview. Build route for the real one.")
   else
     pvSub:SetText(row.count > 0 and (row.count .. " known spots.")
       or "No spots saved yet. Import GatherMate2 data to rank it.")
   end
-  for _, pt in ipairs(row.pts) do
+  local routed = isFocus and #route.stops > 1
+  for _, pt in ipairs(routed and {} or row.pts) do
     local d = getPvDot()
+    d:SetSize(5, 5)
     local e = pt[5] == "ore" and C.oreEdge or pt[5] == "herb" and C.herbEdge or edge
     d:SetColorTexture(e[1], e[2], e[3], 1)
     d:ClearAllPoints()
