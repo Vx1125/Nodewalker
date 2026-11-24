@@ -1455,17 +1455,39 @@ local function drawCard()
     local price, src = NW.Price(re[1])
     local have = NW.ItemCount(re[1]) or 0
     local maker, makerKey = NW.RecipeFor(re[1])
-    list[#list + 1] = { id = re[1], need = re[2], have = have, buy = math.max(0, re[2] - have),
-      price = price, src = src, cost = price and price * re[2] or nil, maker = maker, makerKey = makerKey }
+    local buy = math.max(0, re[2] - have)
+    -- what's left to buy, from the live listings when you've just searched
+    local cost = price and src ~= "est" and price * buy or nil
+    local live
+    if src == "ah" and buy > 0 and NW.FillCost then
+      local fill, got, complete = NW.FillCost(re[1], buy)
+      if fill and got > 0 then
+        cost = fill + (buy - got) * price
+        live = { cost = fill, got = got, complete = complete }
+      end
+    end
+    list[#list + 1] = { id = re[1], need = re[2], have = have, buy = buy, live = live,
+      price = price, src = src, cost = cost, full = price and price * re[2] or nil, maker = maker, makerKey = makerKey }
   end
   shop = list
   shopOffset = 0
   drawShop()
-  local profit, cost, sale, _, de = NW.RecipeProfit(r)
+  local profit, _, sale, _, de = NW.RecipeProfit(r)
   rHead.text:SetText(r.name)
+  -- every material at today's price, and what's left to buy after your bags
+  local full, toBuy, unpriced, haveAny = 0, 0, false, false
+  for _, e in ipairs(list) do
+    if e.full and e.src ~= "est" then full = full + e.full else unpriced = true end
+    if e.buy > 0 then
+      if e.cost then toBuy = toBuy + e.cost else unpriced = true end
+    end
+    if e.have > 0 then haveAny = true end
+  end
+  local q = unpriced and "|cffeb5c4c+?|r" or ""
   local parts = {}
   if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, "mid") end
-  parts[#parts + 1] = "materials " .. NW.Money(cost or 0, "mid")
+  parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
+  if haveAny then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
   if profit then parts[#parts + 1] = signedMoney(profit) end
   rTotal:SetText(table.concat(parts, "  ·  "))
   local prev = card.stack[#card.stack]
