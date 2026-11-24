@@ -365,6 +365,14 @@ function NW.TogglePlanner() NW.ToggleWindow("route") end
 ------------------------------------------------------------------------
 do
   local layer, lines, drawn
+  local COLOR = { 0.35, 0.86, 0.92, 0.9 }
+  -- OpenMap's stitched map: the canvas belongs to whatever zone sits under
+  -- the view, and the rest of Azeroth is drawn around it. Its API turns a
+  -- zone's point into a point on that canvas.
+  local function openMap()
+    local api = OpenMapAPI
+    if api and api.IsStitched and api.IsStitched() and api.WorldFromMap and api.MapFromWorld then return api end
+  end
   local function draw()
     local canvas = WorldMapFrame.GetCanvas and WorldMapFrame:GetCanvas()
       or (WorldMapFrame.ScrollContainer and WorldMapFrame.ScrollContainer.Child)
@@ -372,31 +380,66 @@ do
     if not layer then
       layer = CreateFrame("Frame", nil, canvas)
       layer:SetAllPoints(canvas)
-      layer:SetFrameLevel(canvas:GetFrameLevel() + 60) -- over the map art, under the game's pins
       lines = {}
     end
+    local api = openMap()
+    -- over the map art (OpenMap's stitched art too), under the game's pins
+    local top = api and api.ArtTopLevel and api.ArtTopLevel()
+    layer:SetFrameLevel(math.max(canvas:GetFrameLevel() + 60, (tonumber(top) or 0) + 1))
     local mapID = WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
-    local route = mapID and NW.db.routes[mapID]
-    local on = NW.db.settings.routeOnWorldMap ~= false and route and #route.stops > 1
     local W, H = canvas:GetSize()
-    -- only redraw when something changed
-    local sig = on and ("%d:%s:%d:%d"):format(mapID, tostring(route.built), #route.stops, W) or "off"
+    local on = NW.db.settings.routeOnWorldMap ~= false and mapID
+    -- which routes, and how to place a point of one on the canvas
+    local todo, place = {}, nil
+    if on and api then
+      -- every saved route: the stitched map shows the zones around this one too
+      local built = 0
+      for zone, route in pairs(NW.db.routes) do
+        if #route.stops > 1 then todo[#todo + 1] = { zone, route } built = built + (route.built or 0) + #route.stops end
+      end
+      place = function(zone, x, y)
+        local u, v = api.WorldFromMap(zone, x, y)
+        if not u then return end
+        return api.MapFromWorld(mapID, u, v)
+      end
+      on = ("om:%d:%d:%d:%d"):format(mapID, W, #todo, built)
+    elseif on then
+      local route = NW.db.routes[mapID]
+      if route and #route.stops > 1 then
+        todo[1] = { mapID, route }
+        place = function(_, x, y) return x, y end
+        on = ("wm:%d:%s:%d:%d"):format(mapID, tostring(route.built), #route.stops, W)
+      else
+        on = nil
+      end
+    end
+    local sig = on or "off"
     if sig == drawn then return end
     drawn = sig
     for _, l in ipairs(lines) do l:Hide() end
     if not on then return end
-    for i, a in ipairs(route.stops) do
-      local b = route.stops[i % #route.stops + 1]
-      local l = lines[i]
-      if not l then
-        l = layer:CreateLine(nil, "OVERLAY")
-        lines[i] = l
+    local n = 0
+    local thick = math.max(1.5, (api and 2 or W / 420))
+    for _, t in ipairs(todo) do
+      local zone, stops = t[1], t[2].stops
+      for i, a in ipairs(stops) do
+        local b = stops[i % #stops + 1]
+        local ax, ay = place(zone, a.x, a.y)
+        local bx, by = place(zone, b.x, b.y)
+        if ax and bx then
+          n = n + 1
+          local l = lines[n]
+          if not l then
+            l = layer:CreateLine(nil, "OVERLAY")
+            lines[n] = l
+          end
+          l:SetColorTexture(COLOR[1], COLOR[2], COLOR[3], COLOR[4])
+          l:SetThickness(thick)
+          l:SetStartPoint("TOPLEFT", layer, ax * W, -ay * H)
+          l:SetEndPoint("TOPLEFT", layer, bx * W, -by * H)
+          l:Show()
+        end
       end
-      l:SetColorTexture(0.35, 0.86, 0.92, 0.9)
-      l:SetThickness(math.max(1.5, W / 420))
-      l:SetStartPoint("TOPLEFT", layer, a.x * W, -a.y * H)
-      l:SetEndPoint("TOPLEFT", layer, b.x * W, -b.y * H)
-      l:Show()
     end
   end
   -- The world map loads when first opened; a small driver on it redraws
@@ -423,4 +466,13 @@ do
     if hook() then self:SetScript("OnUpdate", nil) end
   end)
   function NW.RefreshWorldMapRoute() drawn = nil end
+  -- OpenMap says when its view or map changes
+  local function listen()
+    local api = OpenMapAPI
+    if not (api and api.RegisterCallback) then return end
+    local owner = {}
+    pcall(api.RegisterCallback, owner, "OpenMap_StitchedChanged", function() drawn = nil end)
+    pcall(api.RegisterCallback, owner, "OpenMap_ViewChanged", function() drawn = nil end)
+  end
+  table.insert(NW.OnLoad, listen)
 end

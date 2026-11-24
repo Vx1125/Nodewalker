@@ -5,7 +5,7 @@
 ## IconTexture: Interface\AddOns\Nodewalker\Media\Icon
 ## Version: @project-version@
 ## SavedVariables: NodewalkerDB
-## OptionalDeps: GatherMate2, Auctionator
+## OptionalDeps: GatherMate2, Auctionator, OpenMap
 ## X-Category: Professions
 ## X-License: GPL-3.0-or-later
 ## X-Curse-Project-ID: 1818009
