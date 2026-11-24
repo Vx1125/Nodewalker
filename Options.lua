@@ -302,9 +302,63 @@ local function placeButton()
 end
 
 local mmReady = false -- not until the game has laid out the minimap
+local ldbIcon -- LibDBIcon, when another addon has loaded it: its button replaces ours
 function NW.UpdateMinimapButton()
-  if mmBtn then mmBtn:SetShown(mmReady and s().minimapButton and true or false) end
+  local want = s().minimapButton and true or false
+  if ldbIcon then
+    s().ldbIcon = s().ldbIcon or {}
+    s().ldbIcon.hide = not want
+    if want then ldbIcon:Show("Nodewalker") else ldbIcon:Hide("Nodewalker") end
+    if mmBtn then mmBtn:Hide() end
+    return
+  end
+  if mmBtn then mmBtn:SetShown(mmReady and want) end
 end
+
+-- The game's addon menu on the minimap, and button-collector addons: they
+-- list addons that register through the game or through LibDBIcon.
+local function onClick(button)
+  if button == "RightButton" then NW.ToggleWindow() else NW.ToggleOverlay() end
+end
+local function tooltipLines(tt)
+  tt:AddLine("Nodewalker", C.gold[1], C.gold[2], C.gold[3])
+  tt:AddLine("Left-click: overlay", 0.8, 0.8, 0.85)
+  tt:AddLine("Right-click: window", 0.8, 0.8, 0.85)
+end
+table.insert(NW.OnLoad, function()
+  local ICON = "Interface\\AddOns\\Nodewalker\\Media\\Icon"
+  if AddonCompartmentFrame and AddonCompartmentFrame.RegisterAddon then
+    pcall(AddonCompartmentFrame.RegisterAddon, AddonCompartmentFrame, {
+      text = "Nodewalker",
+      icon = ICON,
+      notCheckable = true,
+      func = function(_, input, _, _, mouseButton)
+        -- (the game passes the mouse button in different places across versions)
+        local b = type(input) == "table" and input.buttonName or mouseButton or input
+        onClick(b == "RightButton" and "RightButton" or "LeftButton")
+      end,
+      funcOnEnter = function(_, menuItem)
+        GameTooltip:SetOwner(type(menuItem) == "table" and menuItem or AddonCompartmentFrame, "ANCHOR_LEFT")
+        tooltipLines(GameTooltip)
+        GameTooltip:Show()
+      end,
+      funcOnLeave = function() GameTooltip:Hide() end,
+    })
+  end
+  local LS = LibStub
+  local ldb = LS and LS("LibDataBroker-1.1", true)
+  local icon = LS and LS("LibDBIcon-1.0", true)
+  if ldb and icon then
+    local obj = ldb:NewDataObject("Nodewalker", {
+      type = "launcher",
+      icon = ICON,
+      OnClick = function(_, b) onClick(b) end,
+      OnTooltipShow = tooltipLines,
+    })
+    s().ldbIcon = s().ldbIcon or {}
+    if pcall(icon.Register, icon, "Nodewalker", obj, s().ldbIcon) then ldbIcon = icon end
+  end
+end)
 
 table.insert(NW.OnLoad, function()
   if not Minimap then return end
@@ -326,9 +380,7 @@ table.insert(NW.OnLoad, function()
   border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
   mmBtn:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
-  mmBtn:SetScript("OnClick", function(_, b)
-    if b == "RightButton" then NW.ToggleWindow() else NW.ToggleOverlay() end
-  end)
+  mmBtn:SetScript("OnClick", function(_, b) onClick(b) end)
   mmBtn:SetScript("OnDragStart", function(self)
     self.dragging = true
   end)
@@ -349,9 +401,7 @@ table.insert(NW.OnLoad, function()
   end)
   mmBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:AddLine("Nodewalker", C.gold[1], C.gold[2], C.gold[3])
-    GameTooltip:AddLine("Left-click: overlay", 0.8, 0.8, 0.85)
-    GameTooltip:AddLine("Right-click: window", 0.8, 0.8, 0.85)
+    tooltipLines(GameTooltip)
     GameTooltip:Show()
   end)
   mmBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
