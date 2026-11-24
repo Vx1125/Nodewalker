@@ -131,7 +131,8 @@ end
 -- pass, or nil when the straight line is clear, and the length.
 local CLEAR = 25 -- yards kept between the route and a zone
 local function inBox(x, y, b) return x > b[1] and x < b[3] and y > b[2] and y < b[4] end
-local function detour(ax, ay, bx, by, boxes)
+local EDGE = 0.03 -- the outer edge of a zone map is mountains: no corners there
+local function detour(ax, ay, bx, by, boxes, w, h)
   local direct = math.sqrt((ax - bx) ^ 2 + (ay - by) ^ 2)
   local hit = false
   for _, b in ipairs(boxes) do
@@ -140,13 +141,14 @@ local function detour(ax, ay, bx, by, boxes)
   if not hit then return nil, direct end
   -- a stop inside a zone can't be routed round it
   for _, b in ipairs(boxes) do
-    if inBox(ax, ay, b) or inBox(bx, by, b) then return nil, direct end
+    if inBox(ax, ay, b) or inBox(bx, by, b) then return nil, direct, true end
   end
   local P = { { ax, ay }, { bx, by } }
   for _, b in ipairs(boxes) do
     for _, c in ipairs({ { b[1] - CLEAR, b[2] - CLEAR }, { b[3] + CLEAR, b[2] - CLEAR },
                          { b[3] + CLEAR, b[4] + CLEAR }, { b[1] - CLEAR, b[4] + CLEAR } }) do
       local free = true
+      if w and (c[1] < w * EDGE or c[1] > w * (1 - EDGE) or c[2] < h * EDGE or c[2] > h * (1 - EDGE)) then free = false end
       for _, o in ipairs(boxes) do if inBox(c[1], c[2], o) then free = false break end end
       if free then P[#P + 1] = c end
     end
@@ -174,7 +176,7 @@ local function detour(ax, ay, bx, by, boxes)
       end
     end
   end
-  if not dist[2] then return nil, direct * 3 end -- boxed in: a long way round
+  if not dist[2] then return nil, direct, true end -- no way round
   local via, k = {}, prev[2]
   while k and k ~= 1 do table.insert(via, 1, { P[k][1], P[k][2] }) k = prev[k] end
   return via, dist[2]
@@ -192,16 +194,30 @@ function NW.RouteAroundAvoid(mapID)
   for _, r in ipairs(route.avoid or {}) do
     boxes[#boxes + 1] = { math.min(r[1], r[3]) * w, math.min(r[2], r[4]) * h, math.max(r[1], r[3]) * w, math.max(r[2], r[4]) * h }
   end
-  local len = 0
+  local len, legs = 0, {}
   route.via = {}
+  local cut, cutScore
   for i, a in ipairs(route.stops) do
     local b = route.stops[i % #route.stops + 1]
-    local via, d = detour(a.x * w, a.y * h, b.x * w, b.y * h, boxes)
+    local via, d, blocked = detour(a.x * w, a.y * h, b.x * w, b.y * h, boxes, w, h)
     if via and #via > 0 then
       for _, c in ipairs(via) do c[1], c[2] = c[1] / w, c[2] / h end
       route.via[i] = via
     end
+    legs[i] = d
     len = len + d
+    -- the leg to leave out, if any: one with no way round, else the longest
+    local score = blocked and d + 1e9 or d
+    if not cutScore or score > cutScore then cut, cutScore = i, score end
+  end
+  -- Closing the loop can be impossible (the way back is walled off) or just
+  -- silly (one long empty ride). Then it's there and back instead: the
+  -- route is a line, ridden one way and back the other.
+  route.open = nil
+  if #route.stops > 2 and (cutScore >= 1e9 or legs[cut] > len * 0.2) then
+    route.open = cut
+    len = len - legs[cut]
+    route.via[cut] = nil
   end
   route.length = len
   route.seconds = len / MOUNT_YPS
@@ -262,7 +278,7 @@ local function sweep(order, stops, points, S, boxes)
   return len
 end
 
-local function makeCost(X, Y, boxes, zoneW)
+local function makeCost(X, Y, boxes, zoneW, zoneH)
   local N = #X
   local memo = {}
   return function(i, j)
@@ -270,8 +286,8 @@ local function makeCost(X, Y, boxes, zoneW)
     local key = i < j and (i * N + j) or (j * N + i)
     local c = memo[key]
     if c then return c end
-    local _, d = detour(X[i], Y[i], X[j], Y[j], boxes)
-    c = d
+    local _, d, blocked = detour(X[i], Y[i], X[j], Y[j], boxes, zoneW, zoneH)
+    c = blocked and d + 100000 or d -- at most one blocked leg survives, and it's cut
     memo[key] = c
     return c
   end
@@ -426,9 +442,9 @@ end
 
 -- Returns the best order (list of stop indexes), its length, and the
 -- length of the quick nearest-neighbour loop for comparison.
-local function optimize(X, Y, boxes, zoneW, report)
+local function optimize(X, Y, boxes, zoneW, zoneH, report)
   local N = #X
-  local cost = makeCost(X, Y, boxes, zoneW)
+  local cost = makeCost(X, Y, boxes, zoneW, zoneH)
   if N <= 3 then
     local t = {}
     for i = 1, N do t[i] = i end
@@ -580,7 +596,7 @@ function NW.BuildRoute(mapID, callback, opts)
   NW.routeStatus = ("Optimizing %d stops..."):format(#stops)
   job = {
     co = coroutine.create(function()
-      return optimize(X, Y, boxes, w, function(round, len)
+      return optimize(X, Y, boxes, w, h, function(round, len)
         NW.routeStatus = ("Optimizing %d stops: round %d, best %d yd"):format(#stops, round, math.floor(len))
       end)
     end),

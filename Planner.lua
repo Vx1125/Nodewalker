@@ -294,7 +294,7 @@ refresh = function()
       local base = (n > 200 and 5 or (n > 80 and 7 or 9)) * math.min(1.5, roomy)
       for k = 0, n - 1 do
         local i = ((first - 1 + k) % n) + 1
-        local pts = NW.LegPoints(route, i)
+        local pts = i == route.open and {} or NW.LegPoints(route, i)
         local r, g, bl = routeColor(k / n)
         for q = 1, #pts - 1 do
           local l = getLine()
@@ -343,8 +343,10 @@ refresh = function()
       for n in pairs(route.focus) do names[#names + 1] = n end
       lines[#lines + 1] = gold .. "Route: " .. table.concat(names, ", ") .. "|r" .. (route.alsoOthers and (dim .. " + others|r") or "")
     end
-    lines[#lines + 1] = ("%d stops  ·  %d yd loop"):format(#route.stops, math.floor(route.length))
-    lines[#lines + 1] = ("%d:%02d per loop, 60%% mount"):format(math.floor(route.seconds / 60), math.floor(route.seconds % 60))
+    lines[#lines + 1] = route.open and ("%d stops  ·  %d yd, there and back"):format(#route.stops, math.floor(route.length))
+      or ("%d stops  ·  %d yd loop"):format(#route.stops, math.floor(route.length))
+    lines[#lines + 1] = ("%d:%02d %s, 60%% mount"):format(math.floor(route.seconds / 60), math.floor(route.seconds % 60),
+      route.open and "each way" or "per loop")
     if route.quick and route.quick > 0 then
       lines[#lines + 1] = dim .. ("%d%% shorter than a quick route"):format(math.floor(100 * (1 - route.length / route.quick) + 0.5)) .. "|r"
     end

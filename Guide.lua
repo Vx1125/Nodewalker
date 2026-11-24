@@ -307,7 +307,7 @@ local function drawPreview(row, herb)
   if isFocus and #route.stops > 1 then
     local st = route.stops
     for i = 1, #st do
-      local pts = NW.LegPoints(route, i)
+      local pts = i == route.open and {} or NW.LegPoints(route, i)
       for q = 1, #pts - 1 do
         local l = getPvLine()
         l:SetColorTexture(C.route[1], C.route[2], C.route[3], 0.95)

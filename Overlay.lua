@@ -1046,7 +1046,8 @@ local function drawInner(force)
     for i = 1, n do
       local j = (i % n) + 1
       local ia, ib = stopItem[i], stopItem[j]
-      if not (ia and ib and ia.cluster == ib.cluster) then
+      -- (an open route has no leg back from its last stop to its first)
+      if i ~= route.open and not (ia and ib and ia.cluster == ib.cluster) then
         -- the leg's points: its stop, the corners round any avoid zone, the next stop
         local pts = NW.LegPoints(route, i)
         local vx, vy = {}, {}
