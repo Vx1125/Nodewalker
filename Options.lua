@@ -118,6 +118,7 @@ check(2, "Zone banner when you arrive", "zoneBanner", "Shows the zone, its known
 check(2, "Compass bar", "showCompass")
 checkBeside(2, "Minimap button", "minimapButton")
 check(2, "Session panel (loops, nodes and gold per hour)", "showSession")
+check(2, "Route on the world map", "routeOnWorldMap", nil, function() if NW.RefreshWorldMapRoute then NW.RefreshWorldMapRoute() end end)
 check(2, "Icon tooltips when live dots are off", "hoverTooltips")
 
 heading(2, "Which herbs and ore")

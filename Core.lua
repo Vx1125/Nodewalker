@@ -23,6 +23,7 @@ local DEFAULTS = {
     hideInstances = true,
     onlyTracking = false,
     showNextLabel = false,
+    routeOnWorldMap = true,
     liveDots = true,
     showRangeRing = true,
     liveHoverNoAlt = false,   -- live-dot tooltips without Alt (makes herbs in the world harder to click)     -- ring around you: the range live dots can appear in          -- show the minimap's own herb/ore dots in the window

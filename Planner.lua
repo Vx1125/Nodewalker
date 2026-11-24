@@ -359,3 +359,68 @@ page:SetScript("OnHide", function()
 end)
 
 function NW.TogglePlanner() NW.ToggleWindow("route") end
+
+------------------------------------------------------------------------
+-- The route on the world map
+------------------------------------------------------------------------
+do
+  local layer, lines, drawn
+  local function draw()
+    local canvas = WorldMapFrame.GetCanvas and WorldMapFrame:GetCanvas()
+      or (WorldMapFrame.ScrollContainer and WorldMapFrame.ScrollContainer.Child)
+    if not canvas then return end
+    if not layer then
+      layer = CreateFrame("Frame", nil, canvas)
+      layer:SetAllPoints(canvas)
+      layer:SetFrameLevel(canvas:GetFrameLevel() + 60) -- over the map art, under the game's pins
+      lines = {}
+    end
+    local mapID = WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
+    local route = mapID and NW.db.routes[mapID]
+    local on = NW.db.settings.routeOnWorldMap ~= false and route and #route.stops > 1
+    local W, H = canvas:GetSize()
+    -- only redraw when something changed
+    local sig = on and ("%d:%s:%d:%d"):format(mapID, tostring(route.built), #route.stops, W) or "off"
+    if sig == drawn then return end
+    drawn = sig
+    for _, l in ipairs(lines) do l:Hide() end
+    if not on then return end
+    for i, a in ipairs(route.stops) do
+      local b = route.stops[i % #route.stops + 1]
+      local l = lines[i]
+      if not l then
+        l = layer:CreateLine(nil, "OVERLAY")
+        lines[i] = l
+      end
+      l:SetColorTexture(0.35, 0.86, 0.92, 0.9)
+      l:SetThickness(math.max(1.5, W / 420))
+      l:SetStartPoint("TOPLEFT", layer, a.x * W, -a.y * H)
+      l:SetEndPoint("TOPLEFT", layer, b.x * W, -b.y * H)
+      l:Show()
+    end
+  end
+  -- The world map loads when first opened; a small driver on it redraws
+  -- while it's showing.
+  local driver
+  local function hook()
+    if driver or not WorldMapFrame then return driver ~= nil end
+    driver = CreateFrame("Frame", nil, WorldMapFrame)
+    local wait = 0
+    driver:SetScript("OnUpdate", function(_, dt)
+      wait = wait - dt
+      if wait > 0 then return end
+      wait = 0.3
+      pcall(draw)
+    end)
+    return true
+  end
+  local tries = CreateFrame("Frame")
+  local t = 0
+  tries:SetScript("OnUpdate", function(self, dt)
+    t = t + dt
+    if t < 1 then return end
+    t = 0
+    if hook() then self:SetScript("OnUpdate", nil) end
+  end)
+  function NW.RefreshWorldMapRoute() drawn = nil end
+end
