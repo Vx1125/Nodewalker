@@ -501,6 +501,8 @@ end
 -- The zone's world map art, drawn into frame at W x H, muted gold.
 function UI.DrawZoneArt(id, frame, tiles, W, H, full)
   for _, t in ipairs(tiles) do t:Hide() end
+  tiles.reveal = tiles.reveal or {}
+  for _, t in ipairs(tiles.reveal) do t:Hide() end
   local layers = id and C_Map.GetMapArtLayers(id)
   local layer = layers and layers[1]
   local textures = layer and C_Map.GetMapArtLayerTextures(id, 1)
@@ -519,5 +521,44 @@ function UI.DrawZoneArt(id, frame, tiles, W, H, full)
     t:SetDesaturated(not full)
     if full then t:SetVertexColor(1, 1, 1) t:SetAlpha(1) else t:SetVertexColor(0.95, 0.8, 0.45) t:SetAlpha(0.45) end
     t:Show()
+  end
+  -- The full map is drawn fully explored: every explored-area piece laid over
+  -- the base art, cut into 256 px tiles as the game's own map does it.
+  local art = full and NW.MapReveal and C_Map.GetMapArtID and C_Map.GetMapArtID(id)
+  local pieces = art and NW.MapReveal[art]
+  if not pieces then return end
+  local sx, sy = W / layer.layerWidth, H / layer.layerHeight
+  local n = 0
+  local function fileSize(px) -- the texture file is the next power of two up
+    local f = 256
+    while f / 2 >= px and f > 16 do f = f / 2 end
+    return f
+  end
+  for key, files in pairs(pieces) do
+    local pw, ph, ox, oy = key:match("^(%d+):(%d+):(%d+):(%d+)$")
+    pw, ph, ox, oy = tonumber(pw), tonumber(ph), tonumber(ox), tonumber(oy)
+    if pw then
+      local across = math.ceil(pw / 256)
+      local k = 0
+      for fid in files:gmatch("%d+") do
+        local col, row = k % across, math.floor(k / across)
+        k = k + 1
+        local cw = math.min(256, pw - col * 256)
+        local ch = math.min(256, ph - row * 256)
+        if cw > 0 and ch > 0 then
+          n = n + 1
+          local t = tiles.reveal[n] or frame:CreateTexture(nil, "BACKGROUND", nil, 2)
+          tiles.reveal[n] = t
+          t:SetTexture(tonumber(fid))
+          t:SetTexCoord(0, cw / fileSize(cw), 0, ch / fileSize(ch))
+          t:ClearAllPoints()
+          t:SetSize(cw * sx, ch * sy)
+          t:SetPoint("TOPLEFT", frame, "TOPLEFT", (ox + col * 256) * sx, -(oy + row * 256) * sy)
+          t:SetVertexColor(1, 1, 1)
+          t:SetAlpha(1)
+          t:Show()
+        end
+      end
+    end
   end
 end

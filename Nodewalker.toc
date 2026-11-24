@@ -13,6 +13,7 @@
 Data.lua
 OpenMapData\Minimap.lua
 OpenMapData\CaveMinimap.lua
+OpenMapData\Reveal.lua
 Core.lua
 Widgets.lua
 Professions\Engine.lua
