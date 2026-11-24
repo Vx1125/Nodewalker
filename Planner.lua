@@ -388,6 +388,12 @@ do
     layer:SetFrameLevel(math.max(canvas:GetFrameLevel() + 60, (tonumber(top) or 0) + 1))
     local mapID = WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
     local W, H = canvas:GetSize()
+    -- the canvas is scaled to fit the view, so a line's thickness is given in
+    -- canvas units: 3 px on screen at any zoom
+    local sc = WorldMapFrame.ScrollContainer
+    local scale = (sc and sc.GetCanvasScale and sc:GetCanvasScale()) or 1
+    if scale <= 0 then scale = 1 end
+    local zoomKey = math.floor(scale * 1000)
     local on = NW.db.settings.routeOnWorldMap ~= false and mapID
     -- which routes, and how to place a point of one on the canvas
     local todo, place = {}, nil
@@ -402,13 +408,13 @@ do
         if not u then return end
         return api.MapFromWorld(mapID, u, v)
       end
-      on = ("om:%d:%d:%d:%d"):format(mapID, W, #todo, built)
+      on = ("om:%d:%d:%d:%d:%d"):format(mapID, W, #todo, built, zoomKey)
     elseif on then
       local route = NW.db.routes[mapID]
       if route and #route.stops > 1 then
         todo[1] = { mapID, route }
         place = function(_, x, y) return x, y end
-        on = ("wm:%d:%s:%d:%d"):format(mapID, tostring(route.built), #route.stops, W)
+        on = ("wm:%d:%s:%d:%d:%d"):format(mapID, tostring(route.built), #route.stops, W, zoomKey)
       else
         on = nil
       end
@@ -419,7 +425,8 @@ do
     for _, l in ipairs(lines) do l:Hide() end
     if not on then return end
     local n = 0
-    local thick = math.max(1.5, (api and 2 or W / 420))
+    local thick = 3 / scale
+    NW.worldMapDebug = { mapID = mapID, stitched = api ~= nil, routes = #todo, scale = scale, W = W, level = layer:GetFrameLevel() }
     for _, t in ipairs(todo) do
       local zone, stops = t[1], t[2].stops
       for i, a in ipairs(stops) do
@@ -441,29 +448,19 @@ do
         end
       end
     end
+    NW.worldMapDebug.lines = n
   end
-  -- The world map loads when first opened; a small driver on it redraws
-  -- while it's showing.
-  local driver
-  local function hook()
-    if driver or not WorldMapFrame then return driver ~= nil end
-    driver = CreateFrame("Frame", nil, WorldMapFrame)
-    local wait = 0
-    driver:SetScript("OnUpdate", function(_, dt)
-      wait = wait - dt
-      if wait > 0 then return end
-      wait = 0.3
-      pcall(draw)
-    end)
-    return true
-  end
-  local tries = CreateFrame("Frame")
-  local t = 0
-  tries:SetScript("OnUpdate", function(self, dt)
-    t = t + dt
-    if t < 1 then return end
-    t = 0
-    if hook() then self:SetScript("OnUpdate", nil) end
+  -- Redraws while the world map is showing. Errors are told once, not hidden.
+  local told
+  local driver = CreateFrame("Frame")
+  local wait = 0
+  driver:SetScript("OnUpdate", function(_, dt)
+    wait = wait - dt
+    if wait > 0 then return end
+    wait = 0.3
+    if not (WorldMapFrame and WorldMapFrame:IsVisible()) then return end
+    local ok, err = pcall(draw)
+    if not ok and not told then told = true NW.Print("World map route: " .. tostring(err)) end
   end)
   function NW.RefreshWorldMapRoute() drawn = nil end
   -- OpenMap says when its view or map changes
