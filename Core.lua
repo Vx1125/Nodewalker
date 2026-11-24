@@ -326,6 +326,8 @@ SlashCmdList.NODEWALKER = function(msg)
     NW.ImportGatherMate2()
   elseif msg == "next" then
     NW.SkipNext()
+  elseif msg == "blizz" then
+    if NW.BlizzCheck then NW.BlizzCheck() end
   elseif msg == "harvest" or msg == "harvest all" then
     if NW.HarvestConsumes then NW.HarvestConsumes(msg == "harvest all") end
   elseif msg == "reset session" then

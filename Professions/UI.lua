@@ -2536,3 +2536,277 @@ do
   NW.On("BAG_UPDATE_DELAYED", function() NW.findDirty = true end)
   NW.On("GET_ITEM_INFO_RECEIVED", function() NW.findDirty = true end)
 end
+
+------------------------------------------------------------------------
+-- Inside the game's own profession window: a cost line under the recipe
+-- you have selected, and the leveling plan docked beside the window.
+-- Selecting a step selects that recipe, so you craft with the game's own
+-- Create button.
+------------------------------------------------------------------------
+do
+  local T = C_TradeSkillUI
+  local function pframe() return ProfessionsFrame end
+  local function craftingPage()
+    local f = pframe()
+    return f and f.CraftingPage
+  end
+  -- the recipe the game's window has selected
+  local function selectedRecipeID()
+    local page = craftingPage()
+    local form = page and page.SchematicForm
+    if not form then return end
+    local info = (form.GetRecipeInfo and form:GetRecipeInfo()) or form.currentRecipeInfo or form.recipeInfo
+    return info and info.recipeID
+  end
+  -- select a recipe in the game's window: through the game's own call first,
+  -- so its Create button stays the game's
+  local function selectRecipe(id, name)
+    if not id then return false end
+    if T and T.OpenRecipe and pcall(T.OpenRecipe, id) then return true end
+    local page = craftingPage()
+    local list = page and page.RecipeList
+    local info = T and T.GetRecipeInfo and T.GetRecipeInfo(id)
+    if list and list.SelectRecipe and info and pcall(list.SelectRecipe, list, info, true) then return true end
+    return false
+  end
+  local function scanFor(key) return NW.charDB and NW.charDB.recipeScan[key] end
+
+  ----------------------------------------------------------------------
+  -- 1. The cost line
+  ----------------------------------------------------------------------
+  local strip, stripText, stripBtn
+  local need = {}
+  local function buildStrip(f)
+    strip = CreateFrame("Frame", nil, f, "BackdropTemplate")
+    strip:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -2)
+    strip:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, -2)
+    strip:SetHeight(30)
+    UI.Flat(strip, S.bg, S.edge)
+    strip:SetFrameStrata(f:GetFrameStrata())
+    local tag = UI.Text(strip, 11, S.gold)
+    tag:SetPoint("LEFT", 10, 0)
+    tag:SetText("Nodewalker")
+    stripText = UI.Text(strip, 12, S.text)
+    stripText:SetPoint("LEFT", tag, "RIGHT", 12, 0)
+    stripBtn = UI.Button(strip, "Search what I need", 150, function()
+      local items = {}
+      for _, e in ipairs(need) do
+        local n, ok = itemName(e[1])
+        if ok and e[2] > 0 then items[#items + 1] = { n, e[2] } end
+      end
+      if #items > 0 and not searchAH(items) then NW.Print("Open the auction house with Auctionator, then search.") end
+    end, 22)
+    stripBtn:SetPoint("RIGHT", -6, 0)
+    UI.Tip(stripBtn, "Search what I need", "Searches Auctionator for what's left to buy. The auction house has to be open.")
+  end
+  local function drawStrip(id)
+    wipe(need)
+    local sch = id and T and T.GetRecipeSchematic and select(2, pcall(T.GetRecipeSchematic, id, false))
+    if type(sch) ~= "table" then strip:Hide() return end
+    local full, toBuy, unpriced, haveAny, short = 0, 0, false, false, 0
+    for _, slot in ipairs(sch.reagentSlotSchematics or {}) do
+      local re = slot.reagents and slot.reagents[1]
+      if re and re.itemID and (slot.reagentType == nil or slot.reagentType == 1) then
+        local n = slot.quantityRequired or 1
+        local price, src = NW.Price(re.itemID)
+        if src == "est" then price = nil end
+        local have = NW.ItemCount(re.itemID) or 0
+        local buy = math.max(0, n - have)
+        if have > 0 then haveAny = true end
+        if buy > 0 then short = short + 1; need[#need + 1] = { re.itemID, buy } end
+        if price then full = full + price * n; toBuy = toBuy + price * buy else unpriced = true end
+      end
+    end
+    local q = unpriced and " |cffeb5c4c+?|r" or ""
+    local parts = { "|cff94949amaterials|r " .. NW.Money(full, "mid") .. q }
+    if haveAny then parts[#parts + 1] = "|cff94949ato buy|r " .. NW.Money(toBuy, "mid") .. q end
+    local out = sch.outputItemID
+    local ah = out and select(2, NW.PriceParts(out))
+    if ah then
+      local yield = sch.quantityMin or 1
+      parts[#parts + 1] = "|cff94949aon AH|r " .. NW.Money(ah * yield, "mid")
+      if not unpriced then
+        local profit = math.floor(ah * yield * 0.95) - full
+        parts[#parts + 1] = "|cff94949aprofit|r " .. (profit >= 0 and "|cff8cdb7a+|r" or "|cffeb5c4c-|r") .. NW.Money(math.abs(profit), "mid")
+      end
+    end
+    stripText:SetText(table.concat(parts, "   "))
+    stripBtn:SetEnabled(short > 0)
+    strip:Show()
+  end
+
+  ----------------------------------------------------------------------
+  -- 2. The plan beside the window
+  ----------------------------------------------------------------------
+  local DOCK_W, DROW_H = 300, 30
+  local dock, dTitle, dSub, dRows, dEmpty, dOffset, dSteps, dKey = nil, nil, nil, {}, nil, 0, {}, nil
+  local dToggle
+  local function dockShown() return st().blizzDock ~= false end
+  local drawDock
+  local function buildDock(f)
+    dock = CreateFrame("Frame", nil, f, "BackdropTemplate")
+    dock:SetPoint("TOPLEFT", f, "TOPRIGHT", 2, 0)
+    dock:SetPoint("BOTTOMLEFT", f, "BOTTOMRIGHT", 2, 0)
+    dock:SetWidth(DOCK_W)
+    UI.Flat(dock, S.bg, S.edge)
+    dock:EnableMouse(true)
+    dTitle = UI.Text(dock, 13, S.gold)
+    dTitle:SetPoint("TOPLEFT", 10, -10)
+    local close = UI.Close(dock, function() st().blizzDock = false; dock:Hide(); dToggle:Show() end)
+    close:SetPoint("TOPRIGHT", -4, -4)
+    dSub = UI.Text(dock, 11, S.dim)
+    dSub:SetPoint("TOPLEFT", dTitle, "BOTTOMLEFT", 0, -4)
+    dSub:SetWidth(DOCK_W - 20)
+    dSub:SetJustifyV("TOP")
+    dEmpty = UI.Text(dock, 12, S.dim, "CENTER")
+    dEmpty:SetPoint("CENTER")
+    dEmpty:SetWidth(DOCK_W - 40)
+    dock:EnableMouseWheel(true)
+    dock:SetScript("OnMouseWheel", function(_, d)
+      dOffset = math.max(0, math.min(math.max(0, #dSteps - #dRows), dOffset - d))
+      drawDock()
+    end)
+    -- reopen it once closed
+    dToggle = UI.Button(f, "Plan", 60, function() st().blizzDock = true; dToggle:Hide(); dock:Show(); drawDock() end, 22)
+    dToggle:SetPoint("TOPLEFT", f, "TOPRIGHT", 2, -6)
+    UI.Tip(dToggle, "Nodewalker plan", "Shows the leveling plan beside this window.")
+  end
+  local function ensureRows()
+    local h = dock:GetHeight() - 64
+    local n = math.max(4, math.floor(h / DROW_H))
+    for i = #dRows + 1, n do
+      local row = CreateFrame("Button", nil, dock)
+      row:SetSize(DOCK_W - 12, DROW_H)
+      row:SetPoint("TOPLEFT", 6, -56 - (i - 1) * DROW_H)
+      UI.RowHighlight(row)
+      row.range = UI.Text(row, 11, S.gold)
+      row.range:SetPoint("TOPLEFT", 4, -3)
+      row.range:SetWidth(54)
+      row.icon = row:CreateTexture(nil, "ARTWORK")
+      row.icon:SetSize(18, 18)
+      row.icon:SetPoint("LEFT", 60, 0)
+      row.name = UI.Text(row, 12, S.text)
+      row.name:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 6, 2)
+      row.name:SetWidth(DOCK_W - 130)
+      row.name:SetWordWrap(false)
+      row.sub = UI.Text(row, 10, S.dim)
+      row.sub:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -1)
+      row.sub:SetWidth(DOCK_W - 130)
+      row.sub:SetWordWrap(false)
+      row.count = UI.Text(row, 12, S.text, "RIGHT")
+      row.count:SetPoint("RIGHT", -6, 0)
+      row:SetScript("OnClick", function(self)
+        local stp = self.step
+        if not (stp and stp.recipe) then return end
+        local e = scanFor(dKey) and scanFor(dKey)[stp.recipe.name]
+        if not (e and e.id and selectRecipe(e.id, stp.recipe.name)) then
+          NW.Print(("Find %s in the list: it isn't learned yet, or the game wouldn't select it."):format(stp.recipe.name))
+        end
+      end)
+      dRows[i] = row
+    end
+    for i = n + 1, #dRows do dRows[i]:Hide() end
+    return n
+  end
+  drawDock = function()
+    if not dock or not dock:IsShown() then return end
+    local key = NW.currentTradeKey
+    dKey = key
+    local prof = key and NW.PROF_BY_KEY[key]
+    local rank = key and NW.ProfSkill(key)
+    local n = ensureRows()
+    wipe(dSteps)
+    if not (prof and prof.kind == "craft" and rank) then
+      dTitle:SetText("Nodewalker")
+      dSub:SetText("")
+      dEmpty:SetText("No plan for this profession.")
+      for i = 1, n do dRows[i]:Hide() end
+      return
+    end
+    local to = 300
+    local plan = NW.BuildPlan(key, rank, to)
+    for _, stp in ipairs(plan.steps) do
+      if stp.rankUp then dSteps[#dSteps + 1] = { train = stp.rankUp, from = stp.from } end
+      if stp.recipe and stp.to > rank then dSteps[#dSteps + 1] = stp end
+    end
+    dTitle:SetText(prof.name .. " plan")
+    dSub:SetText(rank >= to and "Nothing left to level." or
+      ("%d to %d  ·  spend %s  ·  click a step to select it"):format(rank, to, NW.Money(plan.spend or plan.total or 0, true)))
+    dEmpty:SetText(#dSteps == 0 and rank < to and "No plan: open Nodewalker's Professions tab for why." or "")
+    dOffset = math.max(0, math.min(dOffset, #dSteps - n))
+    local selected = selectedRecipeID()
+    local scan = scanFor(key) or {}
+    for i = 1, n do
+      local row, stp = dRows[i], dSteps[i + dOffset]
+      row.step = stp
+      if not stp then row:Hide()
+      elseif stp.train then
+        row:Show()
+        row:SetSelected(false)
+        row.range:SetText(tostring(stp.from))
+        row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+        local rn = type(stp.train) == "table" and stp.train.name or nil
+        row.name:SetText("|cffe8c46aTrain " .. (rn or "next rank") .. "|r")
+        row.sub:SetText(rn and rankWhereText(key, rn) or "")
+        row.count:SetText("")
+      else
+        row:Show()
+        local r = stp.recipe
+        local e = scan[r.name]
+        row:SetSelected(e and e.id == selected or false)
+        local current = rank >= stp.from and rank < stp.to
+        row.range:SetText((current and "|cffffffff" or "") .. ("%d-%d"):format(stp.from, stp.to) .. (current and "|r" or ""))
+        row.icon:SetTexture(r.icon or recipeIcon(r))
+        local known = e and e.learned
+        row.name:SetText(known and r.name or ("|cff94949a" .. r.name .. "|r"))
+        row.sub:SetText(known and "" or "|cffeb5c4cnot learned|r")
+        row.count:SetText(("x%d"):format(math.ceil(stp.crafts)))
+      end
+    end
+  end
+
+  ----------------------------------------------------------------------
+  -- Watching the window
+  ----------------------------------------------------------------------
+  local lastID, lastSkill, built = nil, nil, false
+  local driver = CreateFrame("Frame")
+  local wait = 0
+  driver:SetScript("OnUpdate", function(_, dt)
+    wait = wait - dt
+    if wait > 0 then return end
+    wait = 0.25
+    local f = pframe()
+    if not (f and f:IsShown()) then return end
+    if not built then
+      built = true
+      buildStrip(f)
+      buildDock(f)
+      if dockShown() then dToggle:Hide() else dock:Hide() end
+      lastID, lastSkill = nil, nil
+    end
+    local id = selectedRecipeID()
+    local skill = NW.currentTradeKey and NW.ProfSkill(NW.currentTradeKey)
+    if id ~= lastID or NW.blizzDirty then drawStrip(id) end
+    if dock:IsShown() and (id ~= lastID or skill ~= lastSkill or NW.blizzDirty) then drawDock() end
+    lastID, lastSkill, NW.blizzDirty = id, skill, false
+  end)
+  NW.On("BAG_UPDATE_DELAYED", function() NW.blizzDirty = true end)
+  NW.On("TRADE_SKILL_LIST_UPDATE", function() NW.blizzDirty = true end)
+
+  -- /nw blizz: what Nodewalker finds in the game's profession window
+  function NW.BlizzCheck()
+    local f = pframe()
+    local page = craftingPage()
+    local out = {
+      "ProfessionsFrame " .. (f and (f:IsShown() and "open" or "closed") or "missing"),
+      "CraftingPage " .. (page and "yes" or "no"),
+      "SchematicForm " .. (page and page.SchematicForm and "yes" or "no"),
+      "RecipeList " .. (page and page.RecipeList and "yes" or "no"),
+      "selected " .. tostring(selectedRecipeID()),
+      "OpenRecipe " .. (T and T.OpenRecipe and "yes" or "no"),
+      "profession " .. tostring(NW.currentTradeKey),
+      "TradeSkillFrame " .. (TradeSkillFrame and "yes" or "no"),
+    }
+    NW.Print(table.concat(out, " · "))
+  end
+end
