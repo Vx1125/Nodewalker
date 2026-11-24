@@ -46,6 +46,12 @@ Imports your GatherMate2 nodes. Prices everything with Auctionator.
 - Click a recipe for its materials and what each costs
 - Counts disenchant value for gear
 
+## Find a craft
+
+- Any recipe in any profession, to have someone make it
+- What the materials cost, what's left after your bags, and the AH price ready-made
+- One search for just what you're missing
+
 ## Consumes
 
 ![Consumes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/consumes.jpg)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.16
+
+- Find a craft: a new tab to look up any recipe in any profession, with materials, what's left to buy and its AH price.
+- Recipe cards count what's in your bags and show what's left to buy.
+- Recipes from Molten Core, Ahn'Qiraj and Naxxramas, and recipes needing their materials, hidden until they open.
+- Missing recipes: sections fold while searching too.
+- Profit card labels its profit.
+
 ## 1.1.15
 
 - Route page: a large full-colour map, fully explored, with an Expand view.
