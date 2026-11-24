@@ -87,7 +87,7 @@ do
   b.skill:SetPoint("RIGHT", -8, 0)
   b.prof = { key = "find" }
   b:SetScript("OnClick", function() selected = "find"; st().profSelected = "find"; refresh() end)
-  UI.Tip(b, "Find a craft", "Any recipe from any profession: what its materials cost, what you'd still have to buy, and the price made.")
+  UI.Tip(b, "Find a craft", "Any recipe from any profession: what its materials cost, what you'd still have to buy, and its AH price.")
   profRows[#profRows + 1] = b
 end
 mode = "plan" -- plan | missing | profit
@@ -1518,7 +1518,7 @@ local function drawCard()
     if haveAny then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
     local ah
     if r.item then ah = select(2, NW.PriceParts(r.item)) end
-    if ah then parts[#parts + 1] = "made " .. NW.Money(ah * (r.yield or 1), "mid") end
+    if ah then parts[#parts + 1] = "on AH " .. NW.Money(ah * (r.yield or 1), "mid") end
   else
     if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, "mid") end
     parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
@@ -1762,7 +1762,7 @@ local function drawFindRows()
       -- what it costs ready-made, so you can tell if paying a crafter is worth it
       local ah
       if r.item then ah = select(2, NW.PriceParts(r.item)) end
-      if ah then parts[#parts + 1] = "made " .. NW.Money(ah * (r.yield or 1), "mid") end
+      if ah then parts[#parts + 1] = "on AH " .. NW.Money(ah * (r.yield or 1), "mid") end
       row.mats:SetText(table.concat(parts, "  ·  "))
     else
       row:Hide()
@@ -1790,7 +1790,7 @@ function drawFindView()
   minProfit:Hide()
   optRow:Hide()
   targetSlider:Hide()
-  for i, t in ipairs(caps) do t:SetText(({ "Skill", "Recipe, materials and price made", "", "" })[i]) end
+  for i, t in ipairs(caps) do t:SetText(({ "Skill", "Recipe, materials and AH price", "", "" })[i]) end
   if lastCardKey ~= "find" then card = nil end
   lastCardKey = "find"
   -- matches: name first, then anything made from a material with that name
@@ -1836,7 +1836,7 @@ function drawFindView()
     "",
     "|cffe8c46amaterials|r  all of them at today's prices",
     "|cffe8c46ato buy|r  what's left after your bags",
-    "|cffe8c46amade|r  the finished item on the auction house",
+    "|cffe8c46aon AH|r  buying the finished item instead",
     "",
     "|cffe8c46aClick|r a recipe for its materials, then search for what you still need.",
   }, "\n"))
