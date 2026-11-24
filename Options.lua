@@ -95,7 +95,7 @@ heading(1, "Live dots")
 check(1, "Show live dots from your minimap", "liveDots", "Moves your minimap into the window, like FarmHud. Turn off to keep your minimap where it is.")
 check(1, "Range ring around you", "showRangeRing", "Live dots can only appear inside this ring.")
 check(1, "Also show known spots outside the ring", "showKnownSpots")
-check(1, "Live-dot tooltips without holding Alt", "liveHoverNoAlt", "Makes herbs in the world harder to click through the window.")
+check(1, "Live-dot tooltips without holding Alt", "liveHoverNoAlt", "Herbs and veins inside the ring lose their mouseover glow and can't be clicked. Off: hold Alt for tooltips.")
 
 heading(1, "Route")
 slider(1, "Picked stops count as empty for", 1, 20, 1, function(v) return ("%d min"):format(v) end, "respawnMinutes",

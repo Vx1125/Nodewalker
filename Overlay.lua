@@ -1274,6 +1274,9 @@ function NW.RefreshOverlayArt() tileMapID = nil end
 table.insert(NW.OnLoad, function()
   -- the "Next" label is off unless turned on in the options
   if not NW.db.nextLabelOff then NW.db.settings.showNextLabel = false; NW.db.nextLabelOff = true end
+  -- live-dot tooltips without Alt steal the mouse from herbs in the ring:
+  -- turned off once, for everyone who had it on
+  if not NW.db.hoverNoAltOff then NW.db.settings.liveHoverNoAlt = false; NW.db.hoverNoAltOff = true end
   -- one pass per patch of nodes: the old 60 yard merge made routes zig-zag
   if not NW.db.mergeRaised then
     if (NW.db.settings.mergeYards or 0) < 100 then NW.db.settings.mergeYards = 100 end
