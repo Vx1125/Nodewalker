@@ -23,7 +23,6 @@ local DEFAULTS = {
     hideInstances = true,
     onlyTracking = false,
     showNextLabel = false,
-    routeOnWorldMap = true,
     liveDots = true,
     showRangeRing = true,
     liveHoverNoAlt = false,   -- live-dot tooltips without Alt (makes herbs in the world harder to click)     -- ring around you: the range live dots can appear in          -- show the minimap's own herb/ore dots in the window
@@ -327,11 +326,6 @@ SlashCmdList.NODEWALKER = function(msg)
     NW.ImportGatherMate2()
   elseif msg == "next" then
     NW.SkipNext()
-  elseif msg == "mapdebug" then
-    local d = NW.worldMapDebug
-    NW.Print(d and ("map %s · OpenMap %s · routes %d · lines %d · scale %.3f · width %d · level %d"):format(
-      tostring(d.mapID), d.stitched and "yes" or "no", d.routes or 0, d.lines or 0, d.scale or 0, math.floor(d.W or 0), math.floor(d.level or 0))
-      or "World map route hasn't drawn yet. Open the map first.")
   elseif msg == "harvest" or msg == "harvest all" then
     if NW.HarvestConsumes then NW.HarvestConsumes(msg == "harvest all") end
   elseif msg == "reset session" then
