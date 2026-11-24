@@ -16,9 +16,9 @@ Imports your GatherMate2 nodes. Prices everything with Auctionator.
 
 ![Route planner](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/routes.jpg)
 
-- Builds the shortest loop through your nodes
-- Follows it stop by stop and skips what you just picked
-- Draw avoid zones around elites and camps
+- Builds a short loop that passes within sight of every node
+- Draw avoid zones on a large, fully explored map: routes go round them
+- There and back when a loop can't close
 
 ## Farm Guide
 
@@ -42,7 +42,7 @@ Imports your GatherMate2 nodes. Prices everything with Auctionator.
 
 ![Profit](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/profit.jpg)
 
-- What every recipe earns right now, best first
+- What every recipe earns right now, best first, above the profit you set
 - Click a recipe for its materials and what each costs
 - Counts disenchant value for gear
 
@@ -76,6 +76,6 @@ Imports your GatherMate2 nodes. Prices everything with Auctionator.
 
 ## Credits
 
-Minimap tiles: [OpenMap](https://github.com/openmap-world/openmap) (MIT). Recipe data: SeeMeta and One For All by Smoergi (GPL-3.0-or-later). Consumable lists follow Method's and Wowhead's WoW Forever guides.
+Minimap tiles and map reveal data: [OpenMap](https://github.com/openmap-world/openmap) (MIT). Recipe data: SeeMeta and One For All by Smoergi (GPL-3.0-or-later). Consumable lists follow Method's and Wowhead's WoW Forever guides.
 
 GPL-3.0-or-later.

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.15
+
+- Route page: a large full-colour map, fully explored, with an Expand view.
+- Routes pass within sight of every node instead of through each one: fewer stops, straighter lines.
+- Routes go round avoid zones, and become there and back when the loop can't close.
+- Avoid zones show as you drag; right-click one to remove it.
+- Farm Guide preview drawn like the Route map.
+- The next stop is no longer highlighted on the overlay.
+- Herbs inside the ring keep their mouseover glow: live-dot tooltips now need Alt.
+- Profit: At least filter hides crafts that earn too little.
+- Missing recipes: click a section heading to fold it.
+- Zul'Gurub reputation recipes and consumables hidden until it opens.
+- Prices: a higher price with plenty listed is used as is; silver shown under 10g.
+
 ## 1.1.14
 
 - Consumes: My level rebuilt from the game's own item data, with each row's real effect.
