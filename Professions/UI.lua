@@ -1512,10 +1512,19 @@ local function drawCard()
   end
   local q = unpriced and "|cffeb5c4c+?|r" or ""
   local parts = {}
-  if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, "mid") end
-  parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
-  if haveAny then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
-  if profit then parts[#parts + 1] = signedMoney(profit) end
+  if selected == "find" then
+    -- having it made to use: what the materials cost you, against buying it made
+    parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
+    if haveAny then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
+    local ah
+    if r.item then ah = select(2, NW.PriceParts(r.item)) end
+    if ah then parts[#parts + 1] = "made " .. NW.Money(ah * (r.yield or 1), "mid") end
+  else
+    if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, "mid") end
+    parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
+    if haveAny then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
+    if profit then parts[#parts + 1] = "profit " .. signedMoney(profit) end
+  end
   rTotal:SetText(table.concat(parts, "  ·  "))
   local prev = card.stack[#card.stack]
   cardBack:SetText(prev and ("< " .. prev.r.name) or "< All recipes")
