@@ -1009,50 +1009,55 @@ local function drawInner(force)
     local n = #stops
     local GAP = 11 -- lines stop short of the icons so corners don't stab through them
     local fadeRadius = math.max(1, math.min(view:GetWidth(), view:GetHeight()) / 2)
+    -- one straight piece of a leg, short of the icons at either end
+    local function piece(ax, ay, bx, by, ga, gb)
+      if not (onScreen(ax, ay) or onScreen(bx, by)) then return end
+      local dx, dy = bx - ax, by - ay
+      local len = math.sqrt(dx * dx + dy * dy)
+      if len <= ga + gb + 4 then return end
+      local ux, uy = dx / len, dy / len
+      ax, ay, bx, by = ax + ux * ga, ay + uy * ga, bx - ux * gb, by - uy * gb
+      -- bright near you, fainter toward the edge of the map
+      local mx0, my0 = (ax + bx) / 2, (ay + by) / 2
+      local far = math.sqrt(mx0 * mx0 + my0 * my0) / fadeRadius
+      local alpha = far < 0.3 and 0.95 or math.max(0.3, 0.95 - (far - 0.3) * 0.95)
+      local l = getLine()
+      l:SetThickness(alpha > 0.6 and 3 or 2)
+      l:SetColorTexture(C.route[1], C.route[2], C.route[3], alpha)
+      l.under:SetColorTexture(0, 0, 0, 0.5 * alpha)
+      l:SetStartPoint("CENTER", pan, ax, ay)
+      l:SetEndPoint("CENTER", pan, bx, by)
+      l.under:SetStartPoint("CENTER", pan, ax, ay)
+      l.under:SetEndPoint("CENTER", pan, bx, by)
+      -- an arrowhead mid-piece shows which way the loop runs
+      if alpha > 0.6 and len > 70 then
+        local mx, my = (ax + bx) / 2, (ay + by) / 2
+        local t1, t2 = getTick(), getTick()
+        local c, sn = math.cos(2.6), math.sin(2.6) -- about 150 degrees back from the heading
+        local w = 8
+        t1:SetColorTexture(1, 1, 1, alpha)
+        t2:SetColorTexture(1, 1, 1, alpha)
+        t1:SetStartPoint("CENTER", pan, mx, my)
+        t1:SetEndPoint("CENTER", pan, mx + (ux * c - uy * sn) * w, my + (ux * sn + uy * c) * w)
+        t2:SetStartPoint("CENTER", pan, mx, my)
+        t2:SetEndPoint("CENTER", pan, mx + (ux * c + uy * sn) * w, my + (-ux * sn + uy * c) * w)
+      end
+    end
     for i = 1, n do
       local j = (i % n) + 1
-      local a, b = stops[i], stops[j]
       local ia, ib = stopItem[i], stopItem[j]
       if not (ia and ib and ia.cluster == ib.cluster) then
-        local ax, ay = toView(a.x, a.y)
-        local bx, by = toView(b.x, b.y)
-        if ia then ax, ay = ia.cluster.vx, ia.cluster.vy end
-        if ib then bx, by = ib.cluster.vx, ib.cluster.vy end
-        if onScreen(ax, ay) or onScreen(bx, by) then
-          local dx, dy = bx - ax, by - ay
-          local len = math.sqrt(dx * dx + dy * dy)
-          -- stop short of an icon, but only where one is actually drawn
-          local ga = ia and (ia.cluster.picked and 7 or GAP) or 0
-          local gb = ib and (ib.cluster.picked and 7 or GAP) or 0
-          if len > ga + gb + 4 then
-            local ux, uy = dx / len, dy / len
-            ax, ay, bx, by = ax + ux * ga, ay + uy * ga, bx - ux * gb, by - uy * gb
-            -- bright near you, fainter toward the edge of the map
-            local mx0, my0 = (ax + bx) / 2, (ay + by) / 2
-            local far = math.sqrt(mx0 * mx0 + my0 * my0) / fadeRadius
-            local alpha = far < 0.3 and 0.95 or math.max(0.3, 0.95 - (far - 0.3) * 0.95)
-            local l = getLine()
-            l:SetThickness(alpha > 0.6 and 3 or 2)
-            l:SetColorTexture(C.route[1], C.route[2], C.route[3], alpha)
-            l.under:SetColorTexture(0, 0, 0, 0.5 * alpha)
-            l:SetStartPoint("CENTER", pan, ax, ay)
-            l:SetEndPoint("CENTER", pan, bx, by)
-            l.under:SetStartPoint("CENTER", pan, ax, ay)
-            l.under:SetEndPoint("CENTER", pan, bx, by)
-            -- an arrowhead mid-leg shows which way the loop runs
-            if alpha > 0.6 and len > 70 then
-              local mx, my = (ax + bx) / 2, (ay + by) / 2
-              local t1, t2 = getTick(), getTick()
-              local c, sn = math.cos(2.6), math.sin(2.6) -- about 150 degrees back from the heading
-              local w = 8
-              t1:SetColorTexture(1, 1, 1, alpha)
-              t2:SetColorTexture(1, 1, 1, alpha)
-              t1:SetStartPoint("CENTER", pan, mx, my)
-              t1:SetEndPoint("CENTER", pan, mx + (ux * c - uy * sn) * w, my + (ux * sn + uy * c) * w)
-              t2:SetStartPoint("CENTER", pan, mx, my)
-              t2:SetEndPoint("CENTER", pan, mx + (ux * c + uy * sn) * w, my + (-ux * sn + uy * c) * w)
-            end
-          end
+        -- the leg's points: its stop, the corners round any avoid zone, the next stop
+        local pts = NW.LegPoints(route, i)
+        local vx, vy = {}, {}
+        for q, pt in ipairs(pts) do vx[q], vy[q] = toView(pt[1], pt[2]) end
+        if ia then vx[1], vy[1] = ia.cluster.vx, ia.cluster.vy end
+        if ib then vx[#pts], vy[#pts] = ib.cluster.vx, ib.cluster.vy end
+        -- stop short of an icon, but only where one is actually drawn
+        local ga = ia and (ia.cluster.picked and 7 or GAP) or 0
+        local gb = ib and (ib.cluster.picked and 7 or GAP) or 0
+        for q = 1, #pts - 1 do
+          piece(vx[q], vy[q], vx[q + 1], vy[q + 1], q == 1 and ga or 0, q == #pts - 1 and gb or 0)
         end
       end
     end

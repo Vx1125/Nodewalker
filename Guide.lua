@@ -307,11 +307,13 @@ local function drawPreview(row, herb)
   if isFocus and #route.stops > 1 then
     local st = route.stops
     for i = 1, #st do
-      local a, b = st[i], st[(i % #st) + 1]
-      local l = getPvLine()
-      l:SetColorTexture(C.route[1], C.route[2], C.route[3], 0.95)
-      l:SetStartPoint("TOPLEFT", pvArt, p(a.x, a.y))
-      l:SetEndPoint("TOPLEFT", pvArt, p(b.x, b.y))
+      local pts = NW.LegPoints(route, i)
+      for q = 1, #pts - 1 do
+        local l = getPvLine()
+        l:SetColorTexture(C.route[1], C.route[2], C.route[3], 0.95)
+        l:SetStartPoint("TOPLEFT", pvArt, p(pts[q][1], pts[q][2]))
+        l:SetEndPoint("TOPLEFT", pvArt, p(pts[q + 1][1], pts[q + 1][2]))
+      end
     end
     pvSub:SetText(("Your optimized route: %d stops, %s per loop."):format(#st, fmtTime(route.seconds or 0)))
   elseif row.order and #row.pts <= 400 then

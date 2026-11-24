@@ -15,7 +15,7 @@ end
 -- Stops are viewpoints, not nodes: as few places as it takes for every node
 -- to be within sight (S yards) of one of them. Each pick is the spot that
 -- brings the most still-unseen nodes into view.
-local function cover(points, S)
+local function cover(points, S, boxes)
   local n, S2 = #points, S * S
   local floor = math.floor
   -- nodes within S of each node, found through a grid so big zones stay quick
@@ -62,6 +62,10 @@ local function cover(points, S)
     for _, j in ipairs(members) do
       local dx, dy = points[j].yx - cx, points[j].yy - cy
       if dx * dx + dy * dy > S2 then cx, cy = points[best].yx, points[best].yy break end
+    end
+    -- never a stop inside an avoid zone: stand on the node instead
+    for _, b in ipairs(boxes or {}) do
+      if cx > b[1] and cx < b[3] and cy > b[2] and cy < b[4] then cx, cy = points[best].yx, points[best].yy break end
     end
     stops[#stops + 1] = { yx = cx, yy = cy, count = #members, herbs = herbs, ores = ores, members = members }
   end
@@ -122,6 +126,97 @@ local function distToSeg(px, py, ax, ay, bx, by)
   return math.sqrt(cx * cx + cy * cy)
 end
 
+-- The shortest way from a to b that stays out of every avoid zone: round
+-- the zones' corners (kept a little clear of them). Returns the corners to
+-- pass, or nil when the straight line is clear, and the length.
+local CLEAR = 25 -- yards kept between the route and a zone
+local function inBox(x, y, b) return x > b[1] and x < b[3] and y > b[2] and y < b[4] end
+local function detour(ax, ay, bx, by, boxes)
+  local direct = math.sqrt((ax - bx) ^ 2 + (ay - by) ^ 2)
+  local hit = false
+  for _, b in ipairs(boxes) do
+    if segHitsBox(ax, ay, bx, by, b) then hit = true break end
+  end
+  if not hit then return nil, direct end
+  -- a stop inside a zone can't be routed round it
+  for _, b in ipairs(boxes) do
+    if inBox(ax, ay, b) or inBox(bx, by, b) then return nil, direct end
+  end
+  local P = { { ax, ay }, { bx, by } }
+  for _, b in ipairs(boxes) do
+    for _, c in ipairs({ { b[1] - CLEAR, b[2] - CLEAR }, { b[3] + CLEAR, b[2] - CLEAR },
+                         { b[3] + CLEAR, b[4] + CLEAR }, { b[1] - CLEAR, b[4] + CLEAR } }) do
+      local free = true
+      for _, o in ipairs(boxes) do if inBox(c[1], c[2], o) then free = false break end end
+      if free then P[#P + 1] = c end
+    end
+  end
+  local function clear(i, j)
+    for _, b in ipairs(boxes) do
+      if segHitsBox(P[i][1], P[i][2], P[j][1], P[j][2], b) then return false end
+    end
+    return true
+  end
+  -- Dijkstra over a handful of points
+  local n = #P
+  local dist, prev, done = { [1] = 0 }, {}, {}
+  for _ = 1, n do
+    local u, ud
+    for i = 1, n do
+      if not done[i] and dist[i] and (not ud or dist[i] < ud) then u, ud = i, dist[i] end
+    end
+    if not u or u == 2 then break end
+    done[u] = true
+    for v = 1, n do
+      if not done[v] and v ~= u and clear(u, v) then
+        local d = ud + math.sqrt((P[u][1] - P[v][1]) ^ 2 + (P[u][2] - P[v][2]) ^ 2)
+        if not dist[v] or d < dist[v] then dist[v], prev[v] = d, u end
+      end
+    end
+  end
+  if not dist[2] then return nil, direct * 3 end -- boxed in: a long way round
+  local via, k = {}, prev[2]
+  while k and k ~= 1 do table.insert(via, 1, { P[k][1], P[k][2] }) k = prev[k] end
+  return via, dist[2]
+end
+
+-- The corners each leg of a route has to go round, worked out again from
+-- its avoid zones. Called after building, and whenever the zones change,
+-- so a new zone reroutes the loop at once.
+function NW.RouteAroundAvoid(mapID)
+  local route = NW.db.routes[mapID]
+  if not route or #route.stops < 2 then return end
+  local w, h = NW.MapSize(mapID)
+  if not w then return end
+  local boxes = {}
+  for _, r in ipairs(route.avoid or {}) do
+    boxes[#boxes + 1] = { math.min(r[1], r[3]) * w, math.min(r[2], r[4]) * h, math.max(r[1], r[3]) * w, math.max(r[2], r[4]) * h }
+  end
+  local len = 0
+  route.via = {}
+  for i, a in ipairs(route.stops) do
+    local b = route.stops[i % #route.stops + 1]
+    local via, d = detour(a.x * w, a.y * h, b.x * w, b.y * h, boxes)
+    if via and #via > 0 then
+      for _, c in ipairs(via) do c[1], c[2] = c[1] / w, c[2] / h end
+      route.via[i] = via
+    end
+    len = len + d
+  end
+  route.length = len
+  route.seconds = len / MOUNT_YPS
+end
+
+-- The points along leg i of a route: its stop, any corners round avoid
+-- zones, and the next stop
+function NW.LegPoints(route, i)
+  local a, b = route.stops[i], route.stops[i % #route.stops + 1]
+  local pts = { { a.x, a.y } }
+  for _, c in ipairs(route.via and route.via[i] or {}) do pts[#pts + 1] = { c[1], c[2] } end
+  pts[#pts + 1] = { b.x, b.y }
+  return pts
+end
+
 -- Riding from one stop to the next you see everything along the way too. A
 -- stop whose nodes all come into view on the straight line between its
 -- neighbours isn't needed: drop it and hand its nodes to the nearer one.
@@ -175,11 +270,8 @@ local function makeCost(X, Y, boxes, zoneW)
     local key = i < j and (i * N + j) or (j * N + i)
     local c = memo[key]
     if c then return c end
-    local dx, dy = X[i] - X[j], Y[i] - Y[j]
-    c = math.sqrt(dx * dx + dy * dy)
-    for _, b in ipairs(boxes) do
-      if segHitsBox(X[i], Y[i], X[j], Y[j], b) then c = c * 2 + zoneW break end
-    end
+    local _, d = detour(X[i], Y[i], X[j], Y[j], boxes)
+    c = d
     memo[key] = c
     return c
   end
@@ -478,13 +570,13 @@ function NW.BuildRoute(mapID, callback, opts)
     return
   end
   local sight = s.mergeYards
-  local stops = cover(points, sight)
-  local X, Y = {}, {}
-  for i, st in ipairs(stops) do X[i], Y[i] = st.yx, st.yy end
   local boxes = {}
   for _, r in ipairs(avoid) do
     boxes[#boxes + 1] = { math.min(r[1], r[3]) * w, math.min(r[2], r[4]) * h, math.max(r[1], r[3]) * w, math.max(r[2], r[4]) * h }
   end
+  local stops = cover(points, sight, boxes)
+  local X, Y = {}, {}
+  for i, st in ipairs(stops) do X[i], Y[i] = st.yx, st.yy end
   NW.routeStatus = ("Optimizing %d stops..."):format(#stops)
   job = {
     co = coroutine.create(function()
@@ -505,6 +597,7 @@ function NW.BuildRoute(mapID, callback, opts)
       route.seconds = len / MOUNT_YPS
       route.nodes = #points
       NW.db.routes[mapID] = route
+      NW.RouteAroundAvoid(mapID)
       NW.ResetProgress(mapID)
       NW.routeStatus = nil
       if callback then callback(route) end
@@ -562,6 +655,7 @@ function NW.InsertIntoRoute(mapID, node)
     herbs = node.kind == "herb" and 1 or 0, ores = node.kind == "ore" and 1 or 0 })
   route.length = (route.length or 0) + bestAdd
   route.seconds = route.length / MOUNT_YPS
+  NW.RouteAroundAvoid(mapID)
   -- shift anything keyed by stop number at or after the new one
   local prog = NW.progress[mapID]
   if prog then
@@ -586,10 +680,11 @@ end
 function NW.AddAvoid(mapID, x1, y1, x2, y2)
   NW.db.routes[mapID] = NW.db.routes[mapID] or { stops = {}, avoid = {} }
   table.insert(NW.db.routes[mapID].avoid, { x1, y1, x2, y2 })
+  NW.RouteAroundAvoid(mapID)
 end
 
 function NW.ClearAvoid(mapID)
-  if NW.db.routes[mapID] then NW.db.routes[mapID].avoid = {} end
+  if NW.db.routes[mapID] then NW.db.routes[mapID].avoid = {} NW.RouteAroundAvoid(mapID) end
 end
 
 ------------------------------------------------------------------------

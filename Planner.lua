@@ -294,13 +294,15 @@ refresh = function()
       local base = (n > 200 and 5 or (n > 80 and 7 or 9)) * math.min(1.5, roomy)
       for k = 0, n - 1 do
         local i = ((first - 1 + k) % n) + 1
-        local a, b = stops[i], stops[(i % n) + 1]
-        local l = getLine()
-        l:SetThickness(thick)
+        local pts = NW.LegPoints(route, i)
         local r, g, bl = routeColor(k / n)
-        l:SetColorTexture(r, g, bl, 0.95)
-        l:SetStartPoint("TOPLEFT", mapArt, px(a.x, a.y))
-        l:SetEndPoint("TOPLEFT", mapArt, px(b.x, b.y))
+        for q = 1, #pts - 1 do
+          local l = getLine()
+          l:SetThickness(thick)
+          l:SetColorTexture(r, g, bl, 0.95)
+          l:SetStartPoint("TOPLEFT", mapArt, px(pts[q][1], pts[q][2]))
+          l:SetEndPoint("TOPLEFT", mapArt, px(pts[q + 1][1], pts[q + 1][2]))
+        end
       end
       for i, a in ipairs(stops) do
         local d = getDot()
@@ -427,6 +429,7 @@ mapFrame:SetScript("OnMouseDown", function(_, button)
       local r = route.avoid[i]
       if x >= math.min(r[1], r[3]) and x <= math.max(r[1], r[3]) and y >= math.min(r[2], r[4]) and y <= math.max(r[2], r[4]) then
         table.remove(route.avoid, i)
+        NW.RouteAroundAvoid(id)
         refresh()
         return
       end
