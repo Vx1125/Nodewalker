@@ -550,18 +550,36 @@ NW.NOT_YET = {
   [20008] = true, -- Living Action Potion
   [20748] = true, -- Brilliant Mana Oil
   [20749] = true, -- Brilliant Wizard Oil
+  [18253] = true, -- Major Rejuvenation Potion (recipe drops in Molten Core)
+  [18262] = true, -- Elemental Sharpening Stone (recipe drops in Molten Core)
 }
 local NOT_YET_NAME = {
   ["Mageblood Elixir"] = true, ["Major Troll's Blood Elixir"] = true, ["Greater Dreamless Sleep Potion"] = true,
   ["Living Action Potion"] = true, ["Brilliant Mana Oil"] = true, ["Brilliant Wizard Oil"] = true,
 }
--- A recipe nobody can learn yet
+-- Raids that aren't open on Forever yet: recipes that only drop there, and
+-- recipes that need what only drops there. Take a line out when one opens.
+local CLOSED_PLACES = { "Rin'wosho", "Zul'Gurub", "Ahn'Qiraj", "Molten Core", "Naxxramas" }
+local CLOSED_MATS = {
+  [17010] = true, -- Fiery Core (Molten Core)
+  [17011] = true, -- Lava Core (Molten Core)
+  [17012] = true, -- Core Leather (Molten Core)
+  [17203] = true, -- Sulfuron Ingot (Molten Core)
+  [22682] = true, -- Frozen Rune (Naxxramas)
+}
+-- A recipe nobody can learn, or make, yet
 function NW.NotYet(r)
-  -- Rin'wosho is the Zandalar Tribe's recipe vendor (Zul'Gurub); Ahn'Qiraj's
-  -- drops and Andorov's recipes wait for those raids
+  if (r.item and NW.NOT_YET[r.item]) or NOT_YET_NAME[r.name] then return true end
   local w = r.where
-  return (r.item and NW.NOT_YET[r.item]) or NOT_YET_NAME[r.name]
-    or (w and (w:find("Rin'wosho", 1, true) or w:find("Ahn'Qiraj", 1, true)) ~= nil) or false
+  if w then
+    for _, place in ipairs(CLOSED_PLACES) do
+      if w:find(place, 1, true) then return true end
+    end
+  end
+  for _, re in ipairs(r.reagents or {}) do
+    if CLOSED_MATS[re[1]] then return true end
+  end
+  return false
 end
 
 -- Recipes on a long cooldown can't be made in bulk, so they never count as
