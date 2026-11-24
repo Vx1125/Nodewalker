@@ -330,7 +330,7 @@ SlashCmdList.NODEWALKER = function(msg)
   elseif msg == "mapdebug" then
     local d = NW.worldMapDebug
     NW.Print(d and ("map %s · OpenMap %s · routes %d · lines %d · scale %.3f · width %d · level %d"):format(
-      tostring(d.mapID), d.stitched and "yes" or "no", d.routes or 0, d.lines or 0, d.scale or 0, d.W or 0, d.level or 0)
+      tostring(d.mapID), d.stitched and "yes" or "no", d.routes or 0, d.lines or 0, d.scale or 0, math.floor(d.W or 0), math.floor(d.level or 0))
       or "World map route hasn't drawn yet. Open the map first.")
   elseif msg == "harvest" or msg == "harvest all" then
     if NW.HarvestConsumes then NW.HarvestConsumes(msg == "harvest all") end

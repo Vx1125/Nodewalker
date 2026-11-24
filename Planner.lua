@@ -408,13 +408,14 @@ do
         if not u then return end
         return api.MapFromWorld(mapID, u, v)
       end
-      on = ("om:%d:%d:%d:%d:%d"):format(mapID, W, #todo, built, zoomKey)
+      -- (concatenated: the sum of build times is too big for %d)
+      on = table.concat({ "om", mapID, math.floor(W), #todo, built, zoomKey }, ":")
     elseif on then
       local route = NW.db.routes[mapID]
       if route and #route.stops > 1 then
         todo[1] = { mapID, route }
         place = function(_, x, y) return x, y end
-        on = ("wm:%d:%s:%d:%d:%d"):format(mapID, tostring(route.built), #route.stops, W, zoomKey)
+        on = table.concat({ "wm", mapID, tostring(route.built), #route.stops, math.floor(W), zoomKey }, ":")
       else
         on = nil
       end
