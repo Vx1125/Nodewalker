@@ -844,14 +844,14 @@ drawShop = function()
     if e and e.recipe then
       row.icon:SetTexture(e.id and itemIcon(e.id) or "Interface\\Icons\\INV_Scroll_03")
       row.name:SetText("|cffff8040" .. e.term .. "|r")
-      row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (e.cost and NW.Money(e.cost, true)) or "|cff94949afind|r")
+      row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (e.cost and NW.Money(e.cost, "mid")) or "|cff94949afind|r")
     elseif e then
       row.icon:SetTexture(itemIcon(e.id))
       local have = e.have > 0 and ("|cff8cdb7a%d|r/"):format(math.min(e.have, e.need)) or ""
       row.name:SetText(("%s%d  %s%s|r"):format(have, e.need, e.maker and card and "|cffe8c46a" or "|cffe6e6eb", (itemName(e.id))))
       local tag = e.src == "vendor" and " |cff94949av|r" or e.src == "est" and " |cffeb5c4c~|r"
         or (e.scarce or (e.stats and e.stats.flag)) and " |cffffd133!|r" or ""
-      row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (NW.Money(e.cost, true) .. tag))
+      row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (NW.Money(e.cost, "mid") .. tag))
     else
       row:Hide()
     end
@@ -1456,8 +1456,8 @@ local function drawCard()
   local profit, cost, sale, _, de = NW.RecipeProfit(r)
   rHead.text:SetText(r.name)
   local parts = {}
-  if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, true) end
-  parts[#parts + 1] = "materials " .. NW.Money(cost or 0, true)
+  if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, "mid") end
+  parts[#parts + 1] = "materials " .. NW.Money(cost or 0, "mid")
   if profit then parts[#parts + 1] = signedMoney(profit) end
   rTotal:SetText(table.concat(parts, "  ·  "))
   local prev = card.stack[#card.stack]
