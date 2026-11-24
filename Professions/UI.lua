@@ -1279,8 +1279,16 @@ local function buildMissing(key)
   return out
 end
 
--- Sections you've folded away, per profession
+-- Sections you've folded away, per profession. While searching, folds are
+-- kept apart and forgotten when the search changes, so a search starts with
+-- every match showing and your saved folds come back after.
+local searchFolds, searchFoldsFor = {}, nil
 local function collapsedOf(key)
+  if searchText ~= "" then
+    local k = key .. "\0" .. searchText
+    if searchFoldsFor ~= k then searchFolds, searchFoldsFor = {}, k end
+    return searchFolds
+  end
   local all = st().recipeCollapsed
   if not all then all = {} st().recipeCollapsed = all end
   all[key] = all[key] or {}
@@ -1520,8 +1528,7 @@ local function drawMissing(p)
       end)
       local out = {}
       for _, g in ipairs(order) do
-        -- a search opens every section
-        local shut = folded[g.name] and searchText == "" or false
+        local shut = folded[g.name] and true or false
         out[#out + 1] = { header = g.name, count = #g.rows, collapsed = shut }
         if not shut then for _, r in ipairs(g.rows) do out[#out + 1] = r end end
       end
