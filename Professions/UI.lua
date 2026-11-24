@@ -1330,8 +1330,8 @@ end
 -- Profit: what each craft earns at today's prices, best first
 ------------------------------------------------------------------------
 local function signedMoney(c)
-  if c >= 0 then return "|cff8cdb7a+|r" .. NW.Money(c, true) end
-  return "|cffeb5c4c-|r" .. NW.Money(-c, true)
+  if c >= 0 then return "|cff8cdb7a+|r" .. NW.Money(c, "mid") end
+  return "|cffeb5c4c-|r" .. NW.Money(-c, "mid")
 end
 local function drawProfitRows(key)
   for i, row in ipairs(stepRows) do
@@ -1352,7 +1352,7 @@ local function drawProfitRows(key)
         row.range:SetText(pct and ("|cff%s%s%d%%|r"):format(col, pct > 0 and "+" or "", math.max(-999, math.min(999, pct))) or "")
         row.name:SetText(("|cff%s%s|r%s"):format(e.profit > 0 and "ffffff" or "94949a", r.name, e.known and "" or "  |cff94949anot known|r"))
         row.cost:SetText(signedMoney(e.profit))
-        row.mats:SetText(("%s %s  ·  materials %s%s%s"):format(e.de and "Disenchants" or "Sells", NW.Money(e.sale, true), NW.Money(e.cost, true),
+        row.mats:SetText(("%s %s  ·  materials %s%s%s"):format(e.de and "Disenchants" or "Sells", NW.Money(e.sale, "mid"), NW.Money(e.cost, "mid"),
           (r.yield or 1) > 1 and ("  ·  makes %d"):format(r.yield) or "", e.unknown and "  ·  |cffe8c46asome prices missing|r" or ""))
       else
         row.range:SetText("")

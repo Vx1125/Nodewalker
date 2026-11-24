@@ -516,10 +516,16 @@ function NW.PriceStats(id)
       st.days = #lows
       st.typical = median(lows) or today
       st.listed = median(counts)
-      -- three days of scans is enough to call today's price odd
+      -- how many are up today, at any price
+      if tonumber(hist[1].rawDay) == newest then st.listedToday = hist[1].available end
+      -- Three days of scans is enough to call today's price odd. A low price
+      -- can be one stray listing under a normal market. A high one is the
+      -- cheapest of everything listed, so with plenty up it's the real price:
+      -- the market has moved.
       if st.days >= 3 then
+        local plenty = st.listedToday and st.listedToday >= math.max(5, (st.listed or 0) * 0.25)
         if today < st.typical * OUTLIER then st.flag = "low"
-        elseif today * OUTLIER > st.typical then st.flag = "high" end
+        elseif today * OUTLIER > st.typical and not plenty then st.flag = "high" end
       end
     end
   end
