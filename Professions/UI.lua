@@ -37,7 +37,7 @@ NW.On("GET_ITEM_INFO_RECEIVED", function() page.dirty = true end)
 -- Left: professions
 ------------------------------------------------------------------------
 local LIST_W = 196
-local list = UI.Box(page, LIST_W, #NW.PROFS * 34 + 10 + 40)
+local list = UI.Box(page, LIST_W, #NW.PROFS * 34 + 10)
 list:SetPoint("TOPLEFT", 16, -8)
 local profRows = {}
 local mode, openMode, craftClick, knowsRecipe
@@ -63,32 +63,6 @@ for i, p in ipairs(NW.PROFS) do
     selected = p.key; st().profSelected = p.key; refresh()
   end)
   profRows[i] = b
-end
--- Below the professions: any recipe in the game, for having someone make it
-do
-  local line = list:CreateTexture(nil, "ARTWORK")
-  line:SetColorTexture(S.edge[1], S.edge[2], S.edge[3], 1)
-  line:SetHeight(1)
-  line:SetPoint("TOPLEFT", 8, -5 - #NW.PROFS * 34 - 3)
-  line:SetPoint("TOPRIGHT", -8, -5 - #NW.PROFS * 34 - 3)
-  local b = CreateFrame("Button", nil, list)
-  b:SetSize(LIST_W - 2, 34)
-  b:SetPoint("TOPLEFT", 1, -5 - #NW.PROFS * 34 - 6)
-  UI.RowHighlight(b)
-  b.icon = b:CreateTexture(nil, "ARTWORK")
-  b.icon:SetSize(22, 22)
-  b.icon:SetPoint("LEFT", 8, 0)
-  b.icon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_03")
-  b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  b.name = UI.Text(b, 12, S.gold)
-  b.name:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
-  b.name:SetText("Find a craft")
-  b.skill = UI.Text(b, 11, S.dim, "RIGHT")
-  b.skill:SetPoint("RIGHT", -8, 0)
-  b.prof = { key = "find" }
-  b:SetScript("OnClick", function() selected = "find"; st().profSelected = "find"; refresh() end)
-  UI.Tip(b, "Find a craft", "Any recipe from any profession: what its materials cost, what you'd still have to buy, and its AH price.")
-  profRows[#profRows + 1] = b
 end
 mode = "plan" -- plan | missing | profit
 -- Opening a profession: there's nothing to level at 300, so show what pays
@@ -567,7 +541,6 @@ shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
 shopBox:EnableMouseWheel(true)
 local SHOP_H, SHOP_ROWS = 26, 9
 local RECIPE_PREFIX, sourceText -- set further down
-local drawFindView
 -- Shift-click: put an item (or a recipe's spell) into chat. With no chat box
 -- open, `open` starts one. Returns true when the link went somewhere.
 local function chatLink(itemID, spellID, open)
@@ -1512,19 +1485,10 @@ local function drawCard()
   end
   local q = unpriced and "|cffeb5c4c+?|r" or ""
   local parts = {}
-  if selected == "find" then
-    -- having it made to use: what the materials cost you, against buying it made
-    parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
-    if haveAny then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
-    local ah
-    if r.item then ah = select(2, NW.PriceParts(r.item)) end
-    if ah then parts[#parts + 1] = "on AH " .. NW.Money(ah * (r.yield or 1), "mid") end
-  else
-    if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, "mid") end
-    parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
-    if haveAny then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
-    if profit then parts[#parts + 1] = "profit " .. signedMoney(profit) end
-  end
+  if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, "mid") end
+  parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
+  if haveAny then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
+  if profit then parts[#parts + 1] = "profit " .. signedMoney(profit) end
   rTotal:SetText(table.concat(parts, "  ·  "))
   local prev = card.stack[#card.stack]
   cardBack:SetText(prev and ("< " .. prev.r.name) or "< All recipes")
@@ -1737,130 +1701,20 @@ local function matsCost(r)
   end
   return full, toBuy, unpriced
 end
-local function drawFindRows()
-  for i, row in ipairs(stepRows) do
-    local r = steps[i + stepOffset]
-    row.step, row.bracket, row.sectionRow, row.profitRow = nil, nil, nil, nil
-    row.missingRecipe = r
-    row:SetCraft()
-    if r then
-      row:Show()
-      row:SetSelected(card ~= nil and card.r == r or false)
-      local prof = NW.PROF_BY_KEY[r.findKey]
-      local req = r.orange or r.yellow
-      row.range:SetText(req and req > 0 and tostring(req) or "?")
-      row.icon:SetTexture(r.icon or recipeIcon(r))
-      row.icon:Show()
-      row.name:SetText(r.name)
-      row.crafts:SetText("")
-      row.cost:SetText("")
-      local full, toBuy, unpriced = matsCost(r)
-      local q = unpriced and "|cffeb5c4c+?|r" or ""
-      local parts = { prof and prof.name or "" }
-      parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
-      if toBuy < full then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
-      -- what it costs ready-made, so you can tell if paying a crafter is worth it
-      local ah
-      if r.item then ah = select(2, NW.PriceParts(r.item)) end
-      if ah then parts[#parts + 1] = "on AH " .. NW.Money(ah * (r.yield or 1), "mid") end
-      row.mats:SetText(table.concat(parts, "  ·  "))
-    else
-      row:Hide()
-    end
-  end
-  stepScroll:Update()
-end
-function drawFindView()
-  hIcon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_03")
-  hName:SetText("Find a craft")
-  setLedger(nil)
-  hSkill:SetText("Every profession's recipes")
-  NW.SetWindowSubtitle("Find a craft")
-  for _, b in pairs(modeBtns) do b:Hide() end
-  local vk = "find:" .. searchText
-  viewChanged = vk ~= lastView
-  lastView = vk
-  priceLine:ClearAllPoints()
-  priceLine:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, -2)
-  priceLine:SetHeight(36)
-  priceLine:SetWidth(MID_W)
-  priceLine:SetShown(true)
-  priceLine:SetText("Search for what you want made. Click one for its materials and what you still need to buy.")
-  haveMats:Hide()
-  minProfit:Hide()
-  optRow:Hide()
-  targetSlider:Hide()
-  for i, t in ipairs(caps) do t:SetText(({ "Skill", "Recipe, materials and AH price", "", "" })[i]) end
-  if lastCardKey ~= "find" then card = nil end
-  lastCardKey = "find"
-  -- matches: name first, then anything made from a material with that name
-  if searchText == "" then
-    steps = {}
-  else
-    local named, byMat = {}, {}
-    for _, r in ipairs(allRecipes()) do
-      if has(r.name) then named[#named + 1] = r
-      else
-        for _, re in ipairs(r.reagents) do if has((itemName(re[1]))) then byMat[#byMat + 1] = r break end end
-      end
-    end
-    local function bySkill(a, b)
-      local ra, rb = a.orange or a.yellow or 999, b.orange or b.yellow or 999
-      if ra ~= rb then return ra < rb end
-      return a.name < b.name
-    end
-    table.sort(named, bySkill)
-    table.sort(byMat, bySkill)
-    for _, r in ipairs(byMat) do named[#named + 1] = r end
-    steps = named
-  end
-  if viewChanged then stepOffset = 0 end
-  clampOffsets()
-  stepsEmpty:SetText(searchText == "" and "Type what you want made in the search box."
-    or #steps == 0 and "No recipe matches your search." or "")
-  hCost:SetText(searchText ~= "" and ("%d found"):format(#steps) or "")
-  hCostSub:SetText(searchText ~= "" and "in every profession" or "")
-  scrollDraw = drawFindRows
-  drawFindRows()
-  local showCard = card ~= nil
-  shopBox:SetShown(showCard)
-  searchBtn:SetShown(showCard)
-  tips:SetShown(showCard)
-  rTotal:SetShown(showCard)
-  cardBack:SetShown(showCard)
-  cardCraft:Hide()
-  info:SetShown(not showCard)
-  rHead.text:SetText("Find a craft")
-  infoText:SetText(table.concat({
-    "Look up anything a profession makes, to have someone craft it for you.",
-    "",
-    "|cffe8c46amaterials|r  all of them at today's prices",
-    "|cffe8c46ato buy|r  what's left after your bags",
-    "|cffe8c46aon AH|r  buying the finished item instead",
-    "",
-    "|cffe8c46aClick|r a recipe for its materials, then search for what you still need.",
-  }, "\n"))
-  if showCard then
-    drawCard()
-    if not knowsRecipe(card.key, card.r) then cardCraft:Hide() end
-  end
-end
-
 refresh = function()
   if not page:IsShown() then return end
   selected = selected or st().profSelected
+  if selected == "find" then selected = nil end -- (Find a craft has its own tab now)
   if not selected then
     -- start on the first profession you have
     for _, p in ipairs(NW.PROFS) do if NW.ProfSkill(p.key) and p.kind == "craft" and not p.secondary then selected = p.key break end end
     selected = selected or "alchemy"
   end
   for _, b in ipairs(profRows) do
-    if b.prof.key ~= "find" then
-      local rank, max = NW.ProfSkill(b.prof.key)
-      b.skill:SetText(rank and tostring(rank) or "") -- the cap is in the header; long names need the room
-      b.name:SetTextColor(unpack(rank and S.text or S.dim))
-      b.icon:SetDesaturated(not rank)
-    end
+    local rank, max = NW.ProfSkill(b.prof.key)
+    b.skill:SetText(rank and tostring(rank) or "") -- the cap is in the header; long names need the room
+    b.name:SetTextColor(unpack(rank and S.text or S.dim))
+    b.icon:SetDesaturated(not rank)
     b:SetSelected(b.prof.key == selected)
   end
   -- only nag about the profession window while a craft you have is unread
@@ -1872,7 +1726,6 @@ refresh = function()
     end
   end
   listNote:SetShown(unread)
-  if selected == "find" then return drawFindView() end
   local p = NW.PROF_BY_KEY[selected]
   local vk = selected .. ":" .. mode .. ":" .. searchText
   viewChanged = vk ~= lastView
@@ -2380,3 +2233,306 @@ NW.On("ADDON_LOADED", function(name)
 end)
 NW.On("TRADE_SKILL_LIST_UPDATE", function() if tradeTab:IsShown() then updateNext() end end)
 NW.On("SKILL_LINES_CHANGED", function() if tradeTab:IsShown() then C_Timer.After(0.2, updateNext) end end)
+
+------------------------------------------------------------------------
+-- Find a craft: any recipe in the game, for having someone make it for you
+------------------------------------------------------------------------
+do
+  local fpage = UI.AddTab("find", "Find a craft", function() NW.RefreshFind() end, nil, function()
+    if NW.findDirty then NW.findDirty = false NW.RefreshFind() end
+  end)
+  local LIST_X, LIST_W2 = 16, 640
+  local ROW_H2, ROWS2 = 24, 19
+  local DET_X = LIST_X + LIST_W2 + 16
+  local DET_W = 1020 - DET_X - 16
+  local text, results, offset2, chosen = "", {}, 0, nil
+
+  -- search
+  local box = CreateFrame("EditBox", nil, fpage, "BackdropTemplate")
+  box:SetSize(320, 26)
+  box:SetPoint("TOPLEFT", LIST_X, -8)
+  UI.Flat(box, S.sunk, S.edge)
+  box:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 13, "")
+  box:SetTextColor(unpack(S.text))
+  box:SetTextInsets(26, 24, 0, 0)
+  box:SetAutoFocus(false)
+  box:SetMaxLetters(40)
+  local icon = box:CreateTexture(nil, "ARTWORK")
+  icon:SetSize(14, 14)
+  icon:SetPoint("LEFT", 7, 0)
+  icon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+  icon:SetVertexColor(unpack(S.dim))
+  local hint = UI.Text(box, 13, S.disabled)
+  hint:SetPoint("LEFT", 26, 0)
+  hint:SetText("What do you want made?")
+  local clear = UI.Close(box, function() box:SetText(""); box:ClearFocus() end)
+  clear:SetSize(18, 18)
+  clear:SetPoint("RIGHT", -3, 0)
+  clear:Hide()
+  local count = UI.Text(fpage, 12, S.dim)
+  count:SetPoint("LEFT", box, "RIGHT", 14, 0)
+  box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  box:SetScript("OnEditFocusGained", function(self) self:SetBackdropBorderColor(unpack(S.gold)) end)
+  box:SetScript("OnEditFocusLost", function(self) self:SetBackdropBorderColor(unpack(S.edge)) end)
+  box:SetScript("OnTextChanged", function(self)
+    local t = (self:GetText() or ""):lower()
+    hint:SetShown(t == "")
+    clear:SetShown(t ~= "")
+    if t ~= text then text = t; offset2 = 0; NW.RefreshFind() end
+  end)
+
+  -- columns
+  local COLS = { { "Recipe", 30, "LEFT" }, { "Profession", 262, "LEFT" }, { "Materials", 470, "RIGHT" },
+    { "To buy", 545, "RIGHT" }, { "On AH", LIST_W2 - 14, "RIGHT" } }
+  local listBox = UI.Box(fpage, LIST_W2, ROWS2 * ROW_H2 + 4)
+  listBox:SetPoint("TOPLEFT", LIST_X, -60)
+  for _, c in ipairs(COLS) do
+    local t = UI.Text(fpage, 11, S.dim, c[3])
+    if c[3] == "RIGHT" then t:SetPoint("BOTTOMRIGHT", listBox, "TOPLEFT", c[2], 4)
+    else t:SetPoint("BOTTOMLEFT", listBox, "TOPLEFT", c[2], 4) end
+    t:SetText(c[1])
+  end
+  local empty = UI.Text(listBox, 13, S.dim, "CENTER")
+  empty:SetPoint("CENTER")
+  empty:SetWidth(LIST_W2 - 60)
+
+  local rows = {}
+  local function cell(row, x, w, justify, size, color)
+    local t = UI.Text(row, size or 12, color or S.text, justify)
+    if justify == "RIGHT" then t:SetPoint("RIGHT", row, "LEFT", x, 0) else t:SetPoint("LEFT", x, 0) end
+    t:SetWidth(w)
+    t:SetWordWrap(false)
+    return t
+  end
+  for i = 1, ROWS2 do
+    local row = CreateFrame("Button", nil, listBox)
+    row:SetSize(LIST_W2 - 14, ROW_H2)
+    row:SetPoint("TOPLEFT", 2, -2 - (i - 1) * ROW_H2)
+    UI.RowHighlight(row)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(18, 18)
+    row.icon:SetPoint("LEFT", 6, 0)
+    row.name = cell(row, 30, 226)
+    row.prof = cell(row, 262, 110, "LEFT", 11, S.dim)
+    row.mats = cell(row, 468, 90, "RIGHT")
+    row.buy = cell(row, 543, 72, "RIGHT")
+    row.ah = cell(row, LIST_W2 - 16, 90, "RIGHT")
+    row:SetScript("OnClick", function(self)
+      if not self.r then return end
+      if IsShiftKeyDown() and self.r.item then
+        local n, ok = itemName(self.r.item)
+        if ok and searchAH({ { n, 1 } }) then return end
+      end
+      chosen = self.r
+      NW.RefreshFind()
+    end)
+    row:SetScript("OnEnter", function(self)
+      if self.r and self.r.item then
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        pcall(GameTooltip.SetItemByID, GameTooltip, self.r.item)
+        GameTooltip:Show()
+      end
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    rows[i] = row
+  end
+  local scroller = makeScroller(listBox, ROWS2 * ROW_H2 + 4, ROWS2, function() return #results end,
+    function() return offset2 end, function(v) offset2 = v; NW.RefreshFind() end)
+  listBox:EnableMouseWheel(true)
+  listBox:SetScript("OnMouseWheel", function(_, d)
+    offset2 = math.max(0, math.min(math.max(0, #results - ROWS2), offset2 - d))
+    NW.RefreshFind()
+  end)
+
+  -- the chosen recipe
+  local det = CreateFrame("Frame", nil, fpage)
+  det:SetPoint("TOPLEFT", DET_X, -8)
+  det:SetSize(DET_W, 530)
+  local dHead = UI.Heading(det, "", DET_W)
+  dHead:SetPoint("TOPLEFT")
+  local dWhere = UI.Text(det, 11, S.dim)
+  dWhere:SetPoint("TOPLEFT", dHead, "BOTTOMLEFT", 0, -6)
+  dWhere:SetWidth(DET_W)
+  dWhere:SetJustifyV("TOP")
+  local dTotals = UI.Text(det, 12, S.text)
+  dTotals:SetPoint("TOPLEFT", dWhere, "BOTTOMLEFT", 0, -10)
+  dTotals:SetWidth(DET_W)
+  dTotals:SetJustifyV("TOP")
+  dTotals:SetSpacing(4)
+  local matBox = UI.Box(det, DET_W, 8 * 30 + 6)
+  matBox:SetPoint("TOPLEFT", dTotals, "BOTTOMLEFT", 0, -10)
+  local matRows = {}
+  for i = 1, 8 do
+    local m = CreateFrame("Button", nil, matBox)
+    m:SetSize(DET_W - 4, 30)
+    m:SetPoint("TOPLEFT", 2, -3 - (i - 1) * 30)
+    UI.RowHighlight(m)
+    m.icon = m:CreateTexture(nil, "ARTWORK")
+    m.icon:SetSize(20, 20)
+    m.icon:SetPoint("LEFT", 6, 0)
+    m.name = UI.Text(m, 12, S.text)
+    m.name:SetPoint("LEFT", m.icon, "RIGHT", 8, 0)
+    m.name:SetWidth(DET_W - 120)
+    m.name:SetWordWrap(false)
+    m.cost = UI.Text(m, 12, S.text, "RIGHT")
+    m.cost:SetPoint("RIGHT", -8, 0)
+    m:SetScript("OnEnter", function(self)
+      if not self.id then return end
+      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+      pcall(GameTooltip.SetItemByID, GameTooltip, self.id)
+      GameTooltip:Show()
+    end)
+    m:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    m:SetScript("OnClick", function(self)
+      if self.id and IsShiftKeyDown() then
+        local n, ok = itemName(self.id)
+        if ok then searchAH({ { n, math.max(1, self.buy or 1) } }) end
+      end
+    end)
+    matRows[i] = m
+  end
+  local need = {}
+  local btnMats = UI.Button(det, "Search what I need in Auctionator", DET_W, function()
+    local items = {}
+    for _, e in ipairs(need) do
+      if e.buy > 0 and e.src ~= "vendor" then
+        local n, ok = itemName(e.id)
+        if ok then items[#items + 1] = { n, e.buy } end
+      end
+    end
+    if #items > 0 and not searchAH(items) then NW.Print("Open the auction house with Auctionator to search for the list.") end
+  end, 28, "primary")
+  btnMats:SetPoint("TOPLEFT", matBox, "BOTTOMLEFT", 0, -10)
+  local btnMade = UI.Button(det, "Search it ready-made", DET_W, function()
+    if not (chosen and chosen.item) then return end
+    local n, ok = itemName(chosen.item)
+    if ok and not searchAH({ { n, 1 } }) then NW.Print("Open the auction house with Auctionator to search for it.") end
+  end, 26)
+  btnMade:SetPoint("TOPLEFT", btnMats, "BOTTOMLEFT", 0, -6)
+  local dNote = UI.Text(det, 11, S.dim)
+  dNote:SetPoint("TOPLEFT", btnMade, "BOTTOMLEFT", 0, -12)
+  dNote:SetWidth(DET_W)
+  dNote:SetJustifyV("TOP")
+  dNote:SetText("|cffe8c46aMaterials|r  all of them at today's prices\n|cffe8c46aTo buy|r  what's left after your bags\n|cffe8c46aOn AH|r  buying the finished item instead\n\n|cffe8c46aShift-click|r anything to search the auction house.")
+
+  local function drawDetail()
+    local r = chosen
+    det:SetShown(true)
+    if not r then
+      dHead.text:SetText("Find a craft")
+      dWhere:SetText("Search for anything a profession makes, to have someone craft it for you. Click one for its materials.")
+      dTotals:SetText("")
+      for _, m in ipairs(matRows) do m:Hide() end
+      matBox:Hide() btnMats:Hide() btnMade:Hide()
+      dNote:ClearAllPoints()
+      dNote:SetPoint("TOPLEFT", dWhere, "BOTTOMLEFT", 0, -16)
+      return
+    end
+    matBox:Show() btnMats:Show()
+    dNote:ClearAllPoints()
+    dNote:SetPoint("TOPLEFT", btnMade, "BOTTOMLEFT", 0, -12)
+    dHead.text:SetText(r.name)
+    local prof = NW.PROF_BY_KEY[r.findKey]
+    local req = r.orange or r.yellow
+    dWhere:SetText(("|cffe8c46a%s|r%s\n%s"):format(prof and prof.name or "", req and req > 0 and (" " .. req) or "",
+      sourceText(r.findKey, r, NW.ProfSkill(r.findKey)) or ""))
+    wipe(need)
+    local full, toBuy, unpriced, haveAny = 0, 0, false, false
+    for i, m in ipairs(matRows) do
+      local re = r.reagents[i]
+      if re then
+        local price, src = NW.Price(re[1])
+        if src == "est" then price = nil end
+        local have = NW.ItemCount(re[1]) or 0
+        local buy = math.max(0, re[2] - have)
+        local cost = price and price * buy
+        if price and src == "ah" and buy > 0 and NW.FillCost then
+          local fill, got = NW.FillCost(re[1], buy)
+          if fill and got > 0 then cost = fill + (buy - got) * price end
+        end
+        need[#need + 1] = { id = re[1], buy = buy, src = src }
+        if price then full = full + price * re[2] else unpriced = true end
+        if buy > 0 then if cost then toBuy = toBuy + cost else unpriced = true end end
+        if have > 0 then haveAny = true end
+        m.id, m.buy = re[1], buy
+        m.icon:SetTexture(itemIcon(re[1]))
+        local hv = have > 0 and ("|cff8cdb7a%d|r/"):format(math.min(have, re[2])) or ""
+        m.name:SetText(("%s%d  %s"):format(hv, re[2], (itemName(re[1]))))
+        m.cost:SetText(buy == 0 and "|cff8cdb7ahave|r" or cost and (NW.Money(cost, "mid") .. (src == "vendor" and " |cff94949av|r" or ""))
+          or "|cff94949a?|r")
+        m:Show()
+      else
+        m.id = nil
+        m:Hide()
+      end
+    end
+    local q = unpriced and " |cffeb5c4c+?|r" or ""
+    local ah
+    if r.item then ah = select(2, NW.PriceParts(r.item)) end
+    local lines = {
+      ("|cff94949aMaterials|r  %s%s"):format(NW.Money(full, "mid"), q),
+      ("|cff94949aTo buy|r  |cffffffff%s|r%s"):format(NW.Money(toBuy, "mid"), q),
+    }
+    if ah then lines[#lines + 1] = ("|cff94949aOn AH|r  %s"):format(NW.Money(ah * (r.yield or 1), "mid")) end
+    if (r.yield or 1) > 1 then lines[#lines + 1] = ("|cff94949aMakes %d|r"):format(r.yield) end
+    dTotals:SetText(table.concat(lines, "\n"))
+    btnMats:SetEnabled(toBuy > 0)
+    btnMade:SetShown(r.item ~= nil)
+  end
+
+  function NW.RefreshFind()
+    if not fpage:IsShown() then return end
+    NW.SetWindowSubtitle("Find a craft")
+    -- matches: name first, then anything made from a material with that name
+    wipe(results)
+    if text ~= "" then
+      local byMat = {}
+      local function hit(t) return t and t:lower():find(text, 1, true) ~= nil end
+      for _, r in ipairs(allRecipes()) do
+        if hit(r.name) then results[#results + 1] = r
+        else
+          for _, re in ipairs(r.reagents) do if hit((itemName(re[1]))) then byMat[#byMat + 1] = r break end end
+        end
+      end
+      local function bySkill(a, b)
+        local ra, rb = a.orange or a.yellow or 999, b.orange or b.yellow or 999
+        if ra ~= rb then return ra < rb end
+        return a.name < b.name
+      end
+      table.sort(results, bySkill)
+      table.sort(byMat, bySkill)
+      for _, r in ipairs(byMat) do results[#results + 1] = r end
+    end
+    offset2 = math.max(0, math.min(offset2, #results - ROWS2))
+    count:SetText(text ~= "" and ("%d found in every profession"):format(#results) or "")
+    empty:SetText(text == "" and "Type what you want made, such as Crusader, Mongoose or Runecloth Bag."
+      or #results == 0 and "No recipe matches your search." or "")
+    for i, row in ipairs(rows) do
+      local r = results[i + offset2]
+      row.r = r
+      if r then
+        row:Show()
+        row:SetSelected(r == chosen)
+        row.icon:SetTexture(r.icon or recipeIcon(r))
+        row.name:SetText(r.name)
+        local prof = NW.PROF_BY_KEY[r.findKey]
+        local req = r.orange or r.yellow
+        row.prof:SetText((prof and prof.name or "") .. (req and req > 0 and (" " .. req) or ""))
+        local full, toBuy, unpriced = matsCost(r)
+        local q = unpriced and "|cffeb5c4c+?|r" or ""
+        row.mats:SetText(NW.Money(full, "mid") .. q)
+        row.buy:SetText(toBuy < full and (NW.Money(toBuy, "mid") .. q) or "|cff94949a-|r")
+        local ah
+        if r.item then ah = select(2, NW.PriceParts(r.item)) end
+        row.ah:SetText(ah and NW.Money(ah * (r.yield or 1), "mid") or "|cff94949a-|r")
+      else
+        row:Hide()
+      end
+    end
+    scroller:Update()
+    drawDetail()
+  end
+  NW.On("BAG_UPDATE_DELAYED", function() NW.findDirty = true end)
+  NW.On("GET_ITEM_INFO_RECEIVED", function() NW.findDirty = true end)
+end
