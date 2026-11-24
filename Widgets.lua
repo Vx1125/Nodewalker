@@ -499,7 +499,7 @@ function UI.Pool(make)
 end
 
 -- The zone's world map art, drawn into frame at W x H, muted gold.
-function UI.DrawZoneArt(id, frame, tiles, W, H)
+function UI.DrawZoneArt(id, frame, tiles, W, H, full)
   for _, t in ipairs(tiles) do t:Hide() end
   local layers = id and C_Map.GetMapArtLayers(id)
   local layer = layers and layers[1]
@@ -515,9 +515,9 @@ function UI.DrawZoneArt(id, frame, tiles, W, H)
     t:SetSize(tw, th)
     t:SetPoint("TOPLEFT", frame, "TOPLEFT", ((i - 1) % cols) * tw, -math.floor((i - 1) / cols) * th)
     t:SetTexture(fileID)
-    t:SetDesaturated(true)
-    t:SetVertexColor(0.95, 0.8, 0.45)
-    t:SetAlpha(0.45)
+    -- full: the map as the game draws it; otherwise a quiet gold wash
+    t:SetDesaturated(not full)
+    if full then t:SetVertexColor(1, 1, 1) t:SetAlpha(1) else t:SetVertexColor(0.95, 0.8, 0.45) t:SetAlpha(0.45) end
     t:Show()
   end
 end
