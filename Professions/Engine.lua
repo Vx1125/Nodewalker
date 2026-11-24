@@ -557,8 +557,11 @@ local NOT_YET_NAME = {
 }
 -- A recipe nobody can learn yet
 function NW.NotYet(r)
-  -- Rin'wosho is the Zandalar Tribe's recipe vendor
-  return (r.item and NW.NOT_YET[r.item]) or NOT_YET_NAME[r.name] or (r.where and r.where:find("Rin'wosho", 1, true) ~= nil) or false
+  -- Rin'wosho is the Zandalar Tribe's recipe vendor (Zul'Gurub); Ahn'Qiraj's
+  -- drops and Andorov's recipes wait for those raids
+  local w = r.where
+  return (r.item and NW.NOT_YET[r.item]) or NOT_YET_NAME[r.name]
+    or (w and (w:find("Rin'wosho", 1, true) or w:find("Ahn'Qiraj", 1, true)) ~= nil) or false
 end
 
 -- Recipes on a long cooldown can't be made in bulk, so they never count as
