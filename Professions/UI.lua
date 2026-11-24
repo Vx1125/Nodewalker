@@ -201,6 +201,14 @@ opts[1]:SetPoint("LEFT", 2, 0)
 opts[2]:SetPoint("LEFT", 206, 0)
 opts[3]:SetPoint("RIGHT", 0, 0)
 
+-- Leveling: gather your own herbs and ore instead of buying them
+local farmOwn = UI.Check(mid, "Farm my own mats", function() return st().planFarm end, function(v)
+  st().planFarm = v or nil
+  NW.InvalidatePlans()
+  refresh()
+end, "Herbs and ore you can gather are counted in farming time, not gold, and the plan picks recipes that need less farming. Click one in the list to open the Farm Guide on it.")
+farmOwn:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", MID_W - 150, -4)
+farmOwn:Hide()
 local priceLine = UI.Text(mid, 11, S.dim)
 priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -6)
 priceLine:SetWidth(MID_W)
@@ -636,6 +644,13 @@ for i = 1, SHOP_ROWS do
       GameTooltip:AddDoubleLine(("x%d"):format(e.need), NW.Money(e.price * e.need), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     end
     if card and e.maker then GameTooltip:AddLine("Click: how to make it", 0.91, 0.77, 0.42) end
+    if e.farm then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddDoubleLine("Farm", "about " .. farmTime(e.minutes or 0), S.dim[1], S.dim[2], S.dim[3], 0.55, 0.86, 0.48)
+      GameTooltip:AddDoubleLine(e.farm.node, e.farm.zone or "no saved nodes yet", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+      if e.farm.guessed then GameTooltip:AddLine("A rough time: Nodewalker hasn't seen enough of these yet.", S.dim[1], S.dim[2], S.dim[3], true) end
+      GameTooltip:AddLine("Click: open it in the Farm Guide", 0.91, 0.77, 0.42)
+    end
     -- what the listings you just searched add up to
     if e.live then
       local lv = e.live
@@ -678,6 +693,11 @@ for i = 1, SHOP_ROWS do
       card.stack[#card.stack + 1] = { r = card.r, key = card.key }
       card.r, card.key = e.maker, e.makerKey
       refresh()
+      return
+    end
+    -- something you farm: the Farm Guide shows where
+    if e.farm and not IsShiftKeyDown() then
+      NW.GuideSelectHerb(e.farm.node)
       return
     end
     -- Shift-click links it in chat; at the auction house it searches
@@ -833,6 +853,12 @@ drawSteps = function()
   stepScroll:Update()
 end
 
+local function farmTime(m)
+  m = math.max(1, math.floor(m + 0.5))
+  if m < 60 then return ("%d min"):format(m) end
+  return ("%dh %02dm"):format(math.floor(m / 60), m % 60)
+end
+NW.FarmTime = farmTime
 drawShop = function()
   shopScroll:Update()
   for i, row in ipairs(shopRows) do
@@ -851,7 +877,9 @@ drawShop = function()
       row.name:SetText(("%s%d  %s%s|r"):format(have, e.need, e.maker and card and "|cffe8c46a" or "|cffe6e6eb", (itemName(e.id))))
       local tag = e.src == "vendor" and " |cff94949av|r" or e.src == "est" and " |cffeb5c4c~|r"
         or (e.scarce or (e.stats and e.stats.flag)) and " |cffffd133!|r" or ""
-      row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (NW.Money(e.cost, "mid") .. tag))
+      if e.buy == 0 then row.cost:SetText("|cff8cdb7ahave|r")
+      elseif e.src == "farm" then row.cost:SetText("|cff8cdb7a" .. farmTime(e.minutes or 0) .. "|r")
+      else row.cost:SetText(NW.Money(e.cost, "mid") .. tag) end
     else
       row:Hide()
     end
@@ -950,7 +978,14 @@ local function drawCraft(p)
   end
   setLedger(rows)
 
-  local list, total = NW.ShoppingList(p.key, plan)
+  local list, total, farmMinutes = NW.ShoppingList(p.key, plan)
+  -- farming your own: the header is time to farm and gold for the rest
+  if st().planFarm then
+    local rowsF = { { ("Farm to %d"):format(to), farmTime(farmMinutes or 0), true } }
+    rowsF[#rowsF + 1] = { "Buy the rest", NW.Money(total + (plan.fees or 0), true) }
+    if plan.fees and plan.fees > 0 then rowsF[#rowsF + 1] = { "incl. training", NW.Money(plan.fees, true) } end
+    setLedger(rowsF)
+  end
   -- recipes the plan needs you to buy or find go on top
   local recipes, seen = {}, {}
   for _, stp in ipairs(plan.steps) do
@@ -986,7 +1021,8 @@ local function drawCraft(p)
   for _, e in ipairs(list) do if e.buy > 0 and (e.scarce or (e.stats and e.stats.flag)) then odd = odd + 1 end end
   local live = 0
   for _, e in ipairs(list) do if e.live then live = live + 1 end end
-  rTotal:SetText(("%d items  ·  %s to buy%s%s%s"):format(#list, NW.Money(total),
+  rTotal:SetText(("%d items  ·  %s%s to buy%s%s%s"):format(#list,
+    (farmMinutes or 0) > 0 and ("|cff8cdb7a%s farming|r  ·  "):format(farmTime(farmMinutes)) or "", NW.Money(total),
     plan.unknown > 0 and ("  ·  |cffeb5c4c%d no price|r"):format(plan.unknown) or "",
     live > 0 and ("  ·  |cff8cdb7a%d live|r"):format(live) or "",
     odd > 0 and ("  ·  |cffffd133%d to check|r"):format(odd) or ""))
@@ -1759,7 +1795,10 @@ refresh = function()
   haveMats:SetShown(isProfit)
   minProfit:SetShown(isProfit)
   if isProfit then haveMats:Refresh() minProfit:Refresh() end
-  priceLine:SetWidth(isProfit and MID_W - 290 or MID_W)
+  local isPlan = isCraft and not isProfit and not isMissing
+  farmOwn:SetShown(isPlan)
+  if isPlan then farmOwn:Refresh() end
+  priceLine:SetWidth(isProfit and MID_W - 290 or isPlan and MID_W - 160 or MID_W)
   local capSet = CAPS[isProfit and "profit" or isMissing and "missing" or isCraft and "plan" or "gather"]
   for i, t in ipairs(caps) do t:SetText(capSet[i]) end
   -- an opened recipe belongs to the Profit view of one profession

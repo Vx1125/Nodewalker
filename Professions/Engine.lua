@@ -665,13 +665,56 @@ function NW.BuyPrice(id)
   return v or ah
 end
 
--- Price of one item: copper, source ("ah" | "vendor" | "craft" | "est" | nil)
+-- Farming your own: what a herb or ore costs in time. Minutes for one, the
+-- herb or vein, and the zone your saved nodes say is quickest.
+local FARM_YIELD = 2          -- about two from each node
+local FARM_RATE = 1.2         -- nodes a minute when there's no node data yet
+local FARM_VALUE = 3000 / 60  -- the plan values a minute at 30s against gold spent
+local RARE_SPAWN = { ["Black Lotus"] = 0.02, ["Silver Vein"] = 0.15, ["Gold Vein"] = 0.15, ["Truesilver Deposit"] = 0.15 }
+local nodeForItem, farmMemo = nil, {}
+function NW.FarmInfo(id)
+  if not NW.db.settings.planFarm then return end
+  if farmMemo[id] ~= nil then return farmMemo[id] or nil end
+  if not nodeForItem then
+    nodeForItem = {}
+    for _, guide in ipairs({ NW.HERB_GUIDE, NW.ORE_GUIDE }) do
+      for _, e in ipairs(guide) do
+        local item = NW.NODE_ITEMS[e[1]]
+        if item and not nodeForItem[item] and not RARE_SPAWN[e[1]] then nodeForItem[item] = e[1] end
+      end
+    end
+  end
+  local node = nodeForItem[id]
+  local info = false
+  if node then
+    -- only what you can gather: herbalism for herbs, mining for ore
+    local nodeInfo = NW.NODES and NW.NODES[node]
+    local skill = NW.GetSkill(nodeInfo and nodeInfo[1] or "herb")
+    local req = NW.RequiredSkill and NW.RequiredSkill(node)
+    if skill and (not req or req <= skill) then
+      local rate, zone = NW.GuideRate and NW.GuideRate(node)
+      local minutes = 1 / ((rate or FARM_RATE) * FARM_YIELD)
+      info = { minutes = minutes, node = node, zone = zone, guessed = rate == nil }
+    end
+  end
+  farmMemo[id] = info
+  return info or nil
+end
+
+-- Price of one item: copper, source ("ah" | "vendor" | "craft" | "est" | "farm" | nil)
 local priceMemo = {}
 local craftOf -- [itemID] = recipe that makes it (built per profession)
 function NW.Price(id, depth)
   local memo = priceMemo[id]
   if memo then return memo[1], memo[2] end
   local best, src
+  -- you gather it yourself: it costs time, whatever the auction house says
+  local farm = NW.FarmInfo(id)
+  if farm then
+    best, src = farm.minutes * FARM_VALUE, "farm"
+    priceMemo[id] = { best, src }
+    return best, src
+  end
   local v = NW.db.vendorPrices[id] or VENDOR[id]
   if v then best, src = v, "vendor" end
   local ah = auctionator(id)
@@ -720,6 +763,7 @@ function NW.InvalidatePlans()
   planCache = {}
   priceMemo = {}
   statsMemo = {}
+  farmMemo = {}
   if NW.RefreshProfessions then NW.RefreshProfessions() end
 end
 
@@ -998,7 +1042,7 @@ function NW.ShoppingList(key, plan)
       end
     end
   end
-  local list, total = {}, 0
+  local list, total, farmMinutes = {}, 0, 0
   local useBags = NW.db.settings.planUseBags
   for id, n in pairs(need) do
     local have = useBags and NW.ItemCount(id) or 0
@@ -1007,6 +1051,13 @@ function NW.ShoppingList(key, plan)
     local cost = price and price * buy or nil
     if cost then total = total + cost end
     local e = { id = id, need = n, have = have, buy = buy, price = price, src = src, cost = cost, quest = forQuest[id] }
+    -- gathered yourself: counted in time, not gold
+    if src == "farm" then
+      e.farm = NW.FarmInfo(id)
+      e.minutes = e.farm and e.farm.minutes * buy or 0
+      farmMinutes = farmMinutes + e.minutes
+      if cost then total = total - cost end
+    end
     -- priced from the listings you just searched, when there are any
     if src == "ah" and buy > 0 then
       local fill, got, complete, seen = NW.FillCost(id, buy)
@@ -1030,8 +1081,13 @@ function NW.ShoppingList(key, plan)
     end
     list[#list + 1] = e
   end
-  table.sort(list, function(a, b) return (a.cost or -1) > (b.cost or -1) end)
-  return list, total
+  -- what to farm first, then what to buy, priciest first
+  table.sort(list, function(a, b)
+    if (a.src == "farm") ~= (b.src == "farm") then return a.src == "farm" end
+    if a.src == "farm" then return (a.minutes or 0) > (b.minutes or 0) end
+    return (a.cost or -1) > (b.cost or -1)
+  end)
+  return list, total, farmMinutes
 end
 
 -- Money text: 12g 34s 56c, shortened for big numbers

@@ -13,9 +13,9 @@ end
 -- Overlay tab: two columns of settings
 ------------------------------------------------------------------------
 local widgets = {}
-local page = UI.AddTab("overlay", "Overlay", function()
+local page = UI.AddTab("overlay", "Map overlay", function()
   for _, w in ipairs(widgets) do if w.Refresh then w:Refresh() end end
-end)
+end, nil, nil, true)
 
 local COL_W = 440
 local COL_X = { 24, 24 + COL_W + 60 }
@@ -164,7 +164,7 @@ helpText:SetText("|cffe8c46aAlt|r + hover a live dot: identify it   ·   |cffe8c
 ------------------------------------------------------------------------
 local nodeChecks = {}
 local refreshNodes
-local nodesPage = UI.AddTab("nodes", "Herbs & Ore", function() refreshNodes() end)
+local nodesPage = UI.AddTab("nodes", "Herbs and ore", function() refreshNodes() end, nil, nil, true)
 
 local SKILL_HEX = { red = "ff4040", orange = "ff8040", yellow = "ffe633", green = "59cc59", grey = "8c8c8c", unknown = "d9d9d9" }
 

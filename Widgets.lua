@@ -389,6 +389,54 @@ close:SetPoint("RIGHT", -6, 0)
 win.version = UI.Text(titleBar, 11, S.dim, "RIGHT")
 win.version:SetPoint("RIGHT", close, "LEFT", -10, 0)
 
+-- Settings: the pages without a tab (overlay, herbs and ore), in a small menu
+do
+  local b = CreateFrame("Button", nil, titleBar)
+  b.text = UI.Text(b, 12, S.dim, "CENTER")
+  b.text:SetPoint("CENTER")
+  b.text:SetText("Settings")
+  b:SetSize(b.text:GetStringWidth() + 16, TITLE_H - 6)
+  b:SetPoint("RIGHT", win.version, "LEFT", -14, 0)
+  local menu = CreateFrame("Frame", nil, b, "BackdropTemplate")
+  menu:SetFrameStrata("DIALOG")
+  menu:SetPoint("TOPRIGHT", b, "BOTTOMRIGHT", 0, -2)
+  UI.Flat(menu, S.bg, S.edge)
+  menu:Hide()
+  menu.items = {}
+  b:SetScript("OnEnter", function(self) self.text:SetTextColor(unpack(S.text)) end)
+  b:SetScript("OnLeave", function(self)
+    local cur = NW.CurrentTab and NW.CurrentTab()
+    local t = cur and NW.TabInfo(cur)
+    self.text:SetTextColor(unpack(t and t.hidden and S.gold or S.dim))
+  end)
+  b:SetScript("OnClick", function()
+    if menu:IsShown() then menu:Hide() return end
+    local n = 0
+    for _, key in ipairs(NW.TabKeys()) do
+      local t = NW.TabInfo(key)
+      if t.hidden then
+        n = n + 1
+        local it = menu.items[n]
+        if not it then
+          it = CreateFrame("Button", nil, menu)
+          it:SetSize(150, 24)
+          it:SetPoint("TOPLEFT", 4, -4 - (n - 1) * 24)
+          UI.RowHighlight(it)
+          it.text = UI.Text(it, 12, S.text)
+          it.text:SetPoint("LEFT", 8, 0)
+          menu.items[n] = it
+        end
+        it.text:SetText(t.label)
+        it:SetScript("OnClick", function() menu:Hide() NW.ShowTab(key) end)
+        it:Show()
+      end
+    end
+    menu:SetSize(158, n * 24 + 8)
+    menu:Show()
+  end)
+  win.settingsBtn = b
+end
+
 local tabLine = win:CreateTexture(nil, "ARTWORK")
 tabLine:SetPoint("TOPLEFT", 8, -(TITLE_H + TABS_H))
 tabLine:SetPoint("TOPRIGHT", -8, -(TITLE_H + TABS_H))
@@ -413,14 +461,21 @@ function NW.ShowTab(key)
     o.button.text:SetTextColor(unpack(on and S.gold or S.dim))
     o.button.line:SetShown(on)
   end
-  setSub("")
+  setSub(t.hidden and ("Settings · " .. t.label) or "")
+  if win.settingsBtn then win.settingsBtn.text:SetTextColor(unpack(t.hidden and S.gold or S.dim)) end
   if t.onShow then t.onShow() end
+  -- (a page's own subtitle wins; settings pages keep theirs)
+  if t.hidden and win.sub:GetText() == "" then setSub("Settings · " .. t.label) end
 end
 
 function NW.CurrentTab() return current and current.key end
+function NW.TabInfo(key) return tabs[key] end
+function NW.TabKeys() return tabOrder end
 
--- key, label, onShow, onHide, onTick (once a second while shown). Returns the page.
-function UI.AddTab(key, label, onShow, onHide, onTick)
+-- key, label, onShow, onHide, onTick (once a second while shown), hidden
+-- (no tab: reached from the Settings button). Returns the page.
+local lastTabButton
+function UI.AddTab(key, label, onShow, onHide, onTick, hidden)
   local page = CreateFrame("Frame", nil, win)
   page:SetPoint("TOPLEFT", 0, -UI.CONTENT_TOP)
   page:SetPoint("BOTTOMRIGHT")
@@ -430,8 +485,12 @@ function UI.AddTab(key, label, onShow, onHide, onTick)
   b.text:SetPoint("CENTER", 0, 1)
   b.text:SetText(label)
   b:SetSize(b.text:GetStringWidth() + 26, TABS_H)
-  local prev = tabOrder[#tabOrder] and tabs[tabOrder[#tabOrder]].button
-  if prev then b:SetPoint("LEFT", prev, "RIGHT", 2, 0) else b:SetPoint("TOPLEFT", 10, -TITLE_H) end
+  if hidden then
+    b:Hide()
+  else
+    if lastTabButton then b:SetPoint("LEFT", lastTabButton, "RIGHT", 2, 0) else b:SetPoint("TOPLEFT", 10, -TITLE_H) end
+    lastTabButton = b
+  end
   b.line = b:CreateTexture(nil, "OVERLAY")
   b.line:SetPoint("BOTTOMLEFT", 8, 0)
   b.line:SetPoint("BOTTOMRIGHT", -8, 0)
@@ -441,7 +500,7 @@ function UI.AddTab(key, label, onShow, onHide, onTick)
   b:SetScript("OnClick", function() NW.ShowTab(key) end)
   b:SetScript("OnEnter", function(self) if current ~= tabs[key] then self.text:SetTextColor(unpack(S.text)) end end)
   b:SetScript("OnLeave", function(self) if current ~= tabs[key] then self.text:SetTextColor(unpack(S.dim)) end end)
-  tabs[key] = { key = key, page = page, button = b, onShow = onShow, onHide = onHide, onTick = onTick }
+  tabs[key] = { key = key, label = label, page = page, button = b, onShow = onShow, onHide = onHide, onTick = onTick, hidden = hidden }
   tabOrder[#tabOrder + 1] = key
   return page
 end
@@ -451,6 +510,8 @@ win:SetScript("OnShow", function()
     or (GetAddOnMetadata and GetAddOnMetadata(ADDON, "Version"))
   win.version:SetText((v and not v:find("@")) and ("v" .. v:gsub("^[vV]", "")) or "")
   NW.ShowTab((NW.db and NW.db.settings.lastTab) or tabOrder[1])
+  -- the first time: ask what they came for
+  if NW.db and not NW.db.welcomed and NW.ShowWelcome then NW.ShowWelcome() end
   ticker = C_Timer.NewTicker(1, function()
     if current and current.onTick then current.onTick() end
   end)
@@ -561,4 +622,79 @@ function UI.DrawZoneArt(id, frame, tiles, W, H, full)
       end
     end
   end
+end
+
+------------------------------------------------------------------------
+-- Welcome: the first time the window opens, one question instead of
+-- seven tabs. /nw welcome shows it again.
+------------------------------------------------------------------------
+do
+  local w
+  local CHOICES = {
+    { "guide", "Interface\\Icons\\INV_Misc_Herb_07", "Farm herbs or ore",
+      "Find the best zones and ride a loop past every node." },
+    { "profs", "Interface\\Icons\\Trade_Alchemy", "Level a profession",
+      "A step-by-step plan to 300: what to make, what to buy or farm, and where to train." },
+    { "find", "Interface\\Icons\\INV_Misc_Spyglass_03", "Have something crafted",
+      "Look up any recipe and what its materials cost you." },
+    { "consumes", "Interface\\Icons\\INV_Potion_93", "Stock up on consumables",
+      "Food, elixirs and potions for your level, or for raids." },
+  }
+  local function build()
+    w = CreateFrame("Frame", nil, win, "BackdropTemplate")
+    w:SetPoint("TOPLEFT", 1, -TITLE_H)
+    w:SetPoint("BOTTOMRIGHT", -1, 1)
+    w:SetFrameLevel(win:GetFrameLevel() + 50)
+    UI.Flat(w, S.bg, S.bg)
+    w:EnableMouse(true)
+    local head = UI.Text(w, 20, S.gold, "CENTER")
+    head:SetPoint("TOP", 0, -50)
+    head:SetText("Welcome to Nodewalker")
+    local sub = UI.Text(w, 13, S.dim, "CENTER")
+    sub:SetPoint("TOP", head, "BOTTOM", 0, -10)
+    sub:SetText("What do you want to do?")
+    for i, c in ipairs(CHOICES) do
+      local b = CreateFrame("Button", nil, w, "BackdropTemplate")
+      b:SetSize(460, 64)
+      b:SetPoint("TOP", sub, "BOTTOM", 0, -24 - (i - 1) * 74)
+      UI.Flat(b, S.cell, S.edge)
+      local ic = b:CreateTexture(nil, "ARTWORK")
+      ic:SetSize(40, 40)
+      ic:SetPoint("LEFT", 12, 0)
+      ic:SetTexture(c[2])
+      ic:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+      local t = UI.Text(b, 14, S.gold)
+      t:SetPoint("TOPLEFT", ic, "TOPRIGHT", 14, -2)
+      t:SetText(c[3])
+      local d = UI.Text(b, 12, S.text)
+      d:SetPoint("TOPLEFT", t, "BOTTOMLEFT", 0, -4)
+      d:SetWidth(380)
+      d:SetText(c[4])
+      b:SetScript("OnEnter", function(self) self:SetBackdropColor(unpack(S.hover)) end)
+      b:SetScript("OnLeave", function(self) self:SetBackdropColor(unpack(S.cell)) end)
+      b:SetScript("OnClick", function()
+        NW.db.welcomed = true
+        w:Hide()
+        NW.ShowTab(c[1])
+      end)
+    end
+    local skip = CreateFrame("Button", nil, w)
+    skip:SetSize(200, 22)
+    skip:SetPoint("TOP", sub, "BOTTOM", 0, -24 - #CHOICES * 74 - 6)
+    local st = UI.Text(skip, 12, S.dim, "CENTER")
+    st:SetPoint("CENTER")
+    st:SetText("Just look around")
+    skip:SetScript("OnEnter", function() st:SetTextColor(unpack(S.text)) end)
+    skip:SetScript("OnLeave", function() st:SetTextColor(unpack(S.dim)) end)
+    skip:SetScript("OnClick", function() NW.db.welcomed = true w:Hide() end)
+    local note = UI.Text(w, 11, S.dim, "CENTER")
+    note:SetPoint("BOTTOM", 0, 16)
+    note:SetText("The tabs along the top do all of this too. Settings, top right, has the map overlay and which herbs and ore to show.")
+  end
+  function NW.ShowWelcome()
+    if not w then build() end
+    if not win:IsShown() then win:Show() end
+    w:Show()
+  end
+  win:HookScript("OnHide", function() if w then w:Hide() end end)
 end

@@ -500,6 +500,27 @@ end
 
 function NW.ToggleGuide() NW.ToggleWindow("guide") end
 
+-- Best spots-per-minute for a herb or vein over your saved nodes, and the
+-- zone it's in. Used by "Farm my own materials" to cost things in time.
+function NW.GuideRate(name)
+  local entry, isOre
+  for _, e in ipairs(NW.HERB_GUIDE) do if e[1] == name then entry = e end end
+  if not entry then
+    for _, e in ipairs(NW.ORE_GUIDE) do if e[1] == name then entry, isOre = e, true end end
+  end
+  if not entry then return end
+  local saved, old = kind, cache[name]
+  kind, cache[name] = isOre and "ore" or "herb", nil
+  local ok, rows = pcall(rankZones, entry)
+  kind, cache[name] = saved, old
+  if not ok then return end
+  local best
+  for _, row in ipairs(rows) do
+    if row.rate and row.count >= 3 and (not best or row.rate > best.rate) then best = row end
+  end
+  if best then return best.rate, best.name end
+end
+
 -- Open the guide on one herb (from the Professions tab)
 function NW.GuideSelectHerb(name)
   kind = (NW.NODES[name] and NW.NODES[name][1] == "ore") and "ore" or "herb"
