@@ -12,28 +12,58 @@ local function inAvoid(avoid, x, y)
   return false
 end
 
--- Group nodes closer than mergeYards into one stop.
-local function cluster(points, mergeYards)
-  local used, stops = {}, {}
+-- Stops are viewpoints, not nodes: as few places as it takes for every node
+-- to be within sight (S yards) of one of them. Each pick is the spot that
+-- brings the most still-unseen nodes into view.
+local function cover(points, S)
+  local n, S2 = #points, S * S
+  local floor = math.floor
+  -- nodes within S of each node, found through a grid so big zones stay quick
+  local grid = {}
   for i, p in ipairs(points) do
-    if not used[i] then
-      used[i] = true
-      local sx, sy, n = p.yx, p.yy, 1
-      local herbs, ores = (p.kind == "herb") and 1 or 0, (p.kind == "ore") and 1 or 0
-      for j = i + 1, #points do
-        if not used[j] then
+    local k = floor(p.yx / S) .. ":" .. floor(p.yy / S)
+    grid[k] = grid[k] or {}
+    table.insert(grid[k], i)
+  end
+  local near, gain = {}, {}
+  for i, p in ipairs(points) do
+    local list = {}
+    local gx, gy = floor(p.yx / S), floor(p.yy / S)
+    for ax = gx - 1, gx + 1 do
+      for ay = gy - 1, gy + 1 do
+        for _, j in ipairs(grid[ax .. ":" .. ay] or {}) do
           local q = points[j]
           local dx, dy = q.yx - p.yx, q.yy - p.yy
-          if dx * dx + dy * dy <= mergeYards * mergeYards then
-            used[j] = true
-            sx, sy, n = sx + q.yx, sy + q.yy, n + 1
-            if q.kind == "herb" then herbs = herbs + 1 else ores = ores + 1 end
-          end
+          if dx * dx + dy * dy <= S2 then list[#list + 1] = j end
         end
       end
-      local kind = (herbs > 0 and ores > 0) and "mixed" or (herbs > 0 and "herb" or "ore")
-      table.insert(stops, { yx = sx / n, yy = sy / n, count = n, kind = kind, herbs = herbs, ores = ores })
     end
+    near[i], gain[i] = list, #list
+  end
+  local covered, left, stops = {}, n, {}
+  while left > 0 do
+    local best, bestGain = nil, 0
+    for i = 1, n do if gain[i] > bestGain then best, bestGain = i, gain[i] end end
+    if not best then break end
+    local members, sx, sy, herbs, ores = {}, 0, 0, 0, 0
+    for _, j in ipairs(near[best]) do
+      if not covered[j] then
+        covered[j] = true
+        left = left - 1
+        members[#members + 1] = j
+        local q = points[j]
+        sx, sy = sx + q.yx, sy + q.yy
+        if q.kind == "herb" then herbs = herbs + 1 else ores = ores + 1 end
+        for _, k in ipairs(near[j]) do gain[k] = gain[k] - 1 end
+      end
+    end
+    -- the middle of what it covers, as long as all of it stays in sight from there
+    local cx, cy = sx / #members, sy / #members
+    for _, j in ipairs(members) do
+      local dx, dy = points[j].yx - cx, points[j].yy - cy
+      if dx * dx + dy * dy > S2 then cx, cy = points[best].yx, points[best].yy break end
+    end
+    stops[#stops + 1] = { yx = cx, yy = cy, count = #members, herbs = herbs, ores = ores, members = members }
   end
   return stops
 end
@@ -80,6 +110,61 @@ local function segHitsBox(x1, y1, x2, y2, b)
     end
   end
   return true
+end
+
+-- Distance from a point to the line between two others
+local function distToSeg(px, py, ax, ay, bx, by)
+  local dx, dy = bx - ax, by - ay
+  local len2 = dx * dx + dy * dy
+  local t = len2 > 0 and ((px - ax) * dx + (py - ay) * dy) / len2 or 0
+  t = math.max(0, math.min(1, t))
+  local cx, cy = ax + t * dx - px, ay + t * dy - py
+  return math.sqrt(cx * cx + cy * cy)
+end
+
+-- Riding from one stop to the next you see everything along the way too. A
+-- stop whose nodes all come into view on the straight line between its
+-- neighbours isn't needed: drop it and hand its nodes to the nearer one.
+local function sweep(order, stops, points, S, boxes)
+  local reach = S * 0.8 -- comfortably inside the ring, not at its edge
+  local changed = true
+  while changed and #order > 3 do
+    changed = false
+    for pos = #order, 1, -1 do
+      local n = #order
+      if n <= 3 then break end
+      local a, st, b = stops[order[(pos - 2) % n + 1]], stops[order[pos]], stops[order[pos % n + 1]]
+      local ok = true
+      for _, bx in ipairs(boxes) do
+        if segHitsBox(a.yx, a.yy, b.yx, b.yy, bx) then ok = false break end
+      end
+      if ok then
+        for _, j in ipairs(st.members) do
+          local q = points[j]
+          if distToSeg(q.yx, q.yy, a.yx, a.yy, b.yx, b.yy) > reach then ok = false break end
+        end
+      end
+      if ok then
+        for _, j in ipairs(st.members) do
+          local q = points[j]
+          local da = (q.yx - a.yx) ^ 2 + (q.yy - a.yy) ^ 2
+          local db = (q.yx - b.yx) ^ 2 + (q.yy - b.yy) ^ 2
+          local to = da <= db and a or b
+          to.members[#to.members + 1] = j
+          to.count = to.count + 1
+          if q.kind == "herb" then to.herbs = to.herbs + 1 else to.ores = to.ores + 1 end
+        end
+        table.remove(order, pos)
+        changed = true
+      end
+    end
+  end
+  local len = 0
+  for i = 1, #order do
+    local a, b = stops[order[i]], stops[order[i % #order + 1]]
+    len = len + math.sqrt((a.yx - b.yx) ^ 2 + (a.yy - b.yy) ^ 2)
+  end
+  return len
 end
 
 local function makeCost(X, Y, boxes, zoneW)
@@ -392,7 +477,8 @@ function NW.BuildRoute(mapID, callback, opts)
     end
     return
   end
-  local stops = cluster(points, s.mergeYards)
+  local sight = s.mergeYards
+  local stops = cover(points, sight)
   local X, Y = {}, {}
   for i, st in ipairs(stops) do X[i], Y[i] = st.yx, st.yy end
   local boxes = {}
@@ -408,9 +494,11 @@ function NW.BuildRoute(mapID, callback, opts)
     end),
     finish = function(order, len, quick)
       local route = { stops = {}, avoid = avoid, built = time(), focus = focus, alsoOthers = opts.alsoOthers }
+      len = sweep(order, stops, points, sight, boxes)
       for _, idx in ipairs(order) do
         local st = stops[idx]
-        table.insert(route.stops, { x = st.yx / w, y = st.yy / h, kind = st.kind, count = st.count, herbs = st.herbs, ores = st.ores })
+        local kind = (st.herbs > 0 and st.ores > 0) and "mixed" or (st.herbs > 0 and "herb" or "ore")
+        table.insert(route.stops, { x = st.yx / w, y = st.yy / h, kind = kind, count = st.count, herbs = st.herbs, ores = st.ores })
       end
       route.length = len
       route.quick = quick
@@ -448,6 +536,16 @@ function NW.InsertIntoRoute(mapID, node)
   local stops = route.stops
   for _, st in ipairs(stops) do
     if d(st, node) <= s.mergeYards then
+      st.count = (st.count or 1) + 1
+      if node.kind == "herb" then st.herbs = (st.herbs or 0) + 1 else st.ores = (st.ores or 0) + 1 end
+      return
+    end
+  end
+  -- already in view from the line between two stops: no new stop needed
+  for i = 1, #stops do
+    local a, b = stops[i], stops[(i % #stops) + 1]
+    if distToSeg(node.x * w, node.y * h, a.x * w, a.y * h, b.x * w, b.y * h) <= s.mergeYards * 0.8 then
+      local st = d(a, node) <= d(b, node) and a or b
       st.count = (st.count or 1) + 1
       if node.kind == "herb" then st.herbs = (st.herbs or 0) + 1 else st.ores = (st.ores or 0) + 1 end
       return
@@ -550,7 +648,8 @@ function NW.UpdateProgress(mapID, px, py)
   local st = NW.NextStop(mapID, px, py)
   if not st then return end
   local d = NW.Yards(mapID, px, py, st.x, st.y)
-  if d and d <= NW.db.settings.arriveYards then advance(mapID) end
+  local s = NW.db.settings
+  if d and d <= math.max(s.arriveYards, (s.mergeYards or 100) * 0.35) then advance(mapID) end
 end
 
 -- Gathering at a stop also counts as reaching it.
