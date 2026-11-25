@@ -841,7 +841,7 @@ local searchBtn = UI.Button(right, "Search missing in Auctionator", RIGHT_W, fun
   if not searchAH(items) then NW.Print("Open the auction house with Auctionator to search for the list.") end
 end, 26, "primary")
 searchBtn:SetPoint("TOPLEFT", shopBox, "BOTTOMLEFT", 0, -8)
-MS.recipesBtn = UI.Button(right, "Recipes", 86, function()
+MS.recipesBtn = UI.Button(right, "Search recipes", 120, function()
   local items = {}
   for _, e in ipairs(MS.shopAll or {}) do
     if e.recipe and e.buy > 0 then items[#items + 1] = { e.term, 1 } end
@@ -1299,12 +1299,12 @@ local function drawCraft(p)
   local partial = plan.unknown > 0 and " |cffd17665+?|r" or ""
   MS.planSpend, MS.planBack, MS.planPartial = spend, back, partial
   MS.planLines = {
-    { "Materials", NW.Money(mats, "mid") .. partial },
-    { "Training", NW.Money(plan.fees or 0, "mid") },
+    { "Materials", NW.Money(mats, nil) .. partial },
+    { "Training", NW.Money(plan.fees or 0, nil) },
   }
-  if recipesCost > 0 then MS.planLines[#MS.planLines + 1] = { "Recipes", NW.Money(recipesCost, "mid") } end
+  if recipesCost > 0 then MS.planLines[#MS.planLines + 1] = { "Recipes", NW.Money(recipesCost, nil) } end
   if back > 0 then
-    MS.planLines[#MS.planLines + 1] = { st().planSellBack == "de" and "Disenchant value" or "Resale (half the auction price)", "~" .. NW.Money(back, "mid") }
+    MS.planLines[#MS.planLines + 1] = { st().planSellBack == "de" and "Disenchant value" or "Resale (half the auction price)", "~" .. NW.Money(back, nil) }
   end
   if plan.unknown > 0 then
     MS.planLines[#MS.planLines + 1] = { " " }
@@ -1375,7 +1375,8 @@ local function drawCraft(p)
   MS.shopAll = list
   shop = grouped
   -- the recipes get their own search when there are any to buy
-  searchBtn:SetWidth(MS.shopRecipes > 0 and RIGHT_W - 92 or RIGHT_W)
+  searchBtn:SetWidth(MS.shopRecipes > 0 and RIGHT_W - 126 or RIGHT_W)
+  searchBtn:SetText(MS.shopRecipes > 0 and "Search missing" or "Search missing in Auctionator")
   MS.recipesBtn:SetShown(MS.shopRecipes > 0)
   if viewChanged then shopOffset = 0 end
   clampOffsets()
@@ -1389,15 +1390,16 @@ local function drawCraft(p)
     live > 0 and ("  ·  |cff94ba78%d live|r"):format(live) or "",
     odd > 0 and ("  ·  |cffffd133%d price%s to verify|r"):format(odd, odd == 1 and "" or "s") or ""))
   -- three values up top: cost, then resale and net, or training and what's left to buy
-  local cells = { { "Estimated cost", NW.Money(MS.planSpend, "mid") .. MS.planPartial } }
+  local cells = { { "Estimated cost", NW.Money(MS.planSpend, "gs") .. MS.planPartial } }
   if MS.planBack > 0 then
-    cells[2] = { st().planSellBack == "de" and "Disenchant" or "Est. resale", "~" .. NW.Money(MS.planBack, "mid"), S.good }
-    cells[3] = { "Net cost", "~" .. NW.Money(MS.planSpend - MS.planBack, "mid") .. MS.planPartial, S.gold }
+    cells[2] = { st().planSellBack == "de" and "Disenchant" or "Est. resale", "~" .. NW.Money(MS.planBack, "gs"), S.good }
+    cells[3] = { "Net cost", "~" .. NW.Money(MS.planSpend - MS.planBack, "gs") .. MS.planPartial, S.gold }
   else
-    cells[2] = { "Training", NW.Money(plan.fees or 0, "mid") }
-    cells[3] = { bagsOff and "Materials" or "To buy", NW.Money(total, "mid") .. MS.planPartial, S.gold }
+    cells[2] = { "Training", NW.Money(plan.fees or 0, "gs") }
+    cells[3] = { bagsOff and "Materials" or "To buy", NW.Money(total, "gs") .. MS.planPartial, S.gold }
   end
-  table.insert(MS.planLines, 1, { "To buy now", NW.Money(total, "mid") .. MS.planPartial })
+  table.insert(MS.planLines, 1, { "Estimated cost", NW.Money(MS.planSpend) .. MS.planPartial })
+  table.insert(MS.planLines, 2, { "To buy now", NW.Money(total) .. MS.planPartial })
   MS.summary(cells, MS.planLines)
   drawShop()
 
@@ -1405,7 +1407,7 @@ local function drawCraft(p)
   -- what to do now: the step you're on (or, planning a profession you don't have, say so)
   local nowLine
   if not rank then
-    nowLine = "|cff938c80Planning only: you don't have " .. p.name .. "|r"
+    nowLine = nil
   else
     for _, stp in ipairs(plan.steps) do
       if stp.recipe and rank >= stp.from and rank < stp.to then
@@ -2615,7 +2617,7 @@ refresh = function()
   setLedger(nil)
   MS.summary(nil)
   local rank, max = NW.ProfSkill(p.key)
-  hSkill:SetText(rank and (("%d / %d"):format(rank, max or 300) .. rankNote(p.key)) or "Not learned")
+  hSkill:SetText(rank and (("%d / %d"):format(rank, max or 300) .. rankNote(p.key)) or "Not learned  ·  |cff938c80planning mode|r")
   NW.SetWindowSubtitle(p.name)
   if firstOpen then firstOpen = nil mode = openMode(selected) end
 

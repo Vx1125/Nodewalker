@@ -1056,6 +1056,8 @@ function NW.Money(c, short)
   if g > 0 then
     -- "mid": short, but keeps the silver while it still matters
     if short == "mid" and g < 10 and s > 0 then return ("%d%s %d%s"):format(g, G, s, S) end
+    -- "gs": gold and silver, for totals that should stay precise in little room
+    if short == "gs" and g < 1000 and s > 0 then return ("%d%s %d%s"):format(g, G, s, S) end
     if short or g >= 100 then return ("%d%s"):format(g, G) end
     return ("%d%s %d%s"):format(g, G, s, S)
   end
@@ -1066,12 +1068,12 @@ end
 -- Things the plan can't know: tools, rank books, left-out recipes
 NW.PROF_TIPS = {
   alchemy = "Vials: trade supply vendors. Healing Potions are First Aid in Forever; Alchemy keeps the Discolored ones.",
-  blacksmithing = "Blacksmith Hammer: trade supply vendors. Weaponsmith and Armorsmith recipes are left out. From about 260 only bought plans give skill-ups: tick \"Allow recipes I must buy\".",
+  blacksmithing = "Blacksmith Hammer: trade supply vendors. Weaponsmith and Armorsmith recipes are left out. From about 260 only bought plans give skill-ups: turn on \"Include purchasable recipes\" under Options.",
   enchanting = "Make rods as you go: Runed Copper, Silver (130), Golden (175), Truesilver (220). Artisan: Annora, Uldaman.",
   engineering = "Make an Arclight Spanner and buy a Blacksmith Hammer first. Gnomish, Goblin and firework recipes are left out.",
   leatherworking = "Salt: trade supply vendors. Refined Deeprock Salt is a Salt Shaker cooldown. Dragonscale, Elemental and Tribal recipes are left out. From about 250 most skill-ups come from bought patterns.",
   tailoring = "Thread and dyes: trade supply vendors. Mooncloth is on a cooldown, so the plan skips it. From about 250, bought patterns are much cheaper.",
-  cooking = "Expert: the Expert Cookbook, at 125. Most good recipes are sold by vendors: tick \"Allow recipes I must buy\".",
+  cooking = "Expert: the Expert Cookbook, at 125. Most good recipes are sold by vendors: turn on \"Include purchasable recipes\" under Options.",
   firstaid = "Expert: a book, at 125. Heavy Silk and Mageweave Bandages need manuals. Artisan: the Triage quest.",
 }
 

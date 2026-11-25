@@ -142,13 +142,16 @@ end
 ------------------------------------------------------------------------
 function UI.Check(parent, label, get, set, tip)
   local cb = CreateFrame("CheckButton", nil, parent, "BackdropTemplate")
-  cb:SetSize(14, 14)
+  cb:SetSize(15, 15)
   UI.Flat(cb, S.sunk, S.edge)
-  local mark = cb:CreateTexture(nil, "ARTWORK")
-  mark:SetPoint("TOPLEFT", 3, -3)
-  mark:SetPoint("BOTTOMRIGHT", -3, 3)
-  mark:SetColorTexture(unpack(S.gold))
+  -- a gold tick on a dark bronze box when on; empty when off
+  local mark = cb:CreateTexture(nil, "OVERLAY")
+  mark:SetSize(20, 20)
+  mark:SetPoint("CENTER", 1, 1)
+  mark:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+  mark:SetVertexColor(S.gold[1], S.gold[2], S.gold[3])
   cb:SetCheckedTexture(mark)
+  local function tone(self) self:SetBackdropColor(unpack(self:GetChecked() and S.select or S.sunk)) end
   cb.label = UI.Text(cb, 12, S.text)
   cb.label:SetPoint("LEFT", cb, "RIGHT", 8, 0)
   function cb:SetLabel(t)
@@ -156,9 +159,9 @@ function UI.Check(parent, label, get, set, tip)
     self:SetHitRectInsets(-3, -(self.label:GetStringWidth() + 12), -4, -4)
   end
   cb:SetLabel(label)
-  function cb:Refresh() self:SetChecked(get() and true or false) end
+  function cb:Refresh() self:SetChecked(get() and true or false) tone(self) end
   cb:SetScript("OnShow", cb.Refresh)
-  cb:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
+  cb:SetScript("OnClick", function(self) tone(self) set(self:GetChecked() and true or false) end)
   cb:SetScript("OnEnter", function(self) self:SetBackdropBorderColor(unpack(S.gold)) end)
   cb:SetScript("OnLeave", function(self) self:SetBackdropBorderColor(unpack(S.edge)) end)
   cb:SetScript("OnDisable", function(self) self.label:SetTextColor(unpack(S.disabled)) end)

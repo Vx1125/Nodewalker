@@ -10,16 +10,20 @@ local function changed()
 end
 
 ------------------------------------------------------------------------
--- Overlay tab: two columns of settings
+-- Settings: General, Appearance, Gathering, Routes (and Herbs & Ore below).
+-- Each page has two columns; the helpers place onto the page being built.
 ------------------------------------------------------------------------
 local widgets = {}
-local page = UI.AddTab("overlay", "Overlay", function()
-  for _, w in ipairs(widgets) do if w.Refresh then w:Refresh() end end
-end, nil, nil, "Settings")
+local function refreshAll() for _, w in ipairs(widgets) do if w.Refresh then w:Refresh() end end end
 
 local COL_W = 440
 local COL_X = { 24, 24 + COL_W + 60 }
-local cols = { { y = -10 }, { y = -10 } }
+local page, cols
+local function newPage(key, label)
+  page = UI.AddTab(key, label, refreshAll, nil, nil, "Settings")
+  cols = { { y = -10 }, { y = -10 } }
+  return page
+end
 
 local function place(col, widget, h, indent)
   local c = cols[col]
@@ -29,107 +33,58 @@ local function place(col, widget, h, indent)
   widgets[#widgets + 1] = widget
   return widget
 end
-local function heading(col, text)
+local function heading(col, text, w)
   if cols[col].y < -10 then cols[col].y = cols[col].y - 10 end
-  place(col, UI.Heading(page, text, COL_W), 26)
+  return place(col, UI.Heading(page, text, w or COL_W), 26)
 end
 local function check(col, label, key, tip, after)
-  place(col, UI.Check(page, label, function() return s()[key] end,
-    function(v) s()[key] = v; changed(); if after then after(v) end end, tip), 24, 2)
+  return place(col, UI.Check(page, label, function() return s()[key] end,
+    function(v) s()[key] = v; changed(); refreshAll(); if after then after(v) end end, tip), 24, 2)
 end
 local function slider(col, label, minV, maxV, step, fmt, key, after, tip)
-  place(col, UI.Slider(page, COL_W, label, minV, maxV, step, fmt,
+  return place(col, UI.Slider(page, COL_W, label, minV, maxV, step, fmt,
     function() return s()[key] end, function(v) s()[key] = v; if after then after(v) end end, tip), 44)
 end
 -- A second check on the row just placed
 local function checkBeside(col, label, key, tip)
   cols[col].y = cols[col].y + 24
-  place(col, UI.Check(page, label, function() return s()[key] end,
-    function(v) s()[key] = v; changed() end, tip), 24, 222)
+  return place(col, UI.Check(page, label, function() return s()[key] end,
+    function(v) s()[key] = v; changed(); refreshAll() end, tip), 24, 222)
+end
+-- Greyed out (value kept) while another setting is off
+local function dependsOn(widget, key, want)
+  local old = widget.Refresh
+  function widget:Refresh()
+    if old then old(self) end
+    local on = (s()[key] and true or false) == (want ~= false)
+    if self.SetEnabled then self:SetEnabled(on) end
+    local sl = rawget(self, "slider")
+    if sl then sl:SetEnabled(on) end
+    self:SetAlpha(on and 1 or 0.45)
+  end
 end
 local function pct(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end
 
--- One-click looks
-local PRESETS = {
-  { "Farming", "Half the screen, live dots, ring, compass and session panel.", {
-    overlaySize = 0.5, opacity = 0.55, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.6,
-    brightNear = true, mountZoom = true, liveDots = true, showRangeRing = true, showCompass = true, showSession = true } },
-  { "Questing", "Smaller and fainter, out of the way.", {
-    overlaySize = 0.35, opacity = 0.35, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.4,
-    brightNear = true, mountZoom = true, showRangeRing = false, showCompass = false, showSession = false } },
-  { "Minimal", "Icons and route only, no terrain or panels.", {
-    tint = "none", fadeMoving = false, mountZoom = false, showRangeRing = false, showCompass = false, showSession = false } },
-}
-local function applyPreset(values)
-  for k, v in pairs(values) do s()[k] = v end
-  if NW.SizeOverlay then NW.SizeOverlay() end
-  changed()
-  for _, w in ipairs(widgets) do if w.Refresh then w:Refresh() end end
-end
+------------------------------------------------------------------------
+-- General: when the overlay shows
+------------------------------------------------------------------------
+newPage("overlay", "General")
+heading(1, "Overlay")
+check(1, "Show overlay", "overlayShown", "Same as /nw or your key binding.")
+check(1, "Zoom out when mounted", "mountZoom")
+heading(1, "Overlay visibility")
+check(1, "Hide in combat", "hideCombat")
+check(1, "Hide in cities and inns", "hideResting")
+check(1, "Hide in dungeons and raids", "hideInstances")
+check(1, "Only while tracking herbs or ore", "onlyTracking", "Find Herbs or Find Minerals is on.")
 
--- Column 1: the map
-place(1, UI.Heading(page, "Map window", COL_W - 250), 26)
-do
-  local x = COL_X[1] + COL_W - 240
-  for i, pr in ipairs(PRESETS) do
-    local b = UI.Button(page, pr[1], 76, function() applyPreset(pr[3]) end, 20)
-    b:SetPoint("TOPLEFT", page, "TOPLEFT", x + (i - 1) * 82, -8)
-    UI.Tip(b, pr[1], pr[2])
-  end
-end
-check(1, "Show the overlay", "overlayShown", "Same as /nw or your key binding.")
-checkBeside(1, "Zoom out when mounted", "mountZoom")
-slider(1, "Window size", 0.25, 1, 0.05, function(v) return pct(v) .. " of the screen" end, "overlaySize",
-  function() if NW.SizeOverlay then NW.SizeOverlay() end end)
-slider(1, "Terrain opacity", 0.1, 1, 0.05, pct, "opacity", nil, "Icons and the route stay easy to read at any setting.")
-slider(1, "Zoom", 0.5, 3, 0.1, function(v) return ("%.1fx"):format(v) end, "scale", changed)
-place(1, UI.Dropdown(page, COL_W, "Map style", {
-  { "minimap", "Detailed (minimap tiles)" }, { "zonemap", "World map art" },
-}, function() return s().terrainSource end, function(v) s().terrainSource = v; changed() end, 190), 30)
-place(1, UI.Dropdown(page, COL_W, "Terrain colour", {
-  { "natural", "Natural" }, { "muted", "Muted" }, { "silhouette", "Silhouette (dark)" },
-  { "gold", "Gold tint" }, { "blue", "Blue tint" }, { "none", "Off (icons and route only)" },
-}, function() return s().tint end, function(v) s().tint = v; changed() end, 190), 30)
-
-heading(1, "Live dots")
-check(1, "Show live dots from your minimap", "liveDots", "Moves your minimap into the window, like FarmHud. Turn off to keep your minimap where it is.")
-check(1, "Range ring around you", "showRangeRing", "Live dots can only appear inside this ring.")
-check(1, "Also show known spots outside the ring", "showKnownSpots")
-check(1, "Live-dot tooltips without holding Alt", "liveHoverNoAlt", "Herbs and veins inside the ring lose their mouseover glow and can't be clicked. Off: hold Alt for tooltips.")
-
-heading(1, "Route")
-slider(1, "Picked stops count as empty for", 1, 20, 1, function(v) return ("%d min"):format(v) end, "respawnMinutes",
-  nil, "How long the route skips a stop after you gather it.")
-check(1, "Build a route by itself in new zones", "autoRoute",
-  "When you enter a zone with known spots and no route, Nodewalker builds one.")
-
--- Column 2: when it shows, extras, filters
-heading(2, "When to show it")
+heading(2, "Fading")
 check(2, "Fade while moving", "fadeMoving")
-checkBeside(2, "Brighter near a node", "brightNear", "Stops fading when a known spot is within 100 yards.")
-slider(2, "Fade to", 0.2, 1, 0.05, pct, "fadeMovingAlpha")
-check(2, "Hide in combat", "hideCombat")
-check(2, "Hide in cities and inns", "hideResting")
-check(2, "Hide in dungeons and raids", "hideInstances")
-check(2, "Only while Find Herbs or Find Minerals is on", "onlyTracking")
-
-heading(2, "On screen")
-check(2, "Zone banner when you arrive", "zoneBanner", "Shows the zone, its known spots and its route as you enter.")
-check(2, "Compass bar", "showCompass")
-checkBeside(2, "Minimap button", "minimapButton")
-check(2, "Session panel (loops, nodes and gold per hour)", "showSession")
-check(2, "Icon tooltips when live dots are off", "hoverTooltips")
-place(2, UI.Dropdown(page, COL_W, "Window scale", {
-  { 0.8, "80%" }, { 0.9, "90%" }, { 1, "100%" }, { 1.1, "110%" }, { 1.2, "120%" },
-}, function() return s().winScale or 1 end, function(v) NW.SetWindowScale(v) end, 100), 30)
-
-heading(2, "Which herbs and ore")
-check(2, "Only my professions", "onlyMyProfessions", "Herbs if you have Herbalism, ore if you have Mining.")
-check(2, "Only spots confirmed up", "onlyConfirmed", "Seen on your minimap or in the world recently.")
-checkBeside(2, "Group nearby spots", "groupSpots", "Spots that would overlap share one icon with a count. Hover it to see what's there.")
-local chooseBtn = UI.Button(page, "Choose herbs and ore...", 200, function() NW.ShowTab("nodes") end, 24)
-place(2, chooseBtn, 28, 2)
-
+dependsOn(check(2, "Full opacity near nodes", "brightNear", "Stops fading when a known spot is within 100 yards."), "fadeMoving")
+dependsOn(slider(2, "Fade to", 0.2, 1, 0.05, pct, "fadeMovingAlpha"), "fadeMoving")
+heading(2, "Interface elements")
+check(2, "Zone arrival banner", "zoneBanner", "The zone, its known spots and its route as you enter.")
+check(2, "Minimap button", "minimapButton", "Nodewalker is also in the game's AddOns menu.")
 -- A button for your action bars: a macro that opens the window, handed to
 -- your cursor to drop where you like
 local barBtn
@@ -147,20 +102,132 @@ barBtn = UI.Button(page, "Action bar button", 170, function()
     C_Timer.After(3, function() barBtn:SetText("Action bar button") end)
   end
 end, 24)
-barBtn:SetPoint("LEFT", chooseBtn, "RIGHT", 8, 0)
-UI.Tip(barBtn, "Action bar button", "Drop it on an action bar.")
+place(2, barBtn, 30, 2)
+UI.Tip(barBtn, "Action bar button", "Drop it on an action bar. It opens this window.")
 
--- Controls reference along the bottom
-local help = UI.Box(page, UI.CONTENT_W - 48, 40)
-help:SetPoint("BOTTOMLEFT", 24, 8)
-local helpText = UI.Text(help, 11, S.dim)
-helpText:SetPoint("LEFT", 12, 0)
-helpText:SetPoint("RIGHT", -12, 0)
-helpText:SetSpacing(3)
-helpText:SetText("|cffd6b266Alt|r + hover a live dot: identify it   ·   |cffd6b266Ctrl|r + hover a stop: details   ·   "
-  .. "|cffd6b266Ctrl-right-click|r: hide that herb or ore\n"
-  .. "|cffd6b266/nw|r overlay   ·   |cffd6b266/nw plan|r route   ·   |cffd6b266/nw guide|r farm guide   ·   |cffd6b266/nw prof|r professions   ·   |cffd6b266/nw consumes|r   ·   "
-  .. "|cffd6b266/nw options|r settings")
+-- Controls and commands: on hover, not on the page
+local helpBtn = UI.Button(page, "Controls & commands", 170, nil, 22)
+helpBtn:SetPoint("BOTTOMLEFT", 24, 12)
+helpBtn:SetScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
+  GameTooltip:SetText("Controls", 1, 1, 1)
+  local d = S.dim
+  GameTooltip:AddDoubleLine("Alt + hover a live dot", "what it is", 0.84, 0.7, 0.4, d[1], d[2], d[3])
+  GameTooltip:AddDoubleLine("Ctrl + hover a stop", "details", 0.84, 0.7, 0.4, d[1], d[2], d[3])
+  GameTooltip:AddDoubleLine("Ctrl + right-click a node", "hide that herb or ore", 0.84, 0.7, 0.4, d[1], d[2], d[3])
+  GameTooltip:AddLine(" ")
+  GameTooltip:AddLine("Commands", 1, 1, 1)
+  for _, c in ipairs({ { "/nw", "overlay" }, { "/nw window", "this window" }, { "/nw plan", "route" }, { "/nw guide", "Farm Guide" },
+    { "/nw prof", "professions" }, { "/nw consumes", "consumes" }, { "/nw options", "settings" }, { "/nw import", "GatherMate2 nodes" } }) do
+    GameTooltip:AddDoubleLine(c[1], c[2], 0.84, 0.7, 0.4, d[1], d[2], d[3])
+  end
+  GameTooltip:Show()
+end)
+helpBtn:SetScript("OnLeave", GameTooltip_Hide)
+
+------------------------------------------------------------------------
+-- Appearance: how the overlay looks
+------------------------------------------------------------------------
+newPage("look", "Appearance")
+-- One-click looks
+local PRESETS = {
+  { "Farming", "Half the screen, live dots, ring, compass and session panel.", {
+    overlaySize = 0.5, opacity = 0.55, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.6,
+    brightNear = true, mountZoom = true, liveDots = true, showRangeRing = true, showCompass = true, showSession = true } },
+  { "Questing", "Smaller and fainter, out of the way.", {
+    overlaySize = 0.35, opacity = 0.35, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.4,
+    brightNear = true, mountZoom = true, showRangeRing = false, showCompass = false, showSession = false } },
+  { "Minimal", "Icons and route only, no terrain or panels.", {
+    tint = "none", fadeMoving = false, mountZoom = false, showRangeRing = false, showCompass = false, showSession = false } },
+}
+local presetBtns = {}
+local function presetMatches(values)
+  for k, v in pairs(values) do
+    local cur = s()[k]
+    if type(v) == "number" then
+      if type(cur) ~= "number" or math.abs(cur - v) > 0.001 then return false end
+    elseif (cur or false) ~= v then return false end
+  end
+  return true
+end
+local presetMark = { Refresh = function()
+  for _, b in ipairs(presetBtns) do
+    local on = presetMatches(b.values)
+    b.label:SetTextColor(unpack(on and S.gold or S.text))
+    b:SetBackdropBorderColor(unpack(on and S.gold or S.edge))
+  end
+end }
+widgets[#widgets + 1] = presetMark
+local function applyPreset(values)
+  for k, v in pairs(values) do s()[k] = v end
+  if NW.SizeOverlay then NW.SizeOverlay() end
+  changed()
+  refreshAll()
+end
+heading(1, "Overlay", COL_W - 250)
+do
+  local x = COL_X[1] + COL_W - 240
+  for i, pr in ipairs(PRESETS) do
+    local b = UI.Button(page, pr[1], 76, function() applyPreset(pr[3]) end, 20)
+    b:SetPoint("TOPLEFT", page, "TOPLEFT", x + (i - 1) * 82, -8)
+    b.values = pr[3]
+    b:HookScript("OnLeave", function() presetMark.Refresh() end)
+    UI.Tip(b, pr[1], pr[2] .. " Gold: your settings match it.")
+    presetBtns[i] = b
+  end
+end
+slider(1, "Overlay size", 0.25, 1, 0.05, function(v) return pct(v) .. " of the screen" end, "overlaySize",
+  function() if NW.SizeOverlay then NW.SizeOverlay() end presetMark.Refresh() end)
+slider(1, "Terrain opacity", 0.1, 1, 0.05, pct, "opacity", function() presetMark.Refresh() end,
+  "Icons and the route stay easy to read at any setting.")
+slider(1, "Map zoom", 0.5, 3, 0.1, function(v) return ("%.1fx"):format(v) end, "scale", function() changed() presetMark.Refresh() end)
+place(1, UI.Dropdown(page, COL_W, "Map style", {
+  { "minimap", "Detailed (minimap tiles)" }, { "zonemap", "World map art" },
+}, function() return s().terrainSource end, function(v) s().terrainSource = v; changed() end, 190), 30)
+place(1, UI.Dropdown(page, COL_W, "Terrain colour", {
+  { "natural", "Natural" }, { "muted", "Muted" }, { "silhouette", "Silhouette (dark)" },
+  { "gold", "Gold tint" }, { "blue", "Blue tint" }, { "none", "Off (icons and route only)" },
+}, function() return s().tint end, function(v) s().tint = v; changed(); presetMark.Refresh() end, 190), 30)
+
+heading(2, "On screen")
+check(2, "Compass bar", "showCompass")
+check(2, "Session panel", "showSession", "Loops, nodes and gold per hour while you farm.")
+heading(2, "This window")
+place(2, UI.Dropdown(page, COL_W, "Window scale", {
+  { 0.8, "80%" }, { 0.9, "90%" }, { 1, "100%" }, { 1.1, "110%" }, { 1.2, "120%" },
+}, function() return s().winScale or 1 end, function(v) NW.SetWindowScale(v) end, 100), 30)
+
+------------------------------------------------------------------------
+-- Gathering: live nodes and which ones show
+------------------------------------------------------------------------
+newPage("gather", "Gathering")
+heading(1, "Live nodes")
+check(1, "Show live nodes", "liveDots", "Moves your minimap into the overlay, like FarmHud, so its herb and ore dots show. Off keeps your minimap where it is.")
+dependsOn(check(1, "Show detection radius", "showRangeRing", "Live nodes can only appear inside this ring."), "liveDots")
+dependsOn(check(1, "Show distant known spots", "showKnownSpots", "Known spots outside the ring stay on the map."), "liveDots")
+dependsOn(check(1, "Always show node tooltips", "liveHoverNoAlt",
+  "No need to hold Alt. Herbs and veins inside the ring then can't be clicked in the world."), "liveDots")
+dependsOn(check(1, "Icon tooltips", "hoverTooltips", "Hover an icon on the overlay for its name."), "liveDots", false)
+
+heading(2, "Resource filters")
+check(2, "Only my professions", "onlyMyProfessions", "Herbs if you have Herbalism, ore if you have Mining.")
+check(2, "Confirmed nodes only", "onlyConfirmed", "Seen on your minimap or in the world recently.")
+check(2, "Group nearby spots", "groupSpots", "Spots that would overlap share one icon with a count.")
+local chooseBtn = UI.Button(page, "Choose herbs and ore...", 200, function() NW.ShowTab("nodes") end, 24)
+place(2, chooseBtn, 28, 2)
+
+------------------------------------------------------------------------
+-- Routes
+------------------------------------------------------------------------
+newPage("routes", "Routes")
+heading(1, "Routes")
+slider(1, "Gathered node cooldown", 1, 20, 1, function(v) return ("%d min"):format(v) end, "respawnMinutes",
+  nil, "How long a route skips a stop after you gather it.")
+check(1, "Auto-build routes", "autoRoute", "In a zone with known spots and no route, Nodewalker builds one.")
+heading(2, "Planning")
+local planBtn = UI.Button(page, "Open the route planner", 200, function() NW.ShowTab("route") end, 24)
+place(2, planBtn, 30, 2)
+UI.Tip(planBtn, "Route", "Sight range, avoid zones and the map are on the Route tab.")
 
 ------------------------------------------------------------------------
 -- Nodes tab: tick the herbs and ore you want to see

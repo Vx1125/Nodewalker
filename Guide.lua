@@ -171,7 +171,7 @@ end
 ------------------------------------------------------------------------
 -- Left: herb list
 ------------------------------------------------------------------------
-local LIST_W, ROW_H = 224, 17
+local LIST_W, ROW_H = 224, 16
 local herbRows = {}
 local MAX_LIST = math.max(#NW.HERB_GUIDE, #NW.ORE_GUIDE)
 local kindBtns = {}
@@ -191,8 +191,34 @@ for i, k in ipairs({ "herb", "ore", "both" }) do
   b.mark:SetColorTexture(unpack(S.gold))
   kindBtns[k] = b
 end
-local list = UI.Box(page, LIST_W, MAX_LIST * ROW_H + 10)
-list:SetPoint("TOPLEFT", 16, -32)
+-- a search above the list
+local search = CreateFrame("EditBox", nil, page, "BackdropTemplate")
+search:SetSize(LIST_W, 22)
+search:SetPoint("TOPLEFT", 16, -32)
+UI.Flat(search, S.sunk, S.edge)
+search:SetFont(UI.FONT, 12, "")
+search:SetTextColor(unpack(S.text))
+search:SetTextInsets(22, 8, 0, 0)
+search:SetAutoFocus(false)
+search:SetMaxLetters(30)
+local sIcon = search:CreateTexture(nil, "ARTWORK")
+sIcon:SetSize(13, 13)
+sIcon:SetPoint("LEFT", 6, 0)
+sIcon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+sIcon:SetVertexColor(unpack(S.dim))
+local sHint = UI.Text(search, 12, S.disabled)
+sHint:SetPoint("LEFT", 22, 0)
+sHint:SetText("Search")
+local searchText = ""
+search:SetScript("OnEscapePressed", function(self) self:SetText("") self:ClearFocus() end)
+search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+search:SetScript("OnTextChanged", function(self)
+  local t = (self:GetText() or ""):lower()
+  sHint:SetShown(t == "")
+  if t ~= searchText then searchText = t refreshGuide() end
+end)
+local list = UI.Box(page, LIST_W, MAX_LIST * ROW_H + 8)
+list:SetPoint("TOPLEFT", 16, -58)
 
 local SKILL_RGB = {
   red = { 1, 0.25, 0.2 }, orange = { 1, 0.5, 0.25 }, yellow = { 1, 0.9, 0.2 },
@@ -202,7 +228,7 @@ local SKILL_RGB = {
 for i = 1, MAX_LIST do
   local b = CreateFrame("Button", nil, list)
   b:SetSize(LIST_W - 2, ROW_H)
-  b:SetPoint("TOPLEFT", 1, -5 - (i - 1) * ROW_H)
+  b:SetPoint("TOPLEFT", 1, -4 - (i - 1) * ROW_H)
   UI.RowStripe(b)
   b:SetStripe(i % 2 == 0)
   UI.RowHighlight(b)
@@ -215,11 +241,21 @@ for i = 1, MAX_LIST do
   b.skill = UI.Text(b, 11, S.dim, "RIGHT")
   b.skill:SetPoint("RIGHT", -8, 0)
   b:SetScript("OnClick", function(self) if self.entry then selectedHerb = self.entry[1]; refreshGuide() end end)
+  -- what the colour means, on hover
+  b:SetScript("OnEnter", function(self)
+    if not self.entry or kind == "both" then return end
+    local K = KIND[kind]
+    local req = NW.RequiredSkill(self.entry[1])
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(self.entry[1], 1, 1, 1)
+    GameTooltip:AddLine(("Needs %s %s"):format(K.skill, req or "?"), S.dim[1], S.dim[2], S.dim[3])
+    GameTooltip:AddLine("|cffff4033Red|r too high  ·  |cffff8040orange|r |cffffe633yellow|r |cff59cc59green|r skill-ups  ·  |cff8c8c8cgrey|r none", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", GameTooltip_Hide)
   herbRows[i] = b
 end
-local listKey = UI.Text(page, 11, S.dim)
-listKey:SetPoint("TOPLEFT", list, "BOTTOMLEFT", 2, -6)
-listKey:SetText("Colour: skill-ups at your skill")
+local listKey = { SetShown = function() end } -- (the colour key is in the row tooltips now)
 
 ------------------------------------------------------------------------
 -- Right: details
@@ -247,17 +283,43 @@ hTip:SetWidth(TEXT_W)
 hTip:SetHeight(30)
 hTip:SetJustifyV("TOP")
 
-local alsoOthers = UI.Check(right, "Also pick other herbs and ore on the way",
-  function() return NW.db.settings.guideAlsoOthers end,
-  function(v) NW.db.settings.guideAlsoOthers = v end,
-  "Built routes also stop at every other herb and ore node your filters allow.")
-alsoOthers:SetPoint("TOPLEFT", hTip, "BOTTOMLEFT", 2, -6)
-
-local colHead = UI.Heading(right, "Best zones", TEXT_W)
-colHead:SetPoint("TOPLEFT", alsoOthers, "BOTTOMLEFT", -2, -14)
-local colSub = UI.Text(right, 11, S.dim)
-colSub:SetPoint("TOPLEFT", colHead, "BOTTOMLEFT", 0, -3)
-colSub:SetText("Spots per minute")
+local colHead = UI.Heading(right, "Zones", TEXT_W - 196)
+colHead:SetPoint("TOPLEFT", hTip, "BOTTOMLEFT", 0, -8)
+local SORTS = { { "best", "Best" }, { "rate", "Spots per minute" }, { "gold", "Gold per hour" }, { "count", "Known spots" }, { "loop", "Shortest loop" } }
+local sortDrop = UI.Dropdown(right, 186, "Sort", SORTS, function() return NW.db.settings.guideSort or "best" end,
+  function(v) NW.db.settings.guideSort = v ~= "best" and v or nil; refreshGuide() end, 140,
+  "Best: spots per minute (gold per hour for Both), favouring zones with enough spots for a loop.")
+sortDrop:SetPoint("RIGHT", colHead, "RIGHT", 196, 0)
+-- column captions; their tooltips say what each number is
+local COLS = {
+  { "Spots", 268, "Known spots", "Places a node has been seen. Not all are up at once." },
+  { "Loop", 322, "Loop", "One lap mounted, past every known spot. No time for gathering." },
+  { "/min", 370, "Spots per minute", "Known spots passed per minute of that loop." },
+  { "g/h", TEXT_W - 8, "Gold per hour", "If every spot were up: about two items each at Auctionator prices. An estimate, not income." },
+}
+local colBar = CreateFrame("Frame", nil, right)
+colBar:SetSize(TEXT_W, 18)
+colBar:SetPoint("TOPLEFT", colHead, "BOTTOMLEFT", 0, -4)
+local zl = UI.Text(colBar, 10, S.dim)
+zl:SetPoint("LEFT", 10, 0)
+zl:SetText("Zone")
+for _, c in ipairs(COLS) do
+  local h = CreateFrame("Frame", nil, colBar)
+  h:SetSize(46, 18)
+  h:SetPoint("RIGHT", colBar, "LEFT", c[2], 0)
+  h:EnableMouse(true)
+  local t = UI.Text(h, 10, S.dim, "RIGHT")
+  t:SetPoint("RIGHT")
+  t:SetText(c[1])
+  h:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText(c[3], 1, 1, 1)
+    GameTooltip:AddLine(c[4], S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:Show()
+  end)
+  h:SetScript("OnLeave", GameTooltip_Hide)
+end
+local colSub = { SetText = function() end } -- (the sort says how it's ranked)
 
 -- Preview map
 local PV_W, PV_H = 300, 200
@@ -273,6 +335,24 @@ pvTitle:SetWidth(PV_W)
 local pvSub = UI.Text(right, 11, S.dim)
 pvSub:SetPoint("TOPLEFT", pvTitle, "BOTTOMLEFT", 0, -3)
 pvSub:SetWidth(PV_W)
+-- the selected zone's numbers, label left and value right
+local stats = {}
+for i, l in ipairs({ "Known spots", "Loop", "Spots per minute", "Gold per hour" }) do
+  local a = UI.Text(right, 12, S.dim)
+  a:SetPoint("TOPLEFT", pvSub, "BOTTOMLEFT", 0, -10 - (i - 1) * 18)
+  a:SetText(l)
+  local v = UI.Text(right, 12, S.text, "RIGHT")
+  v:SetPoint("TOPRIGHT", pvSub, "BOTTOMLEFT", PV_W, -10 - (i - 1) * 18)
+  stats[i] = v
+end
+local alsoOthers = UI.Check(right, "Also pick other herbs and ore",
+  function() return NW.db.settings.guideAlsoOthers end,
+  function(v) NW.db.settings.guideAlsoOthers = v end,
+  "The route also stops at every other herb and ore your filters allow.")
+alsoOthers:SetPoint("TOPLEFT", pvSub, "BOTTOMLEFT", 2, -10 - 4 * 18 - 4)
+local buildBtn = UI.Button(right, "Build route", PV_W, nil, 26, "primary")
+buildBtn:SetPoint("TOPLEFT", alsoOthers, "BOTTOMLEFT", -2, -12)
+UI.Tip(buildBtn, "Build route", "Replaces this zone's saved route.")
 local pvTiles = {}
 -- drawn like the Route map: the zone fully explored in its own colours,
 -- round dots, and the loop shaded gold to blue so its order reads
@@ -312,8 +392,16 @@ local function drawPreview(row, herb)
   for _, t in ipairs(pvTiles) do t:Hide() end
   previewID = row and row.mapID
   for _, r in ipairs(zoneRows) do r:SetSelected(r.row ~= nil and r.row == row) end
+  for k = 1, 4 do stats[k]:SetText("") end
+  buildBtn:SetEnabled(row ~= nil and row.mapID ~= nil and row.count > 0)
   if not row then pvTitle:SetText(""); pvSub:SetText("") return end
   pvTitle:SetText(row.name)
+  stats[1]:SetText(row.count)
+  if row.rate then
+    stats[2]:SetText(fmtTime(row.loop / NW.MOUNT_YPS))
+    stats[3]:SetText(("%.1f"):format(row.rate))
+    stats[4]:SetText(row.gold and ("~" .. NW.Money(row.gold, true)) or "|cff938c80no prices|r")
+  end
   if not row.mapID then
     pvSub:SetText("This zone isn't on your client's map list.")
     return
@@ -343,7 +431,7 @@ local function drawPreview(row, herb)
       d:ClearAllPoints()
       d:SetPoint("CENTER", pvArt, "TOPLEFT", p(a.x, a.y))
     end
-    pvSub:SetText(("Your route: %d stops, %s %s."):format(#st, fmtTime(route.seconds or 0), route.open and "each way" or "per loop"))
+    pvSub:SetText(("Your route  ·  %d stops, %s %s"):format(#st, fmtTime(route.seconds or 0), route.open and "each way" or "per loop"))
   elseif row.order and #row.pts <= 400 then
     for i = 1, #row.order do
       local a, b = row.pts[row.order[i]], row.pts[row.order[(i % #row.order) + 1]]
@@ -352,10 +440,9 @@ local function drawPreview(row, herb)
       l:SetStartPoint("TOPLEFT", pvArt, p(a[3], a[4]))
       l:SetEndPoint("TOPLEFT", pvArt, p(b[3], b[4]))
     end
-    pvSub:SetText("Preview")
+    pvSub:SetText("Known spots  ·  no route built")
   else
-    pvSub:SetText(row.count > 0 and (row.count .. " known spots.")
-      or "No spots saved yet. Import GatherMate2 data to rank it.")
+    pvSub:SetText(row.count > 0 and "Known spots" or "No spots saved yet")
   end
   local routed = isFocus and #route.stops > 1
   for _, pt in ipairs(routed and {} or row.pts) do
@@ -368,40 +455,73 @@ local function drawPreview(row, herb)
   end
 end
 
--- Zone rows
-local ROWS = 8
+-- Zone rows: click selects (the map and numbers follow); right-click builds its route
+local ROWS, ZROW_H = 14, 24
+local moreOpen, zoneOffset, allRows = false, 0, {}
+local function buildFor(row, herb)
+  if not row or not row.mapID or row.count == 0 then return end
+  NW.BuildRoute(row.mapID, function()
+    if page:IsShown() then drawPreview(row, herb) end
+  end, kind == "both" and {} or { focus = focusOf(entryFor(herb)), alsoOthers = NW.db.settings.guideAlsoOthers })
+end
+buildBtn:SetScript("OnClick", function()
+  for _, row in ipairs(allRows) do if row.mapID and row.mapID == previewID then buildFor(row, selectedHerb) return end end
+end)
+local zoneBox = CreateFrame("Frame", nil, right)
+zoneBox:SetSize(TEXT_W, ROWS * ZROW_H)
+zoneBox:SetPoint("TOPLEFT", colBar, "BOTTOMLEFT", 0, -2)
+zoneBox:EnableMouseWheel(true)
 for i = 1, ROWS do
-  local r = CreateFrame("Button", nil, right)
-  r:SetSize(TEXT_W, 38)
-  r:SetPoint("TOPLEFT", colSub, "BOTTOMLEFT", 0, -8 - (i - 1) * 40)
-  r.bg = r:CreateTexture(nil, "BACKGROUND")
-  r.bg:SetAllPoints()
-  r.bg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.025 or 0)
+  local r = CreateFrame("Button", nil, zoneBox)
+  r:SetSize(TEXT_W, ZROW_H - 1)
+  r:SetPoint("TOPLEFT", 0, -(i - 1) * ZROW_H)
+  r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  UI.RowStripe(r)
+  r:SetStripe(i % 2 == 0)
   UI.RowHighlight(r)
-  r.line1 = UI.Text(r, 12, S.text)
-  r.line1:SetPoint("TOPLEFT", 10, -5)
-  r.line1:SetWidth(TEXT_W - 120)
-  r.line1:SetWordWrap(false)
-  r.line2 = UI.Text(r, 11, S.dim)
-  r.line2:SetPoint("TOPLEFT", r.line1, "BOTTOMLEFT", 0, -4)
-  r.line2:SetWidth(TEXT_W - 120)
-  r.line2:SetWordWrap(false)
-  r.build = UI.Button(r, "Build route", 96, nil, 22)
-  r.build:SetPoint("RIGHT", -8, 0)
-  r:SetScript("OnClick", function(self) drawPreview(self.row, selectedHerb) end)
-  r.build:SetScript("OnClick", function(self)
-    local row, herb = self:GetParent().row, selectedHerb
-    if not row or not row.mapID then return end
-    NW.BuildRoute(row.mapID, function()
-      if page:IsShown() then drawPreview(row, herb) end
-    end, kind == "both" and {} or { focus = focusOf(entryFor(herb)), alsoOthers = NW.db.settings.guideAlsoOthers })
+  r.name = UI.Text(r, 12, S.text)
+  r.name:SetPoint("LEFT", 10, 0)
+  r.name:SetWidth(200)
+  r.name:SetWordWrap(false)
+  r.cells = {}
+  for k, c in ipairs(COLS) do
+    local t = UI.Text(r, 12, S.text, "RIGHT")
+    t:SetPoint("RIGHT", r, "LEFT", c[2], 0)
+    r.cells[k] = t
+  end
+  r:SetScript("OnClick", function(self, button)
+    if button == "RightButton" then buildFor(self.row, selectedHerb) return end
+    drawPreview(self.row, selectedHerb)
   end)
-  UI.Tip(r.build, "Build route", "Replaces this zone's saved route.")
+  r:SetScript("OnEnter", function(self)
+    local row = self.row
+    if not row then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(row.name, 1, 1, 1)
+    if row.recommended then GameTooltip:AddLine("Recommended by farming guides" .. (row.note and (": " .. row.note) or ""), S.gold[1], S.gold[2], S.gold[3], true)
+    elseif not row.missing then GameTooltip:AddLine("Found in your own node data", S.dim[1], S.dim[2], S.dim[3]) end
+    if row.missing then GameTooltip:AddLine("Not on your client's map list", S.dim[1], S.dim[2], S.dim[3]) end
+    if row.mapID and row.count > 0 then GameTooltip:AddLine("Right-click: build its route", S.dim[1], S.dim[2], S.dim[3]) end
+    GameTooltip:Show()
+  end)
+  r:SetScript("OnLeave", GameTooltip_Hide)
   zoneRows[i] = r
 end
-local moreText = UI.Text(right, 11, S.dim)
-moreText:SetPoint("TOPLEFT", zoneRows[ROWS], "BOTTOMLEFT", 0, -6)
-moreText:SetWidth(TEXT_W)
+local moreBtn = CreateFrame("Button", nil, right)
+moreBtn:SetSize(TEXT_W, 18)
+moreBtn:SetPoint("TOPLEFT", zoneBox, "BOTTOMLEFT", 0, -4)
+local moreText = UI.Text(moreBtn, 11, S.gold)
+moreText:SetPoint("LEFT", 10, 0)
+moreBtn:SetScript("OnClick", function() moreOpen = not moreOpen zoneOffset = 0 refreshGuide() end)
+moreBtn:SetScript("OnEnter", function() moreText:SetTextColor(unpack(S.text)) end)
+moreBtn:SetScript("OnLeave", function() moreText:SetTextColor(unpack(S.gold)) end)
+zoneBox:SetScript("OnMouseWheel", function(_, d)
+  if not moreOpen then return end
+  local max = math.max(0, #allRows - ROWS)
+  local o = math.max(0, math.min(max, zoneOffset - d * 2))
+  if o ~= zoneOffset then zoneOffset = o refreshGuide() end
+end)
+local TOP_N = 8
 
 refreshGuide = function()
   if not page:IsShown() then return end
@@ -413,7 +533,7 @@ refreshGuide = function()
     local hs, os = NW.GetSkill("herb"), NW.GetSkill("ore")
     NW.SetWindowSubtitle(("Herbalism %s  ·  Mining %s"):format(hs or "-", os or "-"))
   else
-    NW.SetWindowSubtitle(herbSkill and (K.skill .. " " .. herbSkill) or ("You don't have " .. K.skill))
+    NW.SetWindowSubtitle(herbSkill and (K.skill .. " " .. herbSkill) or (K.skill .. "  ·  Not learned"))
   end
   alsoOthers:SetShown(not both)
   listKey:SetShown(not both)
@@ -434,8 +554,15 @@ refreshGuide = function()
   end
   if lastHerb ~= selectedHerb then previewID = nil; lastHerb = selectedHerb end
   local entry
+  -- the search narrows the list (the one you're on stays selected)
+  local shownList = guide
+  if searchText ~= "" then
+    shownList = {}
+    for _, e in ipairs(guide) do if e[1]:lower():find(searchText, 1, true) then shownList[#shownList + 1] = e end end
+  end
+  for _, e in ipairs(guide) do if e[1] == selectedHerb then entry = e end end
   for i, b in ipairs(herbRows) do
-    local e = guide[i]
+    local e = shownList[i]
     b.entry = e
     b:SetShown(e ~= nil)
     if e then
@@ -447,7 +574,6 @@ refreshGuide = function()
       b.text:SetTextColor(col[1], col[2], col[3])
       b.skill:SetText(both and "" or req or "?")
       b:SetSelected(e[1] == selectedHerb)
-      if e[1] == selectedHerb then entry = e end
     end
   end
   local req = NW.RequiredSkill(entry[1])
@@ -465,35 +591,46 @@ refreshGuide = function()
   hTip:SetText(entry[2])
 
   local rows = rankZones(entry)
+  -- ordered by the sort you picked (Best keeps the guide's own ranking)
+  local by = NW.db.settings.guideSort
+  if by then
+    local sorted = {}
+    for i, row in ipairs(rows) do sorted[i] = row end
+    local key = ({ rate = "rate", gold = "gold", count = "count", loop = "loop" })[by]
+    table.sort(sorted, function(a, b)
+      local x, y = a[key], b[key]
+      if (x ~= nil) ~= (y ~= nil) then return x ~= nil end
+      if x and x ~= y then if by == "loop" then return x < y end return x > y end
+      return a.name < b.name
+    end)
+    rows = sorted
+  end
+  allRows = rows
+  local visibleN = moreOpen and #rows or math.min(TOP_N, #rows)
   for i, r in ipairs(zoneRows) do
-    local row = rows[i]
+    local idx = i + (moreOpen and zoneOffset or 0)
+    local row = i <= visibleN and rows[idx] or nil
     r.row = row
     if row then
-      local star = row.recommended and "|cffd6b266*|r " or "   "
-      local stats
+      r.name:SetText((row.recommended and "|cffd6b266*|r " or "   ") .. row.name)
+      r.name:SetTextColor(unpack(row.count > 0 and S.text or S.dim))
       if row.rate then
-        stats = ("|cff9be08a%d spots|r  ·  %s loop  ·  |cffffffff%.1f/min|r"):format(row.count, fmtTime(row.loop / NW.MOUNT_YPS), row.rate)
-        if row.gold then stats = stats .. "  ·  " .. NW.Money(row.gold, true) .. "/hr" end
-      elseif row.missing then
-        stats = "|cff6f6f74not on your client's maps|r"
-      elseif row.count > 0 then
-        stats = ("|cff9be08a%d spot%s|r  ·  too few to rank"):format(row.count, row.count == 1 and "" or "s")
+        r.cells[1]:SetText(row.count)
+        r.cells[2]:SetText(fmtTime(row.loop / NW.MOUNT_YPS))
+        r.cells[3]:SetText(("%.1f"):format(row.rate))
+        r.cells[4]:SetText(row.gold and ("~" .. NW.Money(row.gold, true)) or "|cff938c80–|r")
       else
-        stats = "|cff6f6f74no spots saved|r"
+        r.cells[1]:SetText(row.count > 0 and row.count or "|cff938c80–|r")
+        for k = 2, 4 do r.cells[k]:SetText("|cff938c80–|r") end
       end
-      local note = row.note or ((row.recommended or both) and "" or "found in your data")
-      r.line1:SetText(star .. row.name .. (note ~= "" and ("  |cff938c80" .. note .. "|r") or ""))
-      r.line2:SetText("   " .. stats)
-      r.build:SetEnabled(row.mapID ~= nil and row.count > 0)
       r:Show()
     else
       r:Hide()
     end
   end
-  local extra = #rows - ROWS
-  moreText:SetText((extra > 0 and ("+%d more zones with fewer spots.   "):format(extra) or "")
-    .. (both and "" or "|cffd6b266*|r recommended by farming guides"))
-  colSub:SetText(both and "Gold per hour" or "Spots per minute")
+  local extra = #rows - TOP_N
+  moreBtn:SetShown(extra > 0)
+  moreText:SetText(moreOpen and "Show fewer zones" or ("Show %d more zone%s"):format(extra, extra == 1 and "" or "s"))
   local pv = rows[1]
   for _, row in ipairs(rows) do if previewID and row.mapID == previewID then pv = row end end
   drawPreview(pv, entry[1])
