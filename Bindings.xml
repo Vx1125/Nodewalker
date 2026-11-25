@@ -8,4 +8,10 @@
   <Binding name="NODEWALKER_NEXT" category="ADDONS">
     Nodewalker.SkipNext()
   </Binding>
+  <Binding name="NODEWALKER_FISHHUD" category="ADDONS">
+    Nodewalker.ToggleFishHUD()
+  </Binding>
+  <Binding name="NODEWALKER_JOURNAL" category="ADDONS">
+    Nodewalker.OpenFishJournal()
+  </Binding>
 </Bindings>

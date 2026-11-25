@@ -256,6 +256,84 @@ place(2, planBtn, 30, 2)
 UI.Tip(planBtn, "Route", "Sight range, avoid zones and the map are on the Route tab.")
 
 ------------------------------------------------------------------------
+-- Fishing: Smart Fishing, gear, lures, the HUD, the Journal
+------------------------------------------------------------------------
+if NW.SmartFish then
+  local SF = NW.SmartFish
+  local function hud() SF.Update() end
+  newPage("fishing", "Fishing")
+  heading(1, "Smart Fishing")
+  local keyBtn = SF.KeyButton(page, 260)
+  place(1, keyBtn, 32, 2)
+  check(1, "Reel in with the same key", "fishInteract",
+    "While the bobber is out, the key works as the game's Interact Key on it. Turns on interact targeting while you fish.", function() SF.ApplyKey() end)
+  local lureItems = {}
+  for _, l in ipairs(SF.LURES) do lureItems[#lureItems + 1] = { l[1], ("%s  +%d"):format(SF.LURE_NAME[l[1]], l[2]) } end
+  place(1, UI.Dropdown(page, COL_W - 20, "Lure", { { "off", "No lure" }, { "pref", "My preferred lure" }, { "best", "Strongest I carry" } },
+    function() return s().fishLure or "off" end, function(v) s().fishLure = v; hud(); refreshAll() end, 200,
+    "When there's no lure on your pole, Smart Fishing puts one on first."), 30, 2)
+  local pref = place(1, UI.Dropdown(page, COL_W - 20, "Preferred lure", lureItems,
+    function() return s().fishLurePref or 6532 end, function(v) s().fishLurePref = v; hud() end, 200), 30, 2)
+  local oldPref = pref.Refresh
+  function pref:Refresh() if oldPref then oldPref(self) end self:SetAlpha(s().fishLure == "pref" and 1 or 0.45) end
+  local alt = check(1, "Use another lure if I'm out", "fishLureAlt", nil, hud)
+  local oldAlt = alt.Refresh
+  function alt:Refresh() if oldAlt then oldAlt(self) end local on = s().fishLure == "pref"; self:SetAlpha(on and 1 or 0.45) end
+  heading(1, "Fishing gear")
+  local gearText = UI.Text(page, 11, S.dim)
+  gearText:SetWidth(COL_W - 20)
+  gearText:SetWordWrap(true)
+  place(1, gearText, 30, 2)
+  function gearText:Refresh()
+    local g, saved = SF.gearSet()
+    if not g then self:SetText("No fishing pole in your bags.") return end
+    local names = {}
+    for _, slot in ipairs({ 16, 1, 10, 8 }) do if g[slot] then names[#names + 1] = NW.ItemName(g[slot]) or ("item " .. g[slot]) end end
+    self:SetText((saved and "Saved set: " or "Your best pole: ") .. table.concat(names, ", ") .. ((SF.GearBonus(g) > 0) and ("  ·  pole +" .. SF.GearBonus(g)) or ""))
+  end
+  local slotNames = { { 1, "Head" }, { 10, "Hands" }, { 8, "Feet" } }
+  for i, sn in ipairs(slotNames) do
+    local cb = UI.Check(page, sn[2], function() return (s().fishGearSlots or {})[sn[1]] end,
+      function(v) s().fishGearSlots = s().fishGearSlots or {}; s().fishGearSlots[sn[1]] = v or nil end,
+      "Saved with your pole when you click Use what I'm wearing.")
+    if i == 1 then place(1, cb, 24, 2) else cols[1].y = cols[1].y + 24; place(1, cb, 24, 2 + (i - 1) * 110) end
+  end
+  local saveBtn = UI.Button(page, "Use what I'm wearing", 180, function()
+    if not SF.SaveWorn() and UIErrorsFrame then UIErrorsFrame:AddMessage("Put your fishing pole on first", S.gold[1], S.gold[2], S.gold[3]) end
+    refreshAll()
+  end, 24)
+  place(1, saveBtn, 30, 2)
+  local clearBtn = UI.Button(page, "Clear", 70, function() SF.ClearGear(); refreshAll() end, 24)
+  clearBtn:SetPoint("LEFT", saveBtn, "RIGHT", 6, 0)
+  local eq = SF.Button(page, "equip", 126, 24, "Equip fishing gear")
+  place(1, eq, 30, 2)
+  local rs = SF.Button(page, "restore", 126, 24, "Restore my gear")
+  rs:SetPoint("LEFT", eq, "RIGHT", 6, 0)
+  heading(1, "Notices")
+  check(1, "New fish", "fishNotifyNew")
+  checkBeside(1, "Rare catches", "fishNotifyRare", "Rare quality or better, by the game's own item quality.")
+  check(1, "Lures", "fishNotifyLure", "Expiring, expired, running low, preferred one missing.")
+  checkBeside(1, "Collection complete", "fishNotifyTarget", "The fish your Fishing + Cooking plan wants.")
+  check(1, "Sound", "fishSound")
+
+  heading(2, "Fishing HUD")
+  check(2, "Show the HUD", "fishHud", "While a fishing pole is on, or a session is open.", hud)
+  checkBeside(2, "Minimal", "fishHudMini", nil)
+  check(2, "Lock position", "fishHudLock")
+  checkBeside(2, "Cooking target", "fishHudTarget", "The fish your Fishing + Cooking plan wants next.")
+  check(2, "Catch value", "fishHudValue", "Estimated at Auctionator prices.")
+  slider(2, "Scale", 0.6, 1.5, 0.05, pct, "fishHudScale", hud)
+  slider(2, "Opacity", 0.3, 1, 0.05, pct, "fishHudAlpha", hud)
+  heading(2, "Journal")
+  check(2, "Record catches", "fishTrack", "Only loot the game marks as fishing loot.")
+  checkBeside(2, "Catch spots", "fishTrackSpots", "Where you stood, to 2% of the map.")
+  check(2, "Sessions", "fishSessions")
+  checkBeside(2, "Start one when I cast", "fishAutoSession", "A session ends after 20 minutes without fishing.")
+  local jb = UI.Button(page, "Open the Journal", 180, function() NW.OpenFishJournal() end, 24)
+  place(2, jb, 30, 2)
+end
+
+------------------------------------------------------------------------
 -- Nodes tab: tick the herbs and ore you want to see
 ------------------------------------------------------------------------
 local nodeChecks = {}

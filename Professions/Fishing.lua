@@ -462,7 +462,7 @@ W.next2:SetPoint("TOPRIGHT", W.next, "BOTTOMRIGHT", 0, -4)
 -- sub-tabs, styled like a craft's views
 W.tabs = {}
 do
-  local TABS = { { "leveling", "Leveling", 84 }, { "finder", "Fish Finder", 100 }, { "combined", "Fishing + Cooking", 136 } }
+  local TABS = { { "leveling", "Leveling", 84 }, { "finder", "Fish Finder", 100 }, { "combined", "Fishing + Cooking", 136 }, { "journal", "Journal", 76 } }
   local x = 0
   for _, t in ipairs(TABS) do
     local b = CreateFrame("Button", nil, fp, "BackdropTemplate")
@@ -599,6 +599,7 @@ function F.drawRows()
         r.text:SetText(it.text)
       end
       r.icon:SetShown(it.icon ~= nil or it.head)
+      r.icon:SetDesaturated(it.desat and true or false)
       r.right:SetText(it.right or "")
       for k, t in ipairs(r.icons) do
         local id = it.fishIcons and it.fishIcons[k]
@@ -655,15 +656,51 @@ for i = 1, 22 do
   l:SetWordWrap(false)
   W.lines[i] = { l = l, v = v }
 end
-W.bar = CreateFrame("StatusBar", nil, W.right)
-W.bar:SetSize(RIGHT_W, 6)
-W.bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-W.bar:SetStatusBarColor(unpack(F.BLUE))
-W.bar:SetMinMaxValues(0, 1)
-W.barBg = W.bar:CreateTexture(nil, "BACKGROUND")
-W.barBg:SetAllPoints()
-W.barBg:SetColorTexture(unpack(S.sunk))
-W.bar:Hide()
+W.bars = {}
+for i = 1, 8 do
+  local b = CreateFrame("StatusBar", nil, W.right)
+  b:SetSize(RIGHT_W, 5)
+  b:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+  b:SetStatusBarColor(unpack(F.BLUE))
+  b:SetMinMaxValues(0, 1)
+  local bg = b:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  bg:SetColorTexture(unpack(S.sunk))
+  b:Hide()
+  W.bars[i] = b
+end
+-- a zone's map with your catch spots (2% squares, sized by how many)
+local MAP_W, MAP_H = 240, 160
+W.map = UI.Box(W.right, MAP_W, MAP_H)
+W.map:Hide()
+W.mapArt = CreateFrame("Frame", nil, W.map)
+W.mapArt:SetPoint("TOPLEFT", 1, -1)
+W.mapArt:SetSize(MAP_W - 2, MAP_H - 2)
+W.mapTiles, W.dots = {}, {}
+function F.drawMap(mapID, spots)
+  UI.DrawZoneArt(mapID, W.mapArt, W.mapTiles, MAP_W - 2, MAP_H - 2, true)
+  local most = 1
+  for _, sp in ipairs(spots) do if sp.n > most then most = sp.n end end
+  table.sort(spots, function(a, b) return a.n > b.n end)
+  for i = 1, math.max(#W.dots, math.min(#spots, 200)) do
+    local sp = i <= 200 and spots[i]
+    local d = W.dots[i]
+    if sp then
+      if not d then
+        d = W.mapArt:CreateTexture(nil, "OVERLAY")
+        d:SetColorTexture(F.BLUE[1], F.BLUE[2], F.BLUE[3], 0.9)
+        W.dots[i] = d
+      end
+      local size = 3 + math.floor(5 * math.sqrt(sp.n / most))
+      d:SetSize(size, size)
+      d:ClearAllPoints()
+      d:SetPoint("CENTER", W.mapArt, "TOPLEFT", sp.x * (MAP_W - 2), -sp.y * (MAP_H - 2))
+      d:Show()
+    elseif d then
+      d:Hide()
+    end
+  end
+end
 W.btn1 = UI.Button(W.right, "Show on map", math.floor((RIGHT_W - 6) / 2), nil, 24)
 W.btn2 = UI.Button(W.right, "", math.floor((RIGHT_W - 6) / 2), nil, 24)
 W.btn1:Hide() W.btn2:Hide()
@@ -676,17 +713,28 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
   W.rTitle:SetText(title or "")
   W.rSub:SetText(sub or "")
   local anchor, y = icon and W.rIconBox or W.rHead, icon and -10 or -6
-  W.bar:Hide()
-  local n = 0
+  for _, b in ipairs(W.bars) do b:Hide() end
+  W.map:Hide()
+  local n, nb = 0, 0
   for _, row in ipairs(rows or {}) do
     if row == "gap" then
       y = y - 6
     elseif row.bar then
-      W.bar:ClearAllPoints()
-      W.bar:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, y - 2)
-      W.bar:SetValue(row.bar)
-      W.bar:Show()
-      y = y - 12
+      if nb < #W.bars then
+        nb = nb + 1
+        local b = W.bars[nb]
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, y - 1)
+        b:SetValue(row.bar)
+        b:Show()
+        y = y - 9
+      end
+    elseif row.map then
+      W.map:ClearAllPoints()
+      W.map:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, y - 4)
+      W.map:Show()
+      F.drawMap(row.map, row.spots or {})
+      y = y - MAP_H - 8
     elseif n < #W.lines then
       n = n + 1
       local ln = W.lines[n]
@@ -939,10 +987,17 @@ function F.fishDetail(id)
   rows[#rows + 1] = { "Auction house", (p and src == "ah") and NW.Money(p, "mid") or (H.dim .. "no price|r") }
   rows[#rows + 1] = "gap"
   if #zones > 0 then
-    rows[#rows + 1] = { head = named and "Found in" or "Waters at this skill" }
-    for k = 1, math.min(7, #zones) do rows[#rows + 1] = { zones[k], color = F.hostile(zones[k]) and S.dim or S.text } end
+    rows[#rows + 1] = { head = named and "Known locations" or "Waters at this skill" }
+    for k = 1, math.min(5, #zones) do rows[#rows + 1] = { zones[k], color = F.hostile(zones[k]) and S.dim or S.text } end
   else
     rows[#rows + 1] = { "Not in Nodewalker's fishing data.", color = S.dim }
+  end
+  -- where you've caught it yourself (all your characters)
+  local mine = NW.FishJournal and NW.FishJournal.ZonesFor(id, "all") or {}
+  if #mine > 0 then
+    rows[#rows + 1] = "gap"
+    rows[#rows + 1] = { head = "Your catches" }
+    for k = 1, math.min(3, #mine) do rows[#rows + 1] = { NW.FishJournal.zoneName(mine[k].map), ("%d caught"):format(mine[k].n) } end
   end
   local uses = NW.CookFish(id)
   if #uses > 0 then
@@ -950,7 +1005,7 @@ function F.fishDetail(id)
     local known = NW.charDB.known.cooking or {}
     rows[#rows + 1] = "gap"
     rows[#rows + 1] = { head = "Used in" }
-    for k = 1, math.min(4, #uses) do
+    for k = 1, math.min(3, #uses) do
       local r = uses[k]
       local tag = known[r.name] and (H.good .. "  known|r") or ""
       rows[#rows + 1] = { r.name .. tag, ("%d-%d"):format(r.orange or r.yellow, r.grey) }
@@ -1229,7 +1284,8 @@ function F.Redraw()
   W.combo:SetShown(t == "combined")
   W.search:SetShown(t == "finder")
   W.filters:SetShown(t == "finder")
-  local top = t == "combined" and W.box2y or (t == "finder" and TOP + 30 or TOP)
+  W.jctl:SetShown(t == "journal")
+  local top = t == "combined" and W.box2y or (t == "finder" and TOP + 30 or t == "journal" and TOP + 48 or TOP)
   W.box:ClearAllPoints()
   W.box:SetPoint("TOPLEFT", 0, -top)
   W.box:SetHeight(530 - top)
@@ -1249,6 +1305,8 @@ function F.Redraw()
     if sel and sel.zone then F.zoneDetail(sel.zone, sel.bi, sel.later)
     elseif F.sel and F.sel:match("^rank(%d)") then F.rankDetail(F.RANKS[tonumber(F.sel:match("^rank(%d)"))])
     else F.detail("Location", nil, "", "", {}) end
+  elseif t == "journal" then
+    F.journal()
   elseif t == "finder" then
     F.items = F.finderItems()
     if not F.sel and F.items[1] then F.sel = F.items[1].selKey end
@@ -1329,6 +1387,319 @@ W.sum = UI.Text(fp, 11, S.text)
 W.sum:SetPoint("BOTTOMLEFT", W.right, "BOTTOMLEFT", 0, 4)
 W.sum:SetWidth(RIGHT_W)
 W.sum:Hide()
+
+------------------------------------------------------------------------
+-- Journal: your catches by fish, by zone, and by session
+------------------------------------------------------------------------
+-- (FishJournal.lua loads after this file)
+local JN = setmetatable({}, { __index = function(_, k) return NW.FishJournal[k] end })
+local function jcfg() return F.cfg() end
+local function fmtDur(sec)
+  sec = math.floor(sec or 0)
+  if sec >= 3600 then return ("%dh %02dm"):format(sec / 3600, (sec % 3600) / 60) end
+  return ("%dm"):format(math.max(0, sec / 60))
+end
+local function day(t)
+  if not t then return "–" end
+  local d, today = date("%Y%m%d", t), date("%Y%m%d")
+  if d == today then return "Today " .. date("%H:%M", t) end
+  if d == date("%Y%m%d", time() - 86400) then return "Yesterday " .. date("%H:%M", t) end
+  return date("%b %d", t)
+end
+local function commas(n)
+  local s = tostring(math.floor(n or 0))
+  while true do
+    local k
+    s, k = s:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+    if k == 0 then break end
+  end
+  return s
+end
+F.fmtDur, F.day = fmtDur, day
+
+W.jctl = CreateFrame("Frame", nil, fp)
+W.jctl:SetPoint("TOPLEFT", 0, -TOP)
+W.jctl:SetSize(MID_W, 46)
+W.jctl:Hide()
+W.jsum = UI.Text(W.jctl, 11, S.dim)
+W.jsum:SetPoint("TOPLEFT", 0, 0)
+W.jsum:SetWidth(MID_W)
+W.jsum:SetWordWrap(false)
+W.jview = UI.Dropdown(W.jctl, 118, "", { { "fish", "Collection" }, { "zones", "Zones" }, { "sessions", "Sessions" } },
+  function() return jcfg().jView or "fish" end, function(v) jcfg().jView = v; F.sel = nil; F.offset = 0; F.Redraw() end, 118)
+W.jview:SetPoint("TOPLEFT", 0, -18)
+W.jscope = UI.Dropdown(W.jctl, 124, "", { { "char", "This character" }, { "all", "All characters" } },
+  function() return jcfg().jScope or "char" end, function(v) jcfg().jScope = v; F.Redraw() end, 124,
+  "Sessions are always this character's.")
+W.jscope:SetPoint("LEFT", W.jview, "RIGHT", 8, 0)
+W.jsort = UI.Dropdown(W.jctl, 130, "", { { "n", "Most caught" }, { "name", "Name" }, { "first", "First caught" },
+  { "last", "Latest" }, { "value", "Value" }, { "cook", "Cooking uses" } },
+  function() return jcfg().jSort or "n" end, function(v) jcfg().jSort = v; F.Redraw() end, 130)
+W.jsort:SetPoint("LEFT", W.jscope, "RIGHT", 8, 0)
+W.jsearch = CreateFrame("EditBox", nil, W.jctl, "BackdropTemplate")
+W.jsearch:SetSize(MID_W - 118 - 124 - 130 - 24, 22)
+W.jsearch:SetPoint("TOPRIGHT", 0, -19)
+UI.Flat(W.jsearch, S.sunk, S.edge)
+W.jsearch:SetFont(UI.FONT, 12, "")
+W.jsearch:SetTextInsets(8, 8, 0, 0)
+W.jsearch:SetAutoFocus(false)
+W.jsearch:SetScript("OnEscapePressed", W.jsearch.ClearFocus)
+W.jsearch:SetScript("OnTextChanged", function(self) F.jq = (self:GetText() or ""):lower(); F.offset = 0; F.Redraw() end)
+W.jhint = UI.Text(W.jsearch, 12, S.dim)
+W.jhint:SetPoint("LEFT", 8, 0)
+W.jhint:SetText("Search")
+W.jsearch:HookScript("OnTextChanged", function(self) W.jhint:SetShown((self:GetText() or "") == "") end)
+
+-- the fish: everything in the catalog, plus fish you caught that it doesn't list
+function F.jFish(scope)
+  local items = JN.Items(scope)
+  local list, seen = {}, {}
+  for _, id in ipairs(F.ORDER) do list[#list + 1] = id; seen[id] = true end
+  for id, e in pairs(items) do if e.k == "f" and not seen[id] then list[#list + 1] = id; seen[id] = true end end
+  return list, items
+end
+
+function F.journal()
+  local c = jcfg()
+  local view, scope = c.jView or "fish", c.jScope or "char"
+  local T = JN.Totals(scope)
+  W.jsum:SetText(("%sFish|r %s   %sSpecies|r %d / %d cataloged%s   %sZones|r %d   %sTime|r %s   %sOther|r %s"):format(
+    H.dim, commas(T.fish), H.dim, T.catalogFound, T.catalog, T.extra > 0 and (" +" .. T.extra) or "", H.dim, T.zones,
+    H.dim, fmtDur(T.time), H.dim, commas(T.other)))
+  W.jsort:SetShown(view == "fish")
+  W.jsearch:SetShown(view == "fish")
+  W.jscope:SetShown(view ~= "sessions")
+  W.jview:Refresh() W.jscope:Refresh() W.jsort:Refresh()
+  local items = {}
+  if view == "fish" then
+    local list, caught = F.jFish(scope)
+    local sort, q = c.jSort or "n", F.jq or ""
+    local price = {}
+    local function pr(id) if price[id] == nil then local p, src = NW.Price(id); price[id] = (p and src ~= "est") and p or false end return price[id] or 0 end
+    local rows = {}
+    for _, id in ipairs(list) do
+      local name = F.itemName(id)
+      if q == "" or name:lower():find(q, 1, true) then rows[#rows + 1] = { id = id, name = name, e = caught[id] } end
+    end
+    table.sort(rows, function(a, b)
+      local an, bn = a.e and a.e.n or 0, b.e and b.e.n or 0
+      if (an > 0) ~= (bn > 0) then return an > 0 end
+      if sort == "name" then return a.name < b.name end
+      if sort == "first" and an > 0 then return (a.e.first or 0) < (b.e.first or 0) end
+      if sort == "last" and an > 0 then return (a.e.last or 0) > (b.e.last or 0) end
+      if sort == "value" then local x, y = pr(a.id) * an, pr(b.id) * bn; if x ~= y then return x > y end end
+      if sort == "cook" then local x, y = #NW.CookFish(a.id), #NW.CookFish(b.id); if x ~= y then return x > y end end
+      if an ~= bn then return an > bn end
+      return a.name < b.name
+    end)
+    for _, r in ipairs(rows) do
+      local n = r.e and r.e.n or 0
+      items[#items + 1] = { icon = NW.ItemIcon(r.id), desat = n == 0, selKey = "jf" .. r.id,
+        text = (n > 0 and H.text or H.dim) .. r.name .. "|r", right = n > 0 and (BLUE_HEX .. commas(n) .. "|r") or (H.dim .. "Undiscovered|r"),
+        dim = n == 0 }
+    end
+    -- everything else fishing brought up
+    local others = {}
+    for id, e in pairs(caught) do if e.k ~= "f" then others[#others + 1] = { id = id, e = e } end end
+    table.sort(others, function(a, b) return a.e.n > b.e.n end)
+    if #others > 0 then
+      local folded = c.folds.jOther
+      if folded == nil then folded = true end
+      items[#items + 1] = { head = true, text = ("Other catches  %d"):format(#others), foldKey = "jOther", folded = folded }
+      if not folded then
+        for _, o in ipairs(others) do
+          items[#items + 1] = { icon = NW.ItemIcon(o.id), selKey = "jo" .. o.id, text = F.itemName(o.id),
+            right = H.dim .. (JN.KIND_LABEL[o.e.k] or "") .. "|r  " .. commas(o.e.n) }
+        end
+      end
+    end
+    W.empty:SetText(#items == 0 and "Nothing matches." or "")
+  elseif view == "zones" then
+    local zones = JN.Zones(scope)
+    local list = {}
+    for m, z in pairs(zones) do list[#list + 1] = { m = m, z = z } end
+    table.sort(list, function(a, b) return a.z.n > b.z.n end)
+    for _, e in ipairs(list) do
+      items[#items + 1] = { icon = "Interface\\Icons\\INV_Misc_Map_01", selKey = "jz" .. e.m, text = JN.zoneName(e.m),
+        right = ("%s fish  ·  %s"):format(commas(e.z.fish), day(e.z.last)) }
+    end
+    W.empty:SetText(#items == 0 and "No catches yet. Fish anywhere and they're recorded here." or "")
+  else
+    local log = JN.log()
+    local live = JN.session()
+    if live then
+      local top, topN = nil, -1
+      for m, n in pairs(live.zones) do if n > topN then top, topN = m, n end end
+      items[#items + 1] = { icon = "Interface\\Icons\\Trade_Fishing", selKey = "jsnow", mark = live.pausedAt and "" or mark("next"),
+        text = H.gold .. "Now|r  " .. (top and JN.zoneName(top) or (GetZoneText and GetZoneText() or "")),
+        right = ("%s  ·  %d fish"):format(fmtDur(JN.Elapsed(live)), live.fish) }
+    end
+    for i = #(log and log.sessions or {}), 1, -1 do
+      local se = log.sessions[i]
+      items[#items + 1] = { icon = "Interface\\Icons\\INV_Misc_Book_09", selKey = "js" .. i,
+        text = day(se.start) .. H.dim .. "  " .. JN.zoneName(se.zone) .. "|r", right = ("%s  ·  %d fish"):format(fmtDur(se.elapsed), se.fish) }
+    end
+    W.empty:SetText(#items == 0 and "No sessions yet. One starts when you cast." or "")
+  end
+  F.items = items
+  if not F.sel and items[1] then
+    for _, it in ipairs(items) do if it.selKey then F.sel = it.selKey break end end
+  end
+  F.drawRows()
+  local sel = F.sel or ""
+  local id = tonumber(sel:match("^jf(%d+)") or "")
+  local oid = tonumber(sel:match("^jo(%d+)") or "")
+  local zm = tonumber(sel:match("^jz(%d+)") or "")
+  local si = tonumber(sel:match("^js(%d+)") or "")
+  if id then F.jFishDetail(id, scope)
+  elseif oid then F.jOtherDetail(oid, scope)
+  elseif zm then F.jZoneDetail(zm, scope)
+  elseif sel == "jsnow" then F.jSessionDetail(nil)
+  elseif si then F.jSessionDetail(si)
+  else F.detail("Journal", nil, "", "", {}) end
+end
+
+-- what a fish could be cooked into, and what that's worth (estimates)
+function F.cookValue(id)
+  local out = {}
+  for _, r in ipairs(NW.CookFish(id)) do
+    if r.item then
+      local _, ah = NW.PriceParts(r.item)
+      local mats, partial = 0, false
+      for _, re in ipairs(r.reagents) do
+        local p, src = NW.Price(re[1])
+        if p and src ~= "est" then mats = mats + p * re[2] else partial = true end
+      end
+      out[#out + 1] = { r = r, sells = ah and ah * (r.yield or 1) or nil, mats = mats, partial = partial }
+    end
+  end
+  return out
+end
+
+function F.jFishDetail(id, scope)
+  local e = JN.Items(scope)[id]
+  local n = e and e.n or 0
+  local rows = { { head = "Your catches" }, { "Caught", BLUE_HEX .. commas(n) .. "|r" } }
+  if e then
+    rows[#rows + 1] = { "First", day(e.first) }
+    rows[#rows + 1] = { "Latest", day(e.last) }
+  end
+  local p, src = NW.Price(id)
+  local priced = p and src ~= "est"
+  rows[#rows + 1] = { "Each, at auction", priced and ("~" .. NW.Money(p, "mid")) or (H.dim .. "no price|r") }
+  if n > 0 and priced then rows[#rows + 1] = { "All of it, today", "~" .. NW.Money(p * n, "gs") } end
+  local where = JN.ZonesFor(id, scope)
+  if #where > 0 then
+    rows[#rows + 1] = "gap"
+    rows[#rows + 1] = { head = "Where you caught it" }
+    for k = 1, math.min(4, #where) do rows[#rows + 1] = { JN.zoneName(where[k].map), commas(where[k].n) } end
+  end
+  local cooks = F.cookValue(id)
+  if #cooks > 0 then
+    rows[#rows + 1] = "gap"
+    rows[#rows + 1] = { head = "Cook it or sell it" }
+    for k = 1, math.min(2, #cooks) do
+      local cv = cooks[k]
+      local profit = cv.sells and (cv.sells * 0.95 - cv.mats) or nil
+      rows[#rows + 1] = { cv.r.name, cv.sells and ("~" .. NW.Money(cv.sells, "mid")) or (H.dim .. "no price|r") }
+      rows[#rows + 1] = { "  after cut and materials", profit and ((profit >= 0 and H.good or H.bad) .. "~" .. NW.Money(math.abs(profit), "mid") .. (profit < 0 and " loss" or "") .. "|r" .. (cv.partial and (H.bad .. " +?|r") or "")) or "–" }
+    end
+  end
+  F.detail("Fish", NW.ItemIcon(id), F.itemName(id), n > 0 and "Prices are estimates" or "Not caught yet", rows,
+    { "Fish Finder", function() st().fishTab = "finder"; F.sel = "fish" .. id; F.Redraw() end },
+    where[1] and where[1].map ~= 0 and { "Show on map", function() if OpenWorldMap then pcall(OpenWorldMap, where[1].map) end end } or nil)
+end
+
+function F.jOtherDetail(id, scope)
+  local e = JN.Items(scope)[id]
+  local rows = { { head = "Your catches" }, { "Kind", JN.KIND_LABEL[e and e.k or "o"] }, { "Caught", commas(e and e.n or 0) },
+    { "First", day(e and e.first) }, { "Latest", day(e and e.last) } }
+  local p, src = NW.Price(id)
+  rows[#rows + 1] = { "Each, at auction", (p and src ~= "est") and ("~" .. NW.Money(p, "mid")) or (H.dim .. "no price|r") }
+  F.detail("Catch", NW.ItemIcon(id), F.itemName(id), "", rows)
+end
+
+function F.jZoneDetail(mapID, scope)
+  local z = JN.Zones(scope)[mapID]
+  if not z then F.detail("Zone", nil, "", "", {}) return end
+  local rows = { { "Fish", commas(z.fish) }, { "Other catches", commas(z.n - z.fish) }, { "Time fished", fmtDur(z.t) },
+    { "Latest", day(z.last) } }
+  -- what you caught here, by share of your own fish
+  local list = {}
+  for id, n in pairs(z.items) do if JN.kind(id) == "f" then list[#list + 1] = { id = id, n = n } end end
+  table.sort(list, function(a, b) return a.n > b.n end)
+  if z.fish > 0 then
+    rows[#rows + 1] = "gap"
+    rows[#rows + 1] = { head = "Your catch" }
+    local shown = 0
+    for k = 1, math.min(4, #list) do
+      local e = list[k]
+      shown = shown + e.n
+      rows[#rows + 1] = { (F.itemName(e.id)):gsub("^Raw ", ""), ("%d  ·  %d%%"):format(e.n, math.floor(100 * e.n / z.fish + 0.5)) }
+      rows[#rows + 1] = { bar = e.n / z.fish }
+    end
+    if z.fish - shown > 0 then
+      rows[#rows + 1] = { "Other fish", ("%d  ·  %d%%"):format(z.fish - shown, math.floor(100 * (z.fish - shown) / z.fish + 0.5)) }
+      rows[#rows + 1] = { bar = (z.fish - shown) / z.fish }
+    end
+    rows[#rows + 1] = { ("From %d fish you caught%s"):format(z.fish, z.fish < 50 and ": a small sample" or ""), color = S.dim }
+  end
+  local spots = mapID ~= 0 and JN.Spots(mapID, scope) or {}
+  if #spots > 0 then rows[#rows + 1] = { map = mapID, spots = spots } end
+  F.detail("Zone", "Interface\\Icons\\INV_Misc_Map_01", JN.zoneName(mapID), "Your catches, not drop rates", rows,
+    #spots == 0 and mapID ~= 0 and { "Show on map", function() if OpenWorldMap then pcall(OpenWorldMap, mapID) end end } or nil)
+end
+
+function F.jSessionDetail(i)
+  local log = JN.log()
+  local se = i and log and log.sessions[i] or JN.session()
+  if not se then F.detail("Session", nil, "", "", {}) return end
+  local live = i == nil
+  local rows = { { "Started", day(se.start) }, { "Length", fmtDur(live and JN.Elapsed(se) or se.elapsed) },
+    { "Fishing", fmtDur(se.active) }, { "Catches", tostring(se.catches or 0) }, { "Fish", tostring(se.fish or 0) },
+    { "Other", tostring(se.other or 0) } }
+  local s1 = live and NW.ProfSkill("fishing") or se.skill1
+  if se.skill0 and s1 and s1 > se.skill0 then rows[#rows + 1] = { "Skill gained", BLUE_HEX .. "+" .. (s1 - se.skill0) .. "|r" } end
+  local v, partial
+  if live then v, partial = JN.Value(se.items) else v, partial = se.value, se.partial end
+  rows[#rows + 1] = { live and "Worth today" or "Worth when it ended", (v and v > 0 and ("~" .. NW.Money(v, "gs")) or "–") .. (partial and (H.bad .. " +?|r") or "") }
+  if (se.active or 0) >= 300 and v and v > 0 then rows[#rows + 1] = { "Per fishing hour", "~" .. NW.Money(v * 3600 / se.active, "gs") } end
+  local list = {}
+  for id, n in pairs(se.items or {}) do list[#list + 1] = { id = id, n = n } end
+  table.sort(list, function(a, b) return a.n > b.n end)
+  if #list > 0 then
+    rows[#rows + 1] = "gap"
+    rows[#rows + 1] = { head = "Caught" }
+    for k = 1, math.min(6, #list) do
+      rows[#rows + 1] = { ("|T%s:14:14:0:0|t %s"):format(NW.ItemIcon(list[k].id) or "", (F.itemName(list[k].id)):gsub("^Raw ", "")), tostring(list[k].n) }
+    end
+  end
+  if live then
+    F.detail("Session", "Interface\\Icons\\Trade_Fishing", se.pausedAt and "Paused" or "Fishing now", "Fishing time leaves out gaps over 2 minutes", rows,
+      { se.pausedAt and "Resume" or "Pause", function() if se.pausedAt then JN.Resume() else JN.Pause() end F.Redraw() end },
+      { "End", function() JN.End(); F.sel = nil; F.Redraw() end })
+  else
+    local confirm = F.confirmDelete == i
+    F.detail("Session", "Interface\\Icons\\INV_Misc_Book_09", day(se.start), JN.zoneName(se.zone), rows,
+      { confirm and "Click again to delete" or "Delete", function()
+        if F.confirmDelete == i then F.confirmDelete = nil; JN.DeleteSession(i); F.sel = nil else F.confirmDelete = i end
+        F.Redraw()
+      end })
+  end
+end
+
+function NW.OpenFishJournal()
+  st().fishTab = "journal"
+  F.sel = nil
+  NW.OpenProfession("fishing")
+end
+table.insert(NW.OnLoad, function()
+  JN.OnChange(function()
+    if not fp:IsVisible() or F.jPending then return end
+    F.jPending = true
+    C_Timer.After(0.5, function() F.jPending = nil; if fp:IsVisible() then F.Redraw() end end)
+  end)
+end)
 
 -- shown in place of the craft layout while Fishing is selected
 function NW.FishPanel(on)

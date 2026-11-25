@@ -88,3 +88,23 @@ Fishing isn't a craft, so it has its own page in the same space (centre list, ri
 - **Fishing + Cooking:** both professions on two lines with thin bars (Fishing blue, Cooking gold) and a Target each; a Fish mode (Catch them / Catch or buy) and an Options menu. The plan in folding phases; each step one row with a status mark (tick done, red cross blocked with the reason on the right, gold arrow next). Finished phases fold and dim. The right panel follows the selected step: a fish (have / need / left with a blue bar, where, other fish that work), a cook step (ingredients have/need), training, a recipe (one source per line), fishing to a skill (zones, lure). What you'll pay and what the catch is worth stay at the bottom.
 - **Cooking:** the craft layout. An Ingredients dropdown (All ingredients, Fish recipes, No fish) sits where the resale choice is for other crafts. The shopping list adds a Fish group and calls the rest "Meat and other"; clicking a fish away from the auction house opens it in the Fish Finder. A "Fishing + Cooking plan" button under the list opens the same shared plan as Fishing's tab.
 - **Numbers:** fish counts are estimates (`~`); catch counts for fishing skill-ups and catch rates are never shown, because nobody publishes them for WoW Forever. A fish's market value is shown as "worth", never as money you pay.
+
+### Fishing Journal
+
+The fourth Fishing view. One summary line on top (fish, species of the cataloged total, zones, time fished, other catches), then View (Collection, Zones, Sessions), This character / All characters, and for the collection a sort and a search.
+
+- **Collection:** every cataloged fish, caught ones first with their count in Fishing blue; uncaught ones greyed with a desaturated icon and "Undiscovered". Everything else fishing brought up sits in a folded "Other catches" section with its kind (trade goods, gear, containers and treasure, junk). The denominator is always "cataloged", never a claim of every fish in the game.
+- **Zones:** one row per zone, fish and latest catch. Details: fish, other catches, time fished, latest; your catch as count, share and a thin blue bar per fish (top four, then "Other fish"); "From N fish you caught", with "a small sample" under 50; and the zone's map with your catch spots as small blue squares, sized by how many. Always labelled "Your catches, not drop rates".
+- **Sessions:** the open session first ("Now", gold arrow), then past ones newest first. Details: start, length, fishing time (gaps over 2 minutes left out), catches, fish, other, skill gained, worth (today's prices for the open one, the value when it ended for past ones), per fishing hour once there are 5 minutes of it, what was caught. Pause/Resume and End for the open one; Delete asks for a second click.
+
+### Fishing HUD
+
+Small, movable, flat: the same charcoal and bronze, nothing animated.
+
+- Title and "zone · session time" (paused when paused).
+- Rows: Fishing skill / cap with effective skill in blue; the lure Nodewalker put on (name and time left) or "none"; fish caught this session; estimated value with a red "+?" when something has no price.
+- The Fishing + Cooking fish the plan wants next: name, have / ~need, a blue bar.
+- What the Smart Fishing key does next, in gold, with the key on the right. "Bobber out: press when it splashes" while the bobber is out; never a guessed "reel in now".
+- Gear, Lure, Journal buttons. A notice line for a few seconds (new fish, rare catch, lure alerts, collection complete); when the HUD is hidden notices go to the game's error line. No chat messages.
+- Minimal mode: four lines (Fishing, Lure, Caught, Next), no buttons.
+- Shows only with a pole on, a bobber out or a session open. Scale and opacity in Settings › Fishing.

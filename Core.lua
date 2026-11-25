@@ -48,6 +48,13 @@ local DEFAULTS = {
     includeHerb = true,
     onlyGatherable = true,
     onlySkillUps = false,
+    fishHud = true,           -- the fishing HUD, while a pole is on
+    fishHudScale = 1,
+    fishHudAlpha = 0.9,
+    fishInteract = true,      -- the Smart Fishing key reels in through the game's Interact
+    fishHudTarget = true, fishHudValue = true,
+    fishTrack = true, fishTrackSpots = true, fishSessions = true, fishAutoSession = true,
+    fishNotifyNew = true, fishNotifyRare = true, fishNotifyLure = true, fishNotifyTarget = true,
   },
 }
 
@@ -355,6 +362,10 @@ SlashCmdList.NODEWALKER = function(msg)
     NW.ToggleWindow("consumes")
   elseif msg == "prof" or msg == "profs" or msg == "professions" or msg == "level" then
     NW.ToggleProfessions()
+  elseif msg == "journal" or msg == "fish" then
+    if NW.OpenFishJournal then NW.OpenFishJournal() end
+  elseif msg == "fishhud" then
+    if NW.ToggleFishHUD then NW.ToggleFishHUD() end
   elseif msg == "window" or msg == "open" then
     NW.ToggleWindow()
   elseif msg == "options" or msg == "config" then
@@ -405,7 +416,7 @@ SlashCmdList.NODEWALKER = function(msg)
       n, mapID and #(NW.db.nodes[mapID] or {}) or 0,
       (mapID and NW.db.routes[mapID]) and (#NW.db.routes[mapID].stops .. " stops") or "none"))
   else
-    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  farm guide · /nw prof  professions · /nw consumes · /nw options · /nw import  GatherMate2 nodes · /nw status")
+    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  farm guide · /nw prof  professions · /nw consumes · /nw journal · /nw options · /nw import  GatherMate2 nodes · /nw status")
   end
 end
 
@@ -414,3 +425,5 @@ BINDING_HEADER_NODEWALKER = "Nodewalker"
 BINDING_NAME_NODEWALKER_TOGGLE = "Toggle overlay"
 BINDING_NAME_NODEWALKER_PLANNER = "Toggle route planner"
 BINDING_NAME_NODEWALKER_NEXT = "Skip to next stop"
+BINDING_NAME_NODEWALKER_FISHHUD = "Toggle fishing HUD"
+BINDING_NAME_NODEWALKER_JOURNAL = "Fishing Journal"

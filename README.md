@@ -31,6 +31,8 @@ Client: WoW Forever (interface 16001).
 | `/nw guide` | Farm Guide |
 | `/nw prof` | Professions |
 | `/nw consumes` | Consumes |
+| `/nw journal` | Fishing Journal |
+| `/nw fishhud` | Fishing HUD on or off |
 | `/nw options` | Settings |
 | `/nw import` | Import GatherMate2 spots |
 | `/nw import help` | The GatherMate2 import steps |
@@ -39,7 +41,7 @@ Client: WoW Forever (interface 16001).
 | `/nw next` | Skip the route's next stop |
 | `/nw hide <herb>` · `/nw show <herb>` · `/nw hidden` | Hide or show one herb or vein |
 
-`/nodewalker` works the same as `/nw`. Key bindings: Toggle overlay, Toggle route planner, Skip to next stop.
+`/nodewalker` works the same as `/nw`. Key bindings: Toggle overlay, Toggle route planner, Skip to next stop, Toggle fishing HUD, Fishing Journal. The Smart Fishing key is set in Settings › Fishing.
 
 ## Credits
 

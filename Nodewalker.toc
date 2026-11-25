@@ -36,5 +36,7 @@ Planner.lua
 Guide.lua
 Professions\UI.lua
 Professions\Fishing.lua
+Professions\FishJournal.lua
+Professions\SmartFishing.lua
 Consumes.lua
 Options.lua
