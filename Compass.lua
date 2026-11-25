@@ -152,7 +152,24 @@ end
 local panel = CreateFrame("Frame", "NodewalkerSession", UIParent, "BackdropTemplate")
 panel:SetSize(200, 112)
 panel:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -24, 180)
-panel:SetFrameStrata("LOW")
+panel:SetFrameStrata("MEDIUM")
+-- drag it anywhere; it stays where you leave it
+panel:SetMovable(true)
+panel:SetClampedToScreen(true)
+panel:RegisterForDrag("LeftButton")
+panel:SetScript("OnDragStart", function(self) self:StartMoving() end)
+panel:SetScript("OnDragStop", function(self)
+  self:StopMovingOrSizing()
+  local p, _, rp, x, y = self:GetPoint()
+  NW.db.settings.sessionPos = { p, rp, x, y }
+end)
+table.insert(NW.OnLoad, function()
+  local pos = NW.db.settings.sessionPos
+  if pos then
+    panel:ClearAllPoints()
+    panel:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
+  end
+end)
 NW.UI.Flat(panel, { S.bg[1], S.bg[2], S.bg[3], 0.85 }, S.edge)
 panel:Hide()
 NW.sessionPanel = panel
@@ -175,6 +192,7 @@ panel:SetScript("OnEnter", function(self)
   GameTooltip:SetOwner(self, "ANCHOR_LEFT")
   GameTooltip:SetText("Session", 1, 1, 1)
   GameTooltip:AddLine("What you've actually gathered since login or /nw reset session. Value is at Auctionator prices, not gold in your bags.", S.dim[1], S.dim[2], S.dim[3], true)
+  GameTooltip:AddLine("Drag to move.", S.dim[1], S.dim[2], S.dim[3])
   GameTooltip:Show()
 end)
 panel:SetScript("OnLeave", GameTooltip_Hide)
