@@ -706,6 +706,7 @@ local function startLive()
   live.size = nil
   live.altState = nil
   live.active = true
+  if NW.UpdateMinimapButton then NW.UpdateMinimapButton() end
 end
 
 local function stopLive()
@@ -737,6 +738,7 @@ local function stopLive()
   end
   live.moved = {}
   if MinimapCluster and live.cluster then MinimapCluster:Show() end
+  if NW.UpdateMinimapButton then NW.UpdateMinimapButton() end
 end
 
 function NW.IsLive() return live.active end

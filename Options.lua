@@ -305,6 +305,14 @@ local mmReady = false -- not until the game has laid out the minimap
 local ldbIcon -- LibDBIcon, when another addon has loaded it: its button replaces ours
 function NW.UpdateMinimapButton()
   local want = s().minimapButton and true or false
+  -- the overlay hides the minimap and its AddOns menu: our button stays the way back
+  local live = NW.IsLive and NW.IsLive()
+  if live and mmBtn then
+    if ldbIcon then ldbIcon:Hide("Nodewalker") end
+    if mmReady then placeButton() end
+    mmBtn:SetShown(mmReady)
+    return
+  end
   if ldbIcon then
     s().ldbIcon = s().ldbIcon or {}
     s().ldbIcon.hide = not want
