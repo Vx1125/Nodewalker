@@ -262,20 +262,37 @@ local function routeLine(route)
   end
   return ("%s%d route stops  ·  ~%s %s"):format(focus, #route.stops, fmt(route.seconds or 0), route.open and "each way" or "per loop")
 end
--- Why none of this zone's spots show for you: no gathering profession, or your filters
+-- Why none of this zone's spots show for you, per kind of node the zone has:
+-- the profession not learned, your skill too low for all of them, or your filters
+local KIND_PROF = { herb = "Herbalism", ore = "Mining" }
 local function whyNone(mapID, s)
   local kinds = {}
-  for _, n in ipairs(NW.db.nodes[mapID] or {}) do kinds[n.kind] = true end
+  for _, n in ipairs(NW.db.nodes[mapID] or {}) do
+    local k = kinds[n.kind] or {}
+    kinds[n.kind] = k
+    local req = NW.RequiredSkill(n.name)
+    k.minReq = math.min(k.minReq or 999, req or 0)
+  end
   if not next(kinds) then return nil end
-  if s.onlyMyProfessions then
-    local missing = {}
-    if kinds.herb and not NW.GetSkill("herb") then missing[#missing + 1] = "Herbalism" end
-    if kinds.ore and not NW.GetSkill("ore") then missing[#missing + 1] = "Mining" end
-    if #missing > 0 and #missing == (kinds.herb and 1 or 0) + (kinds.ore and 1 or 0) then
-      return table.concat(missing, " and ") .. " not learned"
+  local parts = {}
+  for _, kind in ipairs({ "herb", "ore" }) do
+    local k = kinds[kind]
+    if k then
+      local prof = KIND_PROF[kind]
+      local skill = NW.GetSkill(kind)
+      local on = (kind == "herb" and s.includeHerb ~= false) or (kind == "ore" and s.includeOre ~= false)
+      if not on then
+        parts[#parts + 1] = (kind == "herb" and "Herbs" or "Ore") .. " off in your filters"
+      elseif not skill and (s.onlyMyProfessions or s.onlyGatherable or s.onlySkillUps) then
+        parts[#parts + 1] = prof .. " not learned"
+      elseif skill and s.onlyGatherable and k.minReq > skill then
+        parts[#parts + 1] = prof .. " skill too low"
+      else
+        parts[#parts + 1] = (kind == "herb" and "Herbs" or "Ore") .. " hidden by your filters"
+      end
     end
   end
-  return "Your filters hide this zone's spots"
+  return table.concat(parts, "  ·  ")
 end
 
 local lastMap, leftAt = nil, {}
