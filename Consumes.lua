@@ -1051,7 +1051,10 @@ body:SetClipsChildren(true)
 local emptyText = UI.Text(body, 12, S.dim, "CENTER")
 emptyText:SetPoint("CENTER")
 
-local thumb = body:CreateTexture(nil, "OVERLAY")
+local thumbLayer = CreateFrame("Frame", nil, body)
+thumbLayer:SetAllPoints()
+thumbLayer:SetFrameLevel(body:GetFrameLevel() + 20)
+local thumb = thumbLayer:CreateTexture(nil, "OVERLAY")
 thumb:SetWidth(3)
 thumb:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.5)
 
@@ -1254,8 +1257,9 @@ local function cmpBox(label)
   b.tag:SetPoint("TOPRIGHT", -8, -8)
   b.value = UI.Text(b, 14, S.text)
   b.value:SetPoint("BOTTOMLEFT", 8, 8)
-  b.value:SetPoint("RIGHT", -8, 0)
   b.value:SetWordWrap(false)
+  b.src = UI.Text(b, 10, S.dim, "RIGHT")
+  b.src:SetPoint("BOTTOMRIGHT", -8, 10)
   function b:Set(text, best, dim)
     self.value:SetText(text)
     self.value:SetTextColor(unpack(dim and S.dim or best and S.good or S.text))
@@ -1404,14 +1408,16 @@ local function drawDetail()
   if ah and (not vendor or ah <= vendor) then buy, buySrc = ah, "Auction House" elseif vendor then buy, buySrc = vendor, "Vendor" end
   local canMake = m and m.skill and m.known
   local craftBest = craft and canMake and (not buy or craft < buy)
-  local buyBest = buy and not craftBest and craft ~= nil
+  -- only a real choice gets the outline: buying beats a craft you could do
+  local buyBest = buy and craft and canMake and buy <= craft
   cmpCraft.label:SetText("Craft")
   if craft then
     cmpCraft:Set(money(craft), craftBest, not canMake)
   else
     cmpCraft:Set(m and "No price" or "No recipe", false, true)
   end
-  cmpBuy.label:SetText(buySrc and ("Buy  " .. H.dim .. "·|r " .. buySrc) or "Buy")
+  cmpBuy.src:SetText(buySrc == "Vendor" and "Vendor" or buySrc and "AH" or "")
+  cmpCraft.src:SetText("")
   if buy then cmpBuy:Set(money(buy), buyBest) else cmpBuy:Set("No price", false, true) end
   local short = e and e.short or 0
   if craft and buy and canMake then
@@ -1582,7 +1588,7 @@ refresh = function()
   for i = offset + 1, #visible do
     local e = visible[i]
     local h = e.header and GROUP_H or ITEM_H
-    if y >= BODY_H then break end
+    if y + h > BODY_H then break end
     n = n + 1
     local row = rowFor(n)
     row:ClearAllPoints()
