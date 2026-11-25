@@ -52,7 +52,7 @@ local DEFAULTS = {
     fishHudScale = 1,
     fishHudAlpha = 0.9,
     fishInteract = true,      -- the Smart Fishing key reels in through the game's Interact
-    fishHudTarget = true, fishHudValue = true,
+    fishHudTarget = true, fishHudValue = true, fishLurePref = 6532,
     fishTrack = true, fishTrackSpots = true, fishSessions = true, fishAutoSession = true,
     fishNotifyNew = true, fishNotifyRare = true, fishNotifyLure = true, fishNotifyTarget = true,
   },
@@ -416,7 +416,7 @@ SlashCmdList.NODEWALKER = function(msg)
       n, mapID and #(NW.db.nodes[mapID] or {}) or 0,
       (mapID and NW.db.routes[mapID]) and (#NW.db.routes[mapID].stops .. " stops") or "none"))
   else
-    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  farm guide · /nw prof  professions · /nw consumes · /nw journal · /nw options · /nw import  GatherMate2 nodes · /nw status")
+    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  farm guide · /nw prof  professions · /nw consumes · /nw journal · /nw fishhud · /nw options · /nw import  GatherMate2 nodes · /nw status")
   end
 end
 

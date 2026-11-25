@@ -77,6 +77,8 @@ function J.kind(id)
     if ok then classID, subID = c, s end
   end
   local _, _, quality = NW.ItemInfo(id)
+  -- not in the item cache yet: a best guess, asked again next time
+  local sure = classID ~= nil and quality ~= nil
   local k
   if classID == 7 and subID == 8 then k = "f" -- trade goods: cooking (raw fish)
   elseif classID == 2 or classID == 4 then k = "e"
@@ -86,8 +88,8 @@ function J.kind(id)
   elseif classID == 7 then k = "t"
   elseif classID == 15 then k = "c" -- miscellaneous: lockboxes, crates and other things to open
   elseif classID then k = "o" end
-  if k then kindMemo[id] = k end
-  return k or "o"
+  if k and sure then kindMemo[id] = k end
+  return k or "o", sure
 end
 J.KIND_LABEL = { f = "Fish", t = "Trade goods", e = "Gear", c = "Containers and treasure", j = "Junk", o = "Other" }
 
@@ -96,10 +98,14 @@ J.KIND_LABEL = { f = "Fish", t = "Trade goods", e = "Gear", c = "Containers and 
 ------------------------------------------------------------------------
 function J.where()
   local mapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+  if not NW.Readable(mapID) then return nil end -- hidden here (an instance, say)
   local x, y
-  if mapID and C_Map.GetPlayerMapPosition then
+  if C_Map.GetPlayerMapPosition then
     local ok, pos = pcall(C_Map.GetPlayerMapPosition, mapID, "player")
-    if ok and pos and pos.GetXY then x, y = pos:GetXY() end
+    if ok and pos and pos.GetXY then
+      local ok2, a, b = pcall(pos.GetXY, pos)
+      if ok2 and NW.Readable(a) and NW.Readable(b) then x, y = a, b end
+    end
     if x == 0 and y == 0 then x, y = nil, nil end
   end
   return mapID, x, y
@@ -181,6 +187,14 @@ function J.DeleteSession(i)
   if log and log.sessions[i] then table.remove(log.sessions, i); changed("sessions") end
 end
 
+-- 20 minutes without fishing ends the open session at your last activity
+function J.CheckIdle()
+  local s = J.session()
+  if s and not s.pausedAt and now() - (s.last or now()) > SESSION_END then J.End(s.last) end
+end
+-- Sessions turned off: the open one ends
+function J.SessionsOff() if J.session() then J.End() end end
+
 -- You're fishing: counts toward active time, starts or rolls over the session
 function J.Activity()
   if st().fishSessions == false then return end
@@ -219,11 +233,12 @@ function J.Record(id, qty, quality, newCatch)
   if not log or not id then return end
   qty = qty or 1
   local t = now()
-  local k = J.kind(id)
+  local k, sure = J.kind(id)
   local fish = k == "f"
   local it = log.items[id]
   local discovered = not it
   if not it then it = { n = 0, first = t, k = k }; log.items[id] = it end
+  if sure and it.k ~= k then it.k = k end -- a guess made before the item was cached
   it.n, it.last = it.n + qty, t
   if newCatch then log.catches = log.catches + 1 end
   if fish then log.fish = log.fish + qty else log.other = log.other + qty end
@@ -289,10 +304,14 @@ function J.IsFishingWindow()
   return (GetTime() - lastStop) < 4 and fromObject()
 end
 local function openWindow()
-  if win then return end
-  if not J.IsFishingWindow() then win = { skip = true } return end
-  win = { slots = {} }
+  if win and win.skip then return end
+  if not win then
+    if not J.IsFishingWindow() then win = { skip = true } return end
+    win = { slots = {}, seen = {} }
+  end
+  -- the second event (LOOT_OPENED after LOOT_READY) fills any slot not ready the first time
   for i = 1, (GetNumLootItems and GetNumLootItems() or 0) do
+    if win.slots[i] == nil and not win.seen[i] then
     local link = GetLootSlotLink and GetLootSlotLink(i)
     local id = type(link) == "string" and tonumber(link:match("item:(%d+)"))
     if id then
@@ -300,6 +319,8 @@ local function openWindow()
       -- quality from the item itself: the loot slot's return order differs between clients
       local _, _, quality = NW.ItemInfo(id)
       win.slots[i] = { id, tonumber(qty) or 1, tonumber(quality) }
+      win.seen[i] = true
+    end
     end
   end
 end
@@ -308,7 +329,7 @@ NW.On("LOOT_OPENED", openWindow)
 NW.On("LOOT_SLOT_CLEARED", function(slot)
   local e = win and win.slots and win.slots[slot]
   if not e then return end
-  win.slots[slot] = nil
+  win.slots[slot] = false -- taken: never counted again
   local first = not win.catch
   win.catch = true
   J.Record(e[1], e[2], e[3], first)
@@ -316,6 +337,8 @@ end)
 NW.On("LOOT_CLOSED", function() win = nil end)
 -- casting, and the end of the channel (the window that follows is the catch)
 local function isFishing(spellID, unit)
+  -- event values can be hidden from addons in combat: those aren't fishing
+  if not (NW.Readable(unit) and NW.Readable(spellID)) then return false end
   if unit ~= "player" then return false end
   if FISHING[spellID] then return true end
   local name = spellID and C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID)

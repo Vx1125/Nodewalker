@@ -822,7 +822,7 @@ function NW.DisenchantValue(itemID)
 end
 
 -- How much one craft costs, after anything you choose to count as free
-local function craftCost(r, s)
+local function craftCost(r, sell)
   local cost, unknown = 0, 0
   local guess = 0
   for _, re in ipairs(r.reagents) do
@@ -836,11 +836,11 @@ local function craftCost(r, s)
   end
   r.guessExtra = guess -- planning leans away from guessed prices a little
   r.matCost = cost -- what the materials really cost, before any sale value
-  if s.planSellBack == "de" and r.item then
+  if sell == "de" and r.item then
     -- what it breaks into is worth nearly what it lists for; dust always sells
     local value = NW.DisenchantValue(r.item)
     if value then cost = math.max(cost * 0.1, cost - value * 0.95 * (r.yield or 1)) end
-  elseif s.planSellBack and r.item then
+  elseif sell and r.item then
     local value = auctionator(r.item)
     -- half: not everything sells. A craft never counts as cheaper than a fifth
     -- of its materials, or the plan would mass-produce whatever lists highest.
@@ -861,18 +861,26 @@ function NW.BuildPlan(key, from, to)
   local strategy = s.planStrategy
   -- Cooking can be held to some ingredients (fish only, no fish, or what the Fishing + Cooking plan allows)
   local allow = key == "cooking" and NW.CookAllow or nil
-  local cacheKey = ("%s:%d:%d:%s%s:%s:%s"):format(key, from, to, s.planRecipeItems and "r" or "", s.planSellBack == "de" and "d" or s.planSellBack and "s" or "", strategy or "",
+  -- Cooking has no resale choice on its page, so it never counts one
+  local sell = key ~= "cooking" and s.planSellBack or false
+  local cacheKey = ("%s:%d:%d:%s%s:%s:%s"):format(key, from, to, s.planRecipeItems and "r" or "", sell == "de" and "d" or sell and "s" or "", strategy or "",
     allow and NW.CookAllowKey() or "")
+  local recipes = NW.RECIPES[key] or {}
+  -- this profession's "make it yourself" table, even when the plan comes from the cache
+  if NW.craftKey ~= key then
+    priceMemo = {}
+    NW.craftKey = key
+    craftOf = {}
+    for _, r in ipairs(recipes) do if r.item and not craftOf[r.item] and not onCooldown(r) then craftOf[r.item] = r end end
+  end
   if planCache[cacheKey] then return planCache[cacheKey] end
 
-  local recipes = NW.RECIPES[key] or {}
   local _, maxSkill = NW.ProfSkill(key)
-  if NW.craftKey ~= key then priceMemo = {}; NW.craftKey = key end
   craftOf = {}
   for _, r in ipairs(recipes) do if r.item and not craftOf[r.item] and not onCooldown(r) then craftOf[r.item] = r end end
 
   local costOf, unknownOf = {}, {}
-  for i, r in ipairs(recipes) do costOf[i], unknownOf[i] = craftCost(r, s) end
+  for i, r in ipairs(recipes) do costOf[i], unknownOf[i] = craftCost(r, sell) end
 
   -- What it costs once to get a recipe you don't know: the recipe item, or
   -- the trainer's fee. Spread over the points it would be used for, so the

@@ -2734,7 +2734,7 @@ refresh = function()
     MS.ov:SetShown(isMissing and not isProfit and not showCard)
     MS.ctl:SetShown(isMissing and not isProfit)
   end
-  rHead.text:SetText(isProfit and "Profit" or isMissing and "Recipe collection" or isCraft and "Shopping list" or (p.key == "fishing" and "Fishing + Cooking" or "Notes"))
+  rHead.text:SetText(isProfit and "Profit" or isMissing and "Recipe collection" or isCraft and "Shopping list" or "Notes")
   scrollDraw = isProfit and function() drawProfitRows(p.key) end
     or isMissing and function() drawMissingRows(p.key) end
     or (not isCraft and function() drawGatherRows(p.key) end) or nil

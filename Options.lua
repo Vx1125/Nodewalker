@@ -273,7 +273,7 @@ if NW.SmartFish then
     function() return s().fishLure or "off" end, function(v) s().fishLure = v; hud(); refreshAll() end, 200,
     "When there's no lure on your pole, Smart Fishing puts one on first."), 30, 2)
   local pref = place(1, UI.Dropdown(page, COL_W - 20, "Preferred lure", lureItems,
-    function() return s().fishLurePref or 6532 end, function(v) s().fishLurePref = v; hud() end, 200), 30, 2)
+    function() return s().fishLurePref or SF.DEFAULT_LURE end, function(v) s().fishLurePref = v; hud() end, 200), 30, 2)
   local oldPref = pref.Refresh
   function pref:Refresh() if oldPref then oldPref(self) end self:SetAlpha(s().fishLure == "pref" and 1 or 0.45) end
   local alt = check(1, "Use another lure if I'm out", "fishLureAlt", nil, hud)
@@ -305,7 +305,7 @@ if NW.SmartFish then
   place(1, saveBtn, 30, 2)
   local clearBtn = UI.Button(page, "Clear", 70, function() SF.ClearGear(); refreshAll() end, 24)
   clearBtn:SetPoint("LEFT", saveBtn, "RIGHT", 6, 0)
-  local eq = SF.Button(page, "equip", 126, 24, "Equip fishing gear")
+  local eq = SF.Button(page, "equip", 126, 24, "Equip fishing gear") -- (ordinary buttons: out of combat)
   place(1, eq, 30, 2)
   local rs = SF.Button(page, "restore", 126, 24, "Restore my gear")
   rs:SetPoint("LEFT", eq, "RIGHT", 6, 0)
@@ -317,7 +317,7 @@ if NW.SmartFish then
   check(1, "Sound", "fishSound")
 
   heading(2, "Fishing HUD")
-  check(2, "Show the HUD", "fishHud", "While a fishing pole is on, or a session is open.", hud)
+  check(2, "Show the HUD", "fishHud", "While a fishing pole is on, or for 5 minutes after you last fished.", hud)
   checkBeside(2, "Minimal", "fishHudMini", nil)
   check(2, "Lock position", "fishHudLock")
   checkBeside(2, "Cooking target", "fishHudTarget", "The fish your Fishing + Cooking plan wants next.")
@@ -327,8 +327,8 @@ if NW.SmartFish then
   heading(2, "Journal")
   check(2, "Record catches", "fishTrack", "Only loot the game marks as fishing loot.")
   checkBeside(2, "Catch spots", "fishTrackSpots", "Where you stood, to 2% of the map.")
-  check(2, "Sessions", "fishSessions")
-  checkBeside(2, "Start one when I cast", "fishAutoSession", "A session ends after 20 minutes without fishing.")
+  check(2, "Sessions", "fishSessions", nil, function(v) if not v and NW.FishJournal then NW.FishJournal.SessionsOff() end end)
+  checkBeside(2, "Start one when I cast", "fishAutoSession", "A session ends 20 minutes after you last fished.")
   local jb = UI.Button(page, "Open the Journal", 180, function() NW.OpenFishJournal() end, 24)
   place(2, jb, 30, 2)
 end

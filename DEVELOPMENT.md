@@ -68,11 +68,11 @@ One key, set in Settings › Fishing, applied as an override binding (`SetOverri
 2. lures on (Settings › Fishing › Lure), no temporary enchant on the pole, and a lure in your bags: `/use item:<lure>` then `/use 16`;
 3. otherwise: the Fishing spell.
 
-While the Fishing channel runs, the key is pointed at `INTERACTTARGET` and `SoftTargetInteract` is set to 3 (restored when the channel ends), so the same key reels in through the game's soft-target interact. The game gives addons no bite signal: the HUD says "press when it splashes", nothing more. Nothing happens without a key press, and bindings and secure buttons aren't changed in combat (queued for `PLAYER_REGEN_ENABLED`).
+While the Fishing channel runs, the key is pointed at `INTERACTTARGET` and `SoftTargetInteract` is set to 3 (its earlier value is saved in the settings and put back when the channel ends, after combat, or at the next login), so the same key reels in through the game's soft-target interact. The game gives addons no bite signal: the HUD says "press when it splashes", nothing more. Nothing happens without a key press, and bindings and secure buttons aren't changed in combat (queued for `PLAYER_REGEN_ENABLED`).
 
 Researched: EzFishing Forever and Fishing-OneKey (MIT) do the same cast / interact switch; FishFry Forever (all rights reserved) wasn't read for code.
 
-- **Gear:** "Use what I'm wearing" saves your pole and, if ticked, head, hands and feet (per character, `charDB.fishGear`). Without a saved set, the best pole in your bags (`SF.POLES`, else +0). Before equipping, what you wore in the main hand, off hand and the set's slots is saved (`charDB.fishPrev`), but never while you already have a pole on. Restore puts back what's in your bags and names what isn't.
+- **Gear:** "Use what I'm wearing" saves your pole and, if ticked, head, hands and feet (per character, `charDB.fishGear`). Without a saved set, the best pole in your bags (`SF.POLES`, else +0). Before equipping, what you wore in the main hand, off hand and the set's slots is saved (`charDB.fishPrev`). With a pole already on, only set slots not yet saved are added, so your normal gear is never replaced by fishing gear. Restore puts back what's in your bags, names what isn't, and the snapshot is cleared once everything is back on. The settings page and HUD Gear buttons and Restore are ordinary buttons using `EquipItemByName` (out of combat); the only visible secure button is the HUD's Lure button, parented to `UIParent` and placed by coordinates, so the HUD and the window never become protected in combat.
 - **Lures:** No lure, My preferred lure (optionally another if you're out), or Strongest I carry. Bonuses from Method's WoW Forever guide. A lure isn't replaced while one is on. The lure's name shows only if Nodewalker put it on (the game reports only that an enchant is there and its time left). Alerts: 30 seconds left, expired, under 3 left, preferred one missing; each once.
 
 ### Catch attribution (`Professions/FishJournal.lua`)
@@ -93,10 +93,10 @@ Per character in `db.chars[name-realm].fishLog`, schema `v = 1`:
 No prices are kept per catch. "All characters" adds the characters' logs up when you look. The open session is `charDB.fishSession`; it survives a reload and ends at login if it's been idle over 20 minutes.
 
 ### Sessions
-Start with your first cast or catch (Settings: Start one when I cast), or not at all (Sessions off). Fishing time adds the gap between casts and catches only when it's 2 minutes or less, so AFK time doesn't count. 20 minutes without fishing ends a session at your last activity. Pause, Resume, End and Delete are in the Journal's Sessions view.
+Start with your first cast or catch (Settings: Start one when I cast), or not at all (Sessions off). Fishing time adds the gap between casts and catches only when it's 2 minutes or less, so AFK time doesn't count. 20 minutes without fishing ends a session at your last activity (checked every second, not only on the next cast). Pause, Resume, End and Delete are in the Journal's Sessions view.
 
 ### Fishing + Cooking in the HUD
-`SF.Target()` runs `F.Build()` only after bags, skills or recipes change (never per catch) and shows the plan's current fish: have, ~need, a bar. When it fills and the next step is to cook, "Collection complete. Next: Cook …".
+`SF.Target()` runs `F.Build()` only after bags, skills or recipes change, at most once every 5 seconds and shows the plan's current fish: have, ~need, a bar. When it fills and the next step is to cook, "Collection complete. Next: Cook …".
 
 ### Known limits
 - Reeling needs the game's interact targeting to reach the bobber (line of sight, range). If it can't, click the bobber.

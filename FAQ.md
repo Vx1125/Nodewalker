@@ -28,7 +28,7 @@ No. Profit is the current lowest listing, minus the auction cut, minus material 
 Auctionator hasn't seen the item listed, or isn't installed. Scan the auction house and they fill in. Totals missing a price show a red "+?".
 
 **Do I have to fish to level Cooking?**
-No. Cooking plans from any ingredients by default. The Ingredients menu limits it to fish recipes or none. Fishing + Cooking is there if you want to catch your own.
+No. Cooking plans from any ingredients by default. The ingredients menu (All ingredients, Fish recipes, No fish) limits it to fish recipes or none. Fishing + Cooking is there if you want to catch your own.
 
 **How many casts will Fishing take?**
 Nodewalker doesn't say. Catch rates and each zone's fishing skill aren't published for WoW Forever, so it gives a skill to reach and where to fish for it.

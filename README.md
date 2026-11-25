@@ -41,7 +41,7 @@ Client: WoW Forever (interface 16001).
 | `/nw next` | Skip the route's next stop |
 | `/nw hide <herb>` · `/nw show <herb>` · `/nw hidden` | Hide or show one herb or vein |
 
-`/nodewalker` works the same as `/nw`. Key bindings: Toggle overlay, Toggle route planner, Skip to next stop, Toggle fishing HUD, Fishing Journal. The Smart Fishing key is set in Settings › Fishing.
+`/nodewalker` works the same as `/nw`. Key bindings: Toggle overlay, Toggle route planner, Skip to next stop, Toggle fishing HUD, Fishing Journal. The Smart Fishing key is set in Settings › Fishing; while Nodewalker is loaded it takes over whatever that key was bound to.
 
 ## Credits
 

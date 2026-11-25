@@ -81,12 +81,12 @@ The overlay is a map for getting around, not a second window. It keeps its own c
 Fishing isn't a craft, so it has its own page in the same space (centre list, right details), drawn by `Professions/Fishing.lua`. Cooking keeps the craft layout.
 
 - **Fishing header:** skill / cap, rank, and effective skill in Fishing blue (`F.BLUE`, #7AA0C1) when gear or a lure adds to it. Next rank on the right: name, skill, level.
-- **Three views:** Leveling, Fish Finder, Fishing + Cooking, styled like a craft's views.
+- **Four views:** Leveling, Fish Finder, Fishing + Cooking, Journal, styled like a craft's views.
 - **Leveling:** a folding heading per rank (Apprentice 1-75 ... Artisan 225-300), the training row first, then one row per zone with up to five fish icons. Your faction's cities first, the other faction's last and dimmed. Clicking a zone shows its details on the right; nothing is truncated into a list of names.
 - **Location details:** recommended skill, "Zone minimum: not published" (WoW Forever doesn't publish it), lure for the range, fish "Caught here" (named by a source) apart from "Also at this skill" (by skill range only), what they cook, and your skill, gear and lure bonus, effective skill. One action: Show on map (opens the zone; no pin, the data is by zone).
-- **Fish Finder:** search and a Filters menu (Catchable now, Used in Cooking, In my plan). Rows: icon, name, bag count, fished-from skill, auction price. Details: where, when (coast, night, day) if a source says, recipes using it.
+- **Fish Finder:** search and a Filters menu (Catchable now, Used in Cooking, In my Fishing + Cooking plan). Rows: icon, name, bag count, fished-from skill, auction price. Details: where, when (coast, night, day) if a source says, recipes using it.
 - **Fishing + Cooking:** both professions on two lines with thin bars (Fishing blue, Cooking gold) and a Target each; a Fish mode (Catch them / Catch or buy) and an Options menu. The plan in folding phases; each step one row with a status mark (tick done, red cross blocked with the reason on the right, gold arrow next). Finished phases fold and dim. The right panel follows the selected step: a fish (have / need / left with a blue bar, where, other fish that work), a cook step (ingredients have/need), training, a recipe (one source per line), fishing to a skill (zones, lure). What you'll pay and what the catch is worth stay at the bottom.
-- **Cooking:** the craft layout. An Ingredients dropdown (All ingredients, Fish recipes, No fish) sits where the resale choice is for other crafts. The shopping list adds a Fish group and calls the rest "Meat and other"; clicking a fish away from the auction house opens it in the Fish Finder. A "Fishing + Cooking plan" button under the list opens the same shared plan as Fishing's tab.
+- **Cooking:** the craft layout. An ingredients dropdown (All ingredients, Fish recipes, No fish) sits where the resale choice is for other crafts; Cooking plans never count resale. The shopping list adds a Fish group and calls the rest "Meat and other"; clicking a fish away from the auction house opens it in the Fish Finder. A "Fishing + Cooking plan" button under the list opens the same shared plan as Fishing's tab.
 - **Numbers:** fish counts are estimates (`~`); catch counts for fishing skill-ups and catch rates are never shown, because nobody publishes them for WoW Forever. A fish's market value is shown as "worth", never as money you pay.
 
 ### Fishing Journal
@@ -105,6 +105,6 @@ Small, movable, flat: the same charcoal and bronze, nothing animated.
 - Rows: Fishing skill / cap with effective skill in blue; the lure Nodewalker put on (name and time left) or "none"; fish caught this session; estimated value with a red "+?" when something has no price.
 - The Fishing + Cooking fish the plan wants next: name, have / ~need, a blue bar.
 - What the Smart Fishing key does next, in gold, with the key on the right. "Bobber out: press when it splashes" while the bobber is out; never a guessed "reel in now".
-- Gear, Lure, Journal buttons. A notice line for a few seconds (new fish, rare catch, lure alerts, collection complete); when the HUD is hidden notices go to the game's error line. No chat messages.
+- Gear, Lure, Journal buttons. A notice line for a few seconds (new fish, rare catch, lure alerts, collection complete); when the HUD is hidden, notices (lure alerts too) go to the game's error line. No chat messages.
 - Minimal mode: four lines (Fishing, Lure, Caught, Next), no buttons.
-- Shows only with a pole on, a bobber out or a session open. Scale and opacity in Settings › Fishing.
+- Shows only with a pole on, a bobber out, or for 5 minutes after you last fished. Scale and opacity in Settings › Fishing.

@@ -242,11 +242,11 @@ function F.Build()
     ctx = {
       key = ("fc%d:%d:%s%s%s"):format(base, fishTo, c.buyFish and "b" or "", c.nonFish and "n" or "", c.noVendor and "" or "v"),
       buyFish = c.buyFish, nonFish = c.nonFish, vendor = not c.noVendor,
-      fishAt = function(sk) return math.min(fishTo, math.max(base, TIERS[tierOf(sk)][2])) end,
+      fishAt = function(sk) return math.max(base, math.min(fishTo, TIERS[tierOf(sk)][2])) end,
     }
     local s = NW.db.settings
     local a, b, d = s.planStrategy, s.planRecipeItems, s.planSellBack
-    s.planStrategy, s.planRecipeItems, s.planSellBack = nil, c.noRecipes and false or true, false
+    s.planStrategy, s.planRecipeItems, s.planSellBack = nil, not c.noRecipes, false
     local ok, res = pcall(NW.BuildPlan, "cooking", cookFrom, cookTo)
     s.planStrategy, s.planRecipeItems, s.planSellBack = a, b, d
     ctx = nil
@@ -261,6 +261,10 @@ function F.Build()
   local known = NW.charDB.known.cooking or {}
   local seenR = {} -- a recipe is got once, in the first phase that uses it
   local nextFound
+  -- set once a training step can't be done (or a stretch has no recipe): later
+  -- steps that need it are blocked with the same reason
+  local fishBlock, cookBlock, gapBlock
+  local fishCap, cookCap = fishMax or 75, cookMax or 75
   for ti, t in ipairs(TIERS) do
     local lo, hi = t[1], t[2]
     local ph = { name = t[3], lo = lo, hi = hi, ti = ti, actions = {} }
@@ -289,6 +293,8 @@ function F.Build()
         local done = fishMax and fishMax >= hi or false
         local a = add({ kind = "train", prof = "fishing", rank = r, label = "Train " .. r.name .. " Fishing", done = done })
         if not done and level < r.level then a.blocked = ("Needs level %d"):format(r.level) end
+        if not done and fishBlock then a.blocked = a.blocked or fishBlock end
+        if a.blocked and not fishBlock then fishBlock = "Needs " .. r.name .. " Fishing" end
         if not done and r.item then
           local p = NW.Price(r.item)
           a.cost = p or r.price
@@ -300,6 +306,8 @@ function F.Build()
         local done = cookMax and cookMax >= hi or false
         local a = add({ kind = "train", prof = "cooking", crank = ru, label = "Train " .. ru.name .. " Cooking", done = done })
         if not done and ru.level and level < ru.level then a.blocked = ("Needs level %d"):format(ru.level) end
+        if not done and cookBlock then a.blocked = a.blocked or cookBlock end
+        if a.blocked and not cookBlock then cookBlock = "Needs " .. ru.name .. " Cooking" end
         local fee = (NW.RANK_FEE.cooking or {})[ru.name]
         if not done and fee then a.cost = fee; plan.fees = plan.fees + fee end
       end
@@ -309,6 +317,7 @@ function F.Build()
         if r and st.needsRecipe and not seenR[r.name] then
           seenR[r.name] = true
           local a = add({ kind = "recipe", recipe = r, label = "Get recipe: " .. r.name, done = known[r.name] or false })
+          if not a.done and (cookBlock or gapBlock) and (lo >= cookCap or (r.orange or r.yellow) >= cookCap) then a.blocked = cookBlock or gapBlock end
           if r.recipeItem then
             local p, src = NW.Price(r.recipeItem)
             if p and (src == "ah" or src == "vendor") then a.cost = p end
@@ -337,7 +346,8 @@ function F.Build()
       end
       table.sort(vlist, function(x, y) return x.id < y.id end)
       if #vlist > 0 then
-        add({ kind = "vendor", items = vlist, label = "Buy vendor supplies", done = vdone })
+        local va = add({ kind = "vendor", items = vlist, label = "Buy vendor supplies", done = vdone })
+        if not vdone and (cookBlock or gapBlock) then va.blocked = cookBlock or gapBlock end
         for _, e in ipairs(vlist) do plan.vendor[#plan.vendor + 1] = e end
       end
       local olist = {}
@@ -350,13 +360,15 @@ function F.Build()
       if #olist > 0 then
         local odone = true
         for _, e in ipairs(olist) do if e.have < e.need then odone = false end end
-        add({ kind = "other", items = olist, label = "Get other ingredients", done = odone })
+        local oa = add({ kind = "other", items = olist, label = "Get other ingredients", done = odone })
+        if not odone and (cookBlock or gapBlock) then oa.blocked = cookBlock or gapBlock end
         for _, e in ipairs(olist) do plan.buy[#plan.buy + 1] = e end
       end
       if fishHere then
         local bi, b = F.bracketFor(math.max(base, lo))
-        add({ kind = "fishto", from = math.max(base, lo), to = fishAtEnd, bracket = bi, b = b,
+        local fa = add({ kind = "fishto", from = math.max(base, lo), to = fishAtEnd, bracket = bi, b = b,
           label = ("Fish to %d"):format(fishAtEnd), done = (fishNow or 0) >= fishAtEnd })
+        if not fa.done and fishBlock and fishAtEnd > fishCap then fa.blocked = fishBlock end
       end
       for _, id in ipairs(fishOrder) do
         local n = fishNeed[id]
@@ -369,6 +381,8 @@ function F.Build()
           label = (buy and "Buy " or "Catch ") .. (F.itemName(id)), done = h >= n })
         if not reach and not c.buyFish then
           a.blocked = f.skill and ("Needs Fishing %d"):format(f.skill) or "No fishing data for it"
+        elseif not a.done and not buy and fishBlock and f.skill and f.skill > fishCap then
+          a.blocked = fishBlock
         end
         local pr = NW.Price(id)
         a.value = pr and pr * n or nil
@@ -376,11 +390,16 @@ function F.Build()
       end
       for _, st in ipairs(cookSteps) do
         if st.recipe then
-          add({ kind = "cook", step = st, recipe = st.recipe, label = ("Cook %s"):format(st.recipe.name),
+          local ca = add({ kind = "cook", step = st, recipe = st.recipe, label = ("Cook %s"):format(st.recipe.name),
             done = (cookNow or 0) >= st.to })
+          if not ca.done then
+            if gapBlock then ca.blocked = gapBlock
+            elseif cookBlock and st.to > cookCap then ca.blocked = cookBlock end
+          end
         else
           local a = add({ kind = "gap", step = st, label = ("No recipe for %d-%d"):format(st.from, st.to), done = false })
           a.blocked = c.nonFish and "Nothing in the data" or "Allow non-fish recipes"
+          gapBlock = gapBlock or ("Needs a recipe for %d-%d"):format(st.from, st.to)
         end
       end
       -- the phase is finished when everything in it is
@@ -412,7 +431,7 @@ function F.Build()
   for _, a in ipairs(plan.fish) do
     local p, src = NW.Price(a.fish)
     if a.buy then
-      if p and src ~= "est" then pay = pay + p * (a.need - a.have) else unknown = true end
+      if p and src ~= "est" then pay = pay + p * (a.need - a.have) elseif a.need > a.have then unknown = true end
     elseif p and src ~= "est" then
       value = value + p * a.need
     end
@@ -552,6 +571,7 @@ for i = 1, 24 do
       return
     end
     F.sel = it.selKey
+    F.confirmDelete = nil
     F.Redraw()
   end)
   r:SetScript("OnEnter", function(self)
@@ -650,7 +670,7 @@ W.rSub:SetWidth(RIGHT_W - 44)
 W.rSub:SetWordWrap(false)
 -- label / value lines and plain lines, laid out top to bottom
 W.lines = {}
-for i = 1, 22 do
+for i = 1, 28 do
   local l = UI.Text(W.right, 11, S.dim)
   local v = UI.Text(W.right, 11, S.text, "RIGHT")
   l:SetWordWrap(false)
@@ -1062,7 +1082,7 @@ W.opts = UI.CheckMenu(W.combo, "Options", 100, {
   { "Non-fish recipes", function() return F.cfg().nonFish end, function(v) F.cfg().nonFish = v or nil end,
     "Meat and other ingredients you'd buy or farm, where they're cheaper or fill a gap." },
   { "Recipes to buy", function() return not F.cfg().noRecipes end, function(v) F.cfg().noRecipes = (not v) or nil end,
-    "Plans with vendor and drop recipes, not only trainer ones." },
+    "Plans with vendor and drop recipes. Off: trainer and known recipes first, bought ones only where nothing else gives skill-ups." },
   { "Vendor supplies", function() return not F.cfg().noVendor end, function(v) F.cfg().noVendor = (not v) or nil end,
     "Spices, flour and the like." },
 }, function() F.Redraw() end)
