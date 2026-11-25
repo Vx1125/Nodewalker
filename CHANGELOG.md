@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.22
+
+- Overlay: removed the green "confirmed up" look; known spots all look the same, and your minimap's own dots show what's up.
+- Removed the "Confirmed nodes only" setting.
+
 ## 1.1.21
 
 - Fishing has its own page: Leveling, Fish Finder, Fishing + Cooking, Journal.
