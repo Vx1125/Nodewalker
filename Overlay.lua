@@ -354,12 +354,7 @@ local SOURCES = { me = "you gathered it here", gm2 = "your GatherMate2", gm2data
 local SKILL_RGB = { red = { 1, 0.2, 0.2 }, orange = { 1, 0.5, 0.25 }, yellow = { 1, 1, 0 }, green = { 0.25, 0.75, 0.25 }, grey = { 0.5, 0.5, 0.5 } }
 local function nodeLines(info)
   local n, lines = info.n, {}
-  local seenAgo = info.seenAgo
-  if seenAgo then
-    lines[#lines + 1] = { ("Seen up %s ago"):format(seenAgo < 60 and "under a minute" or (math.floor(seenAgo / 60) .. " min")), 0.55, 1, 0.4 }
-  else
-    lines[#lines + 1] = { "Known spot, not confirmed", 0.7, 0.7, 0.7 }
-  end
+  lines[#lines + 1] = { "Known spot", 0.7, 0.7, 0.7 }
   local req, skill = NW.RequiredSkill(n.name), NW.GetSkill(n.kind)
   if req and skill then
     local rgb = SKILL_RGB[NW.SkillColor(req, skill)]
@@ -939,8 +934,11 @@ local function drawInner(force)
     local vx, vy = toView(n.x, n.y)
     -- cheap tests first: most saved spots are off screen
     if onScreen(vx, vy) and showKind[n.kind] and not NW.IsHidden(n.name) then
-      local seenAgo = NW.SeenAgo(mapID, i)
-      local pickedAgo = not seenAgo and NW.PickedAgo(mapID, i)
+      -- Every known spot looks the same: whether a node is up is the minimap's
+      -- own dots' job (a "confirmed" look from tooltip sightings misled more
+      -- than it helped, so it was removed).
+      local seenAgo = nil
+      local pickedAgo = NW.PickedAgo(mapID, i)
       -- With live dots on, the game shows what's really up near you, so known
       -- spots are only drawn beyond the live circle (and only if asked).
       local hideKnown
@@ -949,9 +947,9 @@ local function drawInner(force)
         if d and d < liveRadius then hideKnown = hasRoute -- route stops stand in for them
         else hideKnown = not s.showKnownSpots end
       end
-      if not pickedAgo and (seenAgo or not s.onlyConfirmed) and vx * vx + vy * vy < nearPx * nearPx then near = true end
-      if not pickedAgo and not hideKnown and (seenAgo or not s.onlyConfirmed) then
-        local it = item(vx, vy, seenAgo and 3 or 1)
+      if not pickedAgo and vx * vx + vy * vy < nearPx * nearPx then near = true end
+      if not pickedAgo and not hideKnown then
+        local it = item(vx, vy, 1)
         it.node, it.seenAgo, it.name, it.kind = n, seenAgo, n.name, n.kind
       end
     end
@@ -982,8 +980,8 @@ local function drawInner(force)
         if state and state ~= "picked" and vx * vx + vy * vy < nearPx * nearPx then near = true end
       end
       if state then
-        local up = state ~= "picked" and NW.StopSeenAgo(mapID, i)
-        local it = item(vx, vy, state == "next" and 5 or (up and 4 or (state == "picked" and 0 or 2)))
+        local up = nil -- (no "confirmed" look; see above)
+        local it = item(vx, vy, state == "next" and 5 or (state == "picked" and 0 or 2))
         it.stop, it.st, it.state, it.up, it.label, it.name, it.kind = i, st, state, up, label, base, st.kind
         it.picked, it.seen = state == "picked", seen
         stopItem[i] = it

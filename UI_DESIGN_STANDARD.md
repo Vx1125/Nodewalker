@@ -58,7 +58,7 @@ The overlay is a map for getting around, not a second window. It keeps its own c
 - **Route:** cyan (`C.route`) with a dark underline. Legs near you are brightest and thickest (3.5 px, 95%) and carry direction arrows. Further out they thin (2.5 px, then 1.5 px) and fade, down to 18% at the map's edge. Nothing animates.
 - **No "next stop" highlight.** It was removed on purpose: a highlighted stop read as "a herb is here" when nothing was.
 - **Marker states**, using the game's herb and ore icons:
-  - **Confirmed up:** seen on your minimap or in the world recently. Full opacity, green edge and soft glow.
+  - **Live:** your minimap's own dots, drawn over the overlay. Nodewalker has no "confirmed up" look of its own: one built from tooltip sightings lit spots that weren't there, so it was removed (1.1.22).
   - **Known spot:** a saved location with no recent sighting. Faded (`fadedAlpha`, 35%). Never drawn as available.
   - **Gathered:** a small grey dot until the gathered node cooldown ends. Can be hidden ("Show gathered spots", off in Minimal).
 - **Detection radius:** a thin dashed ring showing your minimap's range, the area live nodes can appear in. It is not a gathering range.

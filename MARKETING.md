@@ -36,7 +36,7 @@ In this order. The first image is the overlay in the game world, because nothing
 | 2–4 s | Click a zone row (the one you're standing in). The preview map draws its loop. | Pick a zone |
 | 4–5 s | Click **Build route**. | Build the route |
 | 5–6 s | Close the window, type `/nw`. The overlay fades in. | |
-| 6–11 s | Ride along the cyan line, a few known spots ahead, the compass bar showing stops. One node goes green as it reaches your minimap. | Follow it |
+| 6–11 s | Ride along the cyan line, a few known spots ahead, the compass bar showing stops. A node's live minimap dot appears as you come in range. | Follow it |
 | 11–14 s | Gather the node. Its marker turns into a grey dot; the session panel's count goes up. | Gathered spots grey out |
 
 Framing: full 1920×1080 game, UI scale default, overlay in Farming preset at about 50% of the screen. Daylight zone with clear terrain (Elwynn, Mulgore, Tirisfal). Mounted for the ride, unmounted to gather. Hide other addons' frames and chat.

@@ -14,7 +14,7 @@ Type `/nw prof` to open the window, or click the Nodewalker button on your minim
 3. Click a zone in the list. The map shows its loop.
 4. Click **Build route**.
 5. Go to that zone and type `/nw` to show the overlay.
-6. Follow the cyan line. Green markers are on your minimap right now; faded ones are spots seen before.
+6. Follow the cyan line. Your minimap's dots show what's up now; faded icons are spots seen before.
 
 When you enter a zone without a route, Nodewalker builds one by itself. To rebuild a route or steer it away from somewhere, open the Route tab (`/nw plan`), then use **Optimize loop** or **Draw avoid zone**.
 

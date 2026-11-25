@@ -14,7 +14,7 @@ Leveling a profession, getting ready for raid night, or out picking herbs and or
 
 - A Diablo-style map in the middle of your screen, see-through and click-through
 - Herb and ore spots with the game's own icons
-- **Seen now** (on your minimap) lights up green; **known spots** from earlier stay faded. A known spot is where a node has spawned before, not a promise one is there now
+- Your minimap's own herb and ore dots, live, over **known spots** (faded): where a node has spawned before, not a promise one is there now
 - Your route in cyan: brightest near you, with direction arrows
 - A compass bar with the route's stops ahead of you
 - A ring showing your minimap's range, where live nodes can show up
@@ -149,7 +149,7 @@ Prices come from Auctionator's last scan, so scan the auction house now and then
 
 **Does Smart Fishing fish for me?** No. Each press does one thing: equip, lure, cast, or reel in when you see the splash. The game gives addons no bite signal, so nothing is automatic.
 
-**Are the spots guaranteed to have a node?** No. Faded spots are where nodes have spawned before. Green ones are on your minimap right now.
+**Are the spots guaranteed to have a node?** No. Faded spots are where nodes have spawned before. Your minimap's dots on the overlay show what's really up.
 
 **Do I need a gathering profession?** Only for the overlay, routes and Farm Guide. Leveling, Profit, Consumes and Find a Craft work for everyone.
 

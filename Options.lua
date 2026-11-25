@@ -237,7 +237,6 @@ place(1, UI.Check(page, "Show gathered spots", function() return not s().hidePic
 
 heading(2, "Resource filters")
 check(2, "Only my professions", "onlyMyProfessions", "Herbs if you have Herbalism, ore if you have Mining.")
-check(2, "Confirmed nodes only", "onlyConfirmed", "Seen on your minimap or in the world recently.")
 check(2, "Group nearby spots", "groupSpots", "Spots that would overlap share one icon with a count.")
 local chooseBtn = UI.Button(page, "Choose herbs and ore...", 200, function() NW.ShowTab("nodes") end, 24)
 place(2, chooseBtn, 28, 2)

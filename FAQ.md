@@ -16,7 +16,7 @@ No. It shows where to go and what's there. You walk, gather, buy and craft yours
 From the spots Nodewalker knows in that zone. It picks as few stops as it takes for every spot to be within sight of one, then orders them into a short loop. Where a loop can't close, it goes there and back. Avoid zones you draw are routed around.
 
 **Are the spots on the map guaranteed to have a node?**
-No. A faded marker is a spot where a node has spawned before. A green marker is a node on your minimap right now. Gathered spots turn grey until the node can respawn. Other players and spawn timers decide what's actually up.
+No. A faded marker is a spot where a node has spawned before. Your minimap's own dots, shown on the overlay, are what's really up. Gathered spots turn grey until the node can respawn. Other players and spawn timers decide what's actually up.
 
 **How are leveling costs worked out?**
 For each skill range, Nodewalker picks recipes by your strategy (Cheapest, Fewest crafts or Known recipes) and counts crafts from each recipe's skill-up chance. Materials are priced at Auctionator's lowest listing or the vendor price, minus what's in your bags, plus training and recipe costs. Resale value is shown beside the cost as an estimate. Real costs differ: prices move and skill-ups are random.
