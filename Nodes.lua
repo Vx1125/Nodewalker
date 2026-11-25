@@ -500,9 +500,9 @@ local function buildPrompt()
 end
 
 -- Called when Route or the Farm Guide opens
-function NW.MaybeImportPrompt(page)
+function NW.MaybeImportPrompt(page, force)
   if not (NW.db and page) then return end
-  if NW.db.importPromptOff or promptSkip or knownNodes() >= FEW_NODES then
+  if not force and (NW.db.importPromptOff or promptSkip or knownNodes() >= FEW_NODES) then
     if promptFrame then promptFrame:Hide() end
     return
   end

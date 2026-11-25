@@ -360,6 +360,10 @@ SlashCmdList.NODEWALKER = function(msg)
     NW.OpenOptions()
   elseif msg == "import" then
     NW.ImportGatherMate2()
+  elseif msg == "import help" then
+    -- the GatherMate2 warning, whatever you already have
+    NW.ToggleWindow("route")
+    if NW.window:IsShown() and NW.TabPage then NW.MaybeImportPrompt(NW.TabPage("route"), true) end
   elseif msg == "next" then
     NW.SkipNext()
   elseif msg == "harvest" or msg == "harvest all" then

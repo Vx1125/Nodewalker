@@ -574,6 +574,7 @@ function NW.ShowTab(key)
 end
 
 function NW.CurrentTab() return current and current.key end
+function NW.TabPage(key) return tabs[key] and tabs[key].page end
 
 -- key, label, onShow, onHide, onTick (once a second while shown), group
 -- (a tab name its page goes under, e.g. "Settings"). Returns the page.
