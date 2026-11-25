@@ -102,6 +102,7 @@ The fourth Fishing view. One summary line on top (fish, species of the cataloged
 Small, movable, flat: the same charcoal and bronze, nothing animated.
 
 - Title and "zone · session time" (paused when paused).
+- A small × top right: done fishing. Ends the session and hides the HUD until the next cast or pole.
 - Rows: Fishing skill / cap with effective skill in blue; the lure Nodewalker put on (name and time left) or "none"; fish caught this session; estimated value with a red "+?" when something has no price.
 - The Fishing + Cooking fish the plan wants next: name, have / ~need, a blue bar.
 - What the Smart Fishing key does next, in gold, with the key on the right. "Press on the splash" while the bobber is out; never a guessed "reel in now".

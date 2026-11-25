@@ -521,6 +521,7 @@ NW.On("UNIT_SPELLCAST_CHANNEL_START", function(unit, _, spellID)
   if not isFishing(unit, spellID) then return end
   SF.channeling = true
   lastCast = GetTime()
+  SF.dismissed = nil
   SF.Quiet()
   if SF.interactOK() and SF.key() and not combat() then
     local cur = C_CVar.GetCVar("SoftTargetInteract")
@@ -552,7 +553,13 @@ NW.On("PLAYER_REGEN_ENABLED", function()
   SF.Update()
 end)
 NW.On("PLAYER_REGEN_DISABLED", function() if SF.RefreshHUD then SF.RefreshHUD() end end)
-NW.On("PLAYER_EQUIPMENT_CHANGED", function() SF.noteNormal(); SF.Queue() end)
+NW.On("PLAYER_EQUIPMENT_CHANGED", function()
+  local on = SF.poleOn()
+  if on and not SF.hadPole then SF.dismissed = nil end -- a pole put on again brings the HUD back
+  SF.hadPole = on
+  SF.noteNormal()
+  SF.Queue()
+end)
 NW.On("BAG_UPDATE_DELAYED", function() bagsDirty = true; SF.Queue() end)
 NW.On("SKILL_LINES_CHANGED", function() SF.Queue() end)
 table.insert(NW.OnLoad, function()
@@ -712,6 +719,27 @@ hud:SetScript("OnHide", function() if not combat() then lureBtn:Hide() end end)
 hud.title = UI.Text(hud, 12, S.gold)
 hud.title:SetPoint("TOPLEFT", 10, -8)
 hud.title:SetText("Fishing")
+-- × : done fishing. Ends the session and hides the HUD until you fish again.
+hud.close = CreateFrame("Button", nil, hud)
+hud.close:SetSize(18, 18)
+hud.close:SetPoint("TOPRIGHT", -4, -4)
+hud.close.label = UI.Text(hud.close, 14, S.dim, "CENTER")
+hud.close.label:SetPoint("CENTER", 0, 1)
+hud.close.label:SetText("×")
+hud.close:SetScript("OnEnter", function(self)
+  self.label:SetTextColor(unpack(S.gold))
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText("Done fishing", 1, 1, 1)
+  GameTooltip:AddLine("Ends the session. Back when you cast or put a pole on.", S.dim[1], S.dim[2], S.dim[3], true)
+  GameTooltip:Show()
+end)
+hud.close:SetScript("OnLeave", function(self) self.label:SetTextColor(unpack(S.dim)); GameTooltip_Hide() end)
+hud.close:SetScript("OnClick", function()
+  if J and J.session() then J.End() end
+  SF.dismissed = true
+  SF.hadPole = SF.poleOn()
+  SF.RefreshHUD()
+end)
 hud.sub = UI.Text(hud, 10, S.dim)
 hud.sub:SetPoint("TOPLEFT", hud.title, "BOTTOMLEFT", 0, -3)
 hud.sub:SetWidth(200)
@@ -762,7 +790,9 @@ SF.sessionValue = sessionValue
 function SF.HudWanted()
   local s = st()
   if not s.fishHud then return false end
-  if SF.poleOn() or SF.channeling then return true end
+  if SF.channeling then return true end
+  if SF.dismissed then return false end -- closed with ×: back with the next cast or pole
+  if SF.poleOn() then return true end
   local sess = J and J.session()
   return sess ~= nil and not sess.pausedAt and (time() - (sess.last or 0)) < HUD_IDLE
 end
@@ -827,7 +857,7 @@ function SF.RefreshHUD()
     rows[#rows + 1] = { "Est. value", sv[1] > 0 and ("~" .. NW.Money(sv[1], "gs") .. (sv[2] and (H.bad .. " +?|r") or ""))
       or (sv[2] and (H.dim .. "no price|r") or "–") }
   end
-  local y = -8
+  local y = -22 -- (minimal: room for the ×)
   hud.title:SetShown(not mini)
   hud.sub:SetShown(not mini)
   if not mini then
