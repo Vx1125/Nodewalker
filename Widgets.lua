@@ -397,21 +397,73 @@ tabLine:SetColorTexture(unpack(S.sep))
 
 local tabs, tabOrder, current = {}, {}, nil
 local ticker
+-- Left to right; tabs not listed go at the end
+local ORDER = { "profs", "find", "consumes", "guide", "route", "settings" }
+local rank = {}
+for i, k in ipairs(ORDER) do rank[k] = i end
+-- Pages grouped under one tab (Settings): small switches at the right of the tab row
+local groups = {} -- name -> { button, label, keys = {}, last, subs = {} }
 
 local function setSub(text) win.sub:SetText(text or "") end
 NW.SetWindowSubtitle = setSub
 
+local function tabButton(label, onClick)
+  local b = CreateFrame("Button", nil, win)
+  b.text = UI.Text(b, 13, S.dim, "CENTER")
+  b.text:SetPoint("CENTER", 0, 1)
+  b.text:SetText(label)
+  b:SetSize(b.text:GetStringWidth() + 26, TABS_H)
+  b.line = b:CreateTexture(nil, "OVERLAY")
+  b.line:SetPoint("BOTTOMLEFT", 8, 0)
+  b.line:SetPoint("BOTTOMRIGHT", -8, 0)
+  b.line:SetHeight(2)
+  b.line:SetColorTexture(unpack(S.gold))
+  b.line:Hide()
+  b:SetScript("OnClick", onClick)
+  b:SetScript("OnEnter", function(self) if not self.on then self.text:SetTextColor(unpack(S.text)) end end)
+  b:SetScript("OnLeave", function(self) if not self.on then self.text:SetTextColor(unpack(S.dim)) end end)
+  return b
+end
+local function setOn(b, on)
+  b.on = on
+  b.text:SetTextColor(unpack(on and S.gold or S.dim))
+  b.line:SetShown(on)
+end
+
+local function layoutTabs()
+  table.sort(tabOrder, function(x, y)
+    local rx, ry = rank[x] or 99, rank[y] or 99
+    if rx ~= ry then return rx < ry end
+    return x < y
+  end)
+  local prev
+  for _, k in ipairs(tabOrder) do
+    local b = tabs[k] and tabs[k].button or groups[k] and groups[k].button
+    b:ClearAllPoints()
+    if prev then b:SetPoint("LEFT", prev, "RIGHT", 2, 0) else b:SetPoint("TOPLEFT", 10, -TITLE_H) end
+    prev = b
+  end
+end
+
 function NW.ShowTab(key)
-  local t = tabs[key] or tabs[tabOrder[1]]
+  if groups[key] then key = groups[key].last or groups[key].keys[1] end
+  local t = tabs[key] or tabs[tabOrder[1]] or (groups[tabOrder[1]] and tabs[groups[tabOrder[1]].keys[1]])
   if not t then return end
   if current and current ~= t and current.onHide then current.onHide() end
   current = t
   if NW.db then NW.db.settings.lastTab = t.key end
   for _, o in pairs(tabs) do
-    local on = o == t
-    o.page:SetShown(on)
-    o.button.text:SetTextColor(unpack(on and S.gold or S.dim))
-    o.button.line:SetShown(on)
+    o.page:SetShown(o == t)
+    if o.button then setOn(o.button, o == t) end
+  end
+  for name, g in pairs(groups) do
+    local inside = t.group == name
+    setOn(g.button, inside)
+    if inside then g.last = t.key end
+    for k, sb in pairs(g.subs) do
+      sb:SetShown(inside)
+      setOn(sb, k == t.key)
+    end
   end
   setSub("")
   if t.onShow then t.onShow() end
@@ -419,30 +471,50 @@ end
 
 function NW.CurrentTab() return current and current.key end
 
--- key, label, onShow, onHide, onTick (once a second while shown). Returns the page.
-function UI.AddTab(key, label, onShow, onHide, onTick)
+-- key, label, onShow, onHide, onTick (once a second while shown), group
+-- (a tab name its page goes under, e.g. "Settings"). Returns the page.
+function UI.AddTab(key, label, onShow, onHide, onTick, group)
   local page = CreateFrame("Frame", nil, win)
   page:SetPoint("TOPLEFT", 0, -UI.CONTENT_TOP)
   page:SetPoint("BOTTOMRIGHT")
   page:Hide()
-  local b = CreateFrame("Button", nil, win)
-  b.text = UI.Text(b, 13, S.dim, "CENTER")
-  b.text:SetPoint("CENTER", 0, 1)
-  b.text:SetText(label)
-  b:SetSize(b.text:GetStringWidth() + 26, TABS_H)
-  local prev = tabOrder[#tabOrder] and tabs[tabOrder[#tabOrder]].button
-  if prev then b:SetPoint("LEFT", prev, "RIGHT", 2, 0) else b:SetPoint("TOPLEFT", 10, -TITLE_H) end
-  b.line = b:CreateTexture(nil, "OVERLAY")
-  b.line:SetPoint("BOTTOMLEFT", 8, 0)
-  b.line:SetPoint("BOTTOMRIGHT", -8, 0)
-  b.line:SetHeight(2)
-  b.line:SetColorTexture(unpack(S.gold))
-  b.line:Hide()
-  b:SetScript("OnClick", function() NW.ShowTab(key) end)
-  b:SetScript("OnEnter", function(self) if current ~= tabs[key] then self.text:SetTextColor(unpack(S.text)) end end)
-  b:SetScript("OnLeave", function(self) if current ~= tabs[key] then self.text:SetTextColor(unpack(S.dim)) end end)
-  tabs[key] = { key = key, page = page, button = b, onShow = onShow, onHide = onHide, onTick = onTick }
-  tabOrder[#tabOrder + 1] = key
+  local t = { key = key, page = page, onShow = onShow, onHide = onHide, onTick = onTick }
+  tabs[key] = t
+  if group then
+    local gk = group:lower()
+    local g = groups[gk]
+    if not g then
+      g = { keys = {}, subs = {} }
+      g.button = tabButton(group, function() NW.ShowTab(gk) end)
+      groups[gk] = g
+      tabOrder[#tabOrder + 1] = gk
+    end
+    t.group = gk
+    g.keys[#g.keys + 1] = key
+    -- its switch, right-aligned in the tab row
+    local sb = tabButton(label, function() NW.ShowTab(key) end)
+    sb.text:SetFont(UI.FONT or STANDARD_TEXT_FONT, 12)
+    sb:SetSize(sb.text:GetStringWidth() + 22, TABS_H)
+    local lastSub = g.subs[g.keys[#g.keys - 1] or ""]
+    if lastSub then
+      -- re-anchor all, right to left
+      local prev
+      for i = #g.keys, 1, -1 do
+        local b = g.subs[g.keys[i]] or sb
+        b:ClearAllPoints()
+        if prev then b:SetPoint("RIGHT", prev, "LEFT", -2, 0) else b:SetPoint("TOPRIGHT", -10, -TITLE_H) end
+        prev = b
+      end
+    else
+      sb:SetPoint("TOPRIGHT", -10, -TITLE_H)
+    end
+    sb:Hide()
+    g.subs[key] = sb
+  else
+    t.button = tabButton(label, function() NW.ShowTab(key) end)
+    tabOrder[#tabOrder + 1] = key
+  end
+  layoutTabs()
   return page
 end
 

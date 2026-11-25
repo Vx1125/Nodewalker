@@ -255,7 +255,7 @@ local colHead = UI.Heading(right, "Best zones", TEXT_W)
 colHead:SetPoint("TOPLEFT", alsoOthers, "BOTTOMLEFT", -2, -14)
 local colSub = UI.Text(right, 11, S.dim)
 colSub:SetPoint("TOPLEFT", colHead, "BOTTOMLEFT", 0, -3)
-colSub:SetText("Ranked by spots per minute on a loop, from your saved nodes")
+colSub:SetText("Spots per minute")
 
 -- Preview map
 local PV_W, PV_H = 300, 200
@@ -350,7 +350,7 @@ local function drawPreview(row, herb)
       l:SetStartPoint("TOPLEFT", pvArt, p(a[3], a[4]))
       l:SetEndPoint("TOPLEFT", pvArt, p(b[3], b[4]))
     end
-    pvSub:SetText("Quick preview. Build route for the real one.")
+    pvSub:SetText("Preview")
   else
     pvSub:SetText(row.count > 0 and (row.count .. " known spots.")
       or "No spots saved yet. Import GatherMate2 data to rank it.")
@@ -394,7 +394,7 @@ for i = 1, ROWS do
       if page:IsShown() then drawPreview(row, herb) end
     end, kind == "both" and {} or { focus = focusOf(entryFor(herb)), alsoOthers = NW.db.settings.guideAlsoOthers })
   end)
-  UI.Tip(r.build, "Build route", "Replaces your saved route for this zone with an optimized loop through these spots.")
+  UI.Tip(r.build, "Build route", "Replaces this zone's saved route.")
   zoneRows[i] = r
 end
 local moreText = UI.Text(right, 11, S.dim)
@@ -491,8 +491,7 @@ refreshGuide = function()
   local extra = #rows - ROWS
   moreText:SetText((extra > 0 and ("+%d more zones with fewer spots.   "):format(extra) or "")
     .. (both and "" or "|cffe8c46a*|r recommended by farming guides"))
-  colSub:SetText(both and "Ranked by gold per hour on a loop, from your saved nodes and Auctionator"
-    or "Ranked by spots per minute on a loop, from your saved nodes")
+  colSub:SetText(both and "Gold per hour" or "Spots per minute")
   local pv = rows[1]
   for _, row in ipairs(rows) do if previewID and row.mapID == previewID then pv = row end end
   drawPreview(pv, entry[1])

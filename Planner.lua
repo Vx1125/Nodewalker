@@ -150,7 +150,6 @@ local function optimize()
 end
 local btnOptimize = UI.Button(side, "Optimize loop", SIDE_W, optimize, 28, "primary")
 btnOptimize:SetPoint("TOPLEFT", stats, "BOTTOMLEFT", 0, -8)
-UI.Tip(btnOptimize, "Optimize loop", "Builds the shortest loop past every node your filters allow in this zone.")
 
 local btnAvoid = UI.Button(side, "Draw avoid zone", SIDE_W, function() setDrawMode(not drawMode) end)
 btnAvoid:SetPoint("TOPLEFT", btnOptimize, "BOTTOMLEFT", 0, -6)
@@ -165,7 +164,7 @@ btnClear:SetPoint("TOPLEFT", btnAvoid, "BOTTOMLEFT", 0, -6)
 local half = (SIDE_W - 6) / 2
 local btnImport = UI.Button(side, "GatherMate2", half, function() NW.ImportGatherMate2(); refresh() end)
 btnImport:SetPoint("TOPLEFT", btnClear, "BOTTOMLEFT", 0, -6)
-UI.Tip(btnImport, "Import GatherMate2", "Copies GatherMate2's herb and ore spots (and its data pack) into Nodewalker.")
+UI.Tip(btnImport, "Import GatherMate2", "Copies its herb and ore spots, and its data pack.")
 local btnGuide = UI.Button(side, "Farm Guide", half, function() NW.ShowTab("guide") end)
 btnGuide:SetPoint("LEFT", btnImport, "RIGHT", 6, 0)
 
@@ -231,7 +230,6 @@ local btnExpand = UI.Button(page, "Expand", 70, function()
 end, 22)
 btnExpand:SetPoint("TOPRIGHT", mapFrame, "TOPRIGHT", -6, -6)
 btnExpand:SetFrameLevel(mapFrame:GetFrameLevel() + 20)
-UI.Tip(btnExpand, "Expand", "Opens the map large, for seeing the ground and drawing avoid zones.")
 
 big:SetScript("OnHide", function()
   placeMap(false)

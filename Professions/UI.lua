@@ -172,12 +172,8 @@ do
     end
     b:SetScript("OnEnter", function(self)
       if not self.on then self.label:SetTextColor(unpack(S.text)) end
-      GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:SetText(v[2], S.gold[1], S.gold[2], S.gold[3])
-      GameTooltip:AddLine(v[3], 1, 1, 1, true)
-      GameTooltip:Show()
     end)
-    b:SetScript("OnLeave", function(self) self:SetSelected(self.on) GameTooltip:Hide() end)
+    b:SetScript("OnLeave", function(self) self:SetSelected(self.on) end)
     b:SetScript("OnClick", function() mode = v[1]; refresh() end)
     modeBtns[v[1]] = b
   end
@@ -888,7 +884,7 @@ local function drawCraft(p)
   if from >= to then
     steps = {}
     stepsEmpty:SetText(("You've reached %d."):format(to))
-    priceLine:SetText(to < 300 and "Raise \"Level to\" on the right to plan further." or "Nothing left to level. Missing recipes and Profit are up top.")
+    priceLine:SetText(to < 300 and "Raise \"Level to\" to plan further." or "Nothing left to level. Missing recipes and Profit are up top.")
     drawSteps()
     hCost:SetText("")
     hCostSub:SetText("")
@@ -1578,7 +1574,7 @@ local function drawMissing(p)
   -- short, so it can't run into the skill line; no nagging about a profession you don't have
   hCostSub:SetText(not rank and "of every recipe" or fullList and "from the game's recipe list"
     or scanned and "of Nodewalker's recipes" or "|cffeb5c4cOpen the profession once|r")
-  priceLine:SetText("Recipes you don't know yet. Click one for its materials. Search finds any recipe.")
+  priceLine:SetText("")
   local lines = {
     ("|cff8cdb7a%d|r to learn at the trainer now"):format(counts.now),
     ("%d at the trainer later"):format(counts.later + counts.dim),
@@ -2421,7 +2417,7 @@ do
     det:SetShown(true)
     if not r then
       dHead.text:SetText("Find a craft")
-      dWhere:SetText("Search for anything a profession makes, to have someone craft it for you. Click one for its materials.")
+      dWhere:SetText("")
       dTotals:SetText("")
       for _, m in ipairs(matRows) do m:Hide() end
       matBox:Hide() btnMats:Hide() btnMade:Hide()
@@ -2483,7 +2479,6 @@ do
 
   function NW.RefreshFind()
     if not fpage:IsShown() then return end
-    NW.SetWindowSubtitle("Find a craft")
     -- matches: name first, then anything made from a material with that name
     wipe(results)
     if text ~= "" then
@@ -2506,7 +2501,7 @@ do
     end
     offset2 = math.max(0, math.min(offset2, #results - ROWS2))
     count:SetText(text ~= "" and ("%d found in every profession"):format(#results) or "")
-    empty:SetText(text == "" and "Type what you want made, such as Crusader, Mongoose or Runecloth Bag."
+    empty:SetText(text == "" and "Type an item, such as Crusader or Runecloth Bag."
       or #results == 0 and "No recipe matches your search." or "")
     for i, row in ipairs(rows) do
       local r = results[i + offset2]

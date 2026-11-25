@@ -15,7 +15,7 @@ end
 local widgets = {}
 local page = UI.AddTab("overlay", "Overlay", function()
   for _, w in ipairs(widgets) do if w.Refresh then w:Refresh() end end
-end)
+end, nil, nil, "Settings")
 
 local COL_W = 440
 local COL_X = { 24, 24 + COL_W + 60 }
@@ -145,7 +145,7 @@ barBtn = UI.Button(page, "Action bar button", 170, function()
   end
 end, 24)
 barBtn:SetPoint("LEFT", chooseBtn, "RIGHT", 8, 0)
-UI.Tip(barBtn, "Action bar button", "Puts a Nodewalker button on your cursor. Drop it on an action bar; it opens this window.")
+UI.Tip(barBtn, "Action bar button", "Drop it on an action bar.")
 
 -- Controls reference along the bottom
 local help = UI.Box(page, UI.CONTENT_W - 48, 40)
@@ -164,7 +164,7 @@ helpText:SetText("|cffe8c46aAlt|r + hover a live dot: identify it   ·   |cffe8c
 ------------------------------------------------------------------------
 local nodeChecks = {}
 local refreshNodes
-local nodesPage = UI.AddTab("nodes", "Herbs & Ore", function() refreshNodes() end)
+local nodesPage = UI.AddTab("nodes", "Herbs & Ore", function() refreshNodes() end, nil, nil, "Settings")
 
 local SKILL_HEX = { red = "ff4040", orange = "ff8040", yellow = "ffe633", green = "59cc59", grey = "8c8c8c", unknown = "d9d9d9" }
 
@@ -208,7 +208,7 @@ end
 
 local nodesHelp = UI.Text(nodesPage, 12, S.dim)
 nodesHelp:SetPoint("TOPLEFT", 24, -10)
-nodesHelp:SetText("Untick what you don't farm: it leaves the overlay, the planner and new routes. Number: skill needed. Colour: skill-ups at your level.")
+nodesHelp:SetText("Number: skill needed.  Colour: skill-ups at your level.")
 nodesHelp:SetWidth(UI.CONTENT_W - 48)
 nodesHelp:SetWordWrap(false)
 local nextY = buildList("herb", "Herbs", -36, 4, 240)

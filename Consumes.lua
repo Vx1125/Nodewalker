@@ -1034,7 +1034,7 @@ end, "Right-click a row to hide it, or to bring it back.")
 hiddenCheck:SetPoint("TOPLEFT", listBox, "BOTTOMLEFT", 2, -6)
 local hint = UI.Text(page, 11, S.dim)
 hint:SetPoint("TOPLEFT", listBox, "BOTTOMLEFT", 2, -9)
-hint:SetText("Right-click: hide a row. \"or\" rows are alternatives: hide the one you don't use.")
+hint:SetText("Right-click a row to hide it.")
 local total = UI.Text(page, 12, S.dim, "RIGHT")
 total:SetPoint("TOPRIGHT", listBox, "BOTTOMRIGHT", 0, -9)
 
