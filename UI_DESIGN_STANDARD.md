@@ -105,6 +105,6 @@ Small, movable, flat: the same charcoal and bronze, nothing animated.
 - Rows: Fishing skill / cap with effective skill in blue; the lure Nodewalker put on (name and time left) or "none"; fish caught this session; estimated value with a red "+?" when something has no price.
 - The Fishing + Cooking fish the plan wants next: name, have / ~need, a blue bar.
 - What the Smart Fishing key does next, in gold, with the key on the right. "Press on the splash" while the bobber is out; never a guessed "reel in now".
-- Gear, Lure, Journal buttons. A notice line for a few seconds (new fish, rare catch, lure alerts, collection complete); when the HUD is hidden, notices (lure alerts too) go to the game's error line. No chat messages.
+- A gear button that swaps both ways ("Fishing gear" / "Normal gear"), Lure, Journal. A notice line for a few seconds (new fish, rare catch, lure alerts, collection complete); when the HUD is hidden, notices (lure alerts too) go to the game's error line. No chat messages.
 - Minimal mode: four lines (Fishing, Lure, Caught, Next), no buttons.
 - Shows only with a pole on, a bobber out, or for 5 minutes after you last fished. Scale and opacity in Settings › Fishing.

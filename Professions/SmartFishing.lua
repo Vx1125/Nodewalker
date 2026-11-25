@@ -115,8 +115,17 @@ function SF.equipMacro(g)
   return table.concat(lines, "\n")
 end
 -- what you wore before fishing gear: { { slot, id } } to put back, and what isn't in your bags
+-- what you hold when you aren't fishing, kept up to date while no pole is on,
+-- so you can swap back even after putting a pole on by hand
+function SF.noteNormal()
+  local c = cdb()
+  if not c or SF.poleOn() then return end
+  local mh = SF.worn(16)
+  if not mh then return end
+  c.fishNormal = { [16] = mh, [17] = SF.worn(17) }
+end
 function SF.toRestore()
-  local prev = cdb() and cdb().fishPrev
+  local prev = cdb() and (cdb().fishPrev or cdb().fishNormal)
   if type(prev) ~= "table" then return {}, {} end
   local out, missing, b = {}, {}, SF.bags()
   for _, slot in ipairs(GEAR_SLOTS) do
@@ -353,17 +362,17 @@ SF.buttons = {}
 function SF.Button(parent, kind, w, h, text)
   local b = flat(parent, w, h, false)
   b.kind = kind
-  b.label:SetText(text or ({ equip = "Equip gear", restore = "Restore gear" })[kind])
+  b.label:SetText(text or ({ equip = "Equip gear", restore = "Restore gear", swap = "Fishing gear" })[kind])
   b:SetScript("OnClick", function(self)
     if combat() then return end
-    if self.kind == "equip" then SF.EquipNow() else SF.RestoreNow() end
+    if self.kind == "equip" or (self.kind == "swap" and not SF.poleOn()) then SF.EquipNow() else SF.RestoreNow() end
     SF.Queue(0.4)
   end)
   SF.buttons[#SF.buttons + 1] = b
   return b
 end
 -- the HUD's Lure button: secure, on UIParent
-local lureBtn = flat(UIParent, 64, 20, true, "NodewalkerFishLure")
+local lureBtn = flat(UIParent, 52, 20, true, "NodewalkerFishLure")
 lureBtn.label:SetText("Lure")
 lureBtn:Hide()
 lureBtn:SetScript("PreClick", function(self) lureClicked(self.lureID) end)
@@ -373,7 +382,13 @@ SF.lureBtn = lureBtn
 local function refreshButtons()
   for _, b in ipairs(SF.buttons) do
     local ok
-    if b.kind == "equip" then
+    local kind = b.kind
+    -- the HUD's one button: fishing gear on, or your normal gear back
+    if kind == "swap" then
+      kind = SF.poleOn() and "restore" or "equip"
+      b.label:SetText(kind == "restore" and "Normal gear" or "Fishing gear")
+    end
+    if kind == "equip" then
       local g = SF.gearSet()
       ok = g ~= nil and #SF.toEquip(g) > 0
       b.tip = not g and "No fishing pole in your bags." or (SF.wearing(g) and "You're wearing it." or nil)
@@ -537,7 +552,7 @@ NW.On("PLAYER_REGEN_ENABLED", function()
   SF.Update()
 end)
 NW.On("PLAYER_REGEN_DISABLED", function() if SF.RefreshHUD then SF.RefreshHUD() end end)
-NW.On("PLAYER_EQUIPMENT_CHANGED", function() SF.Queue() end)
+NW.On("PLAYER_EQUIPMENT_CHANGED", function() SF.noteNormal(); SF.Queue() end)
 NW.On("BAG_UPDATE_DELAYED", function() bagsDirty = true; SF.Queue() end)
 NW.On("SKILL_LINES_CHANGED", function() SF.Queue() end)
 table.insert(NW.OnLoad, function()
@@ -545,7 +560,7 @@ table.insert(NW.OnLoad, function()
   if s.fishLure == nil then s.fishLure = "off" end
   -- a reload or logout while fishing: your volumes come back
   SF.Unquiet()
-  C_Timer.After(1, function() migrateKey(); restoreSoft(); SF.ApplyKey(); SF.Update() end)
+  C_Timer.After(1, function() SF.noteNormal(); migrateKey(); restoreSoft(); SF.ApplyKey(); SF.Update() end)
 end)
 NW.On("UPDATE_BINDINGS", function() if SF.RefreshHUD then SF.RefreshHUD() end end)
 
@@ -724,8 +739,8 @@ hud.key = UI.Text(hud, 11, S.text, "RIGHT")
 hud.notice = UI.Text(hud, 10, S.good)
 hud.notice:SetWidth(200)
 hud.notice:SetWordWrap(false)
-hud.bEquip = SF.Button(hud, "equip", 64, 20, "Gear")
-hud.bJournal = UI.Button(hud, "Journal", 64, function() if NW.OpenFishJournal then NW.OpenFishJournal() end end, 20)
+hud.bEquip = SF.Button(hud, "swap", 82, 20)
+hud.bJournal = UI.Button(hud, "Journal", 58, function() if NW.OpenFishJournal then NW.OpenFishJournal() end end, 20)
 
 local function fmtTime(sec)
   sec = math.floor(sec or 0)
@@ -885,12 +900,12 @@ function SF.RefreshHUD()
     hud.bEquip:ClearAllPoints()
     hud.bEquip:SetPoint("TOPLEFT", 10, y)
     hud.bJournal:ClearAllPoints()
-    hud.bJournal:SetPoint("TOPLEFT", 10 + 2 * 68, y)
+    hud.bJournal:SetPoint("TOPLEFT", 10 + 82 + 4 + 52 + 4, y)
     lureY = y
     y = y - 22
   end
   hud:SetHeight(-y + 8)
-  placeLure(10 + 68, lureY or 0, lureY ~= nil)
+  placeLure(10 + 82 + 4, lureY or 0, lureY ~= nil)
 end
 
 SF.placeLure = function() placeLure() end
