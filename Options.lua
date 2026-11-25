@@ -228,6 +228,9 @@ dependsOn(check(1, "Show distant known spots", "showKnownSpots", "Known spots ou
 dependsOn(check(1, "Always show node tooltips", "liveHoverNoAlt",
   "No need to hold Alt. Herbs and veins inside the ring then can't be clicked in the world."), "liveDots")
 dependsOn(check(1, "Icon tooltips", "hoverTooltips", "Hover an icon on the overlay for its name."), "liveDots", false)
+dependsOn(slider(1, "Quest area ring", 0, 1, 0.05, pct, "questRingAlpha",
+  function() if NW.ApplyQuestRing then NW.ApplyQuestRing() end end,
+  "The checkered ring your minimap draws round quest areas, seen through the overlay."), "liveDots")
 place(1, UI.Check(page, "Show gathered spots", function() return not s().hidePicked end,
   function(v) s().hidePicked = not v or nil; changed(); refreshAll() end,
   "A small grey dot where you gathered, until the gathered node cooldown ends."), 24, 2)

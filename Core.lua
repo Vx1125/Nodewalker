@@ -40,6 +40,7 @@ local DEFAULTS = {
     minimapButton = true,
     minimapAngle = 215,
     showSession = true,
+    questRingAlpha = 0.15,
     respawnMinutes = 5,
     arriveYards = 15,
     mergeYards = 100,

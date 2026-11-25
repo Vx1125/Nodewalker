@@ -706,6 +706,7 @@ local function startLive()
   live.size = nil
   live.altState = nil
   live.active = true
+  NW.ApplyQuestRing()
   if NW.UpdateMinimapButton then NW.UpdateMinimapButton() end
 end
 
@@ -738,7 +739,21 @@ local function stopLive()
   end
   live.moved = {}
   if MinimapCluster and live.cluster then MinimapCluster:Show() end
+  -- the minimap's own quest-area ring back to normal
+  for _, fn in ipairs({ "SetQuestBlobRingAlpha", "SetTaskBlobRingAlpha", "SetArchBlobRingAlpha" }) do
+    if Minimap[fn] then pcall(Minimap[fn], Minimap, 255) end
+  end
   if NW.UpdateMinimapButton then NW.UpdateMinimapButton() end
+end
+
+-- The checkered ring the minimap draws round quest areas shows through the
+-- overlay; with live dots on, it's drawn as faint as you set it
+function NW.ApplyQuestRing()
+  if not live.active then return end
+  local a = math.floor((NW.db.settings.questRingAlpha or 0.15) * 255 + 0.5)
+  for _, fn in ipairs({ "SetQuestBlobRingAlpha", "SetTaskBlobRingAlpha", "SetArchBlobRingAlpha" }) do
+    if Minimap[fn] then pcall(Minimap[fn], Minimap, a) end
+  end
 end
 
 function NW.IsLive() return live.active end
