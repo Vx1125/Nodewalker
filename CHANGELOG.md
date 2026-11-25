@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.21
+
+- Fishing has its own page: Leveling, Fish Finder, Fishing + Cooking, Journal.
+- Fishing Leveling: where to fish at each skill, what's caught there, when to train (WoW Forever ranks).
+- Fish Finder: every fish, where it's caught, what it cooks, and where you caught it.
+- Fishing + Cooking: one plan for both from the fish you catch, with fish counts and blocked steps explained.
+- Cooking: ingredients menu (all, fish recipes, no fish); fish get their own shopping list group.
+- Smart Fishing key (Key Bindings › AddOns): equip gear, apply a lure, cast, reel in on the splash.
+- Fishing gear set, and a HUD button that swaps between fishing and normal gear.
+- Lures: preferred or strongest; alerts for running out.
+- Fishing Journal: catches by fish, zone (with your catch spots) and session.
+- Fishing HUD: skill, lure, catch, value, next action, plan target; × when you're done.
+- Quiet while fishing: music and ambience off, sound effects up; volumes restored after.
+
 ## 1.1.20
 
 - Consumes, My level: skips food whose recipe only comes from zones above your level or the other faction.

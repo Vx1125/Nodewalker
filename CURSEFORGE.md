@@ -76,14 +76,27 @@ Costs and craft counts are estimates: prices move and skill-ups are random.
 
 Listing prices aren't sales. Profit here means worth a look, not guaranteed gold.
 
+## Smart Fishing
+
+![Fishing HUD](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/fishing-hud.jpg)
+
+- **One key:** puts your fishing gear on, then your lure, then casts. While the bobber is out the same key reels in through the game's Interact Key. Every action is your key press
+- **Gear:** save your pole, hat, gloves and boots as a set; one button swaps between fishing gear and your normal gear
+- **Lures:** your preferred lure or the strongest you carry, never replaced while one is on; alerts when it's running out
+- **HUD:** skill, lure time, fish caught, estimated value, what the key does next, and the fish your Fishing + Cooking plan wants
+- **Quiet while fishing:** music and ambience off, sound effects up for the splash; your volumes come back after
+- **Fishing Journal:** every catch recorded automatically: by fish, by zone with your own catch spots on the map, and by session. Only loot the game marks as fishing counts
+
 ## Fishing and Cooking
+
+![Fishing and Cooking](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/fishing-cooking.jpg)
 
 - **Cooking** levels like any craft, from any ingredients: meat, fish, vendor goods, your bags. Or only fish recipes, or none
 - **Fishing** has its own guide: where to fish at each skill, what's caught there, when to train, your effective skill with gear and lures
 - **Fish Finder**: every fish, where it's caught, and what it cooks
 - **Fishing + Cooking**: one plan for both from the fish you catch. What to fish, how many of each fish (estimated), when to train, what to cook, as it happens
 
-Zone fishing skill and catch rates aren't published for WoW Forever, so Nodewalker doesn't guess them.
+Zone fishing skill and catch rates aren't published for WoW Forever, so Nodewalker doesn't guess them. Zone shares in the Journal are your own catches, not drop rates.
 
 ## Consumes
 
@@ -109,7 +122,7 @@ Zone fishing skill and catch rates aren't published for WoW Forever, so Nodewalk
 
 - Gathering and Fishing guides by skill range
 - A Nodewalker button on your profession window
-- Minimap and AddOns menu button, key bindings
+- Minimap and AddOns menu button, key bindings (Smart Fishing, fishing HUD, Fishing Journal too)
 - Every overlay setting: size, opacity, terrain, markers, ring, compass, session panel
 
 ## Quick start
@@ -117,6 +130,8 @@ Zone fishing skill and catch rates aren't published for WoW Forever, so Nodewalk
 **Start gathering:** `/nw guide` › pick an herb or ore › click a zone › **Build route** › go there and type `/nw` › follow the cyan line.
 
 **Level a profession:** `/nw prof` › pick a profession › **Leveling** › set your target skill › buy what's on the list (**Search missing**) › follow the steps.
+
+**Fish:** bind **Smart Fishing** in Key Bindings › AddOns (or Settings › Fishing) › press it to equip, lure and cast › press it again on the splash.
 
 **Find crafts worth making:** `/nw prof` › pick a profession › **Profit** › sort by profit › click a recipe for its materials.
 
@@ -132,6 +147,8 @@ Prices come from Auctionator's last scan, so scan the auction house now and then
 
 **Does it gather or move for me?** No. It shows where to go; you walk, gather, buy and craft.
 
+**Does Smart Fishing fish for me?** No. Each press does one thing: equip, lure, cast, or reel in when you see the splash. The game gives addons no bite signal, so nothing is automatic.
+
 **Are the spots guaranteed to have a node?** No. Faded spots are where nodes have spawned before. Green ones are on your minimap right now.
 
 **Do I need a gathering profession?** Only for the overlay, routes and Farm Guide. Leveling, Profit, Consumes and Find a Craft work for everyone.
@@ -146,7 +163,7 @@ Prices come from Auctionator's last scan, so scan the auction house now and then
 
 ## Commands
 
-`/nw` overlay · `/nw plan` routes · `/nw guide` Farm Guide · `/nw prof` professions · `/nw consumes` · `/nw options` · `/nw import` GatherMate2 · `/nw status` · `/nw reset session`
+`/nw` overlay · `/nw plan` routes · `/nw guide` Farm Guide · `/nw prof` professions · `/nw consumes` · `/nw journal` Fishing Journal · `/nw fishhud` · `/nw options` · `/nw import` GatherMate2 · `/nw status` · `/nw reset session`
 
 ## Credits
 
