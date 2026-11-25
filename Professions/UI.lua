@@ -1968,6 +1968,8 @@ tradeTab:SetScript("OnLeave", function() GameTooltip:Hide() if skin then skin.gl
 tradeTab:HookScript("OnEnter", function() if skin and not skin.ownMouse then skin.glow:Show() end end)
 
 local function updateNext()
+  -- the plan beside the window shows the same, and more
+  if st().blizzDock ~= false then nextBox:Hide() return end
   local key = NW.currentTradeKey
   local p = key and NW.PROF_BY_KEY[key]
   if not (p and p.kind == "craft" and NW.RECIPES[key]) then nextBox:Hide() return end
@@ -1988,6 +1990,7 @@ local function updateNext()
   nextBox:SetWidth(nextText:GetStringWidth() + 40)
   nextBox:Show()
 end
+NW.UpdateTradeNext = function() pcall(updateNext) end
 
 -- Find the profession window: known names first, then any big shown frame
 -- whose name mentions professions or trade skills.
@@ -2617,9 +2620,7 @@ do
   local need = {}
   local function buildStrip(f)
     strip = CreateFrame("Frame", nil, f, "BackdropTemplate")
-    -- a little below the window: the game writes the next skill-up under it
-    strip:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -26)
-    strip:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, -26)
+    strip.owner = f
     strip:SetHeight(30)
     UI.Flat(strip, S.bg, S.edge)
     strip:SetFrameStrata(f:GetFrameStrata())
@@ -2640,6 +2641,11 @@ do
     UI.Tip(stripBtn, "Search what I need", "Searches Auctionator for what's left to buy. The auction house has to be open.")
   end
   local function drawStrip(id)
+    -- under the window, below Nodewalker's "Next" line when that's showing
+    local gap = st().blizzDock == false and -26 or -2
+    strip:ClearAllPoints()
+    strip:SetPoint("TOPLEFT", strip.owner, "BOTTOMLEFT", 0, gap)
+    strip:SetPoint("TOPRIGHT", strip.owner, "BOTTOMRIGHT", 0, gap)
     wipe(need)
     local sch = id and T and T.GetRecipeSchematic and select(2, pcall(T.GetRecipeSchematic, id, false))
     if type(sch) ~= "table" then strip:Hide() return end
@@ -2693,7 +2699,11 @@ do
     dock:EnableMouse(true)
     dTitle = UI.Text(dock, 13, S.gold)
     dTitle:SetPoint("TOPLEFT", 10, -10)
-    local close = UI.Close(dock, function() st().blizzDock = false; dock:Hide(); dToggle:Show() end)
+    local close = UI.Close(dock, function()
+      st().blizzDock = false; dock:Hide(); dToggle:Show()
+      NW.UpdateTradeNext()
+      NW.blizzDirty = true
+    end)
     close:SetPoint("TOPRIGHT", -4, -4)
     dSub = UI.Text(dock, 11, S.dim)
     dSub:SetPoint("TOPLEFT", dTitle, "BOTTOMLEFT", 0, -4)
@@ -2708,7 +2718,11 @@ do
       drawDock()
     end)
     -- reopen it once closed
-    dToggle = UI.Button(f, "Plan", 60, function() st().blizzDock = true; dToggle:Hide(); dock:Show(); drawDock() end, 22)
+    dToggle = UI.Button(f, "Plan", 60, function()
+      st().blizzDock = true; dToggle:Hide(); dock:Show(); drawDock()
+      NW.UpdateTradeNext()
+      NW.blizzDirty = true
+    end, 22)
     dToggle:SetPoint("TOPLEFT", f, "TOPRIGHT", DOCK_GAP, -6)
     UI.Tip(dToggle, "Nodewalker plan", "Shows the leveling plan beside this window.")
   end
@@ -2740,10 +2754,30 @@ do
         local stp = self.step
         if not (stp and stp.recipe) then return end
         local e = scanFor(dKey) and scanFor(dKey)[stp.recipe.name]
-        if not (e and e.id and selectRecipe(e.id, stp.recipe.name)) then
-          NW.Print(("Find %s in the list: it isn't learned yet, or the game wouldn't select it."):format(stp.recipe.name))
-        end
+        -- only learned recipes are in the game's list
+        if e and e.learned and e.id then selectRecipe(e.id, stp.recipe.name) end
       end)
+      row:SetScript("OnEnter", function(self)
+        local stp = self.step
+        if not stp then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if stp.trainRank then
+          GameTooltip:AddLine("Train " .. stp.trainRank.name, C.gold[1], C.gold[2], C.gold[3])
+          GameTooltip:AddLine(rankWhereText(dKey, stp.trainRank.name), 1, 1, 1, true)
+        else
+          local r = stp.recipe
+          GameTooltip:AddLine(r.name, C.gold[1], C.gold[2], C.gold[3])
+          local e = scanFor(dKey) and scanFor(dKey)[r.name]
+          if e and e.learned then
+            GameTooltip:AddLine("Click: select it, then Create", 0.8, 0.8, 0.85)
+          else
+            GameTooltip:AddLine("Not learned yet", 0.92, 0.36, 0.3)
+            GameTooltip:AddLine((sourceText(dKey, r, NW.ProfSkill(dKey))), 1, 1, 1, true)
+          end
+        end
+        GameTooltip:Show()
+      end)
+      row:SetScript("OnLeave", function() GameTooltip:Hide() end)
       dRows[i] = row
     end
     for i = n + 1, #dRows do dRows[i]:Hide() end
