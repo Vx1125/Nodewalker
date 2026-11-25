@@ -393,7 +393,7 @@ for i = 1, STEP_FRAMES do
   row.craft:HookScript("OnEnter", function(self)
     if not self.why then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetText(self.why, 1, 1, 1, true)
+    GameTooltip:SetText(self.why, 1, 1, 1, 1, true)
     GameTooltip:Show()
   end)
   row.craft:HookScript("OnLeave", GameTooltip_Hide)
@@ -854,7 +854,7 @@ local cardCraft = UI.Button(right, "Craft", CW.HALF, function(self) craftClick(s
 cardCraft:HookScript("OnEnter", function(self)
   if not self.why then return end
   GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-  GameTooltip:SetText(self.why, 1, 1, 1, true)
+  GameTooltip:SetText(self.why, 1, 1, 1, 1, true)
   GameTooltip:Show()
 end)
 cardCraft:HookScript("OnLeave", GameTooltip_Hide)
