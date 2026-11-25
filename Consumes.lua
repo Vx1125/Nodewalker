@@ -811,6 +811,41 @@ local function levelOf(id)
   local _, _, _, _, minLevel = NW.ItemInfo(id)
   return minLevel or (ITEM[id] and ITEM[id][1]) or 99
 end
+-- Lowest level of each zone (Warcraft Wiki, "Zones by level (original)"), so
+-- leveling picks skip recipes sold or dropped only in zones above you
+local ZONE_MIN = {
+  ["Alterac Mountains"] = 30, ["Arathi Highlands"] = 30, ["Badlands"] = 35, ["Blasted Lands"] = 45, ["Silverpine Forest"] = 10,
+  ["Western Plaguelands"] = 51, ["Eastern Plaguelands"] = 53, ["Hillsbrad Foothills"] = 20, ["The Hinterlands"] = 40,
+  ["Searing Gorge"] = 45, ["Burning Steppes"] = 50, ["Deadwind Pass"] = 55, ["Duskwood"] = 18, ["Loch Modan"] = 10,
+  ["Redridge Mountains"] = 15, ["Stranglethorn Vale"] = 30, ["Swamp of Sorrows"] = 35, ["Westfall"] = 10, ["Wetlands"] = 20,
+  ["The Barrens"] = 10, ["Darkshore"] = 10, ["Ashenvale"] = 18, ["Thousand Needles"] = 25, ["Stonetalon Mountains"] = 15,
+  ["Desolace"] = 30, ["Feralas"] = 40, ["Dustwallow Marsh"] = 35, ["Tanaris"] = 40, ["Azshara"] = 45, ["Felwood"] = 48,
+  ["Un'Goro Crater"] = 48, ["Moonglade"] = 55, ["Silithus"] = 55, ["Winterspring"] = 55, ["Riverglades"] = 35,
+}
+-- Whether you can get the recipe at your level: known, from a trainer, or from
+-- at least one vendor or drop of your faction in a zone you're high enough for
+local function reachable(id, level)
+  local r, key = NW.RecipeFor(id)
+  if not r or not r.where or r.src == "trainer" or r.src == "rank" then return true end
+  local known = NW.charDB.known and NW.charDB.known[key]
+  if known and known[r.name] then return true end
+  local fac = (UnitFactionGroup and UnitFactionGroup("player")) == "Alliance" and "A" or "H"
+  local any = false
+  for tok in r.where:gmatch("[^;]+") do
+    local c, rest = tok:sub(1, 1), tok:sub(2)
+    if tok == "F" or tok == "S" or tok == "T" or tok == "B" or c == "+" then return true end
+    if c == "V" then
+      local f = rest:sub(1, 1)
+      rest = (f == "*" or f == fac) and rest:sub(2) or nil
+    elseif c ~= "D" then rest = nil end
+    if rest then
+      any = true
+      local zone = rest:match(", ([^,]+)$")
+      if zone and zone ~= "?" and (ZONE_MIN[zone] or 0) <= level then return true end
+    elseif c == "V" or c == "Q" then any = true end
+  end
+  return not any
+end
 -- Best item on a ladder you're high enough for, and the next better one
 -- with the level it unlocks at
 local function bestFor(ladder, level)
@@ -822,8 +857,10 @@ local function bestFor(ladder, level)
       local need = levelOf(id)
       if NW.NOT_YET and NW.NOT_YET[id] then
         -- not in the game yet
+      elseif need <= level and (NW.ItemCount(id) or 0) > 0 then return id, nextId, nextAt
+      elseif need <= level and not reachable(id, level) then
+        -- its recipe comes only from zones above you
       elseif need <= level then
-        if (NW.ItemCount(id) or 0) > 0 then return id, nextId, nextAt end
         local cost, src = NW.Price(id)
         if src == "est" then cost = nil end
         if not pick or (cost and (not pickCost or cost < pickCost)) then pick, pickCost = id, cost or pickCost end

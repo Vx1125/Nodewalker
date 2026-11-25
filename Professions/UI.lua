@@ -1622,6 +1622,20 @@ local function cleanSource(text, oneLine)
   end
   return text
 end
+-- Several drop sources read as one "World Drop or AH"
+function MS.collapseDrops(text)
+  local out, drops, at = {}, 0, nil
+  for part in (text .. "  ·  "):gmatch("(.-)  ·  ") do
+    if part:find("^Drop:") or part:find("^World Drop") then drops = drops + 1 end
+  end
+  if drops < 2 then return text end
+  for part in (text .. "  ·  "):gmatch("(.-)  ·  ") do
+    if part:find("^Drop:") or part:find("^World Drop") or part:find("^Zone:") then
+      if not at then at = #out + 1; out[at] = "World Drop or AH" end
+    elseif part ~= "" then out[#out + 1] = part end
+  end
+  return table.concat(out, "  ·  ")
+end
 local function scanOf(key, r)
   local sc = NW.charDB.recipeScan[key]
   return sc and sc[r.name]
@@ -1632,6 +1646,9 @@ local function whereText(r)
   if not r.where then return end
   local fac = (UnitFactionGroup and UnitFactionGroup("player")) == "Alliance" and "A" or "H"
   local parts, fav, other = {}, false, false
+  local drops, dropAt, many = 0, nil, r.where:find(";%+") ~= nil
+  for tok in r.where:gmatch("[^;]+") do if tok:sub(1, 1) == "D" then drops = drops + 1 end end
+  many = many or drops > 1
   for tok in r.where:gmatch("[^;]+") do
     local c, rest = tok:sub(1, 1), tok:sub(2)
     if tok == "F" then fav = true
@@ -1639,9 +1656,12 @@ local function whereText(r)
     elseif tok == "T" or tok == "B" then -- handled as a trainer recipe
     elseif c == "V" then
       local f = rest:sub(1, 1)
-      if f == "*" or f == fac then parts[#parts + 1] = "Vendor: " .. rest:sub(2) else other = true end
-    elseif c == "D" then parts[#parts + 1] = "Drop: " .. rest
-    elseif c == "+" then parts[#parts + 1] = "+" .. rest .. " more"
+      if f == "*" or f == fac then parts[#parts + 1] = "Vendor: " .. rest:sub(2):gsub(", %?$", "") else other = true end
+    elseif c == "D" then
+      if not many then parts[#parts + 1] = "Drop: " .. rest
+      elseif not dropAt then dropAt = #parts + 1; parts[dropAt] = "World Drop or AH" end
+    elseif c == "+" then
+      if not many then parts[#parts + 1] = "+" .. rest .. " more" end
     elseif c == "Q" then parts[#parts + 1] = "Quest: " .. rest
     end
   end
@@ -1654,7 +1674,7 @@ function sourceText(key, r, rank)
   if r.src == "scan" or (r.src == "recipe" and e and e.source) then
     if e and e.source then
       local merchant = e.source:find("Merchant") or e.source:find("Durotar Supply") or e.source:find("Commerce Authority")
-      return (merchant and "|cffd6b266" or "") .. cleanSource(e.source, true) .. (merchant and "|r" or ""), merchant and "merchant" or "drop"
+      return (merchant and "|cffd6b266" or "") .. MS.collapseDrops(cleanSource(e.source, true)) .. (merchant and "|r" or ""), merchant and "merchant" or "drop"
     end
     if r.src == "scan" then return "Source not listed by the game", "drop" end
   end
@@ -1692,7 +1712,7 @@ function MS.shortSource(key, r, rank)
       if e.source:find("Merchant") or e.source:find("Durotar Supply") or e.source:find("Commerce Authority") then
         return "|cffd6b266" .. MS.merchantShort() .. "|r", "merchant"
       end
-      local first = MS.firstPart(cleanSource(e.source, true))
+      local first = MS.firstPart(MS.collapseDrops(cleanSource(e.source, true)))
       return first, MS.kindOfLabel(first)
     end
     if r.src == "scan" then return "Not listed by the game", "other" end
