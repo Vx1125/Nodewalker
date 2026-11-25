@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.19
+
+- Settings: Quest area ring, how strongly your minimap's checkered quest-area ring shows through the overlay (15% by default).
+- Appearance: terrain opacity and map style are greyed out while Terrain colour is Off, with a note why.
+
 ## 1.1.18
 
 - Route and Farm Guide: a warning with the GatherMate2 steps and an Import button while hardly any spots are known (/nw import help shows it).
