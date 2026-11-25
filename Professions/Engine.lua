@@ -208,16 +208,16 @@ local function scanSkills()
       for i = 1, 6 do
         local idx = list[i]
         if idx then
-          local name, _, rank, max = GetProfessionInfo(idx)
-          if name then out[name] = { rank = rank, max = max } end
+          local name, _, rank, max, _, _, _, mod = GetProfessionInfo(idx)
+          if name then out[name] = { rank = rank, max = max, mod = tonumber(mod) or 0 } end
         end
       end
     end
   end
   if GetNumSkillLines and GetSkillLineInfo then
     for i = 1, GetNumSkillLines() do
-      local name, isHeader, _, rank, _, _, max = GetSkillLineInfo(i)
-      if name and not isHeader and NW.PROF_BY_NAME[name] then out[name] = { rank = rank, max = max } end
+      local name, isHeader, _, rank, _, mod, max = GetSkillLineInfo(i)
+      if name and not isHeader and NW.PROF_BY_NAME[name] then out[name] = { rank = rank, max = max, mod = tonumber(mod) or 0 } end
     end
   end
   return out
@@ -230,6 +230,13 @@ function NW.ProfSkill(key)
   local p = NW.PROF_BY_KEY[key]
   local s = p and skillCache[p.name]
   if s then return s.rank, s.max end
+end
+-- What gear, lures and buffs add on top (the game's own figure), or 0
+function NW.ProfBonus(key)
+  NW.ProfSkill(key)
+  local p = NW.PROF_BY_KEY[key]
+  local s = p and skillCache[p.name]
+  return s and s.mod or 0
 end
 
 ------------------------------------------------------------------------
@@ -657,6 +664,9 @@ function NW.PriceAge(id)
   if ok then return age end
 end
 
+-- Sold by a vendor (from the data or a vendor you've visited)
+function NW.IsVendor(id) return (NW.db.vendorPrices[id] or VENDOR[id]) ~= nil end
+
 -- What an item costs to buy outright (vendor or auction), or nil
 function NW.BuyPrice(id)
   local v = NW.db.vendorPrices[id] or VENDOR[id]
@@ -849,7 +859,10 @@ function NW.BuildPlan(key, from, to)
   local s = NW.db.settings
   -- strategy: nil (cheapest), "crafts" (fewest crafts) or "known" (recipes you know, then the trainer's)
   local strategy = s.planStrategy
-  local cacheKey = ("%s:%d:%d:%s%s:%s"):format(key, from, to, s.planRecipeItems and "r" or "", s.planSellBack == "de" and "d" or s.planSellBack and "s" or "", strategy or "")
+  -- Cooking can be held to some ingredients (fish only, no fish, or what the Fishing + Cooking plan allows)
+  local allow = key == "cooking" and NW.CookAllow or nil
+  local cacheKey = ("%s:%d:%d:%s%s:%s:%s"):format(key, from, to, s.planRecipeItems and "r" or "", s.planSellBack == "de" and "d" or s.planSellBack and "s" or "", strategy or "",
+    allow and NW.CookAllowKey() or "")
   if planCache[cacheKey] then return planCache[cacheKey] end
 
   local recipes = NW.RECIPES[key] or {}
@@ -897,6 +910,7 @@ function NW.BuildPlan(key, from, to)
           else avail = nil end
         end
         if NW.NO_LEVEL[r.name] then avail = nil end
+        if allow and avail ~= nil and not allow(r, sk) then avail = nil end
         local needsRecipe = not avail
         if avail ~= nil and (avail or pass == 2 or s.planRecipeItems) and required(key, r) <= sk then
           local p = NW.SkillUpChance(r, sk)

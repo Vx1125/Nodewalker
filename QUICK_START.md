@@ -39,6 +39,12 @@ Costs and craft counts are estimates. Prices move and skill-ups are random.
 
 Profit uses current listings after the auction cut. A listing isn't a sale.
 
+## Level Fishing and Cooking together
+
+1. Type `/nw prof` and pick **Fishing** (or Cooking, then **Fishing + Cooking plan**).
+2. Open **Fishing + Cooking** and set a target for each.
+3. Do the step with the gold arrow. Fish counts update as you catch and cook.
+
 ## Stock up for a raid
 
 1. Type `/nw consumes`.

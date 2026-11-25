@@ -27,6 +27,12 @@ No. Profit is the current lowest listing, minus the auction cut, minus material 
 **Why are some prices missing?**
 Auctionator hasn't seen the item listed, or isn't installed. Scan the auction house and they fill in. Totals missing a price show a red "+?".
 
+**Do I have to fish to level Cooking?**
+No. Cooking plans from any ingredients by default. The Ingredients menu limits it to fish recipes or none. Fishing + Cooking is there if you want to catch your own.
+
+**How many casts will Fishing take?**
+Nodewalker doesn't say. Catch rates and each zone's fishing skill aren't published for WoW Forever, so it gives a skill to reach and where to fish for it.
+
 **Can I change how the overlay looks?**
 Yes. `/nw options`: size, opacity, zoom, terrain colour, the minimap range ring, compass, session panel, gathered spots, and which herbs and ore show. Farming, Questing and Minimal set several of these at once.
 

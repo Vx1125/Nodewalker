@@ -2,7 +2,7 @@
 
 **Farm smarter. Craft cheaper. Earn more.**
 
-A profession and gathering companion for WoW Forever: gathering routes on a Diablo-style map overlay, profession leveling plans priced from the auction house, missing recipes and where they come from, crafting profit, and consumables for every class.
+A profession and gathering companion for WoW Forever: gathering routes on a Diablo-style map overlay, profession leveling plans priced from the auction house, missing recipes and where they come from, crafting profit, Fishing and Cooking together, and consumables for every class.
 
 - CurseForge: <https://www.curseforge.com/wow/addons/nodewalker>
 - [Quick start](QUICK_START.md) · [FAQ](FAQ.md) · [Changelog](CHANGELOG.md)

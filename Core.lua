@@ -297,7 +297,7 @@ end)
 -- reading and writing NW.db.settings: these keys are passed through.
 local CHAR_KEYS = {
   consumeSpec = true, consumeList = true, consumeHidden = true, consumeBudget = true, consumeHours = true,
-  profSelected = true, planTarget = true, lastTab = true,
+  profSelected = true, planTarget = true, lastTab = true, fishCook = true, fishTab = true,
 }
 local function splitCharSettings(db)
   if not (UnitName and GetRealmName) then return end

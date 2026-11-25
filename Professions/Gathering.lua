@@ -1,7 +1,8 @@
 local _, NW = ...
 
 ------------------------------------------------------------------------
--- Gathering and fishing guides: where to go at each skill range.
+-- Gathering guides: where to go at each skill range (Fishing has its own
+-- page and data: Professions/Fishing.lua).
 -- Zone suggestions follow the usual Classic paths (Wowhead, wow-professions)
 -- and the WoW Forever herbalism changes; nodes link to routes.
 ------------------------------------------------------------------------
@@ -37,19 +38,6 @@ NW.GATHER_GUIDE = {
       { 150, 200, nil, { "Thousand Needles", "Arathi Highlands", "Alterac Mountains", "Stranglethorn Vale" }, "Crystalhides, striders, thrashers and tigers" },
       { 200, 225, nil, { "Feralas", "Tanaris", "Badlands" }, "Longtooth runners, Ironfur bears and gorillas" },
       { 225, 300, nil, { "Un'Goro Crater", "Winterspring", "Burning Steppes", "Felwood" }, "Pterrordaxes, diemetradons and devilsaurs" },
-    },
-  },
-  fishing = {
-    intro = "Expert: the book \"The Bass and You\" (125, level 20). Artisan: Nat Pagle's quest, Dustwallow Marsh. Lures: Nightcrawlers +50, Bright Baubles +75, Aquadynamic Fish Attractor +100.",
-    brackets = {
-      { 1, 75, nil, { "Durotar", "Elwynn Forest", "Dun Morogh", "Mulgore", "Tirisfal Glades", "Teldrassil" },
-        "Any water in a starting zone", { 6291, 6303 } },
-      { 75, 150, nil, { "The Barrens", "Westfall", "Loch Modan", "Darkshore", "Silverpine Forest", "Orgrimmar", "Stormwind City" },
-        "From 125 with a lure: Wetlands, Ashenvale, Hillsbrad, Stonetalon", { 6289, 6361, 6308, 6317, 6358 } },
-      { 150, 225, nil, { "Dustwallow Marsh", "Stranglethorn Vale", "Arathi Highlands", "Desolace", "Swamp of Sorrows", "Thousand Needles" },
-        "Inland for Catfish and Trout, the coast for Rockscale Cod and Firefin", { 6308, 6362, 8365, 6359, 6358 } },
-      { 225, 300, nil, { "Tanaris", "Feralas", "Azshara", "The Hinterlands", "Un'Goro Crater", "Western Plaguelands" },
-        "The coast for Yellowtail and Mightfish; Nightfin at night, Sunscale by day. Skip Winterspring and Silithus", { 4603, 13754, 13758, 13759, 13760, 13756, 13755 } },
     },
   },
 }

@@ -255,6 +255,13 @@ local opts = {
 opts[1]:SetPoint("LEFT", 0, 0)
 opts[2]:SetPoint("LEFT", opts[1], "RIGHT", 10, 0)
 opts[3]:SetPoint("RIGHT", 0, 0)
+-- Cooking: which ingredients it may use (food is rarely worth reselling, so this takes that place)
+MS.cookSrc = UI.Dropdown(optRow, 160, "", { { false, "All ingredients" }, { "fish", "Fish recipes" }, { "nofish", "No fish" } },
+  function() return st().cookSource or false end,
+  function(v) st().cookSource = v or nil; NW.InvalidatePlans(); refresh() end, 160,
+  "All ingredients: meat, fish, vendor goods, whatever's cheapest. Fish recipes: only recipes that use a fish. No fish: everything else.")
+MS.cookSrc:SetPoint("LEFT", opts[1], "RIGHT", 10, 0)
+MS.cookSrc:Hide()
 
 local priceLine = UI.Text(mid, 11, S.dim)
 priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -6)
@@ -610,6 +617,8 @@ right:SetPoint("TOPLEFT", RIGHT_X, -8)
 right:SetSize(RIGHT_W, 530)
 local rHead = UI.Heading(right, "Shopping list", RIGHT_W)
 rHead:SetPoint("TOPLEFT")
+-- Fishing draws its own page in this space (Professions/Fishing.lua)
+NW.ProfUI = { page = page, MID_X = MID_X, MID_W = MID_W, RIGHT_X = RIGHT_X, RIGHT_W = RIGHT_W }
 local rTotal = UI.Text(right, 12, S.text)
 rTotal:SetPoint("TOPLEFT", rHead, "BOTTOMLEFT", 0, -6)
 rTotal:SetWidth(RIGHT_W)
@@ -683,7 +692,9 @@ end
 
 -- Search Auctionator for { { name, quantity }, ... }; the quantity is what
 -- you still need, so its buy box starts on that number.
-local function searchAH(items)
+local searchAH
+function NW.SearchAH(items) return searchAH(items) end
+function searchAH(items)
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
   local open = (AuctionHouseFrame and AuctionHouseFrame:IsShown()) or (AuctionFrame and AuctionFrame:IsShown())
   if not (api and open and #items > 0) then return false end
@@ -735,7 +746,8 @@ for i = 1, SHOP_ROWS do
     GameTooltip:AddLine(" ")
     GameTooltip:AddDoubleLine("Need", e.need, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     if e.quest then GameTooltip:AddDoubleLine("For", e.quest .. " quest", S.dim[1], S.dim[2], S.dim[3], 0.91, 0.77, 0.42) end
-    if e.buy > 0 and e.src ~= "vendor" then GameTooltip:AddDoubleLine("Click or Shift-click", ("search for %d"):format(e.buy), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+    if NW.IsFish and NW.IsFish(e.id) and not ahOpen() then GameTooltip:AddDoubleLine("Click", "where to fish it", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    elseif e.buy > 0 and e.src ~= "vendor" then GameTooltip:AddDoubleLine("Click or Shift-click", ("search for %d"):format(e.buy), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     if e.have > 0 then GameTooltip:AddDoubleLine("In your bags and bank", e.have, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     local srcText = ({ ah = "Auction house (Auctionator)", vendor = "Vendor", craft = "Cheaper to make", est = "Estimate (no price yet)" })[e.src or ""] or "No price"
     GameTooltip:AddDoubleLine("Price each", NW.Money(e.price), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
@@ -807,6 +819,11 @@ for i = 1, SHOP_ROWS do
     if IsShiftKeyDown() and e.id then
       if not ahOpen() and chatLink(e.id, nil, true) then return end
     end
+    -- a fish away from the auction house: where to catch it
+    if NW.IsFish and NW.IsFish(e.id) and not ahOpen() and not IsShiftKeyDown() and NW.OpenFishFinder then
+      NW.OpenFishFinder(e.id)
+      return
+    end
     -- Shift-click searches even when you already have enough
     if e.buy <= 0 and not IsShiftKeyDown() then return end
     local qty = math.max(1, e.buy)
@@ -849,6 +866,10 @@ MS.recipesBtn = UI.Button(right, "Search recipes", 120, function()
   if not searchAH(items) then NW.Print("Open the auction house with Auctionator to search.") end
 end, 26)
 MS.recipesBtn:SetPoint("LEFT", searchBtn, "RIGHT", 6, 0)
+MS.fcBtn = UI.Button(right, "Fishing + Cooking plan", RIGHT_W, function() if NW.OpenFishCook then NW.OpenFishCook() end end)
+MS.fcBtn:SetPoint("TOPLEFT", searchBtn, "BOTTOMLEFT", 0, -8)
+MS.fcBtn:Hide()
+UI.Tip(MS.fcBtn, "Fishing + Cooking", "Level both from the fish you catch.")
 UI.Tip(MS.recipesBtn, "Search recipes", "Only the recipes the plan needs you to buy.")
 MS.recipesBtn:Hide()
 local tips = UI.Text(right, 11, S.dim)
@@ -1355,14 +1376,17 @@ local function drawCraft(p)
   for i, e in ipairs(recipes) do table.insert(list, i, e) end
   -- in groups: recipes to buy, materials, vendor supplies, and what you already have (folded)
   MS.shopCount = #list
-  local groups = { recipes = {}, mats = {}, vendor = {}, owned = {} }
+  local groups = { recipes = {}, fish = {}, mats = {}, vendor = {}, owned = {} }
+  local cooking = p.key == "cooking" and NW.IsFish
   for _, e in ipairs(list) do
-    local g = (e.buy == 0 and "owned") or (e.recipe and "recipes") or (e.src == "vendor" and "vendor") or "mats"
+    local g = (e.buy == 0 and "owned") or (e.recipe and "recipes") or (cooking and NW.IsFish(e.id) and "fish")
+      or (e.src == "vendor" and "vendor") or "mats"
     table.insert(groups[g], e)
   end
   local folds = st().shopFolds or {}
   local grouped = {}
-  for _, g in ipairs({ { "recipes", "Recipes to buy" }, { "mats", "Materials" }, { "vendor", "Vendor supplies" }, { "owned", "Already have" } }) do
+  for _, g in ipairs({ { "recipes", "Recipes to buy" }, { "fish", "Fish" }, { "mats", cooking and "Meat and other" or "Materials" },
+    { "vendor", "Vendor supplies" }, { "owned", "Already have" } }) do
     local items = groups[g[1]]
     if #items > 0 then
       local f = folds[g[1]]
@@ -1553,21 +1577,6 @@ local function drawGather(p)
     if rank then
       local maxLevel = rank < 100 and math.floor(rank / 10) + 10 or math.floor(rank / 5)
       lines[#lines + 1] = ("At %d skill you can skin beasts up to |cffd6b266level %d|r."):format(rank, maxLevel)
-    end
-  elseif p.key == "fishing" then
-    -- cook what you catch, for the bracket you're in
-    local cook = NW.ProfSkill("cooking") or 0
-    local fishRank = rank or 1
-    local b = steps[1]
-    for _, x in ipairs(steps) do if fishRank >= x.from and fishRank < x.to then b = x end end
-    lines[#lines + 1] = ("|cffd6b266Cook what you catch|r (Cooking %d)"):format(cook)
-    for _, fid in ipairs(b and b.fish or {}) do
-      for _, r in ipairs(NW.CookFish(fid)) do
-        local col = cook < r.yellow and "ff8040" or cook < r.green and "ffff00" or cook < r.grey and "40bf40" or "808080"
-        if (r.orange or r.yellow) > cook then col = "d17665" end
-        lines[#lines + 1] = ("|cff%s%s|r  %s-%d%s"):format(col, r.name, r.orange or r.yellow, r.grey,
-          r.src == "recipe" and " |cff938c80(recipe)|r" or "")
-      end
     end
   end
   infoText:SetText(table.concat(lines, "\n"))
@@ -2629,6 +2638,11 @@ refresh = function()
   end
   listNote:Hide()
   local p = NW.PROF_BY_KEY[selected]
+  local fishing = selected == "fishing"
+  mid:SetShown(not fishing)
+  right:SetShown(not fishing)
+  if NW.FishPanel then NW.FishPanel(fishing) end
+  if fishing then NW.SetWindowSubtitle(p.name) return end
   local vk = selected .. ":" .. mode .. ":" .. searchText
   viewChanged = vk ~= lastView
   lastView = vk
@@ -2668,9 +2682,13 @@ refresh = function()
   local showCard = card ~= nil
   local planPanel = isCraft and not isMissing
   optRow:SetShown(planPanel)
+  opts[2]:SetShown(selected ~= "cooking")
+  MS.cookSrc:SetShown(selected == "cooking")
+  if MS.cookSrc:IsShown() then MS.cookSrc:Refresh() end
   priceLine:SetShown(isCraft)
   shopBox:SetShown(planPanel or showCard)
   searchBtn:SetShown(planPanel)
+  MS.fcBtn:SetShown(planPanel and selected == "cooking")
   if not planPanel then MS.recipesBtn:Hide() end
   -- the key to the list's colours and marks, and notes on this profession: on hover
   tips:Hide()

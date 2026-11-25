@@ -35,5 +35,6 @@ Compass.lua
 Planner.lua
 Guide.lua
 Professions\UI.lua
+Professions\Fishing.lua
 Consumes.lua
 Options.lua

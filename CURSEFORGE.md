@@ -76,6 +76,15 @@ Costs and craft counts are estimates: prices move and skill-ups are random.
 
 Listing prices aren't sales. Profit here means worth a look, not guaranteed gold.
 
+## Fishing and Cooking
+
+- **Cooking** levels like any craft, from any ingredients: meat, fish, vendor goods, your bags. Or only fish recipes, or none
+- **Fishing** has its own guide: where to fish at each skill, what's caught there, when to train, your effective skill with gear and lures
+- **Fish Finder**: every fish, where it's caught, and what it cooks
+- **Fishing + Cooking**: one plan for both from the fish you catch. What to fish, how many of each fish (estimated), when to train, what to cook, as it happens
+
+Zone fishing skill and catch rates aren't published for WoW Forever, so Nodewalker doesn't guess them.
+
 ## Consumes
 
 ![Consumes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/consumes.jpg)
