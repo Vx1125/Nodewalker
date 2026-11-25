@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.20
+
+- Consumes, My level: skips food whose recipe only comes from zones above your level or the other faction.
+- Recipe sources: recipes with several drop sources show "World Drop or AH".
+
 ## 1.1.19
 
 - Settings: Quest area ring, how strongly your minimap's checkered quest-area ring shows through the overlay (15% by default).
