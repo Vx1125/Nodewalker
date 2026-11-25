@@ -6,7 +6,7 @@ What goes on the CurseForge page besides the description (`CURSEFORGE.md`), and 
 
 > Farm smarter, level professions for less, and find crafts worth making: short gathering routes on a Diablo-style map overlay, and profession plans priced from Auctionator. For WoW Forever.
 
-184 characters.
+188 characters.
 
 ## Gallery
 
