@@ -125,7 +125,7 @@ function NW.MerchantItem(i)
 end
 
 function NW.Print(msg)
-  DEFAULT_CHAT_FRAME:AddMessage("|cffe8c46aNodewalker|r: " .. tostring(msg))
+  DEFAULT_CHAT_FRAME:AddMessage("|cffd6b266Nodewalker|r: " .. tostring(msg))
 end
 
 ------------------------------------------------------------------------

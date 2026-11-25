@@ -9,20 +9,28 @@ local C = NW.COLORS
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 
+-- One palette for every page: warm charcoal, bronze edges, muted gold
 local S = {
-  bg       = { 0.055, 0.06, 0.07, 0.97 },
-  edge     = { 0, 0, 0, 1 },
-  cell     = { 0.12, 0.125, 0.14, 1 },
-  hover    = { 0.18, 0.19, 0.21, 1 },
-  sunk     = { 0.08, 0.085, 0.095, 1 },
-  sep      = { C.gold[1], C.gold[2], C.gold[3], 0.22 },
-  gold     = { C.gold[1], C.gold[2], C.gold[3], 1 },
-  text     = { 0.92, 0.9, 0.85, 1 },
-  dim      = { 0.58, 0.58, 0.6, 1 },
-  disabled = { 0.38, 0.38, 0.4, 1 },
-  bad      = { 0.92, 0.36, 0.3, 1 },
-  good     = { 0.55, 0.86, 0.48, 1 },
+  bg       = { 0.078, 0.075, 0.067, 1 }, -- main frame
+  cell     = { 0.125, 0.118, 0.102, 1 }, -- content panels, buttons
+  header   = { 0.141, 0.125, 0.098, 1 }, -- title bar, column headers, status bar
+  edge     = { 0.318, 0.263, 0.169, 1 }, -- 1px bronze border
+  hover    = { 0.173, 0.157, 0.125, 1 }, -- hovered row / button
+  select   = { 0.220, 0.188, 0.118, 1 }, -- selected row
+  sunk     = { 0.094, 0.090, 0.078, 1 }, -- lists and maps sit a step darker
+  alt      = { 1, 1, 1, 0.025 }, -- every other row
+  sep      = { 0.318, 0.263, 0.169, 0.7 },
+  gold     = { 0.839, 0.698, 0.400, 1 },
+  text     = { 0.878, 0.859, 0.816, 1 },
+  dim      = { 0.576, 0.549, 0.502, 1 },
+  disabled = { 0.369, 0.345, 0.314, 1 },
+  bad      = { 0.820, 0.463, 0.396, 1 },
+  good     = { 0.580, 0.729, 0.471, 1 },
 }
+-- the same, for colour codes in text
+S.HEX = { gold = "|cffd6b266", text = "|cffe0dbd0", dim = "|cff938c80", good = "|cff94ba78", bad = "|cffd17665" }
+-- sizes every page shares
+S.PAD, S.GAP, S.ROW_H, S.ICON = 16, 10, 34, 24
 NW.STYLE = S
 
 local UI = {}
@@ -94,8 +102,8 @@ end
 function UI.Button(parent, text, w, onClick, h, style)
   local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
   b:SetSize(w, h or 26)
-  local base = style == "primary" and { C.gold[1] * 0.32, C.gold[2] * 0.32, C.gold[3] * 0.32, 1 } or S.cell
-  local over = style == "primary" and { C.gold[1] * 0.45, C.gold[2] * 0.45, C.gold[3] * 0.45, 1 } or S.hover
+  local base = style == "primary" and { S.gold[1] * 0.3, S.gold[2] * 0.3, S.gold[3] * 0.3, 1 } or S.cell
+  local over = style == "primary" and { S.gold[1] * 0.42, S.gold[2] * 0.42, S.gold[3] * 0.42, 1 } or S.hover
   UI.Flat(b, base, S.edge)
   local fs = UI.Text(b, 12, style == "primary" and S.gold or S.text, "CENTER")
   fs:SetPoint("LEFT", 6, 0)
@@ -184,7 +192,7 @@ function UI.Slider(parent, width, label, minV, maxV, step, fmtValue, get, set, t
   track:SetPoint("RIGHT")
   track:SetHeight(6)
   local edge = s:CreateTexture(nil, "BACKGROUND", nil, -1)
-  edge:SetColorTexture(0, 0, 0, 1)
+  edge:SetColorTexture(unpack(S.edge))
   edge:SetPoint("TOPLEFT", track, -1, 1)
   edge:SetPoint("BOTTOMRIGHT", track, 1, -1)
   local thumb = s:CreateTexture(nil, "OVERLAY")
@@ -192,7 +200,7 @@ function UI.Slider(parent, width, label, minV, maxV, step, fmtValue, get, set, t
   thumb:SetSize(8, 14)
   s:SetThumbTexture(thumb)
   local fill = s:CreateTexture(nil, "ARTWORK")
-  fill:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], 0.45)
+  fill:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.45)
   fill:SetHeight(6)
   fill:SetPoint("LEFT", track, "LEFT")
   fill:SetPoint("RIGHT", thumb, "CENTER")
@@ -273,7 +281,7 @@ function UI.Dropdown(parent, width, label, items, get, set, btnW, tip)
     r.text:SetText(it[2])
     local hl = r:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
-    hl:SetColorTexture(1, 1, 1, 0.08)
+    hl:SetColorTexture(unpack(S.hover))
     r:SetScript("OnClick", function() set(it[1]); menu:Hide(); f:Refresh() end)
     r.value = it[1]
     menu.rows[i] = r
@@ -323,12 +331,13 @@ end
 
 -- Flat hover/selection textures for list rows
 function UI.RowHighlight(row)
+  -- the highlight layer draws over text, so it's a light wash of the hover colour
   local hl = row:CreateTexture(nil, "HIGHLIGHT")
   hl:SetAllPoints()
-  hl:SetColorTexture(1, 1, 1, 0.06)
-  local sel = row:CreateTexture(nil, "BACKGROUND", nil, 1)
+  hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.07)
+  local sel = row:CreateTexture(nil, "BACKGROUND", nil, 3)
   sel:SetAllPoints()
-  sel:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], 0.16)
+  sel:SetColorTexture(unpack(S.select))
   sel:Hide()
   local bar = row:CreateTexture(nil, "ARTWORK")
   bar:SetPoint("TOPLEFT")
@@ -339,11 +348,45 @@ function UI.RowHighlight(row)
   function row:SetSelected(on) sel:SetShown(on); bar:SetShown(on) end
 end
 
+-- Every other row a shade lighter. row:SetStripe(on)
+function UI.RowStripe(row)
+  local t = row:CreateTexture(nil, "BACKGROUND", nil, 1)
+  t:SetAllPoints()
+  t:SetColorTexture(unpack(S.alt))
+  t:Hide()
+  function row:SetStripe(on) t:SetShown(on and true or false) end
+end
+
+-- A panel with a header strip across its top: returns the panel and the header.
+function UI.Section(parent, w, h, title)
+  local f = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+  if w then f:SetSize(w, h) end
+  UI.Flat(f, S.cell, S.edge)
+  local hd = CreateFrame("Frame", nil, f)
+  hd:SetPoint("TOPLEFT", 1, -1)
+  hd:SetPoint("TOPRIGHT", -1, -1)
+  hd:SetHeight(24)
+  local bg = hd:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  bg:SetColorTexture(unpack(S.header))
+  local line = hd:CreateTexture(nil, "ARTWORK")
+  line:SetPoint("BOTTOMLEFT")
+  line:SetPoint("BOTTOMRIGHT")
+  line:SetHeight(1)
+  line:SetColorTexture(unpack(S.sep))
+  hd.text = UI.Text(hd, 12, S.gold)
+  hd.text:SetPoint("LEFT", 10, 0)
+  hd.text:SetText(title or "")
+  f.header = hd
+  return f, hd
+end
+
+
 ------------------------------------------------------------------------
 -- Main window: title bar, text tabs with a gold underline, pages
 ------------------------------------------------------------------------
-local WIN_W, WIN_H = 1020, 610
-local TITLE_H, TABS_H = 32, 26
+local WIN_W, WIN_H = 1020, 622
+local TITLE_H, TABS_H = 38, 32
 UI.CONTENT_TOP = TITLE_H + TABS_H + 6
 UI.CONTENT_W, UI.CONTENT_H = WIN_W, WIN_H - UI.CONTENT_TOP
 
@@ -372,11 +415,16 @@ titleBar:SetScript("OnDragStop", function()
 end)
 local titleBg = titleBar:CreateTexture(nil, "BACKGROUND")
 titleBg:SetAllPoints()
-titleBg:SetColorTexture(0, 0, 0, 0.35)
+titleBg:SetColorTexture(unpack(S.header))
+local titleLine = titleBar:CreateTexture(nil, "ARTWORK")
+titleLine:SetPoint("BOTTOMLEFT")
+titleLine:SetPoint("BOTTOMRIGHT")
+titleLine:SetHeight(1)
+titleLine:SetColorTexture(unpack(S.sep))
 
 local logo = titleBar:CreateTexture(nil, "ARTWORK")
-logo:SetSize(22, 22)
-logo:SetPoint("LEFT", 10, 0)
+logo:SetSize(24, 24)
+logo:SetPoint("LEFT", 12, 0)
 logo:SetTexture("Interface\\AddOns\\Nodewalker\\Media\\Icon")
 win.title = UI.Text(titleBar, 15, S.gold)
 win.title:SetPoint("LEFT", logo, "RIGHT", 8, 0)
@@ -390,8 +438,8 @@ win.version = UI.Text(titleBar, 11, S.dim, "RIGHT")
 win.version:SetPoint("RIGHT", close, "LEFT", -10, 0)
 
 local tabLine = win:CreateTexture(nil, "ARTWORK")
-tabLine:SetPoint("TOPLEFT", 8, -(TITLE_H + TABS_H))
-tabLine:SetPoint("TOPRIGHT", -8, -(TITLE_H + TABS_H))
+tabLine:SetPoint("TOPLEFT", 1, -(TITLE_H + TABS_H))
+tabLine:SetPoint("TOPRIGHT", -1, -(TITLE_H + TABS_H))
 tabLine:SetHeight(1)
 tabLine:SetColorTexture(unpack(S.sep))
 
@@ -544,7 +592,21 @@ function NW.ToggleWindow(key)
   win:Show()
 end
 
+function NW.SetWindowScale(v)
+  NW.db.settings.winScale = v
+  -- keep the top-left corner where it is
+  local l, t = win:GetLeft(), win:GetTop()
+  local old = win:GetScale()
+  win:SetScale(v)
+  if l and t then
+    win:ClearAllPoints()
+    win:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l * old / v, t * old / v)
+    local p, _, rp, x, y = win:GetPoint()
+    NW.db.settings.winPos = { p, rp, x, y }
+  end
+end
 table.insert(NW.OnLoad, function()
+  win:SetScale(NW.db.settings.winScale or 1)
   local p = NW.db.settings.winPos
   if p then
     win:ClearAllPoints()

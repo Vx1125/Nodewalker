@@ -119,6 +119,9 @@ check(2, "Compass bar", "showCompass")
 checkBeside(2, "Minimap button", "minimapButton")
 check(2, "Session panel (loops, nodes and gold per hour)", "showSession")
 check(2, "Icon tooltips when live dots are off", "hoverTooltips")
+place(2, UI.Dropdown(page, COL_W, "Window scale", {
+  { 0.8, "80%" }, { 0.9, "90%" }, { 1, "100%" }, { 1.1, "110%" }, { 1.2, "120%" },
+}, function() return s().winScale or 1 end, function(v) NW.SetWindowScale(v) end, 100), 30)
 
 heading(2, "Which herbs and ore")
 check(2, "Only my professions", "onlyMyProfessions", "Herbs if you have Herbalism, ore if you have Mining.")
@@ -154,10 +157,10 @@ local helpText = UI.Text(help, 11, S.dim)
 helpText:SetPoint("LEFT", 12, 0)
 helpText:SetPoint("RIGHT", -12, 0)
 helpText:SetSpacing(3)
-helpText:SetText("|cffe8c46aAlt|r + hover a live dot: identify it   ·   |cffe8c46aCtrl|r + hover a stop: details   ·   "
-  .. "|cffe8c46aCtrl-right-click|r: hide that herb or ore\n"
-  .. "|cffe8c46a/nw|r overlay   ·   |cffe8c46a/nw plan|r route   ·   |cffe8c46a/nw guide|r farm guide   ·   |cffe8c46a/nw prof|r professions   ·   |cffe8c46a/nw consumes|r   ·   "
-  .. "|cffe8c46a/nw options|r settings")
+helpText:SetText("|cffd6b266Alt|r + hover a live dot: identify it   ·   |cffd6b266Ctrl|r + hover a stop: details   ·   "
+  .. "|cffd6b266Ctrl-right-click|r: hide that herb or ore\n"
+  .. "|cffd6b266/nw|r overlay   ·   |cffd6b266/nw plan|r route   ·   |cffd6b266/nw guide|r farm guide   ·   |cffd6b266/nw prof|r professions   ·   |cffd6b266/nw consumes|r   ·   "
+  .. "|cffd6b266/nw options|r settings")
 
 ------------------------------------------------------------------------
 -- Nodes tab: tick the herbs and ore you want to see

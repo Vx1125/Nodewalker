@@ -520,7 +520,6 @@ NW.On("GET_ITEM_INFO_RECEIVED", function() if page:IsShown() then page.dirty = t
 NW.On("BAG_UPDATE_DELAYED", function() if page:IsShown() then page.dirty = true end end)
 page:SetScript("OnUpdate", function(self) if self.dirty then self.dirty = false refresh() end end)
 
-local LEFT_W, RIGHT_W, ROW_H, MAX_ROWS = 610, 330, 24, 18
 local selectedItem
 local offset = 0
 
@@ -543,7 +542,7 @@ local HINT = {
   Weapon = "one per weapon",
   Potions = "share a cooldown",
   Protection = "share the potion cooldown",
-  Suggested = "best you can use at your level",
+  Recommended = "best you can use at your level",
   ["Also helpful"] = "for your other buff slots",
   Situational = "when the fight calls for it",
   Camp = "at a campfire, 1 hour shared cooldown",
@@ -849,7 +848,7 @@ local function levelList(spec)
   local out = { key = spec.key .. ":level", label = ("%s  ·  level %d"):format(spec.label, level), groups = {} }
   local roleKey = ROLE_OF[spec.key] or "str"
   local firstAid = NW.ProfSkill("firstaid")
-  for gi, heading in ipairs({ "Suggested", "Also helpful", "Situational", "Camp" }) do
+  for gi, heading in ipairs({ "Recommended", "Also helpful", "Situational", "Camp" }) do
     local rows = {}
     local function put(sl)
       if sl == "school" then
@@ -862,7 +861,7 @@ local function levelList(spec)
         if nextId and id then upgradeOf[id] = { nextId, nextAt, skill } end
         if id then
           local fx = ITEM[id] and ITEM[id][2] or ""
-          rows[#rows + 1] = { id, fx ~= "" and (sl[1] .. "  |cffe6e6eb" .. fx .. "|r") or sl[1], nil, sl[4], sl[3] }
+          rows[#rows + 1] = { id, fx ~= "" and (sl[1] .. "  |cffe0dbd0" .. fx .. "|r") or sl[1], nil, sl[4], sl[3] }
         end
       end
     end
@@ -988,104 +987,135 @@ local function listMode()
 end
 
 ------------------------------------------------------------------------
--- Top row
+-- Layout: filters across the top, the list on the left, the selected
+-- consumable on the right, a status bar along the bottom
 ------------------------------------------------------------------------
-local head = UI.Heading(page, "", LEFT_W)
-head:SetPoint("TOPLEFT", 24, -8)
+local PAD, GAP = S.PAD, 12
+local PAGE_W, PAGE_H = UI.CONTENT_W, UI.CONTENT_H
+local LIST_W = 652
+local DET_W = PAGE_W - PAD * 2 - GAP - LIST_W
+local TOP = 46                 -- filters sit above the panels
+local STATUS_H = 32
+local PANEL_H = PAGE_H - TOP - GAP - STATUS_H - PAD
+local HEAD_H = 24              -- column header strip
+local ITEM_H, GROUP_H = 34, 24
+local BODY_H = PANEL_H - HEAD_H - 2
+-- right edges of the number columns, from the list's left
+local COL_HAVE, COL_CRAFT, COL_BUY = 462, 552, LIST_W - 16
+
+local H = S.HEX
+
 local specItems = {}
 for _, l in ipairs(NW.CONSUMES) do specItems[#specItems + 1] = { l.key, l.label } end
-local specDrop = UI.Dropdown(page, 190, "Spec", specItems, function() return currentList().key end, function(v)
+local specDrop = UI.Dropdown(page, 196, "Spec", specItems, function() return currentList().key end, function(v)
   st().consumeSpec = v
   selectedItem = nil
   offset = 0
   refresh()
-end, 150)
-specDrop:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -6)
-local stockDrop = UI.Dropdown(page, 170, "Stock", { { 0, "One of each" }, { 2, "2 hours" }, { 3, "3 hours" }, { 4, "4 hours" } },
+end, 156)
+specDrop:SetPoint("TOPLEFT", PAD, -12)
+local stockDrop = UI.Dropdown(page, 168, "Stock", { { 0, "One of each" }, { 2, "2 hours" }, { 3, "3 hours" }, { 4, "4 hours" } },
   function() return st().consumeHours or 0 end, function(v)
     st().consumeHours = v
     refresh()
-  end, 120, "How much to carry: buffs by their duration, potions at 5 an hour.")
-stockDrop:SetPoint("LEFT", specDrop, "RIGHT", 18, 0)
-local budget = UI.Dropdown(page, 140, "List", { { "level", "My level" }, { "raid", "Raid best" }, { "budget", "Raid budget" } },
+  end, 120, "Buffs by their duration, potions at 5 an hour.")
+stockDrop:SetPoint("LEFT", specDrop, "RIGHT", 22, 0)
+local budget = UI.Dropdown(page, 150, "List", { { "level", "My level" }, { "raid", "Raid best" }, { "budget", "Raid budget" } },
   listMode, function(v)
     st().consumeList = v
     st().consumeBudget = v == "budget"
     selectedItem = nil
     offset = 0
     refresh()
-  end, 108)
-budget:SetPoint("LEFT", stockDrop, "RIGHT", 18, 0)
+  end, 112)
+budget:SetPoint("LEFT", stockDrop, "RIGHT", 22, 0)
+local title = UI.Text(page, 12, S.dim, "RIGHT")
+title:SetPoint("RIGHT", page, "TOPRIGHT", -PAD, -24)
+title:SetWidth(DET_W)
+title:SetWordWrap(false)
 
-local listBox = UI.Box(page, LEFT_W, MAX_ROWS * ROW_H + 2)
-listBox:SetPoint("TOPLEFT", specDrop, "BOTTOMLEFT", 0, -22)
-for _, c in ipairs({ { "Have", 462 }, { "Make", 530 }, { "Buy", LEFT_W - 10 } }) do
-  local t = UI.Text(page, 10, S.dim, "RIGHT")
-  t:SetPoint("BOTTOMRIGHT", listBox, "TOPLEFT", c[2], 3)
+------------------------------------------------------------------------
+-- The list
+------------------------------------------------------------------------
+local listPanel, listHead = UI.Section(page, LIST_W, PANEL_H, "Consumable")
+listPanel:SetPoint("TOPLEFT", PAD, -TOP)
+for _, c in ipairs({ { "Have", COL_HAVE }, { "Craft", COL_CRAFT }, { "Buy", COL_BUY } }) do
+  local t = UI.Text(listHead, 11, S.dim, "RIGHT")
+  t:SetPoint("RIGHT", listHead, "LEFT", c[2] - 1, 0)
   t:SetText(c[1])
 end
+local body = CreateFrame("Frame", nil, listPanel)
+body:SetPoint("TOPLEFT", 1, -1 - HEAD_H)
+body:SetPoint("BOTTOMRIGHT", -1, 1)
+body:SetClipsChildren(true)
+local emptyText = UI.Text(body, 12, S.dim, "CENTER")
+emptyText:SetPoint("CENTER")
 
--- Under the list: hidden rows on the left, the bill on the right
-local showHidden = false
-local hiddenCheck = UI.Check(page, "Show hidden", function() return showHidden end, function(v)
-  showHidden = v
-  refresh()
-end, "Right-click a row to hide it, or to bring it back.")
-hiddenCheck:SetPoint("TOPLEFT", listBox, "BOTTOMLEFT", 2, -6)
-local hint = UI.Text(page, 11, S.dim)
-hint:SetPoint("TOPLEFT", listBox, "BOTTOMLEFT", 2, -9)
-hint:SetText("Right-click a row to hide it.")
-local total = UI.Text(page, 12, S.dim, "RIGHT")
-total:SetPoint("TOPRIGHT", listBox, "BOTTOMRIGHT", 0, -9)
-
-------------------------------------------------------------------------
--- Right side: the selected consumable
-------------------------------------------------------------------------
-local right = CreateFrame("Frame", nil, page)
-right:SetSize(RIGHT_W, 480)
-right:SetPoint("TOPLEFT", head, "TOPRIGHT", 28, 0)
-local rHead = UI.Heading(right, "", RIGHT_W)
-rHead:SetPoint("TOPLEFT")
-local detail = UI.Text(right, 12, S.text)
-detail:SetPoint("TOPLEFT", rHead, "BOTTOMLEFT", 0, -8)
-detail:SetWidth(RIGHT_W)
-detail:SetJustifyV("TOP")
-detail:SetSpacing(4)
-
-local rows, shown = {}, {}
-listBox:EnableMouseWheel(true)
-listBox:SetScript("OnMouseWheel", function(_, delta)
-  local max = math.max(0, #shown - MAX_ROWS)
-  local o = math.max(0, math.min(max, offset - delta * 3))
-  if o ~= offset then offset = o refresh() end
-end)
-local thumb = listBox:CreateTexture(nil, "OVERLAY")
+local thumb = body:CreateTexture(nil, "OVERLAY")
 thumb:SetWidth(3)
-thumb:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.6)
-for i = 1, MAX_ROWS do
-  local row = CreateFrame("Button", nil, listBox)
-  row:SetSize(LEFT_W - 2, ROW_H)
-  row:SetPoint("TOPLEFT", 1, -1 - (i - 1) * ROW_H)
+thumb:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.5)
+
+-- Folded headings, remembered. Situational and Camp start folded.
+local function folded(name)
+  local f = st().consumeFolds
+  local v = f and f[name]
+  if v == nil then return OPTIONAL[name] or false end
+  return v
+end
+local function setFolded(name, v)
+  st().consumeFolds = st().consumeFolds or {}
+  st().consumeFolds[name] = v
+end
+
+local rows, shown, visible = {}, {}, {}
+local function onWheel(_, delta)
+  local o = math.max(0, math.min(visible.maxOffset or 0, offset - delta * 2))
+  if o ~= offset then offset = o refresh() end
+end
+body:EnableMouseWheel(true)
+body:SetScript("OnMouseWheel", onWheel)
+
+local function rowFor(i)
+  local row = rows[i]
+  if row then return row end
+  row = CreateFrame("Button", nil, body)
+  row:SetWidth(LIST_W - 2)
   row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  UI.RowStripe(row)
   UI.RowHighlight(row)
+  -- heading parts
+  row.groupBg = row:CreateTexture(nil, "BACKGROUND")
+  row.groupBg:SetAllPoints()
+  row.groupBg:SetColorTexture(unpack(S.header))
+  row.fold = row:CreateTexture(nil, "ARTWORK")
+  row.fold:SetSize(12, 12)
+  row.fold:SetPoint("LEFT", 10, 0)
+  row.groupName = UI.Text(row, 12, S.gold)
+  row.groupName:SetPoint("LEFT", 28, 0)
+  row.groupHint = UI.Text(row, 11, S.dim)
+  row.groupHint:SetPoint("LEFT", row.groupName, "RIGHT", 10, 0)
+  row.groupCount = UI.Text(row, 11, S.dim, "RIGHT")
+  row.groupCount:SetPoint("RIGHT", -16, 0)
+  -- item parts
   row.icon = row:CreateTexture(nil, "ARTWORK")
-  row.icon:SetSize(18, 18)
-  row.icon:SetPoint("LEFT", 8, 0)
+  row.icon:SetSize(S.ICON, S.ICON)
+  row.icon:SetPoint("LEFT", 10, 0)
   row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   row.name = UI.Text(row, 12, S.text)
-  row.name:SetPoint("LEFT", 34, 0)
-  row.name:SetWidth(195)
+  row.name:SetPoint("TOPLEFT", 44, -4)
+  row.name:SetWidth(COL_HAVE - 44 - 70)
   row.name:SetWordWrap(false)
   row.effect = UI.Text(row, 11, S.dim)
-  row.effect:SetPoint("LEFT", 236, 0)
-  row.effect:SetWidth(190)
+  row.effect:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -3)
+  row.effect:SetWidth(COL_HAVE - 44 - 70)
   row.effect:SetWordWrap(false)
   row.have = UI.Text(row, 12, S.text, "RIGHT")
-  row.have:SetPoint("RIGHT", row, "LEFT", 462, 0)
+  row.have:SetPoint("RIGHT", row, "LEFT", COL_HAVE, 0)
   row.make = UI.Text(row, 12, S.text, "RIGHT")
-  row.make:SetPoint("RIGHT", row, "LEFT", 530, 0)
+  row.make:SetPoint("RIGHT", row, "LEFT", COL_CRAFT, 0)
   row.price = UI.Text(row, 12, S.text, "RIGHT")
-  row.price:SetPoint("RIGHT", -10, 0)
+  row.price:SetPoint("RIGHT", row, "LEFT", COL_BUY, 0)
+  row:SetScript("OnMouseWheel", onWheel)
   row:SetScript("OnEnter", function(self)
     if not self.item then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -1094,6 +1124,11 @@ for i = 1, MAX_ROWS do
   end)
   row:SetScript("OnLeave", function() GameTooltip:Hide() end)
   row:SetScript("OnClick", function(self, button)
+    if self.group then
+      setFolded(self.group, not folded(self.group))
+      refresh()
+      return
+    end
     if not self.item then return end
     if button == "RightButton" then
       local h = hiddenOf(currentList().key .. (listMode() == "level" and ":level" or ""))
@@ -1115,6 +1150,7 @@ for i = 1, MAX_ROWS do
     refresh()
   end)
   rows[i] = row
+  return row
 end
 
 -- Would you make this one rather than buy it?
@@ -1122,9 +1158,29 @@ local function makes(e)
   return e.make and e.m.known and (not e.price or e.make < e.price)
 end
 
+------------------------------------------------------------------------
+-- Status bar: what's short, what it costs, and the Auctionator search
+------------------------------------------------------------------------
+local status = CreateFrame("Frame", nil, page, "BackdropTemplate")
+status:SetPoint("BOTTOMLEFT", PAD, PAD)
+status:SetPoint("BOTTOMRIGHT", -PAD, PAD)
+status:SetHeight(STATUS_H)
+UI.Flat(status, S.header, S.edge)
+local total = UI.Text(status, 12, S.text)
+total:SetPoint("LEFT", 12, 0)
+local showHidden = false
+local hiddenCheck = UI.Check(status, "Show hidden", function() return showHidden end, function(v)
+  showHidden = v
+  refresh()
+end)
+hiddenCheck:SetPoint("LEFT", status, "LEFT", 330, 0)
+local hint = UI.Text(status, 11, S.dim)
+hint:SetPoint("LEFT", status, "LEFT", 330, 0)
+hint:SetText("Right-click a row to hide it")
+
 -- Everything you're short of, the cheap way: materials for what you'd make,
 -- the item itself for the rest
-local searchBtn = UI.Button(page, "Search what's short in Auctionator", RIGHT_W, function()
+local searchBtn = UI.Button(status, "Search what's short in Auctionator", 270, function()
   local want, order = {}, {}
   local function add(id, n)
     if n <= 0 then return end
@@ -1151,11 +1207,121 @@ local searchBtn = UI.Button(page, "Search what's short in Auctionator", RIGHT_W,
     if ok and buy > 0 then items[#items + 1] = { n, buy } end
   end
   NW.SearchAH(items)
-end, nil, "primary")
-searchBtn:SetPoint("BOTTOMLEFT", listBox, "BOTTOMRIGHT", 28, 0)
+end, 24, "primary")
+searchBtn:SetPoint("RIGHT", -4, 0)
+
+------------------------------------------------------------------------
+-- Details: the selected consumable
+------------------------------------------------------------------------
+local det = UI.Section(page, DET_W, PANEL_H, "Details")
+det:SetPoint("TOPLEFT", listPanel, "TOPRIGHT", GAP, 0)
+local IN = 12
+local dIcon = det:CreateTexture(nil, "ARTWORK")
+dIcon:SetSize(40, 40)
+dIcon:SetPoint("TOPLEFT", IN, -HEAD_H - 12)
+dIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+local dIconEdge = det:CreateTexture(nil, "BORDER")
+dIconEdge:SetPoint("TOPLEFT", dIcon, -1, 1)
+dIconEdge:SetPoint("BOTTOMRIGHT", dIcon, 1, -1)
+dIconEdge:SetColorTexture(unpack(S.edge))
+local dName = UI.Text(det, 14, S.text)
+dName:SetPoint("TOPLEFT", dIcon, "TOPRIGHT", 10, -2)
+dName:SetPoint("RIGHT", -IN, 0)
+dName:SetWordWrap(false)
+local dType = UI.Text(det, 11, S.dim)
+dType:SetPoint("TOPLEFT", dName, "BOTTOMLEFT", 0, -4)
+dType:SetPoint("RIGHT", -IN, 0)
+dType:SetWordWrap(false)
+local dEffect = UI.Text(det, 11, S.dim)
+dEffect:SetPoint("TOPLEFT", dIcon, "BOTTOMLEFT", 0, -10)
+dEffect:SetWidth(DET_W - IN * 2)
+dEffect:SetJustifyV("TOP")
+if dEffect.SetMaxLines then dEffect:SetMaxLines(3) end
+dEffect:SetSpacing(2)
+local dStock = UI.Text(det, 12, S.text)
+dStock:SetPoint("TOPLEFT", dEffect, "BOTTOMLEFT", 0, -10)
+
+-- Craft and Buy side by side; the cheaper one gets the gold edge
+local CMP_W = math.floor((DET_W - IN * 2 - 8) / 2)
+local function cmpBox(label)
+  local b = CreateFrame("Frame", nil, det, "BackdropTemplate")
+  b:SetSize(CMP_W, 50)
+  UI.Flat(b, S.sunk, S.edge)
+  b.label = UI.Text(b, 11, S.dim)
+  b.label:SetPoint("TOPLEFT", 8, -7)
+  b.label:SetText(label)
+  b.tag = UI.Text(b, 10, S.good, "RIGHT")
+  b.tag:SetPoint("TOPRIGHT", -8, -8)
+  b.value = UI.Text(b, 14, S.text)
+  b.value:SetPoint("BOTTOMLEFT", 8, 8)
+  b.value:SetPoint("RIGHT", -8, 0)
+  b.value:SetWordWrap(false)
+  function b:Set(text, best, dim)
+    self.value:SetText(text)
+    self.value:SetTextColor(unpack(dim and S.dim or best and S.good or S.text))
+    self.tag:SetText(best and "Cheapest" or "")
+    self:SetBackdropBorderColor(unpack(best and S.gold or S.edge))
+  end
+  return b
+end
+local cmpCraft = cmpBox("Craft")
+cmpCraft:SetPoint("TOPLEFT", dStock, "BOTTOMLEFT", 0, -10)
+local cmpBuy = cmpBox("Buy")
+cmpBuy:SetPoint("LEFT", cmpCraft, "RIGHT", 8, 0)
+local dSave = UI.Text(det, 11, S.dim)
+dSave:SetPoint("TOPLEFT", cmpCraft, "BOTTOMLEFT", 0, -7)
+dSave:SetWidth(DET_W - IN * 2)
+dSave:SetWordWrap(false)
+
+local dRecipe = UI.Text(det, 11, S.text)
+dRecipe:SetPoint("TOPLEFT", dSave, "BOTTOMLEFT", 0, -10)
+dRecipe:SetWidth(DET_W - IN * 2)
+dRecipe:SetJustifyV("TOP")
+if dRecipe.SetMaxLines then dRecipe:SetMaxLines(2) end
+dRecipe:SetSpacing(2)
+
+-- Materials: icon, how many, what you have, what they cost
+local MAT_ROWS, MAT_H = 5, 19
+local matRows = {}
+local matBox = CreateFrame("Frame", nil, det)
+matBox:SetPoint("TOPLEFT", dRecipe, "BOTTOMLEFT", 0, -8)
+matBox:SetSize(DET_W - IN * 2, MAT_ROWS * MAT_H)
+for i = 1, MAT_ROWS do
+  local m = CreateFrame("Button", nil, matBox)
+  m:SetSize(DET_W - IN * 2, MAT_H)
+  m:SetPoint("TOPLEFT", 0, -(i - 1) * MAT_H)
+  m.icon = m:CreateTexture(nil, "ARTWORK")
+  m.icon:SetSize(16, 16)
+  m.icon:SetPoint("LEFT")
+  m.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  m.name = UI.Text(m, 11, S.text)
+  m.name:SetPoint("LEFT", 22, 0)
+  m.name:SetWidth(DET_W - IN * 2 - 22 - 120)
+  m.name:SetWordWrap(false)
+  m.have = UI.Text(m, 11, S.dim, "RIGHT")
+  m.have:SetPoint("RIGHT", -64, 0)
+  m.price = UI.Text(m, 11, S.dim, "RIGHT")
+  m.price:SetPoint("RIGHT")
+  m:SetScript("OnEnter", function(self)
+    if not self.item then return end
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:SetItemByID(self.item)
+    GameTooltip:Show()
+  end)
+  m:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  m:SetScript("OnClick", function(self)
+    if self.item and IsShiftKeyDown() then
+      local n, ok = itemName(self.item)
+      if NW.AHOpen() and ok then NW.SearchAH({ { n, 1 } }) else NW.ChatLink(self.item, nil, true) end
+    end
+  end)
+  m:Hide()
+  matRows[i] = m
+end
 
 -- The selected consumable's materials, for making it yourself
-local matsBtn = UI.Button(page, "Search its materials", RIGHT_W, function()
+local BTN_W = DET_W - IN * 2
+local matsBtn = UI.Button(det, "Search its materials", BTN_W, function()
   local r = selectedItem and NW.RecipeFor(selectedItem)
   if not r then return end
   local e = shown.byId[selectedItem]
@@ -1167,65 +1333,139 @@ local matsBtn = UI.Button(page, "Search its materials", RIGHT_W, function()
     if ok and src ~= "vendor" then items[#items + 1] = { n, math.max(1, re[2] * crafts - (NW.ItemCount(re[1]) or 0)) } end
   end
   NW.SearchAH(items)
-end)
-matsBtn:SetPoint("BOTTOMLEFT", searchBtn, "TOPLEFT", 0, 6)
+end, 24)
+matsBtn:SetPoint("BOTTOMLEFT", IN, IN)
 
 -- Gather it instead: opens the Farm Guide on its priciest herb or ore
 local farmNode
-local farmBtn = UI.Button(page, "", RIGHT_W, function()
+local farmBtn = UI.Button(det, "", BTN_W, function()
   if farmNode then NW.GuideSelectHerb(farmNode) end
-end)
+end, 24)
 farmBtn:SetPoint("BOTTOMLEFT", matsBtn, "TOPLEFT", 0, 6)
+
+local dEmpty = UI.Text(det, 12, S.dim, "CENTER")
+dEmpty:SetPoint("CENTER")
+dEmpty:SetWidth(DET_W - 40)
+
+local detailParts = { dIcon, dIconEdge, dName, dType, dEffect, dStock, cmpCraft, cmpBuy, dSave, dRecipe, matBox }
+
+local function money(c) return NW.Money(c, "mid") end
 
 local function drawDetail()
   local id = selectedItem
   farmNode = nil
-  if not id then
-    rHead.text:SetText("Consumable")
-    detail:SetText("|cff94949aClick one for its prices and materials.|r")
+  local hasItem = id ~= nil
+  for _, p in ipairs(detailParts) do p:SetShown(hasItem) end
+  dEmpty:SetShown(not hasItem)
+  if not hasItem then
+    det.header.text:SetText("Details")
+    dEmpty:SetText(#shown > 0 and "Everything here is hidden." or "Nothing on this list.")
     return
   end
-  rHead.text:SetText((itemName(id)))
-  local lines = {}
+  local e = shown.byId[id]
+  det.header.text:SetText(e and e.groupName or "Details")
+  dIcon:SetTexture(NW.ItemIcon(id) or "Interface\\Icons\\INV_Misc_QuestionMark")
+  local name, loaded = itemName(id)
+  local q, iType, iSub
+  if loaded then
+    local info = { (C_Item and C_Item.GetItemInfo or GetItemInfo)(id) }
+    q, iType, iSub = info[3], info[6], info[7]
+  end
+  local qc = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
+  dName:SetText(name)
+  if qc then dName:SetTextColor(qc.r, qc.g, qc.b) else dName:SetTextColor(unpack(S.text)) end
+  dType:SetText(iSub and iSub ~= iType and iSub or iType or "")
+
+  -- what it does: the game's text, else the short effect from the list
   local use = useText(id)
-  if use then lines[#lines + 1] = "|cff94949a" .. use .. "|r" lines[#lines + 1] = "" end
+  local fx = e and e.effect and e.effect:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+  dEffect:SetText(use or fx or "")
   local up = listMode() == "level" and upgradeOf[id]
   if up then
-    lines[#lines + 1] = ("|cff8cdb7aNext|r  %s at %s%d"):format((itemName(up[1])), up[3] and "First Aid " or "", up[2])
-    lines[#lines + 1] = ""
+    dEffect:SetText((dEffect:GetText() or "") .. ("\n%sNext|r %s at %s%d"):format(H.good, (itemName(up[1])), up[3] and "First Aid " or "level ", up[2]))
   end
-  local vendor, ah, craft = NW.PriceParts(id)
-  if ah then lines[#lines + 1] = ("|cff94949aAuction|r  %s"):format(NW.Money(ah)) end
-  if vendor then lines[#lines + 1] = ("|cff94949aVendor|r  %s"):format(NW.Money(vendor)) end
-  if craft then lines[#lines + 1] = ("|cff94949aMake it|r  %s"):format(NW.Money(craft)) end
+
+  -- stock
+  if e then
+    local have = not e.alt and e.setHave or e.have
+    local need = e.need or 0
+    local col = need > 0 and have < need and H.bad or H.text
+    dStock:SetText(need > 0 and ("%sHave|r %s%d|r    %sStock|r %d"):format(H.dim, col, have, H.dim, need)
+      or ("%sHave|r %d"):format(H.dim, have))
+  else
+    dStock:SetText(("%sHave|r %d"):format(H.dim, NW.ItemCount(id) or 0))
+  end
+
+  -- craft or buy
+  local vendor, ah = NW.PriceParts(id)
+  local m = makeInfo(id)
+  local craft = m and m.cost
+  local buy, buySrc = nil, nil
+  if ah and (not vendor or ah <= vendor) then buy, buySrc = ah, "Auction House" elseif vendor then buy, buySrc = vendor, "Vendor" end
+  local canMake = m and m.skill and m.known
+  local craftBest = craft and canMake and (not buy or craft < buy)
+  local buyBest = buy and not craftBest and craft ~= nil
+  cmpCraft.label:SetText("Craft")
+  if craft then
+    cmpCraft:Set(money(craft), craftBest, not canMake)
+  else
+    cmpCraft:Set(m and "No price" or "No recipe", false, true)
+  end
+  cmpBuy.label:SetText(buySrc and ("Buy  " .. H.dim .. "·|r " .. buySrc) or "Buy")
+  if buy then cmpBuy:Set(money(buy), buyBest) else cmpBuy:Set("No price", false, true) end
+  local short = e and e.short or 0
+  if craft and buy and canMake then
+    local diff = math.abs(buy - craft)
+    local how = craft < buy and "Crafting" or "Buying"
+    dSave:SetText(diff > 0 and ("%s saves %s each%s"):format(how, money(diff),
+      short > 0 and ("  ·  %s for %d"):format(money(diff * short), short) or "") or "Same either way")
+  elseif craft and buy and m.skill and not m.known then
+    dSave:SetText("Learn the recipe to craft it")
+  elseif craft and buy then
+    dSave:SetText(("Needs %s"):format(NW.PROF_BY_KEY[m.key] and NW.PROF_BY_KEY[m.key].name or "the profession"))
+  else
+    dSave:SetText("")
+  end
+
+  -- recipe and materials
   local r, key = NW.RecipeFor(id)
-  if r then
-    local prof = NW.PROF_BY_KEY[key]
-    local req = r.orange or r.yellow
-    local m = makeInfo(id)
-    lines[#lines + 1] = ""
-    lines[#lines + 1] = ("|cffe8c46a%s|r%s"):format(prof and prof.name or "", req and req > 0 and (" " .. req) or "")
-    if m.skill then
-      if m.known then
-        lines[#lines + 1] = "|cff8cdb7aRecipe known|r"
-      elseif not m.scanned then
-        lines[#lines + 1] = ("|cff94949aOpen %s once to see which recipes you know|r"):format(prof and prof.name or "it")
-      else
-        lines[#lines + 1] = "|cffeb5c4dRecipe not known|r"
-        lines[#lines + 1] = NW.RecipeSourceText(key, r)
-      end
-    end
-    local best = 0
-    for _, re in ipairs(r.reagents) do
-      local p = NW.Price(re[1])
-      lines[#lines + 1] = ("%d  %s  |cff94949a%s|r"):format(re[2], (itemName(re[1])), p and NW.Money(p * re[2], "mid") or "?")
-      local node = nodeFor(re[1])
-      local worth = (p or 1) * re[2]
-      if node and worth > best then farmNode, best = node, worth end
-    end
-    if (r.yield or 1) > 1 then lines[#lines + 1] = ("|cff94949aMakes %d|r"):format(r.yield) end
+  for _, mr in ipairs(matRows) do mr:Hide() end
+  if not r then
+    dRecipe:SetText("")
+    return
   end
-  detail:SetText(table.concat(lines, "\n"))
+  local prof = NW.PROF_BY_KEY[key]
+  local req = r.orange or r.yellow
+  local line = ("%s%s|r%s"):format(H.gold, prof and prof.name or "", req and req > 0 and (" " .. req) or "")
+  if m.skill then
+    if m.known then
+      line = line .. "  " .. H.good .. "Recipe known|r"
+    elseif not m.scanned then
+      line = line .. "  " .. H.dim .. "open it once to check recipes|r"
+    else
+      line = line .. "  " .. H.bad .. "Recipe not known|r\n" .. H.dim .. (NW.RecipeSourceText(key, r) or "") .. "|r"
+    end
+  end
+  if (r.yield or 1) > 1 then line = line .. ("  %s· makes %d|r"):format(H.dim, r.yield) end
+  dRecipe:SetText(line)
+  local crafts = math.max(1, math.ceil(math.max(1, short) / (r.yield or 1)))
+  local best = 0
+  for i, re in ipairs(r.reagents) do
+    local mr = matRows[i]
+    if not mr then break end
+    local need = re[2] * crafts
+    local have = NW.ItemCount(re[1]) or 0
+    local p = NW.Price(re[1])
+    mr.item = re[1]
+    mr.icon:SetTexture(NW.ItemIcon(re[1]) or "Interface\\Icons\\INV_Misc_QuestionMark")
+    mr.name:SetText(("%d  %s"):format(re[2], (itemName(re[1]))))
+    mr.have:SetText(("%s%d|r%s/%d|r"):format(have >= need and H.good or H.bad, have, H.dim, need))
+    mr.price:SetText(p and money(p * re[2]) or (H.dim .. "?|r"))
+    mr:Show()
+    local node = nodeFor(re[1])
+    local worth = (p or 1) * re[2]
+    if node and worth > best then farmNode, best = node, worth end
+  end
 end
 
 refresh = function()
@@ -1233,7 +1473,7 @@ refresh = function()
   local list = currentList()
   local mode = listMode()
   if mode == "level" then list = levelList(list) end
-  head.text:SetText(list.label)
+  title:SetText(mode == "level" and ("Level %d"):format(playerLevel()) or "")
   budget:Refresh()
   specDrop:Refresh()
   stockDrop:Refresh()
@@ -1248,7 +1488,8 @@ refresh = function()
   local sum, shortCount = 0, 0
   for _, g in ipairs(list.groups) do
     local at = #shown + 1
-    shown[at] = { header = g[1] }
+    local group = { header = g[1], short = 0, n = 0 }
+    shown[at] = group
     local perHour = PER_HOUR[g[1]] or 1
     local sets = {}
     -- what isn't in the game yet is left out; if that was the whole best
@@ -1273,7 +1514,7 @@ refresh = function()
         local lasts = hours > 0 and minutesOf(c[1])
         if lasts then mine = math.max(1, math.ceil(hours * 60 / lasts)) end
         local e = { id = c[1], effect = c[2], price = price, have = have, make = make, m = m,
-          need = mine, short = math.max(0, mine - have), hidden = isHidden }
+          need = mine, short = math.max(0, mine - have), hidden = isHidden, groupName = g[1] }
         shown[#shown + 1] = e
         shown.byId[e.id] = e
         -- one or the other: the first row you haven't hidden is the one to
@@ -1296,67 +1537,124 @@ refresh = function()
     end
     for k = at + 1, #shown do
       local e = shown[k]
+      group.n = group.n + 1
       if not e.hidden and e.short > 0 then
         local cheapest = makes(e) and e.make or e.price
         if cheapest then sum = sum + cheapest * e.short end
         shortCount = shortCount + 1
+        group.short = group.short + 1
       end
     end
     if #shown == at then shown[at] = nil end -- nothing on this list for the slot
   end
-  offset = math.max(0, math.min(offset, #shown - MAX_ROWS))
-  thumb:SetShown(#shown > MAX_ROWS)
-  if #shown > MAX_ROWS then
-    local h = MAX_ROWS * ROW_H
-    thumb:SetHeight(h * MAX_ROWS / #shown)
-    thumb:ClearAllPoints()
-    thumb:SetPoint("TOPRIGHT", -1, -1 - h * offset / #shown)
-  end
-  for i, row in ipairs(rows) do
-    local e = shown[i + offset]
-    if not e then
-      row:Hide()
-    elseif e.header then
-      row:Show()
-      row:SetAlpha(1)
-      row.item = nil
-      row:SetSelected(false)
-      row.icon:Hide()
-      row.name:SetText("|cffe8c46a" .. e.header .. "|r")
-      row.effect:SetWidth(330)
-      row.effect:SetText(HINT[e.header] or "")
-      row.have:SetText("")
-      row.make:SetText("")
-      row.price:SetText("")
+
+  -- what the list shows: headings, and the rows of open ones
+  wipe(visible)
+  local firstItem
+  local cur
+  for _, e in ipairs(shown) do
+    if e.header then
+      cur = e
+      visible[#visible + 1] = e
     else
-      row:Show()
-      row:SetAlpha(e.hidden and 0.4 or 1)
-      row.item, row.short = e.id, e.short
-      row:SetSelected(e.id == selectedItem)
-      row.icon:Show()
-      row.icon:SetTexture(NW.ItemIcon(e.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
-      row.name:SetText((e.alt and "|cff94949aor|r  " or "") .. (itemName(e.id)))
-      row.effect:SetWidth(190)
-      row.effect:SetText(e.effect)
-      -- green: cheaper to make. Grey: you don't know the recipe yet.
-      local mk = ""
-      if e.make then
-        local col = (not e.m.known and "|cff94949a") or ((not e.price or e.make < e.price) and "|cff8cdb7a") or "|cffe6e6eb"
-        mk = col .. NW.Money(e.make, "mid"):gsub("|r", "|r" .. col) .. "|r"
-      end
-      row.make:SetText(mk)
-      local col = ((e.alt or e.optional) and (e.have > 0 and "|cff8cdb7a" or "|cff94949a")) or (e.short == 0 and "|cff8cdb7a")
-        or (e.have == 0 and "|cffeb5c4d") or "|cffffe633"
-      -- the row to stock counts its alternatives too, so 0/9 never shows green
-      local have = not e.alt and e.setHave or e.have
-      row.have:SetText(e.need > 1 and ("%s%d|r|cff94949a/%d|r"):format(col, have, e.need) or ("%s%d|r"):format(col, have))
-      row.price:SetText(e.price and NW.Money(e.price, "mid") or "|cff94949a?|r")
+      firstItem = firstItem or (not e.hidden and e.id)
+      if not folded(cur.header) then visible[#visible + 1] = e end
     end
   end
+  -- something is always selected while there's anything to show
+  if not (selectedItem and shown.byId[selectedItem]) then selectedItem = firstItem end
+
+  -- the furthest you can scroll and still fill the list
+  local hsum, maxOffset, totalH = 0, 0, 0
+  for i = #visible, 1, -1 do
+    local h = visible[i].header and GROUP_H or ITEM_H
+    totalH = totalH + h
+    if maxOffset == 0 then
+      hsum = hsum + h
+      if hsum > BODY_H then maxOffset = i end
+    end
+  end
+  visible.maxOffset = maxOffset
+  offset = math.max(0, math.min(offset, maxOffset))
+
+  for _, row in ipairs(rows) do row:Hide() end
+  local y, n, stripe = 0, 0, false
+  for i = offset + 1, #visible do
+    local e = visible[i]
+    local h = e.header and GROUP_H or ITEM_H
+    if y >= BODY_H then break end
+    n = n + 1
+    local row = rowFor(n)
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", 0, -y)
+    row:SetHeight(h)
+    row:Show()
+    y = y + h
+    local isGroup = e.header ~= nil
+    row.groupBg:SetShown(isGroup)
+    row.fold:SetShown(isGroup)
+    row.groupName:SetShown(isGroup)
+    row.groupHint:SetShown(isGroup)
+    row.groupCount:SetShown(isGroup)
+    row.icon:SetShown(not isGroup)
+    row.name:SetShown(not isGroup)
+    row.effect:SetShown(not isGroup)
+    row.have:SetShown(not isGroup)
+    row.make:SetShown(not isGroup)
+    row.price:SetShown(not isGroup)
+    if isGroup then
+      stripe = false
+      row.group, row.item = e.header, nil
+      row:SetAlpha(1)
+      row:SetSelected(false)
+      row:SetStripe(false)
+      local f = folded(e.header)
+      row.fold:SetTexture("Interface\\Buttons\\UI-" .. (f and "Plus" or "Minus") .. "Button-Up")
+      row.groupName:SetText(e.header)
+      row.groupHint:SetText(HINT[e.header] or "")
+      row.groupCount:SetText(e.short > 0 and (H.bad .. e.short .. " short|r") or (f and (e.n .. "") or ""))
+    else
+      stripe = not stripe
+      row.group = nil
+      row:SetStripe(stripe)
+      row:SetAlpha(e.hidden and 0.45 or 1)
+      row.item, row.short = e.id, e.short
+      row:SetSelected(e.id == selectedItem)
+      row.icon:SetTexture(NW.ItemIcon(e.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
+      row.name:SetText((e.alt and (H.dim .. "or|r  ") or "") .. (itemName(e.id)))
+      row.effect:SetText(e.effect and e.effect:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or "")
+      -- green only where it's the cheaper way; grey where you don't know the recipe
+      local cheaperMake = e.make and e.m.known and (not e.price or e.make < e.price)
+      local mk = ""
+      if e.make then
+        local col = (not e.m.known and H.dim) or (cheaperMake and H.good) or H.text
+        mk = col .. money(e.make):gsub("|r", "|r" .. col) .. "|r"
+      end
+      row.make:SetText(mk)
+      local buyCol = (e.price and e.make and e.m.known and not cheaperMake) and H.good or H.text
+      row.price:SetText(e.price and (buyCol .. money(e.price):gsub("|r", "|r" .. buyCol) .. "|r") or (H.dim .. "–|r"))
+      -- red only below the stock you asked for
+      local have = not e.alt and e.setHave or e.have
+      local col = (e.need > 0 and have < e.need) and H.bad or ((e.alt or e.optional) and have == 0 and H.dim) or H.text
+      row.have:SetText(e.need > 1 and ("%s%d|r%s/%d|r"):format(col, have, H.dim, e.need) or ("%s%d|r"):format(col, have))
+    end
+  end
+  emptyText:SetShown(#visible == 0)
+  emptyText:SetText("Nothing on this list.")
+
+  thumb:SetShown(maxOffset > 0)
+  if maxOffset > 0 then
+    local th = math.max(20, BODY_H * BODY_H / totalH)
+    thumb:SetHeight(th)
+    thumb:ClearAllPoints()
+    thumb:SetPoint("TOPRIGHT", -2, -((BODY_H - th) * offset / maxOffset))
+  end
+
   hiddenCheck:SetShown(nHidden > 0)
   hiddenCheck:Refresh()
   hint:SetShown(nHidden == 0)
-  total:SetText(shortCount > 0 and ("Short %d  ·  %s to fill"):format(shortCount, NW.Money(sum, "mid")) or "|cff8cdb7aStocked|r")
+  total:SetText(shortCount > 0 and (("%s%d|r below stock"):format(H.bad, shortCount)
+    .. (sum > 0 and ("  %s·|r  %s to restock"):format(H.dim, money(sum)) or "")) or (H.good .. "Stocked|r"))
   searchBtn:SetEnabled(shortCount > 0)
   drawDetail()
   matsBtn:SetShown(selectedItem ~= nil and NW.RecipeFor(selectedItem) ~= nil)

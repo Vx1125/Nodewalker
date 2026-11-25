@@ -329,7 +329,7 @@ refresh = function()
   playerDot:SetPoint("CENTER", mapArt, "TOPLEFT", px(ppx, ppy))
   playerDot:SetRotation(NW.Facing())
 
-  local gold, dim = "|cffe8c46a", "|cff94949a"
+  local gold, dim = "|cffd6b266", "|cff938c80"
   if NW.routeStatus then
     stats:SetText(gold .. NW.routeStatus .. "|r")
   elseif route and route.length then

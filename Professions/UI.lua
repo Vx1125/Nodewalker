@@ -327,7 +327,7 @@ for i = 1, STEP_ROWS do
   UI.RowHighlight(row)
   local bg = row:CreateTexture(nil, "BACKGROUND")
   bg:SetAllPoints()
-  bg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.02 or 0.045)
+  bg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.025 or 0)
   row.range = UI.Text(row, 12, S.gold)
   row.range:SetPoint("TOPLEFT", 8, -7)
   row.range:SetWidth(62)
@@ -378,7 +378,7 @@ for i = 1, STEP_ROWS do
         GameTooltip:AddLine("Bring", 0.91, 0.77, 0.42)
         for _, it in ipairs(needs) do
           local have = math.min(NW.ItemCount(it[1]) or 0, it[2])
-          local c = have >= it[2] and "8cdb7a" or "ffffff"
+          local c = have >= it[2] and "94ba78" or "ffffff"
           GameTooltip:AddDoubleLine((itemName(it[1])), ("|cff%s%d/%d|r"):format(c, have, it[2]), 1, 1, 1)
         end
       end
@@ -438,9 +438,9 @@ local function makeScroller(box, boxH, visible, getCount, getOffset, setOffset)
   local tex = thumb:CreateTexture(nil, "OVERLAY")
   tex:SetPoint("TOPLEFT", 2, 0)
   tex:SetPoint("BOTTOMRIGHT", -2, 0)
-  tex:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], 0.55)
-  thumb:SetScript("OnEnter", function() tex:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], 0.9) end)
-  thumb:SetScript("OnLeave", function() if not thumb.dragging then tex:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], 0.55) end end)
+  tex:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.55)
+  thumb:SetScript("OnEnter", function() tex:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.9) end)
+  thumb:SetScript("OnLeave", function() if not thumb.dragging then tex:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.55) end end)
   local sc = {}
   local trackH = boxH - 4
   local function thumbH() return math.max(24, trackH * visible / math.max(visible, getCount())) end
@@ -466,7 +466,7 @@ local function makeScroller(box, boxH, visible, getCount, getOffset, setOffset)
   thumb:SetScript("OnMouseUp", function(self)
     self.dragging = false
     self:SetScript("OnUpdate", nil)
-    tex:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], self:IsMouseOver() and 0.9 or 0.55)
+    tex:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], self:IsMouseOver() and 0.9 or 0.55)
   end)
   track:SetScript("OnMouseDown", function() setFromCursor() end)
   function sc:Update()
@@ -530,7 +530,7 @@ local cardCraft = UI.Button(right, "Craft", 96, function(self) craftClick(self) 
 cardCraft:SetPoint("TOPRIGHT", rTotal, "BOTTOMLEFT", RIGHT_W, -14)
 cardCraft:Hide()
 local KEY = "|cffff8040Orange|r recipes always skill up, |cffffff00yellow|r often, |cff40bf40green|r rarely.\n"
-  .. "|cffe6e6eb6/78|r have / need  ·  |cffe6e6ebv|r vendor  ·  |cffeb5c4c~|r guessed, no auction price  ·  |cffffd133!|r odd price or few listed (hover)\n"
+  .. "|cffe0dbd06/78|r have / need  ·  |cffe0dbd0v|r vendor  ·  |cffd17665~|r guessed, no auction price  ·  |cffffd133!|r odd price or few listed (hover)\n"
   .. "Shift-click anything to search the auction house.\n\n"
 local shopBox = UI.Box(right, RIGHT_W, 240)
 shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
@@ -587,6 +587,8 @@ for i = 1, SHOP_ROWS do
   local row = CreateFrame("Button", nil, shopBox)
   row:SetSize(RIGHT_W - 8, SHOP_H)
   row:SetPoint("TOPLEFT", 1, -2 - (i - 1) * SHOP_H)
+  UI.RowStripe(row)
+  row:SetStripe(i % 2 == 0)
   UI.RowHighlight(row)
   row.icon = row:CreateTexture(nil, "ARTWORK")
   row.icon:SetSize(18, 18)
@@ -756,14 +758,14 @@ end
 local function rankNote(key)
   local r, now = nextRank(key)
   if not r then return "" end
-  if now then return ("  ·  |cffe8c46aTrain %s now|r"):format(r.name) end
+  if now then return ("  ·  |cffd6b266Train %s now|r"):format(r.name) end
   return ("  ·  %s at %d"):format(r.name, r.skill)
 end
 -- One clear line: what to train next and where to go
 local function rankLine(key)
   local r, now, max = nextRank(key)
   if not r then return end
-  return ("|cffe8c46a%s %s|r to pass %d: |cffffffff%s|r"):format(
+  return ("|cffd6b266%s %s|r to pass %d: |cffffffff%s|r"):format(
     now and "Train" or "Next:", r.name, max, rankWhereText(key, r.name))
 end
 
@@ -790,7 +792,7 @@ drawSteps = function()
         row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
         row.icon:Show()
         local who, where, mapID, _, _, needs = NW.RankWhere(selected, ru.name)
-        row.name:SetText(("|cffe8c46aTrain %s|r%s"):format(ru.name, who and ("  |cffffffff" .. who .. "|r") or ""))
+        row.name:SetText(("|cffd6b266Train %s|r%s"):format(ru.name, who and ("  |cffffffff" .. who .. "|r") or ""))
         row.crafts:SetText("")
         row.cost:SetText(stp.rankFee and stp.rankFee > 0 and NW.Money(stp.rankFee, true) or "")
         if needs then
@@ -800,7 +802,7 @@ drawSteps = function()
           row.mats:SetText(("|cffffffff%s|r  ·  bring %s"):format(where, table.concat(parts, ", ")))
         else
           row.mats:SetText(("|cffffffff%s|r  ·  skill %d, level %d%s"):format(where or "Any trainer in a capital city", ru.skill, ru.level,
-            mapID and "  ·  |cff8cdb7aclick to pin|r" or ""))
+            mapID and "  ·  |cff94ba78click to pin|r" or ""))
         end
       elseif stp.recipe then
         local r = stp.recipe
@@ -809,15 +811,15 @@ drawSteps = function()
         row.name:SetText(("|cff%s%s|r"):format(colorFor(r, stp.from), r.name))
         row.crafts:SetText("x" .. stp.crafts)
         row:SetCraft(selected, r, stp.crafts)
-        row.cost:SetText(NW.Money(stp.spend or stp.cost, true) .. (stp.unknown > 0 and " |cffeb5c4c?|r" or ""))
+        row.cost:SetText(NW.Money(stp.spend or stp.cost, true) .. (stp.unknown > 0 and " |cffd17665?|r" or ""))
         local tag = stp.needsRecipe and "|cffff8040needs recipe|r  ·  " or ""
         if stp.rankUp and searchText ~= "" then
-          tag = ("|cffe8c46aTrain %s first|r  ·  "):format(stp.rankUp.name) .. tag
+          tag = ("|cffd6b266Train %s first|r  ·  "):format(stp.rankUp.name) .. tag
         end
         row.mats:SetText(tag .. matsText(r))
       else
         row.icon:Hide()
-        row.name:SetText("|cffeb5c4cNo recipe in the data covers this range|r")
+        row.name:SetText("|cffd17665No recipe in the data covers this range|r")
         row.crafts:SetText("")
         row.cost:SetText("")
         row.mats:SetText("Tick \"Allow recipes I must buy\", or level with anything that is still yellow.")
@@ -840,14 +842,14 @@ drawShop = function()
     if e and e.recipe then
       row.icon:SetTexture(e.id and itemIcon(e.id) or "Interface\\Icons\\INV_Scroll_03")
       row.name:SetText("|cffff8040" .. e.term .. "|r")
-      row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (e.cost and NW.Money(e.cost, "mid")) or "|cff94949afind|r")
+      row.cost:SetText((e.buy == 0 and "|cff94ba78have|r") or (e.cost and NW.Money(e.cost, "mid")) or "|cff938c80find|r")
     elseif e then
       row.icon:SetTexture(itemIcon(e.id))
-      local have = e.have > 0 and ("|cff8cdb7a%d|r/"):format(math.min(e.have, e.need)) or ""
-      row.name:SetText(("%s%d  %s%s|r"):format(have, e.need, e.maker and card and "|cffe8c46a" or "|cffe6e6eb", (itemName(e.id))))
-      local tag = e.src == "vendor" and " |cff94949av|r" or e.src == "est" and " |cffeb5c4c~|r"
+      local have = e.have > 0 and ("|cff94ba78%d|r/"):format(math.min(e.have, e.need)) or ""
+      row.name:SetText(("%s%d  %s%s|r"):format(have, e.need, e.maker and card and "|cffd6b266" or "|cffe0dbd0", (itemName(e.id))))
+      local tag = e.src == "vendor" and " |cff938c80v|r" or e.src == "est" and " |cffd17665~|r"
         or (e.scarce or (e.stats and e.stats.flag)) and " |cffffd133!|r" or ""
-      row.cost:SetText((e.buy == 0 and "|cff8cdb7ahave|r") or (NW.Money(e.cost, "mid") .. tag))
+      row.cost:SetText((e.buy == 0 and "|cff94ba78have|r") or (NW.Money(e.cost, "mid") .. tag))
     else
       row:Hide()
     end
@@ -941,7 +943,7 @@ local function drawCraft(p)
     st().planRecipeItems = false
     NW.BuildPlan(p.key, from, to) -- back to this profession's prices
     if back <= 0 and alt.total < plan.total * 0.85 then
-      rows[#rows + 1] = { "|cff8cdb7aWith bought recipes|r", "|cff8cdb7a" .. NW.Money(alt.spend or alt.total, true):gsub("|r", "|r|cff8cdb7a") .. "|r" }
+      rows[#rows + 1] = { "|cff94ba78With bought recipes|r", "|cff94ba78" .. NW.Money(alt.spend or alt.total, true):gsub("|r", "|r|cff94ba78") .. "|r" }
     end
   end
   setLedger(rows)
@@ -983,14 +985,14 @@ local function drawCraft(p)
   local live = 0
   for _, e in ipairs(list) do if e.live then live = live + 1 end end
   rTotal:SetText(("%d items  ·  %s to buy%s%s%s"):format(#list, NW.Money(total),
-    plan.unknown > 0 and ("  ·  |cffeb5c4c%d no price|r"):format(plan.unknown) or "",
-    live > 0 and ("  ·  |cff8cdb7a%d live|r"):format(live) or "",
+    plan.unknown > 0 and ("  ·  |cffd17665%d no price|r"):format(plan.unknown) or "",
+    live > 0 and ("  ·  |cff94ba78%d live|r"):format(live) or "",
     odd > 0 and ("  ·  |cffffd133%d to check|r"):format(odd) or ""))
   drawShop()
 
   local ah = NW.HasAuctionator()
   local nextUp = rankLine(p.key)
-  priceLine:SetText(not ah and "|cffeb5c4cAuctionator isn't loaded:|r using vendor prices and rough estimates. Install or enable it for live prices."
+  priceLine:SetText(not ah and "|cffd17665Auctionator isn't loaded:|r using vendor prices and rough estimates. Install or enable it for live prices."
     or nextUp or "Buy the shopping list on the right, then craft each step in order.")
 end
 
@@ -1114,11 +1116,11 @@ local function drawGather(p)
   local rank = NW.ProfSkill(p.key)
   local lines = { g.intro, "" }
   if p.key == "herbalism" then
-    lines[#lines + 1] = "|cffe8c46aClick a range|r to open the Farm Guide on the best herb for you there."
+    lines[#lines + 1] = "|cffd6b266Click a range|r to open the Farm Guide on the best herb for you there."
   elseif p.key == "mining" then
-    lines[#lines + 1] = "|cffe8c46aClick a range|r to build a mining route in the zone where you know the most of those veins."
+    lines[#lines + 1] = "|cffd6b266Click a range|r to build a mining route in the zone where you know the most of those veins."
     lines[#lines + 1] = ""
-    lines[#lines + 1] = "|cffe8c46aSmelting skill-ups|r"
+    lines[#lines + 1] = "|cffd6b266Smelting skill-ups|r"
     for _, r in ipairs(NW.RECIPES.mining or {}) do
       if r.grey > r.yellow or r.yellow <= 250 then
         lines[#lines + 1] = ("%s  |cffff8040%s|r-|cff808080%d|r"):format(r.name, r.orange or r.yellow, r.grey)
@@ -1127,7 +1129,7 @@ local function drawGather(p)
   elseif p.key == "skinning" then
     if rank then
       local maxLevel = rank < 100 and math.floor(rank / 10) + 10 or math.floor(rank / 5)
-      lines[#lines + 1] = ("At %d skill you can skin beasts up to |cffe8c46alevel %d|r."):format(rank, maxLevel)
+      lines[#lines + 1] = ("At %d skill you can skin beasts up to |cffd6b266level %d|r."):format(rank, maxLevel)
     end
   elseif p.key == "fishing" then
     -- cook what you catch, for the bracket you're in
@@ -1135,17 +1137,17 @@ local function drawGather(p)
     local fishRank = rank or 1
     local b = steps[1]
     for _, x in ipairs(steps) do if fishRank >= x.from and fishRank < x.to then b = x end end
-    lines[#lines + 1] = ("|cffe8c46aCook what you catch|r (Cooking %d)"):format(cook)
+    lines[#lines + 1] = ("|cffd6b266Cook what you catch|r (Cooking %d)"):format(cook)
     for _, fid in ipairs(b and b.fish or {}) do
       for _, r in ipairs(NW.CookFish(fid)) do
         local col = cook < r.yellow and "ff8040" or cook < r.green and "ffff00" or cook < r.grey and "40bf40" or "808080"
-        if (r.orange or r.yellow) > cook then col = "eb5c4c" end
+        if (r.orange or r.yellow) > cook then col = "d17665" end
         lines[#lines + 1] = ("|cff%s%s|r  %s-%d%s"):format(col, r.name, r.orange or r.yellow, r.grey,
-          r.src == "recipe" and " |cff94949a(recipe)|r" or "")
+          r.src == "recipe" and " |cff938c80(recipe)|r" or "")
       end
     end
     lines[#lines + 1] = ""
-    lines[#lines + 1] = "|cff94949aRed: you need more Cooking. Grey: no more skill-ups.|r"
+    lines[#lines + 1] = "|cff938c80Red: you need more Cooking. Grey: no more skill-ups.|r"
   end
   infoText:SetText(table.concat(lines, "\n"))
 end
@@ -1218,19 +1220,19 @@ function sourceText(key, r, rank)
   if r.src == "scan" or (r.src == "recipe" and e and e.source) then
     if e and e.source then
       local merchant = e.source:find("Merchant") or e.source:find("Durotar Supply") or e.source:find("Commerce Authority")
-      return (merchant and "|cffe8c46a" or "") .. cleanSource(e.source, true) .. (merchant and "|r" or ""), merchant and "merchant" or "drop"
+      return (merchant and "|cffd6b266" or "") .. cleanSource(e.source, true) .. (merchant and "|r" or ""), merchant and "merchant" or "drop"
     end
     if r.src == "scan" then return "Source not listed by the game", "drop" end
   end
   local req = r.orange or r.yellow
   if r.src == "trainer" or r.src == "rank" then
     if not rank then return "Trainer", "dim" end
-    if rank >= req then return "|cff8cdb7aTrainer: learn it now|r", "now" end
+    if rank >= req then return "|cff94ba78Trainer: learn it now|r", "now" end
     return ("Trainer at skill %d"):format(req), "later"
   end
   local w, fav = whereText(r)
-  if w and w ~= "" then return (fav and ("|cffe8c46a" .. w .. "|r") or w), fav and "merchant" or "drop" end
-  if fav or isForeverNew(r) then return "|cffe8c46a" .. MERCHANT .. "|r", "merchant" end
+  if w and w ~= "" then return (fav and ("|cffd6b266" .. w .. "|r") or w), fav and "merchant" or "drop" end
+  if fav or isForeverNew(r) then return "|cffd6b266" .. MERCHANT .. "|r", "merchant" end
   return "Vendor or world drop  ·  click to search the AH", "drop"
 end
 
@@ -1306,7 +1308,7 @@ local function drawMissingRows(key)
       row:SetSelected(false)
       row.range:SetText("")
       row.icon:Hide()
-      row.name:SetText(("|TInterface\\Buttons\\UI-%sButton-Up:14:14:-2:0|t |cffe8c46a%s|r  |cff94949a%d|r"):format(
+      row.name:SetText(("|TInterface\\Buttons\\UI-%sButton-Up:14:14:-2:0|t |cffd6b266%s|r  |cff938c80%d|r"):format(
         r.collapsed and "Plus" or "Minus", r.header, r.count))
       row.crafts:SetText("")
       row.cost:SetText("")
@@ -1318,8 +1320,8 @@ local function drawMissingRows(key)
       row.range:SetText(req and req > 0 and tostring(req) or "?")
       row.icon:SetTexture(r.icon or recipeIcon(r))
       row.icon:Show()
-      local col = r.knownNow and "8cdb7a" or (not rank or not req or rank >= req) and "ffffff" or "eb5c4c"
-      row.name:SetText(("|cff%s%s|r%s"):format(col, r.name, r.knownNow and "  |cff94949aknown|r" or ""))
+      local col = r.knownNow and "94ba78" or (not rank or not req or rank >= req) and "ffffff" or "d17665"
+      row.name:SetText(("|cff%s%s|r%s"):format(col, r.name, r.knownNow and "  |cff938c80known|r" or ""))
       row.crafts:SetText("")
       row.cost:SetText("")
       row.mats:SetText((sourceText(key, r, rank)))
@@ -1334,8 +1336,8 @@ end
 -- Profit: what each craft earns at today's prices, best first
 ------------------------------------------------------------------------
 local function signedMoney(c)
-  if c >= 0 then return "|cff8cdb7a+|r" .. NW.Money(c, "mid") end
-  return "|cffeb5c4c-|r" .. NW.Money(-c, "mid")
+  if c >= 0 then return "|cff94ba78+|r" .. NW.Money(c, "mid") end
+  return "|cffd17665-|r" .. NW.Money(-c, "mid")
 end
 local function drawProfitRows(key)
   for i, row in ipairs(stepRows) do
@@ -1352,16 +1354,16 @@ local function drawProfitRows(key)
       row.crafts:SetText("")
       if e.profit then
         local pct = e.cost > 0 and math.floor(e.profit / e.cost * 100 + 0.5) or nil
-        local col = e.profit > 0 and "8cdb7a" or "eb5c4c"
+        local col = e.profit > 0 and "94ba78" or "d17665"
         row.range:SetText(pct and ("|cff%s%s%d%%|r"):format(col, pct > 0 and "+" or "", math.max(-999, math.min(999, pct))) or "")
-        row.name:SetText(("|cff%s%s|r%s"):format(e.profit > 0 and "ffffff" or "94949a", r.name, e.known and "" or "  |cff94949anot known|r"))
+        row.name:SetText(("|cff%s%s|r%s"):format(e.profit > 0 and "ffffff" or "938c80", r.name, e.known and "" or "  |cff938c80not known|r"))
         row.cost:SetText(signedMoney(e.profit))
         row.mats:SetText(("%s %s  ·  materials %s%s%s"):format(e.de and "Disenchants" or "Sells", NW.Money(e.sale, "mid"), NW.Money(e.cost, "mid"),
-          (r.yield or 1) > 1 and ("  ·  makes %d"):format(r.yield) or "", e.unknown and "  ·  |cffe8c46asome prices missing|r" or ""))
+          (r.yield or 1) > 1 and ("  ·  makes %d"):format(r.yield) or "", e.unknown and "  ·  |cffd6b266some prices missing|r" or ""))
       else
         row.range:SetText("")
-        row.name:SetText(("|cff94949a%s|r"):format(r.name))
-        row.cost:SetText("|cff94949a?|r")
+        row.name:SetText(("|cff938c80%s|r"):format(r.name))
+        row.cost:SetText("|cff938c80?|r")
         row.mats:SetText("No auction price for what it makes")
       end
     else
@@ -1426,19 +1428,19 @@ local function drawProfit(p)
   hCostSub:SetText(("of %d recipes"):format(#everything))
   priceLine:SetText(NW.HasAuctionator()
     and "Best first. Click one for its materials."
-    or "|cffeb5c4cAuctionator isn't loaded:|r profit needs its auction prices.")
+    or "|cffd17665Auctionator isn't loaded:|r profit needs its auction prices.")
   local lines = {
-    ("|cff8cdb7a%d|r make a profit"):format(good),
-    ("|cffeb5c4c%d|r cost more than they sell for"):format(bad),
+    ("|cff94ba78%d|r make a profit"):format(good),
+    ("|cffd17665%d|r cost more than they sell for"):format(bad),
     ("%d with no auction price"):format(none),
     "",
-    "|cffe8c46aHow it's worked out|r",
+    "|cffd6b266How it's worked out|r",
     "Sale price less the 5% auction cut, minus materials.",
-    "|cff94949a% is profit over materials. Deposits aren't counted.|r",
-    "|cff94949aGear counts disenchant value when it pays more.|r",
+    "|cff938c80% is profit over materials. Deposits aren't counted.|r",
+    "|cff938c80Gear counts disenchant value when it pays more.|r",
     "",
-    "|cffe8c46aClick|r: materials",
-    "|cffe8c46aShift-click|r: search the auction house",
+    "|cffd6b266Click|r: materials",
+    "|cffd6b266Shift-click|r: search the auction house",
   }
   infoText:SetText(table.concat(lines, "\n"))
 end
@@ -1479,11 +1481,11 @@ local function drawCard()
     end
     if e.have > 0 then haveAny = true end
   end
-  local q = unpriced and "|cffeb5c4c+?|r" or ""
+  local q = unpriced and "|cffd17665+?|r" or ""
   local parts = {}
   if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, "mid") end
   parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
-  if haveAny then parts[#parts + 1] = "|cffe6e6ebto buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
+  if haveAny then parts[#parts + 1] = "|cffe0dbd0to buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
   if profit then parts[#parts + 1] = "profit " .. signedMoney(profit) end
   rTotal:SetText(table.concat(parts, "  ·  "))
   local prev = card.stack[#card.stack]
@@ -1500,12 +1502,12 @@ local function drawCard()
   local prof = NW.PROF_BY_KEY[card.key]
   local req = r.orange or r.yellow
   local lines = {
-    ("|cffe8c46a%s|r%s"):format(prof and prof.name or "", req and req > 0 and (", skill " .. req) or ""),
+    ("|cffd6b266%s|r%s"):format(prof and prof.name or "", req and req > 0 and (", skill " .. req) or ""),
     (sourceText(card.key, r, NW.ProfSkill(card.key))),
   }
   if (r.yield or 1) > 1 then lines[#lines + 1] = ("Makes %d per craft"):format(r.yield) end
   lines[#lines + 1] = ""
-  lines[#lines + 1] = "|cff94949aHover a material for its prices. Gold ones can be made: click to see how.|r"
+  lines[#lines + 1] = "|cff938c80Hover a material for its prices. Gold ones can be made: click to see how.|r"
   tips:SetText(table.concat(lines, "\n"))
 end
 
@@ -1573,22 +1575,22 @@ local function drawMissing(p)
   hCost:SetText(searchText ~= "" and ("%d found"):format(found) or ("%d missing"):format(nMissing))
   -- short, so it can't run into the skill line; no nagging about a profession you don't have
   hCostSub:SetText(not rank and "of every recipe" or fullList and "from the game's recipe list"
-    or scanned and "of Nodewalker's recipes" or "|cffeb5c4cOpen the profession once|r")
+    or scanned and "of Nodewalker's recipes" or "|cffd17665Open the profession once|r")
   priceLine:SetText("")
   local lines = {
-    ("|cff8cdb7a%d|r to learn at the trainer now"):format(counts.now),
+    ("|cff94ba78%d|r to learn at the trainer now"):format(counts.now),
     ("%d at the trainer later"):format(counts.later + counts.dim),
-    ("|cffe8c46a%d|r from Merchant's Favor vendors"):format(counts.merchant),
+    ("|cffd6b266%d|r from Merchant's Favor vendors"):format(counts.merchant),
     ("%d from other vendors or drops"):format(counts.drop),
     "",
-    "|cffe8c46aTrainers|r",
+    "|cffd6b266Trainers|r",
     TRAINERS[p.key] or "",
     "",
-    "|cffe8c46aMerchant's Favor|r",
+    "|cffd6b266Merchant's Favor|r",
     "Horde: Durotar Supply and Logistics, Crossroads. Alliance: Azeroth Commerce Authority, Three Corners, Redridge. Favor comes from Waylaid Crates; some recipes need Friendly or Honored.",
     "",
-    fullList and "|cff94949aOpen your profession window again to refresh the list.|r"
-      or "|cff94949aOpen your profession window to load the full recipe list.|r",
+    fullList and "|cff938c80Open your profession window again to refresh the list.|r"
+      or "|cff938c80Open your profession window to load the full recipe list.|r",
   }
   infoText:SetText(table.concat(lines, "\n"))
 end
@@ -1782,7 +1784,7 @@ refresh = function()
     or (not isCraft and function() drawGatherRows(p.key) end) or nil
   if isProfit then drawProfit(p) elseif isMissing then drawMissing(p) elseif isCraft then drawCraft(p) else drawGather(p) end
   if showCard then drawCard() end
-  if craftMsg and GetTime() - craftMsgAt < 4 then priceLine:SetText("|cffe8c46a" .. craftMsg .. "|r") end
+  if craftMsg and GetTime() - craftMsgAt < 4 then priceLine:SetText("|cffd6b266" .. craftMsg .. "|r") end
 end
 NW.RefreshProfessions = function() if page:IsShown() then refresh() end end
 
@@ -1940,8 +1942,8 @@ local function updateNext()
     if c > 0 then left = left + 1 / c end
   end
   nextIcon:SetTexture(recipeIcon(stp.recipe))
-  local tag = stp.rankUp and ("  |cffe8c46a(train %s)|r"):format(stp.rankUp.name) or (stp.needsRecipe and "  |cffff8040(needs recipe)|r" or "")
-  nextText:SetText(("Next: |cffe8c46a%s|r x%d  to %d%s"):format(stp.recipe.name, math.ceil(left - 0.05), stp.to, tag))
+  local tag = stp.rankUp and ("  |cffd6b266(train %s)|r"):format(stp.rankUp.name) or (stp.needsRecipe and "  |cffff8040(needs recipe)|r" or "")
+  nextText:SetText(("Next: |cffd6b266%s|r x%d  to %d%s"):format(stp.recipe.name, math.ceil(left - 0.05), stp.to, tag))
   nextBox:SetWidth(nextText:GetStringWidth() + 40)
   nextBox:Show()
 end
@@ -2305,6 +2307,8 @@ do
     local row = CreateFrame("Button", nil, listBox)
     row:SetSize(LIST_W2 - 14, ROW_H2)
     row:SetPoint("TOPLEFT", 2, -2 - (i - 1) * ROW_H2)
+    UI.RowStripe(row)
+    row:SetStripe(i % 2 == 0)
     UI.RowHighlight(row)
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetSize(18, 18)
@@ -2410,7 +2414,7 @@ do
   dNote:SetPoint("TOPLEFT", btnMade, "BOTTOMLEFT", 0, -12)
   dNote:SetWidth(DET_W)
   dNote:SetJustifyV("TOP")
-  dNote:SetText("|cffe8c46aMaterials|r  all of them at today's prices\n|cffe8c46aTo buy|r  what's left after your bags\n|cffe8c46aOn AH|r  buying the finished item instead\n\n|cffe8c46aShift-click|r anything to search the auction house.")
+  dNote:SetText("|cffd6b266Materials|r  all of them at today's prices\n|cffd6b266To buy|r  what's left after your bags\n|cffd6b266On AH|r  buying the finished item instead\n\n|cffd6b266Shift-click|r anything to search the auction house.")
 
   local function drawDetail()
     local r = chosen
@@ -2431,7 +2435,7 @@ do
     dHead.text:SetText(r.name)
     local prof = NW.PROF_BY_KEY[r.findKey]
     local req = r.orange or r.yellow
-    dWhere:SetText(("|cffe8c46a%s|r%s\n%s"):format(prof and prof.name or "", req and req > 0 and (" " .. req) or "",
+    dWhere:SetText(("|cffd6b266%s|r%s\n%s"):format(prof and prof.name or "", req and req > 0 and (" " .. req) or "",
       sourceText(r.findKey, r, NW.ProfSkill(r.findKey)) or ""))
     wipe(need)
     local full, toBuy, unpriced, haveAny = 0, 0, false, false
@@ -2453,25 +2457,25 @@ do
         if have > 0 then haveAny = true end
         m.id, m.buy = re[1], buy
         m.icon:SetTexture(itemIcon(re[1]))
-        local hv = have > 0 and ("|cff8cdb7a%d|r/"):format(math.min(have, re[2])) or ""
+        local hv = have > 0 and ("|cff94ba78%d|r/"):format(math.min(have, re[2])) or ""
         m.name:SetText(("%s%d  %s"):format(hv, re[2], (itemName(re[1]))))
-        m.cost:SetText(buy == 0 and "|cff8cdb7ahave|r" or cost and (NW.Money(cost, "mid") .. (src == "vendor" and " |cff94949av|r" or ""))
-          or "|cff94949a?|r")
+        m.cost:SetText(buy == 0 and "|cff94ba78have|r" or cost and (NW.Money(cost, "mid") .. (src == "vendor" and " |cff938c80v|r" or ""))
+          or "|cff938c80?|r")
         m:Show()
       else
         m.id = nil
         m:Hide()
       end
     end
-    local q = unpriced and " |cffeb5c4c+?|r" or ""
+    local q = unpriced and " |cffd17665+?|r" or ""
     local ah
     if r.item then ah = select(2, NW.PriceParts(r.item)) end
     local lines = {
-      ("|cff94949aMaterials|r  %s%s"):format(NW.Money(full, "mid"), q),
-      ("|cff94949aTo buy|r  |cffffffff%s|r%s"):format(NW.Money(toBuy, "mid"), q),
+      ("|cff938c80Materials|r  %s%s"):format(NW.Money(full, "mid"), q),
+      ("|cff938c80To buy|r  |cffffffff%s|r%s"):format(NW.Money(toBuy, "mid"), q),
     }
-    if ah then lines[#lines + 1] = ("|cff94949aOn AH|r  %s"):format(NW.Money(ah * (r.yield or 1), "mid")) end
-    if (r.yield or 1) > 1 then lines[#lines + 1] = ("|cff94949aMakes %d|r"):format(r.yield) end
+    if ah then lines[#lines + 1] = ("|cff938c80On AH|r  %s"):format(NW.Money(ah * (r.yield or 1), "mid")) end
+    if (r.yield or 1) > 1 then lines[#lines + 1] = ("|cff938c80Makes %d|r"):format(r.yield) end
     dTotals:SetText(table.concat(lines, "\n"))
     btnMats:SetEnabled(toBuy > 0)
     btnMade:SetShown(r.item ~= nil)
@@ -2515,12 +2519,12 @@ do
         local req = r.orange or r.yellow
         row.prof:SetText((prof and prof.name or "") .. (req and req > 0 and (" " .. req) or ""))
         local full, toBuy, unpriced = matsCost(r)
-        local q = unpriced and "|cffeb5c4c+?|r" or ""
+        local q = unpriced and "|cffd17665+?|r" or ""
         row.mats:SetText(NW.Money(full, "mid") .. q)
-        row.buy:SetText(toBuy < full and (NW.Money(toBuy, "mid") .. q) or "|cff94949a-|r")
+        row.buy:SetText(toBuy < full and (NW.Money(toBuy, "mid") .. q) or "|cff938c80-|r")
         local ah
         if r.item then ah = select(2, NW.PriceParts(r.item)) end
-        row.ah:SetText(ah and NW.Money(ah * (r.yield or 1), "mid") or "|cff94949a-|r")
+        row.ah:SetText(ah and NW.Money(ah * (r.yield or 1), "mid") or "|cff938c80-|r")
       else
         row:Hide()
       end

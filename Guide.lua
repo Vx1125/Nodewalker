@@ -203,6 +203,8 @@ for i = 1, MAX_LIST do
   local b = CreateFrame("Button", nil, list)
   b:SetSize(LIST_W - 2, ROW_H)
   b:SetPoint("TOPLEFT", 1, -5 - (i - 1) * ROW_H)
+  UI.RowStripe(b)
+  b:SetStripe(i % 2 == 0)
   UI.RowHighlight(b)
   b.icon = b:CreateTexture(nil, "ARTWORK")
   b.icon:SetSize(14, 14)
@@ -374,7 +376,7 @@ for i = 1, ROWS do
   r:SetPoint("TOPLEFT", colSub, "BOTTOMLEFT", 0, -8 - (i - 1) * 40)
   r.bg = r:CreateTexture(nil, "BACKGROUND")
   r.bg:SetAllPoints()
-  r.bg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.02 or 0.045)
+  r.bg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.025 or 0)
   UI.RowHighlight(r)
   r.line1 = UI.Text(r, 12, S.text)
   r.line1:SetPoint("TOPLEFT", 10, -5)
@@ -454,9 +456,9 @@ refreshGuide = function()
   local skillLine = both and "What you can gather now, with your Herbs & Ore filters" or ("Needs %s %s"):format(K.skill, req or "?")
   if herbSkill and req then
     local c = NW.SkillColor(req, herbSkill)
-    skillLine = skillLine .. (c == "red" and "  ·  |cffeb5c4cskill too low|r"
+    skillLine = skillLine .. (c == "red" and "  ·  |cffd17665skill too low|r"
       or c == "grey" and "  ·  no more skill-ups"
-      or "  ·  |cff8cdb7agives skill-ups|r")
+      or "  ·  |cff94ba78gives skill-ups|r")
   end
   if NW.IsHidden(entry[1]) then skillLine = skillLine .. "  ·  hidden on your map" end
   hSkill:SetText(skillLine)
@@ -467,7 +469,7 @@ refreshGuide = function()
     local row = rows[i]
     r.row = row
     if row then
-      local star = row.recommended and "|cffe8c46a*|r " or "   "
+      local star = row.recommended and "|cffd6b266*|r " or "   "
       local stats
       if row.rate then
         stats = ("|cff9be08a%d spots|r  ·  %s loop  ·  |cffffffff%.1f/min|r"):format(row.count, fmtTime(row.loop / NW.MOUNT_YPS), row.rate)
@@ -480,7 +482,7 @@ refreshGuide = function()
         stats = "|cff6f6f74no spots saved|r"
       end
       local note = row.note or ((row.recommended or both) and "" or "found in your data")
-      r.line1:SetText(star .. row.name .. (note ~= "" and ("  |cff94949a" .. note .. "|r") or ""))
+      r.line1:SetText(star .. row.name .. (note ~= "" and ("  |cff938c80" .. note .. "|r") or ""))
       r.line2:SetText("   " .. stats)
       r.build:SetEnabled(row.mapID ~= nil and row.count > 0)
       r:Show()
@@ -490,7 +492,7 @@ refreshGuide = function()
   end
   local extra = #rows - ROWS
   moreText:SetText((extra > 0 and ("+%d more zones with fewer spots.   "):format(extra) or "")
-    .. (both and "" or "|cffe8c46a*|r recommended by farming guides"))
+    .. (both and "" or "|cffd6b266*|r recommended by farming guides"))
   colSub:SetText(both and "Gold per hour" or "Spots per minute")
   local pv = rows[1]
   for _, row in ipairs(rows) do if previewID and row.mapID == previewID then pv = row end end
