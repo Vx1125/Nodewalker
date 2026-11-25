@@ -847,7 +847,9 @@ for _, r in ipairs(NW.RANKS) do if r.skill then RANK_AT[r.cap - 75] = r end end
 -- Returns { steps = {...}, total, unknown, gaps }
 function NW.BuildPlan(key, from, to)
   local s = NW.db.settings
-  local cacheKey = ("%s:%d:%d:%s%s"):format(key, from, to, s.planRecipeItems and "r" or "", s.planSellBack == "de" and "d" or s.planSellBack and "s" or "")
+  -- strategy: nil (cheapest), "crafts" (fewest crafts) or "known" (recipes you know, then the trainer's)
+  local strategy = s.planStrategy
+  local cacheKey = ("%s:%d:%d:%s%s:%s"):format(key, from, to, s.planRecipeItems and "r" or "", s.planSellBack == "de" and "d" or s.planSellBack and "s" or "", strategy or "")
   if planCache[cacheKey] then return planCache[cacheKey] end
 
   local recipes = NW.RECIPES[key] or {}
@@ -886,16 +888,25 @@ function NW.BuildPlan(key, from, to)
     local best, bestCost, bestNeeds
     for pass = 1, 2 do
       for i, r in ipairs(recipes) do
-        local avail = r.src == "rank" or r.src == "trainer" or isKnown(key, r)
+        local trainer = r.src == "rank" or r.src == "trainer"
+        local avail = trainer or isKnown(key, r)
+        -- Known recipes: what you know first, the trainer's only where nothing you know works; never a bought one
+        if strategy == "known" then
+          if isKnown(key, r) or r.src == "rank" then avail = true
+          elseif trainer and pass == 2 then avail = true
+          else avail = nil end
+        end
         if NW.NO_LEVEL[r.name] then avail = nil end
         local needsRecipe = not avail
         if avail ~= nil and (avail or pass == 2 or s.planRecipeItems) and required(key, r) <= sk then
           local p = NW.SkillUpChance(r, sk)
-          if p > 0 then
+          if p > 0 and onceOf[i] < 1e9 then -- (1e9: can't be learned yet)
             -- unknown prices count as expensive so priced options win
             local c = (costOf[i] + (r.guessExtra or 0) + unknownOf[i] * 10000) / p
+            -- Fewest crafts: the best skill-up chance wins; cost only breaks ties
+            if strategy == "crafts" then c = 1 / p + c * 1e-7 end
             if needsRecipe then c = c * 1.15 end -- slight nudge toward what you can learn now
-            if not owned[i] and onceOf[i] > 0 then
+            if not owned[i] and onceOf[i] > 0 and strategy ~= "crafts" then
               c = c + onceOf[i] / math.max(1, math.min(r.green, to) - sk)
             end
             if not best or c < bestCost then best, bestCost, bestNeeds = i, c, needsRecipe end

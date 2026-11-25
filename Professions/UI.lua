@@ -106,7 +106,7 @@ local hName = UI.Text(mid, 17, S.gold)
 hName:SetPoint("TOPLEFT", hIconBox, "TOPRIGHT", 10, -1)
 local hSkill = UI.Text(mid, 12, S.dim)
 hSkill:SetPoint("TOPLEFT", hName, "BOTTOMLEFT", 0, -5)
-hSkill:SetWidth(MID_W - 240)
+hSkill:SetWidth(MID_W - 48 - 272)
 hSkill:SetWordWrap(false)
 local hCost = UI.Text(mid, 15, S.text, "RIGHT")
 hCost:SetPoint("TOPRIGHT", 0, -2)
@@ -146,6 +146,47 @@ local function setLedger(rows)
       row.val:SetTextColor(unpack((r[3] or r[4]) and S.text or S.dim))
       y = y - (r[3] and 19 or 14)
     end
+  end
+end
+
+-- Leveling cost: three values beside the profession name; the breakdown on hover
+do
+  local SUM_W = 88
+  local box = CreateFrame("Frame", nil, mid)
+  box:SetSize(SUM_W * 3, 36)
+  box:SetPoint("TOPRIGHT", 0, 0)
+  box:EnableMouse(true)
+  box:Hide()
+  box.cells = {}
+  for i = 1, 3 do
+    local l = UI.Text(box, 10, S.dim, "RIGHT")
+    l:SetPoint("TOPRIGHT", -(3 - i) * SUM_W, -2)
+    local v = UI.Text(box, 13, S.text, "RIGHT")
+    v:SetPoint("TOPRIGHT", l, "BOTTOMRIGHT", 0, -5)
+    box.cells[i] = { l, v }
+  end
+  box:SetScript("OnEnter", function(self)
+    if not self.lines then return end
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+    GameTooltip:SetText("Leveling cost", 1, 1, 1)
+    for _, ln in ipairs(self.lines) do
+      if ln[2] then GameTooltip:AddDoubleLine(ln[1], ln[2], S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+      else GameTooltip:AddLine(ln[1], S.dim[1], S.dim[2], S.dim[3], true) end
+    end
+    GameTooltip:Show()
+  end)
+  box:SetScript("OnLeave", GameTooltip_Hide)
+  -- cells: { { label, value, color }, ... }; lines: tooltip rows
+  function MS.summary(cells, lines)
+    box:SetShown(cells ~= nil)
+    if not cells then return end
+    for i, c in ipairs(box.cells) do
+      local d = cells[i]
+      c[1]:SetText(d and d[1] or "")
+      c[2]:SetText(d and d[2] or "")
+      c[2]:SetTextColor(unpack(d and d[3] or S.text))
+    end
+    box.lines = lines
   end
 end
 
@@ -195,18 +236,24 @@ local optRow = CreateFrame("Frame", nil, mid)
 optRow:SetPoint("TOPLEFT", viewRow, "BOTTOMLEFT", 0, -8)
 optRow:SetSize(MID_W, 20)
 local opts = {
-  UI.Check(optRow, "Allow recipes I must buy", function() return st().planRecipeItems end,
-    function(v) st().planRecipeItems = v; NW.InvalidatePlans() end,
-    "Also plans with vendor and drop recipes, and adds them to the shopping list."),
-  UI.Check(optRow, "From skill 1", function() return st().planFromStart end,
-    function(v) st().planFromStart = v; refresh() end, "Plans every step from 1, not from your skill."),
-  UI.Dropdown(optRow, 156, "", { { false, "Keep what I make" }, { true, "Sell what I make" }, { "de", "Disenchant it" } },
+  UI.Dropdown(optRow, 196, "Strategy", { { false, "Cheapest" }, { "crafts", "Fewest crafts" }, { "known", "Known recipes" } },
+    function() return st().planStrategy or false end,
+    function(v) st().planStrategy = v or nil; NW.InvalidatePlans(); refresh() end, 124,
+    "Cheapest: lowest cost after anything you resell. Fewest crafts: the best skill-up chance at each point. "
+    .. "Known recipes: what you know, then trainer recipes where nothing you know works; never bought ones."),
+  UI.Dropdown(optRow, 160, "", { { false, "Keep crafted items" }, { true, "Resell crafted items" }, { "de", "Disenchant them" } },
     function() return st().planSellBack or false end,
-    function(v) st().planSellBack = v; NW.InvalidatePlans(); refresh() end, 156,
-    "Sell and Disenchant plan for the lowest cost after what comes back. Sell counts half the auction price."),
+    function(v) st().planSellBack = v; NW.InvalidatePlans(); refresh() end, 160,
+    "Resell and Disenchant plan for the lowest cost after what comes back. Resell counts half the auction price."),
+  UI.CheckMenu(optRow, "Options", 92, {
+    { "Include purchasable recipes", function() return st().planRecipeItems end,
+      function(v) st().planRecipeItems = v; NW.InvalidatePlans() end, "Plans with vendor and drop recipes too, and adds them to the shopping list." },
+    { "Start from skill 1", function() return st().planFromStart end, function(v) st().planFromStart = v end,
+      "Plans every step from 1, not from your skill." },
+  }, function() refresh() end),
 }
-opts[1]:SetPoint("LEFT", 2, 0)
-opts[2]:SetPoint("LEFT", 206, 0)
+opts[1]:SetPoint("LEFT", 0, 0)
+opts[2]:SetPoint("LEFT", opts[1], "RIGHT", 10, 0)
 opts[3]:SetPoint("RIGHT", 0, 0)
 
 local priceLine = UI.Text(mid, 11, S.dim)
@@ -332,7 +379,7 @@ for i, c in ipairs({ { "BOTTOMLEFT", "TOPLEFT", 9 }, { "BOTTOMLEFT", "TOPLEFT", 
   caps[i] = t
 end
 local CAPS = {
-  plan = { "Skill", "Craft this", "How many", "Cost" },
+  plan = { "Skill", "Recipe", "Crafts", "Cost" },
   missing = { "Skill", "Recipe", "", "" },
   profit = { "Return", "Recipe", "", "Profit each" },
   gather = { "Skill", "Gather", "", "" },
@@ -352,6 +399,10 @@ for i = 1, STEP_FRAMES do
   row:SetSize(MID_W - 12, STEP_H - 2)
   row:SetPoint("TOPLEFT", 1, -1 - (i - 1) * STEP_H)
   -- a section heading (Missing recipes): short, with its own background
+  row.trainBg = row:CreateTexture(nil, "BACKGROUND", nil, 2)
+  row.trainBg:SetAllPoints()
+  row.trainBg:SetColorTexture(S.edge[1], S.edge[2], S.edge[3], 0.35)
+  row.trainBg:Hide()
   row.headBg = row:CreateTexture(nil, "BACKGROUND", nil, 4)
   row.headBg:SetAllPoints()
   row.headBg:SetColorTexture(unpack(S.header))
@@ -567,20 +618,40 @@ local function targetFor(key)
   local t = st().planTarget
   return t and t[key] or 300
 end
-local targetSlider = UI.Slider(right, RIGHT_W, "Level to", 25, 300, 5, function(v) return ("%d"):format(v) end,
-  function() return targetFor(selected) end,
-  function(v)
-    local s = st()
-    s.planTarget = s.planTarget or {}
-    s.planTarget[selected] = v < 300 and v or nil
-    refresh()
-  end)
+-- not below where you are (unless planning from 1); redrawn once dragging settles
+function MS.setTarget(v)
+  local s = st()
+  local rank = NW.ProfSkill(selected)
+  if rank and not s.planFromStart then v = math.max(v, math.min(300, math.ceil((rank + 1) / 5) * 5)) end
+  s.planTarget = s.planTarget or {}
+  s.planTarget[selected] = v < 300 and v or nil
+  if MS.targetPending then return end
+  MS.targetPending = true
+  C_Timer.After(0.15, function() MS.targetPending = nil refresh() end)
+end
+local targetSlider = UI.Slider(right, RIGHT_W, "Target skill", 25, 300, 5, function(v) return ("%d"):format(v) end,
+  function() return targetFor(selected) end, function(v) MS.setTarget(v) end)
 targetSlider:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -10)
+-- each rank's cap, one click away
+MS.targets = CreateFrame("Frame", nil, right)
+MS.targets:SetSize(RIGHT_W, 18)
+MS.targets:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -6)
+do
+  local w = math.floor((RIGHT_W - 18) / 4)
+  for i, cap in ipairs({ 75, 150, 225, 300 }) do
+    local b = UI.Button(MS.targets, tostring(cap), w, function()
+      MS.setTarget(cap)
+      targetSlider:Refresh()
+    end, 18)
+    b.label:SetFont(UI.FONT, 11, "")
+    b:SetPoint("LEFT", (i - 1) * (w + 6), 0)
+  end
+end
 local KEY = "|cffff8040Orange|r recipes always skill up, |cffffff00yellow|r often, |cff40bf40green|r rarely.\n"
   .. "|cffe0dbd06/78|r have / need  ·  |cffe0dbd0v|r vendor  ·  |cffd17665~|r guessed, no auction price  ·  |cffffd133!|r odd price or few listed (hover)\n"
   .. "Shift-click anything to search the auction house.\n\n"
 local shopBox = UI.Box(right, RIGHT_W, 240)
-shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
+shopBox:SetPoint("TOPLEFT", MS.targets, "BOTTOMLEFT", 0, -8)
 shopBox:EnableMouseWheel(true)
 local SHOP_H, SHOP_ROWS = 26, 9
 local shopVisible = SHOP_ROWS -- the opened recipe shows only as many rows as it has materials
@@ -650,7 +721,7 @@ for i = 1, SHOP_ROWS do
   row.cost:SetPoint("RIGHT", -6, 0)
   row:SetScript("OnEnter", function(self)
     local e = self.entry
-    if not e then return end
+    if not e or e.header then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     if e.recipe then
       GameTooltip:SetText(e.term, 1, 0.5, 0.25)
@@ -719,6 +790,12 @@ for i = 1, SHOP_ROWS do
   row:SetScript("OnClick", function(self)
     local e = self.entry
     if not e then return end
+    if e.header then
+      st().shopFolds = st().shopFolds or {}
+      st().shopFolds[e.cat] = not e.folded
+      refresh()
+      return
+    end
     -- a material you can make: open its recipe
     if card and e.maker and not IsShiftKeyDown() then
       card.stack[#card.stack + 1] = { r = card.r, key = card.key }
@@ -749,10 +826,12 @@ shopBox:SetScript("OnMouseWheel", function(_, d)
   shopOffset = math.max(0, math.min(math.max(0, #shop - shopVisible), shopOffset - d))
   drawShop()
 end)
-local searchBtn = UI.Button(right, "Search all in Auctionator", RIGHT_W, function()
+local searchBtn = UI.Button(right, "Search missing in Auctionator", RIGHT_W, function()
   local items = {}
-  for _, e in ipairs(shop) do
-    if e.recipe then
+  for _, e in ipairs(MS.shopAll or shop) do
+    if e.header then
+      -- (a group heading)
+    elseif e.recipe then
       if e.buy > 0 then items[#items + 1] = { e.term, 1 } end
     elseif e.buy > 0 and e.src ~= "vendor" then
       local n, ok = itemName(e.id)
@@ -762,6 +841,16 @@ local searchBtn = UI.Button(right, "Search all in Auctionator", RIGHT_W, functio
   if not searchAH(items) then NW.Print("Open the auction house with Auctionator to search for the list.") end
 end, 26, "primary")
 searchBtn:SetPoint("TOPLEFT", shopBox, "BOTTOMLEFT", 0, -8)
+MS.recipesBtn = UI.Button(right, "Recipes", 86, function()
+  local items = {}
+  for _, e in ipairs(MS.shopAll or {}) do
+    if e.recipe and e.buy > 0 then items[#items + 1] = { e.term, 1 } end
+  end
+  if not searchAH(items) then NW.Print("Open the auction house with Auctionator to search.") end
+end, 26)
+MS.recipesBtn:SetPoint("LEFT", searchBtn, "RIGHT", 6, 0)
+UI.Tip(MS.recipesBtn, "Search recipes", "Only the recipes the plan needs you to buy.")
+MS.recipesBtn:Hide()
 local tips = UI.Text(right, 11, S.dim)
 tips:SetPoint("TOPLEFT", searchBtn, "BOTTOMLEFT", 0, -10)
 tips:SetWidth(RIGHT_W)
@@ -915,9 +1004,9 @@ for _, b in ipairs(CW.cardButtons) do b:Hide() end
 local function matsText(r)
   local parts = {}
   for _, re in ipairs(r.reagents) do
-    parts[#parts + 1] = re[2] .. " " .. (itemName(re[1]))
+    parts[#parts + 1] = (itemName(re[1])) .. " ×" .. re[2]
   end
-  return table.concat(parts, ", ") .. " each"
+  return table.concat(parts, "  ·  ")
 end
 
 -- The next rank you haven't trained: the rank, and whether you can train it now
@@ -951,47 +1040,74 @@ end
 
 drawSteps = function()
   local rank = NW.ProfSkill(selected) or 0
+  local learned = NW.ProfSkill(selected) ~= nil
   MS.fixedRows()
-  for i = 1, STEP_ROWS do
-    local row = stepRows[i]
-    local stp = steps[i + stepOffset]
-    row.step = stp
+  MS.dynamic = true
+  local y, room, full = 0, STEPS_BOX_H - 2, false
+  for i, row in ipairs(stepRows) do
+    local stp = not full and steps[i + stepOffset] or nil
+    local h = stp and (stp.rankHead and HEAD_ROW_H or STEP_H)
+    if stp and y + h > room then stp, full = nil, true end
+    row.step = stp and not stp.rankHead and stp or nil
+    row.rankHead = stp and stp.rankHead and stp or nil
     row.bracket = nil
     row.missingRecipe = nil
     row.sectionRow = nil
     row.profitRow = nil
     row:SetCraft()
     if stp then
+      row:ClearAllPoints()
+      row:SetPoint("TOPLEFT", 1, -1 - y)
+      row:SetHeight(h - 2)
+      y = y + h
       row:Show()
-      row:SetSelected(rank >= stp.from and rank < stp.to)
-      row.range:SetText(("%d-%d"):format(stp.from, stp.to))
+    else
+      row:Hide()
+    end
+    if stp and stp.rankHead then
+      -- a rank: its range and how far along you are
+      row.headBg:Show() row.head:Show() row.headCount:Show()
+      row.range:Hide() row.name:Hide() row.mats:Hide() row.icon:Hide()
+      row.crafts:SetText("") row.cost:SetText("")
+      row:SetSelected(false)
+      row.head:SetText(("|TInterface\\Buttons\\UI-%sButton-Up:14:14:0:0|t  %s"):format(stp.folded and "Plus" or "Minus", stp.rankHead))
+      local state = stp.done and "  |cff94ba78done|r" or stp.current and "  |cffd6b266now|r" or ""
+      row.headCount:SetText(("%d-%d%s"):format(stp.lo, stp.hi, state))
+    elseif stp then
+      local done = learned and stp.to and rank >= stp.to and not stp.banner
+      row:SetAlpha(done and 0.5 or 1)
+      row:SetSelected(learned and rank >= stp.from and rank < stp.to)
+      row.range:SetText((done and "|TInterface\\RaidFrame\\ReadyCheck-Ready:12:12:0:0|t " or "") .. ("%d-%d"):format(stp.from, stp.to))
       if stp.banner then
-        -- a stop at the trainer before the next steps
+        -- a trip to the trainer: who, where, and when you can go
         local ru = stp.rankUp
-        row:SetSelected(rank >= ru.skill and rank <= stp.from)
+        row.trainBg:Show()
+        row:SetSelected(learned and rank >= ru.skill and rank <= stp.from)
         row.range:SetText(tostring(stp.from))
         row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
         row.icon:Show()
         local who, where, mapID, _, _, needs = NW.RankWhere(selected, ru.name)
-        row.name:SetText(("|cffd6b266Train %s|r%s"):format(ru.name, who and ("  |cffffffff" .. who .. "|r") or ""))
+        row.name:SetText(("|cffd6b266Train %s|r"):format(ru.name))
         row.crafts:SetText("")
         row.cost:SetText(stp.rankFee and stp.rankFee > 0 and NW.Money(stp.rankFee, true) or "")
+        local place = who and (who .. "  ·  " .. where) or "Any trainer in a capital city"
         if needs then
           -- a quest: what to bring matters most
           local parts = {}
-          for _, it in ipairs(needs) do parts[#parts + 1] = ("%d %s"):format(it[2], (itemName(it[1]))) end
-          row.mats:SetText(("|cffffffff%s|r  ·  bring %s"):format(where, table.concat(parts, ", ")))
+          for _, it in ipairs(needs) do parts[#parts + 1] = ("%s ×%d"):format((itemName(it[1])), it[2]) end
+          row.mats:SetText(("|cffe0dbd0%s|r  ·  bring %s"):format(place, table.concat(parts, ", ")))
         else
-          row.mats:SetText(("|cffffffff%s|r  ·  skill %d, level %d%s"):format(where or "Any trainer in a capital city", ru.skill, ru.level,
-            mapID and "  ·  |cff94ba78click to pin|r" or ""))
+          -- eligible from its skill; needed by the point the banner sits at
+          row.mats:SetText(("|cffe0dbd0%s|r  ·  from skill %d, level %d"):format(place, ru.skill, ru.level))
         end
       elseif stp.recipe then
+        row.trainBg:Hide()
         local r = stp.recipe
         row.icon:SetTexture(recipeIcon(r))
         row.icon:Show()
         row.name:SetText(("|cff%s%s|r"):format(colorFor(r, stp.from), r.name))
-        row.crafts:SetText("x" .. stp.crafts)
-        row:SetCraft(selected, r, stp.crafts)
+        row.crafts:SetText("×" .. stp.crafts)
+        if not done then row:SetCraft(selected, r, stp.crafts) end
         row.cost:SetText(NW.Money(stp.spend or stp.cost, true) .. (stp.unknown > 0 and " |cffd17665?|r" or ""))
         local tag = stp.needsRecipe and "|cffff8040needs recipe|r  ·  " or ""
         if stp.rankUp and searchText ~= "" then
@@ -999,14 +1115,13 @@ drawSteps = function()
         end
         row.mats:SetText(tag .. matsText(r))
       else
+        row.trainBg:Hide()
         row.icon:Hide()
         row.name:SetText("|cffd17665No recipe in the data covers this range|r")
         row.crafts:SetText("")
         row.cost:SetText("")
-        row.mats:SetText("Tick \"Allow recipes I must buy\", or level with anything that is still yellow.")
+        row.mats:SetText("Turn on \"Include purchasable recipes\" under Options.")
       end
-    else
-      row:Hide()
     end
   end
   stepScroll:Update()
@@ -1020,10 +1135,17 @@ drawShop = function()
     if e then
       row:Show()
     end
-    if e and e.recipe then
+    if e and e.header then
+      -- a group: recipes, materials, vendor supplies, what you already have
+      row.icon:SetTexture(("Interface\\Buttons\\UI-%sButton-Up"):format(e.folded and "Plus" or "Minus"))
+      row.name:SetText("|cffd6b266" .. e.header .. "|r")
+      row.cost:SetText("|cff938c80" .. e.count .. "|r")
+    elseif e and e.recipe then
+      -- (the group already says it's a recipe)
       row.icon:SetTexture(e.id and itemIcon(e.id) or "Interface\\Icons\\INV_Scroll_03")
-      row.name:SetText("|cffff8040" .. e.term .. "|r")
-      row.cost:SetText((e.buy == 0 and "|cff94ba78have|r") or (e.cost and NW.Money(e.cost, "mid")) or "|cff938c80find|r")
+      local shown = e.term:gsub("^[%a ]+: ", "")
+      row.name:SetText("|cffff8040" .. shown .. "|r")
+      row.cost:SetText((e.buy == 0 and "|cff94ba78Have|r") or (e.cost and NW.Money(e.cost, "mid")) or "|cff938c80find|r")
     elseif e and card then
       -- have/need, the name (gold: you can make it), and what's still to buy
       row.icon:SetTexture(itemIcon(e.id))
@@ -1032,9 +1154,13 @@ drawShop = function()
         e.maker and "|cffd6b266" or "|cffe0dbd0", (itemName(e.id))))
       row.cost:SetText(ok and "|cff94ba78Have|r" or e.cost and NW.Money(e.cost, "mid") or "|cff938c80No price|r")
     elseif e then
+      -- have/need: green when it's all there, gold for what's still missing
       row.icon:SetTexture(itemIcon(e.id))
-      local have = e.have > 0 and ("|cff94ba78%d|r/"):format(math.min(e.have, e.need)) or ""
-      row.name:SetText(("%s%d  %s%s|r"):format(have, e.need, e.maker and card and "|cffd6b266" or "|cffe0dbd0", (itemName(e.id))))
+      local qty
+      if e.buy == 0 then qty = ("|cff94ba78%d|r"):format(e.need)
+      elseif e.have > 0 then qty = ("|cffe0dbd0%d|r|cff938c80/%d|r"):format(math.min(e.have, e.need), e.need)
+      else qty = ("|cffd6b266%d|r"):format(e.need) end
+      row.name:SetText(("%s  |cffe0dbd0%s|r"):format(qty, (itemName(e.id))))
       local tag = e.src == "vendor" and " |cff938c80v|r" or e.src == "est" and " |cffd17665~|r"
         or (e.scarce or (e.stats and e.stats.flag)) and " |cffffd133!|r" or ""
       row.cost:SetText((e.buy == 0 and "|cff94ba78have|r") or (NW.Money(e.cost, "mid") .. tag))
@@ -1048,10 +1174,12 @@ end
 function MS.fixedRows()
   MS.dynamic = false
   for i, row in ipairs(stepRows) do
+    row.rankHead = nil
     row:ClearAllPoints()
     row:SetPoint("TOPLEFT", 1, -1 - (i - 1) * STEP_H)
     row:SetHeight(STEP_H - 2)
-    row.headBg:Hide() row.head:Hide() row.headCount:Hide()
+    row.headBg:Hide() row.head:Hide() row.headCount:Hide() row.trainBg:Hide()
+    row:SetAlpha(1)
     row.range:Show() row.name:Show() row.mats:Show() row.crafts:Show() row.cost:Show()
     if i > STEP_ROWS then row:Hide() end
   end
@@ -1096,30 +1224,61 @@ local function drawCraft(p)
     hCost:SetText("")
     hCostSub:SetText("")
     rTotal:SetText("")
-    shop = {}
+    shop, MS.shopAll = {}, {}
+    MS.recipesBtn:Hide()
     drawShop()
     return
   end
   local plan = NW.BuildPlan(p.key, from, to)
   steps = filter(plan.steps, stepMatches)
   if searchText == "" then
-    -- each new rank gets its own row: where to go before the next steps
-    local list = {}
+    -- the plan by rank: a heading for each, and a trip to the trainer between them
+    st().planFolds = st().planFolds or {}
+    local folds = st().planFolds[p.key] or {}
+    st().planFolds[p.key] = folds
+    local list, head, lo = {}, nil, 1
     for _, stp in ipairs(steps) do
       if stp.rankUp then
         list[#list + 1] = { banner = true, rankUp = stp.rankUp, rankFee = stp.rankFee, from = stp.from, to = stp.from }
       end
-      list[#list + 1] = stp
+      -- which rank this step is in
+      local ri, prevCap = 1, 1
+      for k, ru in ipairs(NW.RANKS) do
+        if stp.from < ru.cap then ri = k break end
+        prevCap = ru.cap
+      end
+      if not head or head.ri ~= ri then
+        local ru = NW.RANKS[ri]
+        local done = rank and rank >= ru.cap or false
+        local f = folds[ru.name]
+        if f == nil then f = done end -- finished ranks start folded
+        head = { rankHead = ru.name, ri = ri, lo = math.max(prevCap, from), hi = math.min(ru.cap, to),
+          done = done, current = rank and rank >= prevCap and rank < ru.cap, folded = f }
+        list[#list + 1] = head
+      end
+      if not head.folded then list[#list + 1] = stp end
     end
     steps = list
   end
+  -- the furthest it scrolls and still fills the list
+  do
+    local sum, room = 0, STEPS_BOX_H - 2
+    MS.dynMax = 0
+    for i = #steps, 1, -1 do
+      sum = sum + (steps[i].rankHead and HEAD_ROW_H or STEP_H)
+      if sum > room then MS.dynMax = i break end
+    end
+  end
+  MS.dynamic = true
   if viewChanged then
     stepOffset = 0
-    -- start on the step you're on
+    -- start on the step you're on (its rank heading in view)
     for i, stp in ipairs(steps) do
-      if rank and rank >= stp.from and rank < stp.to then
-        if i > 1 and steps[i - 1].banner then i = i - 1 end
-        stepOffset = math.max(0, math.min(i - 1, #steps - STEP_ROWS))
+      if rank and stp.from and not stp.rankHead and rank >= stp.from and rank < stp.to then
+        local j = i
+        while j > 1 and (steps[j - 1].banner or steps[j - 1].rankHead) do j = j - 1 end
+        stepOffset = math.max(0, math.min(j - 1, MS.dynMax))
+        break
       end
     end
   end
@@ -1127,32 +1286,44 @@ local function drawCraft(p)
   stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "Nothing in the plan matches your search." or "No recipes for this profession yet.") or "")
   drawSteps()
 
-  -- the headline is what you pay; sale value is shown beside it, never taken off
+  -- what it costs: materials at today's prices, training and recipes; resale shown beside it, never promised
   local spend = plan.spend or plan.total
   hCost:SetText("")
   hCostSub:SetText("")
-  local rows = { { ("Spend to %d"):format(to), NW.Money(spend), true } }
-  -- what selling or disenchanting might return, and what that leaves you out of pocket
+  local mats = 0
+  for _, stp in ipairs(plan.steps) do
+    if stp.recipe then mats = mats + (stp.recipe.matCost or stp.costEach or 0) * stp.crafts end
+  end
+  local recipesCost = math.max(0, spend - mats - (plan.fees or 0))
   local back = spend - plan.total
+  local partial = plan.unknown > 0 and " |cffd17665+?|r" or ""
+  MS.planSpend, MS.planBack, MS.planPartial = spend, back, partial
+  MS.planLines = {
+    { "Materials", NW.Money(mats, "mid") .. partial },
+    { "Training", NW.Money(plan.fees or 0, "mid") },
+  }
+  if recipesCost > 0 then MS.planLines[#MS.planLines + 1] = { "Recipes", NW.Money(recipesCost, "mid") } end
   if back > 0 then
-    rows[#rows + 1] = { st().planSellBack == "de" and "Disenchant back" or "Sell back", "~" .. NW.Money(back, true) }
-    rows[#rows + 1] = { "Net", "~" .. NW.Money(spend - back, true), nil, true }
-  -- three rows at most: that's the room beside the profession name
-  elseif plan.fees and plan.fees > 0 then
-    rows[#rows + 1] = { "incl. training", NW.Money(plan.fees, true) }
+    MS.planLines[#MS.planLines + 1] = { st().planSellBack == "de" and "Disenchant value" or "Resale (half the auction price)", "~" .. NW.Money(back, "mid") }
+  end
+  if plan.unknown > 0 then
+    MS.planLines[#MS.planLines + 1] = { " " }
+    MS.planLines[#MS.planLines + 1] = { ("%d step%s use a material with no price: the total is missing those."):format(plan.unknown, plan.unknown == 1 and "" or "s") }
+  end
+  if back > 0 then
+    MS.planLines[#MS.planLines + 1] = { "Resale is an estimate, not a promise anything sells." }
   end
   -- what bought or found recipes would save
-  if not st().planRecipeItems then
+  if not st().planRecipeItems and st().planStrategy ~= "known" then
     st().planRecipeItems = true
     local alt = NW.BuildPlan(p.key, from, to)
     st().planRecipeItems = false
     NW.BuildPlan(p.key, from, to) -- back to this profession's prices
-    if back <= 0 and alt.total < plan.total * 0.85 then
-      rows[#rows + 1] = { "|cff94ba78With bought recipes|r", "|cff94ba78" .. NW.Money(alt.spend or alt.total, true):gsub("|r", "|r|cff94ba78") .. "|r" }
+    if alt.total < plan.total * 0.85 then
+      MS.planLines[#MS.planLines + 1] = { " " }
+      MS.planLines[#MS.planLines + 1] = { "|cff94ba78With purchasable recipes|r", NW.Money(alt.spend or alt.total, "mid") }
     end
   end
-  setLedger(rows)
-
   local list, total = NW.ShoppingList(p.key, plan)
   -- recipes the plan needs you to buy or find go on top
   local recipes, seen = {}, {}
@@ -1182,23 +1353,69 @@ local function drawCraft(p)
     end
   end
   for i, e in ipairs(recipes) do table.insert(list, i, e) end
-  shop = list
+  -- in groups: recipes to buy, materials, vendor supplies, and what you already have (folded)
+  MS.shopCount = #list
+  local groups = { recipes = {}, mats = {}, vendor = {}, owned = {} }
+  for _, e in ipairs(list) do
+    local g = (e.buy == 0 and "owned") or (e.recipe and "recipes") or (e.src == "vendor" and "vendor") or "mats"
+    table.insert(groups[g], e)
+  end
+  local folds = st().shopFolds or {}
+  local grouped = {}
+  for _, g in ipairs({ { "recipes", "Recipes to buy" }, { "mats", "Materials" }, { "vendor", "Vendor supplies" }, { "owned", "Already have" } }) do
+    local items = groups[g[1]]
+    if #items > 0 then
+      local f = folds[g[1]]
+      if f == nil then f = g[1] == "owned" end
+      grouped[#grouped + 1] = { header = g[2], cat = g[1], count = #items, folded = f }
+      if not f then for _, e in ipairs(items) do grouped[#grouped + 1] = e end end
+    end
+  end
+  MS.shopRecipes = #groups.recipes
+  MS.shopAll = list
+  shop = grouped
+  -- the recipes get their own search when there are any to buy
+  searchBtn:SetWidth(MS.shopRecipes > 0 and RIGHT_W - 92 or RIGHT_W)
+  MS.recipesBtn:SetShown(MS.shopRecipes > 0)
   if viewChanged then shopOffset = 0 end
   clampOffsets()
   local odd = 0
   for _, e in ipairs(list) do if e.buy > 0 and (e.scarce or (e.stats and e.stats.flag)) then odd = odd + 1 end end
   local live = 0
   for _, e in ipairs(list) do if e.live then live = live + 1 end end
-  rTotal:SetText(("%d items  ·  %s to buy%s%s%s"):format(#list, NW.Money(total),
+  local bagsOff = not st().planUseBags
+  rTotal:SetText(("%d items  ·  %s %s%s%s%s"):format(MS.shopCount or #list, NW.Money(total), bagsOff and "in all" or "to buy",
     plan.unknown > 0 and ("  ·  |cffd17665%d no price|r"):format(plan.unknown) or "",
     live > 0 and ("  ·  |cff94ba78%d live|r"):format(live) or "",
-    odd > 0 and ("  ·  |cffffd133%d to check|r"):format(odd) or ""))
+    odd > 0 and ("  ·  |cffffd133%d price%s to verify|r"):format(odd, odd == 1 and "" or "s") or ""))
+  -- three values up top: cost, then resale and net, or training and what's left to buy
+  local cells = { { "Estimated cost", NW.Money(MS.planSpend, "mid") .. MS.planPartial } }
+  if MS.planBack > 0 then
+    cells[2] = { st().planSellBack == "de" and "Disenchant" or "Est. resale", "~" .. NW.Money(MS.planBack, "mid"), S.good }
+    cells[3] = { "Net cost", "~" .. NW.Money(MS.planSpend - MS.planBack, "mid") .. MS.planPartial, S.gold }
+  else
+    cells[2] = { "Training", NW.Money(plan.fees or 0, "mid") }
+    cells[3] = { bagsOff and "Materials" or "To buy", NW.Money(total, "mid") .. MS.planPartial, S.gold }
+  end
+  table.insert(MS.planLines, 1, { "To buy now", NW.Money(total, "mid") .. MS.planPartial })
+  MS.summary(cells, MS.planLines)
   drawShop()
 
   local ah = NW.HasAuctionator()
-  local nextUp = rankLine(p.key)
-  priceLine:SetText(not ah and "|cffd17665Auctionator isn't loaded:|r using vendor prices and rough estimates. Install or enable it for live prices."
-    or nextUp or "")
+  -- what to do now: the step you're on (or, planning a profession you don't have, say so)
+  local nowLine
+  if not rank then
+    nowLine = "|cff938c80Planning only: you don't have " .. p.name .. "|r"
+  else
+    for _, stp in ipairs(plan.steps) do
+      if stp.recipe and rank >= stp.from and rank < stp.to then
+        nowLine = ("|cffd6b266Now|r  %s |cff938c80×%d to %d|r"):format(stp.recipe.name, stp.crafts, stp.to)
+        break
+      end
+    end
+  end
+  priceLine:SetText(not ah and "|cffd17665Auctionator isn't loaded:|r vendor prices and rough estimates only."
+    or nowLine or "")
 end
 
 ------------------------------------------------------------------------
@@ -1563,6 +1780,7 @@ local function collapsedOf(key)
 end
 local function drawMissingRows(key)
   local rank = NW.ProfSkill(key)
+  MS.fixedRows()
   MS.dynamic = true
   local y, room, full = 0, STEPS_BOX_H - 2, false
   for i, row in ipairs(stepRows) do
@@ -2283,6 +2501,13 @@ for _, row in ipairs(stepRows) do
     if mapID then NW.PinMap(mapID, x, y, who) end
   end)
   row:HookScript("OnClick", function(self)
+    local h = self.rankHead
+    if not h then return end
+    local folds = st().planFolds[selected]
+    folds[h.rankHead] = not h.folded
+    refresh()
+  end)
+  row:HookScript("OnClick", function(self)
     -- a section heading: fold or unfold it
     local sec = self.sectionRow
     if sec and not self.linked then
@@ -2388,9 +2613,9 @@ refresh = function()
   hIcon:SetTexture(p.icon)
   hName:SetText(p.name)
   setLedger(nil)
+  MS.summary(nil)
   local rank, max = NW.ProfSkill(p.key)
-  hSkill:SetText((rank and ("Skill %d / %d"):format(rank, max or 300) or "You don't have this profession")
-    .. rankNote(p.key))
+  hSkill:SetText(rank and (("%d / %d"):format(rank, max or 300) .. rankNote(p.key)) or "Not learned")
   NW.SetWindowSubtitle(p.name)
   if firstOpen then firstOpen = nil mode = openMode(selected) end
 
@@ -2424,6 +2649,7 @@ refresh = function()
   priceLine:SetShown(isCraft)
   shopBox:SetShown(planPanel or showCard)
   searchBtn:SetShown(planPanel)
+  if not planPanel then MS.recipesBtn:Hide() end
   -- the key to the list's colours and marks, and notes on this profession: on hover
   tips:Hide()
   if not MS.help then
@@ -2458,9 +2684,10 @@ refresh = function()
     shopBox:SetHeight(240)
     shopScroll:SetVisible(240, SHOP_ROWS)
     shopBox:ClearAllPoints()
-    shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
+    shopBox:SetPoint("TOPLEFT", MS.targets, "BOTTOMLEFT", 0, -8)
   end
   targetSlider:SetShown(planPanel)
+  MS.targets:SetShown(planPanel)
   if targetSlider:IsShown() then targetSlider:Refresh() end
   info:SetShown((not isCraft or isProfit) and not showCard)
   if MS.ov then
