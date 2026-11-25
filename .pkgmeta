@@ -9,4 +9,7 @@ ignore:
   - .github
   - VERSION
   - CURSEFORGE.md
+  - DEVELOPMENT.md
+  - MARKETING.md
+  - UI_DESIGN_STANDARD.md
   - screenshots
