@@ -291,12 +291,47 @@ frame:SetScript("OnEvent", function(_, event, ...)
   end
 end)
 
+-- Choices that belong to one character (their consumes, their profession page)
+-- live in db.chars[name-realm].settings; everything else is shared. Code keeps
+-- reading and writing NW.db.settings: these keys are passed through.
+local CHAR_KEYS = {
+  consumeSpec = true, consumeList = true, consumeHidden = true, consumeBudget = true, consumeHours = true,
+  profSelected = true, planTarget = true, lastTab = true,
+}
+local function splitCharSettings(db)
+  db.chars = db.chars or {}
+  local ck = (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
+  local c = db.chars[ck] or {}
+  db.chars[ck] = c
+  local first = not c.settings
+  c.settings = c.settings or {}
+  local cs, base = c.settings, db.settings
+  for k in pairs(CHAR_KEYS) do
+    -- before this, they were shared: the first character to log in keeps them.
+    -- After that, what's left here is only the default (copyDefaults put it back).
+    if first and cs[k] == nil then cs[k] = rawget(base, k) end
+    rawset(base, k, nil)
+  end
+  -- a spec carried over from another class: back to this class's own
+  if first and cs.consumeSpec and NW.CONSUMES then
+    local _, class = UnitClass("player")
+    for _, l in ipairs(NW.CONSUMES) do
+      if l.key == cs.consumeSpec and l.class and l.class ~= class then cs.consumeSpec = nil end
+    end
+  end
+  setmetatable(base, {
+    __index = function(_, k) if CHAR_KEYS[k] then return cs[k] end end,
+    __newindex = function(t, k, v) if CHAR_KEYS[k] then cs[k] = v else rawset(t, k, v) end end,
+  })
+end
+
 frame:RegisterEvent("ADDON_LOADED")
 NW.On("ADDON_LOADED", function(name)
   if name ~= ADDON then return end
   NodewalkerDB = NodewalkerDB or {}
   copyDefaults(DEFAULTS, NodewalkerDB)
   NW.db = NodewalkerDB
+  splitCharSettings(NodewalkerDB)
   if NW.OnLoad then
     for _, fn in ipairs(NW.OnLoad) do pcall(fn) end
   end

@@ -426,10 +426,10 @@ table.insert(NW.OnLoad, function()
   if not c then
     c = {}
     db.chars[ck] = c
-    -- saved before they were per character: the first character to log in keeps them
-    if db.known then c.known, c.recipeScan, c.recipeScanAt = db.known, db.recipeScan, db.recipeScanAt end
-    db.known, db.recipeScan, db.recipeScanAt = nil, nil, nil
   end
+  -- saved before they were per character: the first character to log in keeps them
+  if db.known and not c.known then c.known, c.recipeScan, c.recipeScanAt = db.known, db.recipeScan, db.recipeScanAt end
+  db.known, db.recipeScan, db.recipeScanAt = nil, nil, nil
   c.known = c.known or {}
   c.recipeScan = c.recipeScan or {}
   c.recipeScanAt = c.recipeScanAt or {}
