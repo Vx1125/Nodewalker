@@ -1168,12 +1168,17 @@ drawShop = function()
       row.name:SetText("|cffff8040" .. shown .. "|r")
       row.cost:SetText((e.buy == 0 and "|cff94ba78Have|r") or (e.cost and NW.Money(e.cost, "mid")) or "|cff938c80find|r")
     elseif e and card then
-      -- have/need, the name (gold: you can make it), and what's still to buy
+      -- how many one craft takes, the name (gold: you can make it), and how many
+      -- you really have (not capped at one craft's worth), or what's still to buy
       row.icon:SetTexture(itemIcon(e.id))
       local ok = e.have >= e.need
-      row.name:SetText(("%s%d|r|cff938c80/%d|r  %s%s|r"):format(ok and "|cff94ba78" or "|cffd17665", math.min(e.have, e.need), e.need,
-        e.maker and "|cffd6b266" or "|cffe0dbd0", (itemName(e.id))))
-      row.cost:SetText(ok and "|cff94ba78Have|r" or e.cost and NW.Money(e.cost, "mid") or "|cff938c80No price|r")
+      row.name:SetText(("|cff938c80%d×|r  %s%s|r"):format(e.need, e.maker and "|cffd6b266" or "|cffe0dbd0", (itemName(e.id))))
+      if ok then
+        row.cost:SetText(("|cff94ba78Have %d|r"):format(e.have))
+      else
+        local price = e.cost and NW.Money(e.cost, "mid") or "|cff938c80No price|r"
+        row.cost:SetText(e.have > 0 and ("|cffd17665%d|r  %s"):format(e.have, price) or price)
+      end
     elseif e then
       -- have/need: green when it's all there, gold for what's still missing
       row.icon:SetTexture(itemIcon(e.id))
