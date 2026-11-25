@@ -13,6 +13,7 @@ end)
 local selected
 
 local function st() return NW.db.settings end
+local MS = {} -- list-layout and Missing recipes helpers (one table: the file is near Lua's local limit)
 
 -- Item names arrive from the server a moment after we ask
 local function itemName(id)
@@ -319,7 +320,7 @@ function NW.CraftStatus(msg)
   if page:IsShown() then refresh() end
   C_Timer.After(4.1, function() if page:IsShown() then refresh() end end)
 end
-local STEP_H, STEP_ROWS = 40, 10
+local STEP_H, STEP_ROWS, STEP_FRAMES, HEAD_ROW_H = 40, 10, 15, 24
 local STEPS_BOX_H = STEP_H * STEP_ROWS + 2
 local stepsBox = UI.Box(mid, MID_W, STEPS_BOX_H)
 stepsBox:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -32)
@@ -332,7 +333,7 @@ for i, c in ipairs({ { "BOTTOMLEFT", "TOPLEFT", 9 }, { "BOTTOMLEFT", "TOPLEFT", 
 end
 local CAPS = {
   plan = { "Skill", "Craft this", "How many", "Cost" },
-  missing = { "Skill", "Recipe and where it comes from", "", "" },
+  missing = { "Skill", "Recipe", "", "" },
   profit = { "Return", "Recipe", "", "Profit each" },
   gather = { "Skill", "Gather", "", "" },
 }
@@ -346,10 +347,21 @@ local function colorFor(r, sk)
   elseif sk < r.grey then return "40bf40" else return "808080" end
 end
 
-for i = 1, STEP_ROWS do
+for i = 1, STEP_FRAMES do
   local row = CreateFrame("Button", nil, stepsBox)
   row:SetSize(MID_W - 12, STEP_H - 2)
   row:SetPoint("TOPLEFT", 1, -1 - (i - 1) * STEP_H)
+  -- a section heading (Missing recipes): short, with its own background
+  row.headBg = row:CreateTexture(nil, "BACKGROUND", nil, 4)
+  row.headBg:SetAllPoints()
+  row.headBg:SetColorTexture(unpack(S.header))
+  row.headBg:Hide()
+  row.head = UI.Text(row, 12, S.gold)
+  row.head:SetPoint("LEFT", 8, 0)
+  row.head:Hide()
+  row.headCount = UI.Text(row, 11, S.dim, "RIGHT")
+  row.headCount:SetPoint("RIGHT", -8, 0)
+  row.headCount:Hide()
   UI.RowHighlight(row)
   local bg = row:CreateTexture(nil, "BACKGROUND")
   bg:SetAllPoints()
@@ -533,7 +545,7 @@ local function redrawSteps() if scrollDraw then scrollDraw() else drawSteps() en
 local stepScroll = makeScroller(stepsBox, STEPS_BOX_H, STEP_ROWS, function() return #steps end,
   function() return stepOffset end, function(v) stepOffset = v; redrawSteps() end)
 stepsBox:SetScript("OnMouseWheel", function(_, d)
-  stepOffset = math.max(0, math.min(math.max(0, #steps - STEP_ROWS), stepOffset - d))
+  stepOffset = math.max(0, math.min(MS.maxOffset(), stepOffset - d))
   redrawSteps()
 end)
 
@@ -870,7 +882,31 @@ local cardBack = UI.Button(right, "", RIGHT_W, function()
   if prev then card.r, card.key = prev.r, prev.key else card = nil end
   refresh()
 end, 22)
-CW.cardButtons = { cardCraft, CW.cardMissing, CW.cardAll, CW.cardItem, cardBack }
+-- A missing recipe: where to get it, as label / value rows
+CW.acq = CreateFrame("Frame", nil, cardFrame)
+CW.acq:SetPoint("TOPLEFT", CW.cSource, "BOTTOMLEFT", 0, -8)
+CW.acq:SetSize(RIGHT_W, 10)
+CW.acqRows = {}
+for i = 1, 6 do
+  local l = UI.Text(CW.acq, 11, S.dim)
+  l:SetPoint("TOPLEFT", 0, -(i - 1) * 17)
+  l:SetWidth(78)
+  local v = UI.Text(CW.acq, 11, S.text)
+  v:SetPoint("TOPLEFT", 82, -(i - 1) * 17)
+  v:SetWidth(RIGHT_W - 82)
+  v:SetWordWrap(false)
+  CW.acqRows[i] = { l, v }
+end
+CW.cardMap = UI.Button(right, "Show on map", CW.HALF, function()
+  local m = CW.mapAt
+  if m then NW.PinMap(m[1], m[2], m[3], m[4]) end
+end, 24)
+CW.cardRecipe = UI.Button(right, "Search the recipe", CW.HALF, function()
+  if not card then return end
+  local term = (RECIPE_PREFIX[card.r.findKey or card.key] or "") .. card.r.name
+  if not searchAH({ { term, 1 } }) then NW.Print("Open the auction house with Auctionator to search.") end
+end, 24)
+CW.cardButtons = { cardCraft, CW.cardMissing, CW.cardAll, CW.cardItem, cardBack, CW.cardMap, CW.cardRecipe }
 for _, b in ipairs(CW.cardButtons) do b:Hide() end
 
 ------------------------------------------------------------------------
@@ -915,7 +951,9 @@ end
 
 drawSteps = function()
   local rank = NW.ProfSkill(selected) or 0
-  for i, row in ipairs(stepRows) do
+  MS.fixedRows()
+  for i = 1, STEP_ROWS do
+    local row = stepRows[i]
     local stp = steps[i + stepOffset]
     row.step = stp
     row.bracket = nil
@@ -1006,10 +1044,27 @@ drawShop = function()
   end
 end
 
+-- The fixed views (Leveling, Profit, gathering): each row in its slot, heading parts off
+function MS.fixedRows()
+  MS.dynamic = false
+  for i, row in ipairs(stepRows) do
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", 1, -1 - (i - 1) * STEP_H)
+    row:SetHeight(STEP_H - 2)
+    row.headBg:Hide() row.head:Hide() row.headCount:Hide()
+    row.range:Show() row.name:Show() row.mats:Show() row.crafts:Show() row.cost:Show()
+    if i > STEP_ROWS then row:Hide() end
+  end
+end
+function MS.maxOffset()
+  if MS.dynamic then return MS.dynMax or 0 end
+  return math.max(0, #steps - STEP_ROWS)
+end
+
 -- The list keeps its scroll position unless you switch profession, view or search
 local viewChanged, lastView = true, nil
 local function clampOffsets()
-  stepOffset = math.max(0, math.min(stepOffset, math.max(0, #steps - STEP_ROWS)))
+  stepOffset = math.max(0, math.min(stepOffset, MS.maxOffset()))
   shopOffset = math.max(0, math.min(shopOffset, math.max(0, #shop - shopVisible)))
 end
 
@@ -1161,7 +1216,9 @@ end
 -- reuse step rows for gathering brackets
 local function drawGatherRows(key)
   local rank = NW.ProfSkill(key) or 0
-  for i, row in ipairs(stepRows) do
+  MS.fixedRows()
+  for i = 1, STEP_ROWS do
+    local row = stepRows[i]
     local b = steps[i + stepOffset]
     row.step = nil
     row:SetCraft()
@@ -1266,10 +1323,7 @@ local function drawGather(p)
   local rank = NW.ProfSkill(p.key)
   local lines = { g.intro, "" }
   if p.key == "herbalism" then
-    lines[#lines + 1] = "|cffd6b266Click a range|r to open the Farm Guide on the best herb for you there."
   elseif p.key == "mining" then
-    lines[#lines + 1] = "|cffd6b266Click a range|r to build a mining route in the zone where you know the most of those veins."
-    lines[#lines + 1] = ""
     lines[#lines + 1] = "|cffd6b266Smelting skill-ups|r"
     for _, r in ipairs(NW.RECIPES.mining or {}) do
       if r.grey > r.yellow or r.yellow <= 250 then
@@ -1296,8 +1350,6 @@ local function drawGather(p)
           r.src == "recipe" and " |cff938c80(recipe)|r" or "")
       end
     end
-    lines[#lines + 1] = ""
-    lines[#lines + 1] = "|cff938c80Red: you need more Cooking. Grey: no more skill-ups.|r"
   end
   infoText:SetText(table.concat(lines, "\n"))
 end
@@ -1309,18 +1361,31 @@ RECIPE_PREFIX = {
   alchemy = "Recipe: ", blacksmithing = "Plans: ", enchanting = "Formula: ", engineering = "Schematic: ",
   leatherworking = "Pattern: ", tailoring = "Pattern: ", cooking = "Recipe: ", firstaid = "Manual: ",
 }
--- Trainers; names marked Forever were confirmed in WoW Forever, the rest are from the original game
+-- Trainers by faction: { city, names }. Horde names were confirmed in WoW
+-- Forever, Alliance ones are from the original game. `also` is taught to both.
 local TRAINERS = {
-  alchemy = "Undercity: Doctor Herbert Halsey, Doctor Marsh (Forever). Alliance trainers in Stormwind and Ironforge.",
-  blacksmithing = "Orgrimmar: Saru Steelfury, to Expert (Forever). Ironforge: Bengus Deepforge. Artisan: Brikk Keencraft, Booty Bay.",
-  enchanting = "Orgrimmar: Godan (Forever). Stormwind: Lucan Cordell. Expert: Hgarth (Stonetalon) or Kitta Firewind (Elwynn). Artisan: Annora, Uldaman.",
-  engineering = "Orgrimmar: Roxxik, to Expert (Forever). Ironforge: Springspindle Fizzlegear. Artisan: Buzzek Bracketswing, Tanaris.",
-  leatherworking = "Thunder Bluff: Mak, Tarn, Una (Forever). Darnassus: Telonis. Artisan: Hahrana Ironhide (Feralas) or Drakk Stonehand (Hinterlands).",
-  tailoring = "Undercity: Josef Gregorian, Rhiannon Davis, Victor Ward (Forever). Stormwind: Georgio Bolero.",
-  cooking = "Orgrimmar: Zamja (Forever). Stormwind: Stephen Ryback. Expert comes from the Expert Cookbook.",
-  firstaid = "Orgrimmar: Arnok. Stormwind: Shaina Fuller. Expert comes from the book Expert First Aid - Under Wraps.",
+  alchemy = { Horde = { "Undercity", "Doctor Herbert Halsey, Doctor Marsh" }, Alliance = { "Stormwind and Ironforge" } },
+  blacksmithing = { Horde = { "Orgrimmar", "Saru Steelfury, to Expert" }, Alliance = { "Ironforge", "Bengus Deepforge" },
+    also = "Artisan: Brikk Keencraft, Booty Bay" },
+  enchanting = { Horde = { "Orgrimmar", "Godan" }, Alliance = { "Stormwind", "Lucan Cordell" },
+    expert = { Horde = "Hgarth, Stonetalon", Alliance = "Kitta Firewind, Elwynn" }, also = "Artisan: Annora, Uldaman" },
+  engineering = { Horde = { "Orgrimmar", "Roxxik, to Expert" }, Alliance = { "Ironforge", "Springspindle Fizzlegear" },
+    also = "Artisan: Buzzek Bracketswing, Tanaris" },
+  leatherworking = { Horde = { "Thunder Bluff", "Mak, Tarn, Una" }, Alliance = { "Darnassus", "Telonis" },
+    also = "Artisan: Hahrana Ironhide (Feralas) or Drakk Stonehand (Hinterlands)" },
+  tailoring = { Horde = { "Undercity", "Josef Gregorian, Rhiannon Davis, Victor Ward" }, Alliance = { "Stormwind", "Georgio Bolero" } },
+  cooking = { Horde = { "Orgrimmar", "Zamja" }, Alliance = { "Stormwind", "Stephen Ryback" }, also = "Expert: the Expert Cookbook" },
+  firstaid = { Horde = { "Orgrimmar", "Arnok" }, Alliance = { "Stormwind", "Shaina Fuller" }, also = "Expert: Expert First Aid - Under Wraps" },
 }
-local MERCHANT = "Merchant's Favor vendor: Crossroads, Barrens (Horde) or Three Corners, Redridge (Alliance)"
+-- Merchant's Favor vendors: { vendor, place }
+MS.FAVOR = {
+  Horde = { "Durotar Supply and Logistics", "Crossroads, Barrens" },
+  Alliance = { "Azeroth Commerce Authority", "Three Corners, Redridge" },
+}
+MS.FAVOR_HELP = "Favor comes from Waylaid Crates; some recipes need Friendly or Honored."
+function MS.myFaction() return (UnitFactionGroup and UnitFactionGroup("player")) == "Alliance" and "Alliance" or "Horde" end
+function MS.otherFaction() return MS.myFaction() == "Alliance" and "Horde" or "Alliance" end
+function MS.merchantShort() return "Merchant's Favor  ·  " .. MS.FAVOR[MS.myFaction()][2] end
 
 -- Forever's new recipes are sold for Merchant's Favor; their items have new IDs
 local function isForeverNew(r)
@@ -1382,9 +1447,63 @@ function sourceText(key, r, rank)
   end
   local w, fav = whereText(r)
   if w and w ~= "" then return (fav and ("|cffd6b266" .. w .. "|r") or w), fav and "merchant" or "drop" end
-  if fav or isForeverNew(r) then return "|cffd6b266" .. MERCHANT .. "|r", "merchant" end
+  if fav or isForeverNew(r) then return "|cffd6b266" .. MS.merchantShort() .. "|r", "merchant" end
   return "Vendor or world drop  ·  click to search the AH", "drop"
 end
+
+-- Where a recipe comes from, as one kind: now / later / dim (trainer),
+-- merchant, vendor, drop, quest or other; and a short label for its row
+function MS.firstPart(text)
+  local first = text:match("^(.-)  ·  ") or text
+  local rest = select(2, text:gsub("  ·  ", ""))
+  first = first:gsub("^(%a[%a ]-):%s*", "%1  ·  ")
+  return first, rest
+end
+function MS.kindOfLabel(label)
+  local l = label:lower()
+  if l:find("^vendor") then return "vendor" end
+  if l:find("drop") then return "drop" end
+  if l:find("^quest") then return "quest" end
+  return "other"
+end
+function MS.shortSource(key, r, rank)
+  local e = r.scanned or scanOf(key, r)
+  if r.src == "scan" or (r.src == "recipe" and e and e.source) then
+    if e and e.source then
+      if e.source:find("Merchant") or e.source:find("Durotar Supply") or e.source:find("Commerce Authority") then
+        return "|cffd6b266" .. MS.merchantShort() .. "|r", "merchant"
+      end
+      local first = MS.firstPart(cleanSource(e.source, true))
+      return first, MS.kindOfLabel(first)
+    end
+    if r.src == "scan" then return "Not listed by the game", "other" end
+  end
+  local req = r.orange or r.yellow
+  if r.src == "trainer" or r.src == "rank" then
+    if not rank then return "Trainer", "dim" end
+    if rank >= req then return "|cff94ba78Trainer  ·  Available now|r", "now" end
+    return ("Trainer  ·  Skill %d"):format(req), "later"
+  end
+  local w, fav = whereText(r)
+  if fav or (isForeverNew(r) and not (w and w ~= "")) then return "|cffd6b266" .. MS.merchantShort() .. "|r", "merchant" end
+  if w and w ~= "" then
+    local first, more = MS.firstPart(w)
+    return first .. (more > 0 and ("  |cff938c80+%d|r"):format(more) or ""), MS.kindOfLabel(first)
+  end
+  return "Vendor / World drop", "other"
+end
+-- The source filter: which kinds each choice keeps
+MS.SOURCE_FILTER = {
+  all = nil,
+  now = { now = true },
+  later = { later = true, dim = true },
+  trainer = { now = true, later = true, dim = true },
+  merchant = { merchant = true },
+  world = { vendor = true, drop = true, quest = true, other = true },
+  vendor = { vendor = true },
+  drop = { drop = true },
+  quest = { quest = true },
+}
 
 local missing = {}
 local function buildMissing(key)
@@ -1444,25 +1563,35 @@ local function collapsedOf(key)
 end
 local function drawMissingRows(key)
   local rank = NW.ProfSkill(key)
+  MS.dynamic = true
+  local y, room, full = 0, STEPS_BOX_H - 2, false
   for i, row in ipairs(stepRows) do
-    local r = steps[i + stepOffset]
+    local r = not full and steps[i + stepOffset] or nil
+    local h = r and (r.header and HEAD_ROW_H or STEP_H)
+    if r and y + h > room then r, full = nil, true end
     row.step, row.bracket, row.missingRecipe = nil, nil, r
     row.sectionRow = r and r.header and r or nil
     row.profitRow = nil
     row:SetCraft()
-    if r and r.header then
+    if r then
+      row:ClearAllPoints()
+      row:SetPoint("TOPLEFT", 1, -1 - y)
+      row:SetHeight(h - 2)
+      y = y + h
+    end
+    local isHead = r and r.header and true or false
+    row.headBg:SetShown(isHead) row.head:SetShown(isHead) row.headCount:SetShown(isHead)
+    row.range:SetShown(not isHead) row.name:SetShown(not isHead) row.mats:SetShown(not isHead)
+    if isHead then
       -- a section heading, as in the game's own profession window
       row.missingRecipe = nil
-      row.profitRow = nil
       row:Show()
       row:SetSelected(false)
-      row.range:SetText("")
       row.icon:Hide()
-      row.name:SetText(("|TInterface\\Buttons\\UI-%sButton-Up:14:14:-2:0|t |cffd6b266%s|r  |cff938c80%d|r"):format(
-        r.collapsed and "Plus" or "Minus", r.header, r.count))
+      row.head:SetText(("|TInterface\\Buttons\\UI-%sButton-Up:14:14:0:0|t  %s"):format(r.collapsed and "Plus" or "Minus", r.header))
+      row.headCount:SetText(r.count)
       row.crafts:SetText("")
       row.cost:SetText("")
-      row.mats:SetText("")
     elseif r then
       row:Show()
       row:SetSelected(card ~= nil and (card.r == r or (card.stack[1] and card.stack[1].r == r)) or false)
@@ -1470,11 +1599,11 @@ local function drawMissingRows(key)
       row.range:SetText(req and req > 0 and tostring(req) or "?")
       row.icon:SetTexture(r.icon or recipeIcon(r))
       row.icon:Show()
-      local col = r.knownNow and "94ba78" or (not rank or not req or rank >= req) and "ffffff" or "d17665"
+      local col = r.knownNow and "94ba78" or (not rank or not req or rank >= req) and "e0dbd0" or "d17665"
       row.name:SetText(("|cff%s%s|r%s"):format(col, r.name, r.knownNow and "  |cff938c80known|r" or ""))
       row.crafts:SetText("")
       row.cost:SetText("")
-      row.mats:SetText((sourceText(key, r, rank)))
+      row.mats:SetText((MS.shortSource(key, r, rank)))
     else
       row:Hide()
     end
@@ -1490,7 +1619,9 @@ local function signedMoney(c)
   return "|cffd17665-|r" .. NW.Money(-c, "mid")
 end
 local function drawProfitRows(key)
-  for i, row in ipairs(stepRows) do
+  MS.fixedRows()
+  for i = 1, STEP_ROWS do
+    local row = stepRows[i]
     local e = steps[i + stepOffset]
     row.step, row.bracket, row.missingRecipe, row.profitRow = nil, nil, e and e.r, e and true or nil
     row.sectionRow = nil
@@ -1669,7 +1800,15 @@ local function drawCard()
   local req = r.orange or r.yellow
   CW.cProf:SetText(("%s%s%s"):format(prof and prof.name or "", req and req > 0 and (" " .. req) or "",
     (r.yield or 1) > 1 and ("  ·  makes %d"):format(r.yield) or ""))
-  CW.cSource:SetText((sourceText(card.key, r, NW.ProfSkill(card.key))) or "")
+  local acquiring = mode == "missing"
+  CW.cSource:SetText(acquiring and "" or (sourceText(card.key, r, NW.ProfSkill(card.key))) or "")
+  CW.grid:SetShown(not acquiring)
+  CW.cAge:SetShown(not acquiring)
+  CW.acq:SetShown(acquiring)
+  CW.cMatsHead:ClearAllPoints()
+  CW.cMatsHead:SetPoint("TOPLEFT", acquiring and CW.acq or CW.cAge, "BOTTOMLEFT", 0, -10)
+  CW.mapAt = nil
+  if acquiring then MS.fillAcquisition(card.key, r) end
 
   -- money: every material counts at its price, even the ones in your bags
   local profit, _, sale, _, de = NW.RecipeProfit(r)
@@ -1752,6 +1891,15 @@ local function drawCard()
   local function beside(b, left) b:ClearAllPoints() b:SetPoint("LEFT", left, "RIGHT", 6, 0) b:Show() end
   -- the main thing to do now: craft it, and buy what's missing
   local missing = toBuy > 0 or missingUnpriced
+  if acquiring then
+    -- where to go, or what to search for
+    if CW.mapAt then under(CW.cardMap) below = CW.cardMap end
+    if MS.acqKind ~= "trainer" then
+      if below == CW.cardMap then beside(CW.cardRecipe, CW.cardMap) else under(CW.cardRecipe) below = CW.cardRecipe end
+    end
+    under(CW.cardAll)
+    return
+  end
   if craftable then
     under(cardCraft)
     if missing then beside(CW.cardMissing, cardCraft) end
@@ -1772,12 +1920,212 @@ local function drawCard()
   end
 end
 
+-- A missing recipe's source as rows: only what the data says
+function MS.fillAcquisition(key, r)
+  local rows = {}
+  local rank = NW.ProfSkill(key)
+  local label, kind = MS.shortSource(key, r, rank)
+  local fac = MS.myFaction()
+  MS.acqKind = (kind == "now" or kind == "later" or kind == "dim") and "trainer" or kind
+  local req = r.orange or r.yellow
+  if MS.acqKind == "trainer" then
+    rows[#rows + 1] = { "Source", "Trainer" }
+    -- the trainer for the rank that teaches it, where the data has one
+    local rankName
+    for _, ru in ipairs(NW.RANKS) do if req and req >= (ru.skill or 0) and req < ru.cap then rankName = ru.name end end
+    local who, where, mapID, x, y = nil, nil, nil, nil, nil
+    if rankName then who, where, mapID, x, y = NW.RankWhere(key, rankName) end
+    local t = TRAINERS[key] and TRAINERS[key][fac]
+    if who then
+      rows[#rows + 1] = { "Trainer", who }
+      rows[#rows + 1] = { "Location", where }
+      if mapID then CW.mapAt = { mapID, x, y, who } end
+    elseif t then
+      if t[2] then rows[#rows + 1] = { "Trainer", t[2] } end
+      rows[#rows + 1] = { "Location", t[1] }
+    end
+    if req then
+      rows[#rows + 1] = { "Skill", kind == "now" and ("|cff94ba78%d, learn it now|r"):format(req) or tostring(req) }
+    end
+  elseif kind == "merchant" then
+    rows[#rows + 1] = { "Source", "|cffd6b266Merchant's Favor|r" }
+    rows[#rows + 1] = { "Vendor", MS.FAVOR[fac][1] }
+    rows[#rows + 1] = { "Location", MS.FAVOR[fac][2] }
+  end
+  -- the game's own source lines ("Vendor: ...", "Zone: ...", "Cost: ...")
+  local e = r.scanned or scanOf(key, r)
+  if e and e.source and kind ~= "merchant" then
+    for line in cleanSource(e.source, false):gmatch("[^\n]+") do
+      local k, v = line:match("^%s*([^:]+):%s*(.+)$")
+      if k and v and #rows < 6 then
+        k = k == "Zone" and "Location" or k
+        rows[#rows + 1] = { k, v }
+      end
+    end
+  elseif e and e.source and kind == "merchant" then
+    for line in cleanSource(e.source, false):gmatch("[^\n]+") do
+      local k, v = line:match("^%s*([^:]+):%s*(.+)$")
+      if k and v and (k == "Cost" or k:find("Requires")) and #rows < 6 then rows[#rows + 1] = { k, v } end
+    end
+  elseif MS.acqKind ~= "trainer" and kind ~= "merchant" then
+    -- from the recipe list's source codes
+    local w = whereText(r)
+    if w and w ~= "" then
+      for part in (w .. "  ·  "):gmatch("(.-)  ·  ") do
+        local k, v = part:match("^(%a[%a ]-):%s*(.+)$")
+        if k and #rows < 6 then rows[#rows + 1] = { k, v } elseif part ~= "" and #rows < 6 then rows[#rows + 1] = { "", part } end
+      end
+    else
+      rows[#rows + 1] = { "Source", "Vendor / World drop" }
+    end
+  end
+  for i, row in ipairs(CW.acqRows) do
+    local d = rows[i]
+    row[1]:SetText(d and d[1] or "")
+    row[2]:SetText(d and d[2] or "")
+  end
+  CW.acq:SetHeight(math.max(1, #rows) * 17)
+end
+
+-- The collection overview on the right (no recipe open), and the source
+-- filter above the list. Built on first use.
+local CATS = {
+  { "now", "Trainer, available now", S.good },
+  { "later", "Trainer, higher skill", S.dim },
+  { "merchant", "Merchant's Favor", S.gold },
+  { "world", "Vendors and drops", S.text },
+}
+function MS.build()
+  if MS.ov then return end
+  local ov = CreateFrame("Frame", nil, right)
+  ov:SetPoint("TOPLEFT", rHead, "BOTTOMLEFT", 0, -8)
+  ov:SetSize(RIGHT_W, 460)
+  MS.ov = ov
+  -- one thin bar, split by where they come from
+  ov.bar = {}
+  for i, c in ipairs(CATS) do
+    local t = ov:CreateTexture(nil, "ARTWORK")
+    t:SetHeight(5)
+    t:SetColorTexture(c[3][1], c[3][2], c[3][3], i == 4 and 0.5 or 0.85)
+    ov.bar[i] = t
+  end
+  local barBg = ov:CreateTexture(nil, "BACKGROUND")
+  barBg:SetPoint("TOPLEFT")
+  barBg:SetSize(RIGHT_W, 5)
+  barBg:SetColorTexture(unpack(S.sunk))
+  -- each kind is a filter for the list
+  ov.cats = {}
+  for i, c in ipairs(CATS) do
+    local b = CreateFrame("Button", nil, ov)
+    b:SetSize(RIGHT_W, 22)
+    b:SetPoint("TOPLEFT", 0, -12 - (i - 1) * 23)
+    UI.RowHighlight(b)
+    local sw = b:CreateTexture(nil, "ARTWORK")
+    sw:SetSize(8, 8)
+    sw:SetPoint("LEFT", 6, 0)
+    sw:SetColorTexture(c[3][1], c[3][2], c[3][3], 1)
+    b.label = UI.Text(b, 12, S.text)
+    b.label:SetPoint("LEFT", 22, 0)
+    b.label:SetText(c[2])
+    b.count = UI.Text(b, 12, c[3], "RIGHT")
+    b.count:SetPoint("RIGHT", -6, 0)
+    b:SetScript("OnClick", function()
+      st().missingSource = st().missingSource ~= c[1] and c[1] or nil
+      refresh()
+    end)
+    ov.cats[i] = b
+  end
+  local y = -12 - #CATS * 23 - 14
+  local function heading(text)
+    local h = UI.Heading(ov, text, RIGHT_W)
+    h:SetPoint("TOPLEFT", 0, y)
+    y = y - 22
+    return h
+  end
+  local function line(size, color)
+    local t = UI.Text(ov, size, color)
+    t:SetPoint("TOPLEFT", 0, y)
+    t:SetWidth(RIGHT_W)
+    t:SetJustifyV("TOP")
+    return t
+  end
+  -- trainers for your faction; the other side's on hover
+  ov.trainHead = heading("Trainers")
+  ov.trainHead:EnableMouse(true)
+  ov.trainHead:SetScript("OnEnter", function(self)
+    local t = MS.trainers and TRAINERS[MS.trainers]
+    local o = t and t[MS.otherFaction()]
+    if not o then return end
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:SetText(MS.otherFaction(), 1, 1, 1)
+    GameTooltip:AddLine(o[1] .. (o[2] and (": " .. o[2]) or ""), S.dim[1], S.dim[2], S.dim[3], true)
+    local ex = t.expert and t.expert[MS.otherFaction()]
+    if ex then GameTooltip:AddLine("Expert: " .. ex, S.dim[1], S.dim[2], S.dim[3], true) end
+    GameTooltip:Show()
+  end)
+  ov.trainHead:SetScript("OnLeave", GameTooltip_Hide)
+  ov.trainCity = line(12, S.text)
+  y = y - 16
+  ov.trainNames = line(11, S.dim)
+  y = y - 30
+  ov.trainMore = line(11, S.dim)
+  y = y - 32
+  ov.favHead = heading("Merchant's Favor")
+  ov.favHead:EnableMouse(true)
+  ov.favHead:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:SetText("Merchant's Favor", 1, 1, 1)
+    GameTooltip:AddLine(MS.FAVOR_HELP, S.dim[1], S.dim[2], S.dim[3], true)
+    local o = MS.FAVOR[MS.otherFaction()]
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine(("%s: %s, %s"):format(MS.otherFaction(), o[1], o[2]), S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:Show()
+  end)
+  ov.favHead:SetScript("OnLeave", GameTooltip_Hide)
+  local favHelp = ov.favHead:CreateTexture(nil, "OVERLAY")
+  favHelp:SetSize(14, 14)
+  favHelp:SetPoint("LEFT", ov.favHead.text, "RIGHT", 4, 0)
+  favHelp:SetTexture("Interface\\Common\\help-i")
+  ov.favVendor = line(12, S.text)
+  y = y - 16
+  ov.favPlace = line(11, S.dim)
+  y = y - 28
+  ov.note = line(11, S.dim)
+
+  -- the filter above the list
+  local ctl = CreateFrame("Frame", nil, mid)
+  ctl:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, 0)
+  ctl:SetSize(MID_W, 24)
+  MS.ctl = ctl
+  local drop = UI.Dropdown(ctl, 214, "Source", {
+    { false, "All sources" }, { "now", "Available now" }, { "trainer", "Trainer" }, { "later", "Trainer, higher skill" },
+    { "merchant", "Merchant's Favor" }, { "world", "Vendors and drops" }, { "vendor", "Vendor" }, { "drop", "Drop" }, { "quest", "Quest" },
+  }, function() return st().missingSource or false end, function(v)
+    st().missingSource = v or nil
+    refresh()
+  end, 160)
+  drop:SetPoint("LEFT", 0, 0)
+  MS.drop = drop
+end
+
 local function drawMissing(p)
-  steps = filter(buildMissing(p.key), function(r)
+  MS.build()
+  local matched = filter(buildMissing(p.key), function(r)
     if has(r.name) or has(r.where) then return true end
     for _, re in ipairs(r.reagents) do if has((itemName(re[1]))) then return true end end
     return false
   end)
+  -- the source filter (the overview counts what's before it)
+  local rank0 = NW.ProfSkill(p.key)
+  local want = MS.SOURCE_FILTER[st().missingSource or "all"]
+  local kinds = {}
+  for _, r in ipairs(matched) do kinds[r] = select(2, MS.shortSource(p.key, r, rank0)) end
+  MS.kinds = kinds
+  steps = matched
+  if want then
+    steps = {}
+    for _, r in ipairs(matched) do if want[kinds[r]] then steps[#steps + 1] = r end end
+  end
   -- Sections, as the game's profession window groups them (Stamina Food,
   -- Attack Power Food...). They come from your profession window, so this
   -- needs it to have been opened once.
@@ -1816,21 +2164,33 @@ local function drawMissing(p)
       steps = out
     end
   end
+  -- the furthest it scrolls and still fills the list
+  MS.dynamic = true
+  do
+    local sum, room = 0, STEPS_BOX_H - 2
+    MS.dynMax = 0
+    for i = #steps, 1, -1 do
+      sum = sum + (steps[i].header and HEAD_ROW_H or STEP_H)
+      if sum > room then MS.dynMax = i break end
+    end
+  end
   if viewChanged then stepOffset = 0 end
   clampOffsets()
   local rank = NW.ProfSkill(p.key)
   local scanned = NW.charDB.known[p.key] and next(NW.charDB.known[p.key]) ~= nil
   local fullList = NW.charDB.recipeScan[p.key] and next(NW.charDB.recipeScan[p.key]) ~= nil
-  stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "No recipe matches your search."
+  stepsEmpty:SetText(#steps == 0 and (st().missingSource and #matched > 0 and "None from this source."
+    or searchText ~= "" and "No recipe matches your search."
     or "You know every recipe Nodewalker has for this profession.") or "")
   drawMissingRows(p.key)
-  local counts = { now = 0, later = 0, merchant = 0, drop = 0, dim = 0 }
+  local counts = { now = 0, later = 0, merchant = 0, world = 0 }
   local nMissing = 0
-  for _, r in ipairs(everything) do
-    if not r.header and not r.knownNow then
+  for _, r in ipairs(matched) do
+    if not r.knownNow then
       nMissing = nMissing + 1
-      local _, kind = sourceText(p.key, r, rank)
-      counts[kind] = counts[kind] + 1
+      local k = kinds[r]
+      if k == "dim" then k = "later" elseif k ~= "now" and k ~= "later" and k ~= "merchant" then k = "world" end
+      counts[k] = counts[k] + 1
     end
   end
   hCost:SetText(searchText ~= "" and ("%d found"):format(found) or ("%d missing"):format(nMissing))
@@ -1838,22 +2198,51 @@ local function drawMissing(p)
   hCostSub:SetText(not rank and "of every recipe" or fullList and "from the game's recipe list"
     or scanned and "of Nodewalker's recipes" or "|cffd17665Open the profession once|r")
   priceLine:SetText("")
-  local lines = {
-    ("|cff94ba78%d|r to learn at the trainer now"):format(counts.now),
-    ("%d at the trainer later"):format(counts.later + counts.dim),
-    ("|cffd6b266%d|r from Merchant's Favor vendors"):format(counts.merchant),
-    ("%d from other vendors or drops"):format(counts.drop),
-    "",
-    "|cffd6b266Trainers|r",
-    TRAINERS[p.key] or "",
-    "",
-    "|cffd6b266Merchant's Favor|r",
-    "Horde: Durotar Supply and Logistics, Crossroads. Alliance: Azeroth Commerce Authority, Three Corners, Redridge. Favor comes from Waylaid Crates; some recipes need Friendly or Honored.",
-    "",
-    fullList and "|cff938c80Open your profession window again to refresh the list.|r"
-      or "|cff938c80Open your profession window to load the full recipe list.|r",
-  }
-  infoText:SetText(table.concat(lines, "\n"))
+  local ov = MS.ov
+  -- the bar and the filters
+  local x, total = 0, math.max(1, nMissing)
+  for i, c in ipairs(CATS) do
+    local w = math.floor(RIGHT_W * counts[c[1]] / total + 0.5)
+    local t = ov.bar[i]
+    t:ClearAllPoints()
+    t:SetPoint("TOPLEFT", x, 0)
+    t:SetWidth(math.max(1, w))
+    t:SetShown(w > 0)
+    x = x + w
+    local b = ov.cats[i]
+    b.count:SetText(counts[c[1]])
+    b:SetSelected(st().missingSource == c[1])
+    b:SetAlpha(counts[c[1]] > 0 and 1 or 0.5)
+  end
+  MS.drop:Refresh()
+  -- your faction's trainers and Favor vendor
+  local fac = MS.myFaction()
+  local t = TRAINERS[p.key]
+  MS.trainers = p.key
+  local mine = t and t[fac]
+  ov.trainCity:SetText(mine and mine[1] or "Any trainer")
+  ov.trainNames:SetText(mine and mine[2] or "")
+  local more = {}
+  if t and t.expert and t.expert[fac] then more[#more + 1] = "Expert: " .. t.expert[fac] end
+  if t and t.also then more[#more + 1] = t.also end
+  ov.trainMore:SetText(table.concat(more, "\n"))
+  ov.favVendor:SetText(MS.FAVOR[fac][1])
+  ov.favPlace:SetText(MS.FAVOR[fac][2])
+  local prof = p.name
+  ov.note:SetText(rank and not fullList and ("Open %s to load every recipe."):format(prof) or "")
+end
+
+-- gathering ranges: what a click does
+for _, row in ipairs(stepRows) do
+  row:HookScript("OnEnter", function(self)
+    local b = self.bracket
+    if not (b and b.gather and b.nodes) then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(("%d-%d"):format(b.from, b.to), 1, 1, 1)
+    GameTooltip:AddLine(selected == "herbalism" and "Click: the best herb for you in the Farm Guide"
+      or "Click: a mining route where you know the most of these veins", S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:Show()
+  end)
 end
 
 -- hover and click for missing rows
@@ -2010,9 +2399,7 @@ refresh = function()
   -- Leveling has its options row with one line under it; the list views
   -- use both rows for their description
   priceLine:ClearAllPoints()
-  if isMissing and not isProfit then
-    priceLine:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, -2)
-    priceLine:SetHeight(36)
+  if false then
   else
     priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -5)
     priceLine:SetHeight(13)
@@ -2032,8 +2419,30 @@ refresh = function()
   priceLine:SetShown(isCraft)
   shopBox:SetShown(planPanel or showCard)
   searchBtn:SetShown(planPanel)
-  tips:SetShown(planPanel)
-  tips:SetText(KEY .. (NW.PROF_TIPS[p.key] or ""))
+  -- the key to the list's colours and marks, and notes on this profession: on hover
+  tips:Hide()
+  if not MS.help then
+    local h = CreateFrame("Button", nil, right)
+    h:SetSize(16, 16)
+    h:SetPoint("RIGHT", rHead, "RIGHT", 0, 0)
+    local t = h:CreateTexture(nil, "ARTWORK")
+    t:SetAllPoints()
+    t:SetTexture("Interface\\Common\\help-i")
+    h:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+      GameTooltip:SetText("Reading the list", 1, 1, 1)
+      GameTooltip:AddLine((KEY:gsub("\n+$", "")), S.dim[1], S.dim[2], S.dim[3], true)
+      local note = NW.PROF_TIPS[selected]
+      if note and note ~= "" then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(note, 1, 1, 1, true)
+      end
+      GameTooltip:Show()
+    end)
+    h:SetScript("OnLeave", GameTooltip_Hide)
+    MS.help = h
+  end
+  MS.help:SetShown(planPanel and not showCard)
   rTotal:SetShown(planPanel)
   rHead:SetShown(not showCard)
   cardFrame:SetShown(showCard)
@@ -2048,8 +2457,12 @@ refresh = function()
   end
   targetSlider:SetShown(planPanel)
   if targetSlider:IsShown() then targetSlider:Refresh() end
-  info:SetShown((not isCraft or isMissing) and not showCard)
-  rHead.text:SetText(isProfit and "Profit" or isMissing and "Where to get them" or isCraft and "Shopping list" or (p.key == "fishing" and "Fishing + Cooking" or "Notes"))
+  info:SetShown((not isCraft or isProfit) and not showCard)
+  if MS.ov then
+    MS.ov:SetShown(isMissing and not isProfit and not showCard)
+    MS.ctl:SetShown(isMissing and not isProfit)
+  end
+  rHead.text:SetText(isProfit and "Profit" or isMissing and "Recipe collection" or isCraft and "Shopping list" or (p.key == "fishing" and "Fishing + Cooking" or "Notes"))
   scrollDraw = isProfit and function() drawProfitRows(p.key) end
     or isMissing and function() drawMissingRows(p.key) end
     or (not isCraft and function() drawGatherRows(p.key) end) or nil
