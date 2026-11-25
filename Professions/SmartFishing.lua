@@ -641,12 +641,28 @@ hud:EnableMouse(true)
 hud:RegisterForDrag("LeftButton")
 UI.Flat(hud, S.bg, S.edge)
 hud:Hide()
-hud:SetScript("OnDragStart", function(self) if not st().fishHudLock and not combat() then self:StartMoving() end end)
+-- The HUD is kept by its top-left corner, so its height changing doesn't
+-- move it; the Lure button follows it every frame while it's dragged.
+local function saveTopLeft(self)
+  local left, top = self:GetLeft(), self:GetTop()
+  if not (left and top) then return end
+  self:ClearAllPoints()
+  self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+  st().fishHudPos = { "TOPLEFT", "BOTTOMLEFT", left, top }
+end
+hud:SetScript("OnDragStart", function(self)
+  if st().fishHudLock or combat() then return end
+  self:StartMoving()
+  self.moving = true
+end)
 hud:SetScript("OnDragStop", function(self)
   self:StopMovingOrSizing()
-  local p, _, rp, x, y = self:GetPoint()
-  st().fishHudPos = { p, rp, x, y }
+  self.moving = false
+  saveTopLeft(self)
   SF.RefreshHUD()
+end)
+hud:SetScript("OnUpdate", function(self)
+  if self.moving and SF.placeLure then SF.placeLure() end
 end)
 hud:SetScript("OnHide", function() if not combat() then lureBtn:Hide() end end)
 hud.title = UI.Text(hud, 12, S.gold)
@@ -708,10 +724,15 @@ function SF.HudWanted()
 end
 
 -- put the secure Lure button over its place in the HUD, by coordinates
+local lureX, lureY
 local function placeLure(x, y, show)
   if combat() then return end
+  if x == nil then x, y, show = lureX, lureY, lureX ~= nil end -- (while dragging)
+  lureX, lureY = show and x or nil, show and y or nil
   if not show then lureBtn:Hide() return end
   local left, top = hud:GetLeft(), hud:GetTop()
+  local p = st().fishHudPos
+  if not hud.moving and p and p[1] == "TOPLEFT" and p[2] == "BOTTOMLEFT" then left, top = p[3], p[4] end
   if not (left and top) then lureBtn:Hide() return end
   lureBtn:SetScale(hud:GetScale())
   lureBtn:SetFrameStrata("MEDIUM")
@@ -736,6 +757,10 @@ function SF.RefreshHUD()
       local p = s.fishHudPos
       hud:ClearAllPoints()
       if p then hud:SetPoint(p[1], UIParent, p[2], p[3], p[4]) else hud:SetPoint("RIGHT", UIParent, "RIGHT", -260, 60) end
+      -- an older saved place, or the default: turn it into a top-left one once laid out
+      if not (p and p[1] == "TOPLEFT" and p[2] == "BOTTOMLEFT") then
+        C_Timer.After(0, function() if not combat() then saveTopLeft(hud); SF.RefreshHUD() end end)
+      end
     end
     hud:SetScale(s.fishHudScale or 1)
   end
@@ -835,6 +860,8 @@ function SF.RefreshHUD()
   hud:SetHeight(-y + 8)
   placeLure(10 + 68, lureY or 0, lureY ~= nil)
 end
+
+SF.placeLure = function() placeLure() end
 
 -- once a second, whether the HUD is up or not: lure alerts, the lure you put
 -- on, a channel that ended unseen, the session's idle end, and the HUD
