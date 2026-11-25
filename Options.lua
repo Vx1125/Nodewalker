@@ -328,6 +328,11 @@ end
 table.insert(NW.OnLoad, function()
   local ICON = "Interface\\AddOns\\Nodewalker\\Media\\Icon"
   if AddonCompartmentFrame and AddonCompartmentFrame.RegisterAddon then
+    -- listed in the AddOns menu, so the button on the minimap's edge starts off
+    if not s().mmInMenu then
+      s().mmInMenu = true
+      s().minimapButton = false
+    end
     pcall(AddonCompartmentFrame.RegisterAddon, AddonCompartmentFrame, {
       text = "Nodewalker",
       icon = ICON,
