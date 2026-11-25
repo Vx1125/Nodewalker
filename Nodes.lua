@@ -416,3 +416,100 @@ function NW.ImportGatherMate2()
   end
   if NW.RefreshPlanner then NW.RefreshPlanner() end
 end
+
+------------------------------------------------------------------------
+-- Routes and the Farm Guide need known spots. With hardly any, a warning
+-- over the page says how to get them from GatherMate2, with the import button.
+------------------------------------------------------------------------
+local FEW_NODES = 200
+local promptFrame, promptSkip
+local function addonState(name)
+  local info = (C_AddOns and C_AddOns.GetAddOnInfo) or GetAddOnInfo
+  if not info then return "unknown" end
+  local ok, _, _, _, loadable, reason = pcall(info, name)
+  if not ok then return "unknown" end
+  if reason == "MISSING" then return "missing" end
+  local loaded = (C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded)(name)
+  if loaded then return "on" end
+  return loadable and "off" or "disabled"
+end
+local function knownNodes()
+  local n = 0
+  for _, list in pairs(NW.db.nodes) do n = n + #list end
+  return n
+end
+
+local function buildPrompt()
+  local UI, S = NW.UI, NW.STYLE
+  local f = CreateFrame("Frame", nil, NW.window)
+  f:EnableMouse(true) -- the page underneath can't be clicked while it's up
+  local shade = f:CreateTexture(nil, "BACKGROUND")
+  shade:SetAllPoints()
+  shade:SetColorTexture(0, 0, 0, 0.6)
+  local box = CreateFrame("Frame", nil, f, "BackdropTemplate")
+  box:SetSize(520, 300)
+  box:SetPoint("CENTER", 0, 10)
+  UI.Flat(box, S.bg, { 0.85, 0.2, 0.15, 1 })
+  local bar = box:CreateTexture(nil, "ARTWORK")
+  bar:SetPoint("TOPLEFT", 1, -1)
+  bar:SetPoint("TOPRIGHT", -1, -1)
+  bar:SetHeight(3)
+  bar:SetColorTexture(0.85, 0.2, 0.15, 1)
+  local icon = box:CreateTexture(nil, "ARTWORK")
+  icon:SetSize(32, 32)
+  icon:SetPoint("TOPLEFT", 20, -20)
+  icon:SetTexture("Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew")
+  local title = UI.Text(box, 17, { 1, 0.35, 0.3, 1 })
+  title:SetPoint("LEFT", icon, "RIGHT", 12, 0)
+  title:SetText("No herb and ore spots yet")
+  local body = UI.Text(box, 12, S.text)
+  body:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", 0, -14)
+  body:SetWidth(480)
+  body:SetJustifyV("TOP")
+  body:SetSpacing(5)
+  body:SetText("Routes and the Farm Guide are built from known spots. Get thousands of them from GatherMate2:\n\n"
+    .. "|cffd6b2661.|r  Install |cffd6b266GatherMate2|r and |cffd6b266GatherMate2_Data|r from CurseForge.\n"
+    .. "|cffd6b2662.|r  Enable both at character select, then log in.\n"
+    .. "|cffd6b2663.|r  Click |cffd6b266Import now|r below. Afterwards you can turn GatherMate2 off.")
+  f.status = UI.Text(box, 12, S.dim)
+  f.status:SetPoint("TOPLEFT", body, "BOTTOMLEFT", 0, -14)
+  f.status:SetWidth(480)
+  f.status:SetSpacing(3)
+  f.import = UI.Button(box, "Import now", 150, function()
+    NW.ImportGatherMate2()
+    if knownNodes() >= FEW_NODES then f:Hide() else f:Refresh() end
+  end, 26, "primary")
+  f.import:SetPoint("BOTTOMLEFT", 20, 18)
+  local later = UI.Button(box, "Not now", 110, function() promptSkip = true f:Hide() end, 26)
+  later:SetPoint("LEFT", f.import, "RIGHT", 8, 0)
+  local never = UI.Button(box, "Don't show again", 150, function() NW.db.importPromptOff = true f:Hide() end, 26)
+  never:SetPoint("BOTTOMRIGHT", -20, 18)
+  function f:Refresh()
+    local gm, data = addonState("GatherMate2"), addonState("GatherMate2_Data")
+    local function line(name, st)
+      if st == "on" then return ("|cff94ba78%s is on|r"):format(name) end
+      if st == "missing" then return ("|cffd17665%s isn't installed|r"):format(name) end
+      if st == "off" and name == "GatherMate2_Data" then return ("|cff94ba78%s is installed|r (loads when you import)"):format(name) end
+      return ("|cffd17665%s is installed but turned off|r"):format(name)
+    end
+    self.status:SetText(line("GatherMate2", gm) .. "\n" .. line("GatherMate2_Data", data)
+      .. ("\n|cff938c80Nodewalker knows %d spots.|r"):format(knownNodes()))
+    self.import:SetEnabled(_G.GatherMate2 ~= nil)
+  end
+  return f
+end
+
+-- Called when Route or the Farm Guide opens
+function NW.MaybeImportPrompt(page)
+  if not (NW.db and page) then return end
+  if NW.db.importPromptOff or promptSkip or knownNodes() >= FEW_NODES then
+    if promptFrame then promptFrame:Hide() end
+    return
+  end
+  promptFrame = promptFrame or buildPrompt()
+  promptFrame:SetParent(page)
+  promptFrame:SetAllPoints(page)
+  promptFrame:SetFrameLevel(page:GetFrameLevel() + 40)
+  promptFrame:Refresh()
+  promptFrame:Show()
+end

@@ -7,7 +7,8 @@ local C, S, UI = NW.COLORS, NW.STYLE, NW.UI
 -- data, and a one-click route through just that herb.
 ------------------------------------------------------------------------
 local refreshGuide
-local page = UI.AddTab("guide", "Farm Guide", function() refreshGuide() end)
+local page
+page = UI.AddTab("guide", "Farm Guide", function() refreshGuide() if NW.MaybeImportPrompt then NW.MaybeImportPrompt(page) end end)
 local selectedHerb, previewID, lastHerb
 -- Herbs or ore: the tab shows one list at a time
 local kind = "herb"

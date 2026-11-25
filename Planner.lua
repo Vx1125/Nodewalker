@@ -12,7 +12,8 @@ local MAP_W, MAP_H = SMALL_W, SMALL_H
 local SIDE_X, SIDE_W = 16 + SMALL_W + 2 + 18, 1020 - (16 + SMALL_W + 2 + 18) - 16
 
 local refresh
-local page = UI.AddTab("route", "Route", function() refresh() end, nil, function() refresh() end)
+local page
+page = UI.AddTab("route", "Route", function() refresh() if NW.MaybeImportPrompt then NW.MaybeImportPrompt(page) end end, nil, function() refresh() end)
 
 local mapFrame = UI.Box(page, MAP_W + 2, MAP_H + 2)
 mapFrame:SetPoint("TOPLEFT", 16, -8)
