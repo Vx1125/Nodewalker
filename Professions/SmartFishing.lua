@@ -476,10 +476,37 @@ local function restoreSoft()
   st().fishSoftSaved = nil
 end
 SF.restoreSoft = restoreSoft
+-- Quiet while fishing: music and ambience to 0, sound effects (the splash)
+-- to full. Your own volumes are saved in the settings and come back when the
+-- pole comes off, 90 seconds after your last cast, or at the next login.
+local QUIET = { Sound_MusicVolume = "0", Sound_AmbienceVolume = "0", Sound_SFXVolume = "1" }
+local QUIET_AFTER = 90
+local function getCVar(k) return (C_CVar and C_CVar.GetCVar and C_CVar.GetCVar(k)) or (GetCVar and GetCVar(k)) end
+local function setCVar(k, v)
+  if C_CVar and C_CVar.SetCVar then pcall(C_CVar.SetCVar, k, v) elseif SetCVar then pcall(SetCVar, k, v) end
+end
+function SF.Quiet()
+  if not st().fishQuiet or st().fishQuietSaved then return end
+  local saved = {}
+  for k, v in pairs(QUIET) do
+    local cur = getCVar(k)
+    if cur ~= nil then saved[k] = cur; setCVar(k, v) end
+  end
+  st().fishQuietSaved = saved
+end
+function SF.Unquiet()
+  local saved = st().fishQuietSaved
+  if not saved then return end
+  for k, v in pairs(saved) do setCVar(k, v) end
+  st().fishQuietSaved = nil
+end
+local lastCast = -1000
 local function isFishing(unit, spellID) return J and J.isFishing(spellID, unit) end
 NW.On("UNIT_SPELLCAST_CHANNEL_START", function(unit, _, spellID)
   if not isFishing(unit, spellID) then return end
   SF.channeling = true
+  lastCast = GetTime()
+  SF.Quiet()
   if SF.interactOK() and SF.key() and not combat() then
     local cur = C_CVar.GetCVar("SoftTargetInteract")
     if cur ~= "3" then
@@ -516,6 +543,8 @@ NW.On("SKILL_LINES_CHANGED", function() SF.Queue() end)
 table.insert(NW.OnLoad, function()
   local s = st()
   if s.fishLure == nil then s.fishLure = "off" end
+  -- a reload or logout while fishing: your volumes come back
+  SF.Unquiet()
   C_Timer.After(1, function() migrateKey(); restoreSoft(); SF.ApplyKey(); SF.Update() end)
 end)
 NW.On("UPDATE_BINDINGS", function() if SF.RefreshHUD then SF.RefreshHUD() end end)
@@ -904,6 +933,7 @@ alerts:SetScript("OnUpdate", function(_, el)
   -- a channel whose end the game didn't report
   if SF.channeling and UnitChannelInfo and not UnitChannelInfo("player") then channelEnded() end
   if J and J.CheckIdle then J.CheckIdle() end
+  if st().fishQuietSaved and not SF.channeling and (not SF.poleOn() or GetTime() - lastCast > QUIET_AFTER) then SF.Unquiet() end
   if hud:IsShown() or SF.HudWanted() then SF.RefreshHUD() end
 end)
 if J then J.OnChange(function(what)

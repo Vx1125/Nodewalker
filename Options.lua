@@ -315,6 +315,9 @@ if NW.SmartFish then
   check(1, "Lures", "fishNotifyLure", "Expiring, expired, running low, preferred one missing.")
   checkBeside(1, "Collection complete", "fishNotifyTarget", "The fish your Fishing + Cooking plan wants.")
   check(1, "Sound", "fishSound")
+  checkBeside(1, "Quiet while fishing", "fishQuiet",
+    "Music and ambience off, sound effects to full so the splash stands out. Your volumes come back when the pole comes off or 90 seconds after your last cast.",
+    function(v) if not v then SF.Unquiet() end end)
 
   heading(2, "Fishing HUD")
   check(2, "Show the HUD", "fishHud", "While a fishing pole is on, or for 5 minutes after you last fished.", hud)
