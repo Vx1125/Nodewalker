@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.17
+
+- New look: warm charcoal and bronze, tick checkboxes, window scale setting.
+- Tabs reordered; Settings split into General, Appearance, Gathering, Routes and Herbs & Ore.
+- Nodewalker is listed in the game's AddOns menu; its minimap button shows only while the overlay is up.
+- Consumes: list, details and status bar; categories fold; craft and buy compared side by side.
+- Consumes and profession choices saved per character.
+- Leveling: cost, resale and net up top; the plan grouped by rank with trainer stops; strategies (cheapest, fewest crafts, known recipes).
+- Leveling: shopping list grouped into recipes, materials, vendor supplies and what you have; 75/150/225/300 targets.
+- Missing recipes: short sources, a collection overview with source filters, your faction's trainers and Favor vendor.
+- Selected recipes show where to get them, with Show on map and Search the recipe.
+- Profit: sort and filters, return, how many you can make now, and price age.
+- Recipe card: money at a glance, materials sized to the recipe, grouped searches.
+- Farm Guide: zone table with sorting, one Build route, the zone's numbers under the map, herb and ore search.
+- Overlay: zone banner says why spots are hidden; session panel shows what you gathered; distant route legs fade.
+- Settings: Show gathered spots; Controls & commands moved into a help button.
+- Fewer instructions on screen; explanations moved into tooltips.
+
 ## 1.1.16
 
 - Find a craft: a new tab to look up any recipe in any profession, with materials, what's left to buy and its AH price.
