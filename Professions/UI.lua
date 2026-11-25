@@ -2586,7 +2586,7 @@ end
 -- Create button.
 ------------------------------------------------------------------------
 do
-  local T = C_TradeSkillUI
+  local T = setmetatable({}, { __index = function(_, k) return C_TradeSkillUI and C_TradeSkillUI[k] end })
   local function pframe() return ProfessionsFrame end
   local function craftingPage()
     local f = pframe()
@@ -2641,6 +2641,7 @@ do
     UI.Tip(stripBtn, "Search what I need", "Searches Auctionator for what's left to buy. The auction house has to be open.")
   end
   local function drawStrip(id)
+    if st().blizzStrip == false then strip:Hide() return end
     -- under the window, below Nodewalker's "Next" line when that's showing
     local gap = st().blizzDock == false and -26 or -2
     strip:ClearAllPoints()
@@ -2676,6 +2677,14 @@ do
         parts[#parts + 1] = "|cff94949aprofit|r " .. (profit >= 0 and "|cff8cdb7a+|r" or "|cffeb5c4c-|r") .. NW.Money(math.abs(profit), "mid")
       end
     end
+    -- a recipe you haven't learned: where it comes from
+    local U = C_TradeSkillUI
+    local rinfo = U.GetRecipeInfo and U.GetRecipeInfo(id)
+    if rinfo and rinfo.learned == false then
+      local src = U.GetRecipeSourceText and U.GetRecipeSourceText(id)
+      src = src and src:gsub("|n", "  "):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+      parts[#parts + 1] = "|cffeb5c4cnot learned|r" .. (src and src ~= "" and ("  " .. src) or "")
+    end
     stripText:SetText(table.concat(parts, "   "))
     stripBtn:SetEnabled(short > 0)
     strip:Show()
@@ -2702,7 +2711,7 @@ do
     local close = UI.Close(dock, function()
       st().blizzDock = false; dock:Hide(); dToggle:Show()
       NW.UpdateTradeNext()
-      NW.blizzDirty = true
+      if NW.BlizzRedraw then NW.BlizzRedraw() end
     end)
     close:SetPoint("TOPRIGHT", -4, -4)
     dSub = UI.Text(dock, 11, S.dim)
@@ -2721,7 +2730,7 @@ do
     dToggle = UI.Button(f, "Plan", 60, function()
       st().blizzDock = true; dToggle:Hide(); dock:Show(); drawDock()
       NW.UpdateTradeNext()
-      NW.blizzDirty = true
+      if NW.BlizzRedraw then NW.BlizzRedraw() end
     end, 22)
     dToggle:SetPoint("TOPLEFT", f, "TOPRIGHT", DOCK_GAP, -6)
     UI.Tip(dToggle, "Nodewalker plan", "Shows the leveling plan beside this window.")
@@ -2841,32 +2850,148 @@ do
   end
 
   ----------------------------------------------------------------------
-  -- Watching the window
+  -- Watching the window: after the game's own functions run, never
+  -- instead of them, so its Create button stays the game's
   ----------------------------------------------------------------------
-  local lastID, lastSkill, built = nil, nil, false
-  local driver = CreateFrame("Frame")
-  local wait = 0
-  driver:SetScript("OnUpdate", function(_, dt)
-    wait = wait - dt
-    if wait > 0 then return end
-    wait = 0.25
+  local built, hooked = false, false
+  local planByID, planCurrent = {}, nil -- recipe ID -> crafts in the plan; the step you're on
+
+  -- 2b. plan steps marked in the game's own list
+  local tags = setmetatable({}, { __mode = "k" }) -- the game's list rows -> our label
+  local function decorate(_, row, node)
+    local data = node and node.GetData and node:GetData()
+    local info = data and data.recipeInfo
+    local n = info and planByID[info.recipeID]
+    local tag = tags[row]
+    if not n then
+      if tag then tag:Hide() end
+      return
+    end
+    if not tag then
+      tag = row:CreateFontString(nil, "OVERLAY")
+      tag:SetFont(UI.FONT or STANDARD_TEXT_FONT, 11, "OUTLINE")
+      tag:SetPoint("RIGHT", -6, 0)
+      tags[row] = tag
+    end
+    local current = info.recipeID == planCurrent
+    tag:SetText(current and ("|cffffd133next|r x" .. n) or ("|cffe8c46ax" .. n .. "|r"))
+    tag:Show()
+  end
+  local function redecorate()
+    local page = craftingPage()
+    local box = page and page.RecipeList and page.RecipeList.ScrollBox
+    if not (box and box.GetFrames) then return end
+    for _, row in pairs(box:GetFrames()) do
+      local node = row.GetElementData and row:GetElementData()
+      if node then pcall(decorate, nil, row, node) end
+    end
+  end
+  local function updatePlanMarks()
+    wipe(planByID)
+    planCurrent = nil
+    if st().blizzMarks == false then return redecorate() end
+    local key = NW.currentTradeKey
+    local prof = key and NW.PROF_BY_KEY[key]
+    local rank = key and NW.ProfSkill(key)
+    local scan = scanFor(key)
+    if prof and prof.kind == "craft" and rank and rank < 300 and scan then
+      local plan = NW.BuildPlan(key, rank, 300)
+      for _, stp in ipairs(plan.steps) do
+        local e = stp.recipe and scan[stp.recipe.name]
+        if e and e.id then
+          planByID[e.id] = (planByID[e.id] or 0) + math.ceil(stp.crafts)
+          if not planCurrent and rank >= stp.from and rank < stp.to then planCurrent = e.id end
+        end
+      end
+    end
+    redecorate()
+  end
+
+  -- 4. the game's own "show unlearned recipes" switch, which Forever turns off
+  local applying = false
+  local function applyUnlearned()
+    local U = C_TradeSkillUI
+    if applying or not (U and U.SetShowUnlearned and U.GetShowUnlearned) then return end
+    local want = st().blizzUnlearned and true or false
+    if U.GetShowUnlearned() ~= want then
+      applying = true
+      pcall(U.SetShowUnlearned, want)
+      applying = false
+    end
+  end
+
+  local function redraw()
+    if not (built and pframe() and pframe():IsShown()) then return end
+    drawStrip(selectedRecipeID())
+    if dock:IsShown() then drawDock() end
+  end
+  local function hookPage()
+    local page = craftingPage()
+    if hooked or not page then return end
+    hooked = true
+    if page.SelectRecipe then hooksecurefunc(page, "SelectRecipe", function() C_Timer.After(0, redraw) end) end
+    if page.SchematicForm and page.SchematicForm.Init then
+      hooksecurefunc(page.SchematicForm, "Init", function() C_Timer.After(0, redraw) end)
+    end
+    if page.Init then
+      hooksecurefunc(page, "Init", function()
+        applyUnlearned()
+        C_Timer.After(0, function() updatePlanMarks() redraw() end)
+      end)
+    end
+    local box = page.RecipeList and page.RecipeList.ScrollBox
+    if box and ScrollUtil and ScrollUtil.AddInitializedFrameCallback then
+      ScrollUtil.AddInitializedFrameCallback(box, decorate, NW)
+    end
+    -- 3. Nodewalker's switches in the game's Filter menu
+    if Menu and Menu.ModifyMenu then
+      Menu.ModifyMenu("MENU_PROFESSIONS_FILTER", function(_, root)
+        root:CreateDivider()
+        root:CreateTitle("Nodewalker")
+        root:CreateCheckbox("Unlearned recipes", function() return st().blizzUnlearned and true or false end, function()
+          st().blizzUnlearned = not st().blizzUnlearned or nil
+          applyUnlearned()
+        end)
+        root:CreateCheckbox("Leveling plan beside the window", function() return st().blizzDock ~= false end, function()
+          st().blizzDock = not (st().blizzDock ~= false)
+          dock:SetShown(st().blizzDock)
+          dToggle:SetShown(not st().blizzDock)
+          NW.UpdateTradeNext()
+          redraw()
+        end)
+        root:CreateCheckbox("Plan steps marked in the list", function() return st().blizzMarks ~= false end, function()
+          st().blizzMarks = st().blizzMarks == false and true or false
+          updatePlanMarks()
+        end)
+        root:CreateCheckbox("Cost bar under the window", function() return st().blizzStrip ~= false end, function()
+          st().blizzStrip = st().blizzStrip == false and true or false
+          redraw()
+        end)
+      end)
+    end
+  end
+  -- The window loads with the game's profession code: build once it's there
+  local function onShow()
     local f = pframe()
-    if not (f and f:IsShown()) then return end
+    if not f then return end
     if not built then
       built = true
       buildStrip(f)
       buildDock(f)
       if dockShown() then dToggle:Hide() else dock:Hide() end
-      lastID, lastSkill = nil, nil
+      f:HookScript("OnShow", function() applyUnlearned() C_Timer.After(0.1, function() updatePlanMarks() redraw() end) end)
     end
-    local id = selectedRecipeID()
-    local skill = NW.currentTradeKey and NW.ProfSkill(NW.currentTradeKey)
-    if id ~= lastID or NW.blizzDirty then drawStrip(id) end
-    if dock:IsShown() and (id ~= lastID or skill ~= lastSkill or NW.blizzDirty) then drawDock() end
-    lastID, lastSkill, NW.blizzDirty = id, skill, false
+    hookPage()
+    applyUnlearned()
+    C_Timer.After(0.1, function() updatePlanMarks() redraw() end)
+  end
+  NW.BlizzRedraw = redraw
+  NW.On("TRADE_SKILL_SHOW", function() C_Timer.After(0, onShow) end)
+  NW.On("BAG_UPDATE_DELAYED", function() if built then redraw() end end)
+  NW.On("TRADE_SKILL_LIST_UPDATE", function()
+    if built then C_Timer.After(0, function() updatePlanMarks() redraw() end) end
   end)
-  NW.On("BAG_UPDATE_DELAYED", function() NW.blizzDirty = true end)
-  NW.On("TRADE_SKILL_LIST_UPDATE", function() NW.blizzDirty = true end)
+  NW.On("SKILL_LINES_CHANGED", function() if built then updatePlanMarks() redraw() end end)
 
   -- /nw blizz: what Nodewalker finds in the game's profession window
   function NW.BlizzCheck()
