@@ -342,8 +342,10 @@ table.insert(NW.OnLoad, function()
         local b = type(input) == "table" and input.buttonName or mouseButton or input
         onClick(b == "RightButton" and "RightButton" or "LeftButton")
       end,
-      funcOnEnter = function(_, menuItem)
-        GameTooltip:SetOwner(type(menuItem) == "table" and menuItem or AddonCompartmentFrame, "ANCHOR_LEFT")
+      funcOnEnter = function(button)
+        -- the menu row; anything else (a plain table) can't own a tooltip
+        local owner = type(button) == "table" and button.GetObjectType and button or AddonCompartmentFrame
+        GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
         tooltipLines(GameTooltip)
         GameTooltip:Show()
       end,
