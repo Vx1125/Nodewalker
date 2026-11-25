@@ -772,10 +772,13 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
         ln.l:SetFont(UI.FONT, 11, "")
         ln.l:SetTextColor(unpack(S.dim))
         ln.l:SetText(row[1])
-        ln.l:SetWidth(RIGHT_W - 128)
-        ln.v:SetPoint("TOPRIGHT", anchor, "TOPLEFT", RIGHT_W, y)
+        -- the value on the same line as its label, and the label gets whatever the value leaves
+        ln.v:SetPoint("TOPRIGHT", anchor, "BOTTOMLEFT", RIGHT_W, y)
+        ln.v:SetWidth(0)
         ln.v:SetText(row[2])
-        ln.v:SetWidth(124)
+        local vw = math.min(150, math.ceil(ln.v:GetStringWidth() or 0))
+        ln.v:SetWidth(vw + 2)
+        ln.l:SetWidth(math.max(60, RIGHT_W - vw - 10))
         y = y - 15
       else
         ln.l:SetFont(UI.FONT, 11, "")
