@@ -1,6 +1,7 @@
 local ADDON, NW = ...
 
 local C = NW.COLORS
+local S = NW.STYLE
 local BAR_W = 760
 local HALF = BAR_W / 2
 local PI = math.pi
@@ -149,71 +150,90 @@ end
 -- Session panel, bottom right
 ------------------------------------------------------------------------
 local panel = CreateFrame("Frame", "NodewalkerSession", UIParent, "BackdropTemplate")
-panel:SetSize(236, 112)
+panel:SetSize(200, 112)
 panel:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -24, 180)
 panel:SetFrameStrata("LOW")
-panel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-panel:SetBackdropColor(0.055, 0.06, 0.07, 0.8)
-panel:SetBackdropBorderColor(0, 0, 0, 1)
+NW.UI.Flat(panel, { S.bg[1], S.bg[2], S.bg[3], 0.85 }, S.edge)
 panel:Hide()
 NW.sessionPanel = panel
 
-panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-panel.title:SetPoint("TOPLEFT", 14, -12)
+panel.title = NW.UI.Text(panel, 12, S.gold)
+panel.title:SetPoint("TOPLEFT", 12, -10)
 panel.title:SetText("Session")
-panel.body = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-panel.body:SetPoint("TOPLEFT", panel.title, "BOTTOMLEFT", 0, -8)
-panel.body:SetJustifyH("LEFT")
-panel.body:SetSpacing(4)
+local ROWS = { "Duration", "Gathered", "Loops", "Est. value", "Est. per hour" }
+panel.rows = {}
+for i, label in ipairs(ROWS) do
+  local l = NW.UI.Text(panel, 11, S.dim)
+  l:SetPoint("TOPLEFT", 12, -30 - (i - 1) * 15)
+  l:SetText(label)
+  local v = NW.UI.Text(panel, 11, S.text, "RIGHT")
+  v:SetPoint("TOPRIGHT", -12, -30 - (i - 1) * 15)
+  panel.rows[i] = { l, v }
+end
+panel:EnableMouse(true)
+panel:SetScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+  GameTooltip:SetText("Session", 1, 1, 1)
+  GameTooltip:AddLine("What you've actually gathered since login or /nw reset session. Value is at Auctionator prices, not gold in your bags.", S.dim[1], S.dim[2], S.dim[3], true)
+  GameTooltip:Show()
+end)
+panel:SetScript("OnLeave", GameTooltip_Hide)
 
 local function fmtTime(sec)
   if not sec then return "–" end
   return ("%d:%02d"):format(math.floor(sec / 60), math.floor(sec % 60))
 end
+local function fmtDuration(sec)
+  local m = math.floor(sec / 60)
+  if m < 60 then return m .. "m" end
+  return ("%dh %02dm"):format(math.floor(m / 60), m % 60)
+end
 
 function NW.UpdateSession()
   if not panel:IsShown() then return end
-  panel:SetHeight((NW.session.value or 0) > 0 and 130 or 112)
-  local mapID = NW.PlayerPos()
-  local route = mapID and NW.db.routes[mapID]
   local s = NW.session
-  local hours = math.max((GetTime() - s.started) / 3600, 1 / 60)
-  panel.body:SetText(table.concat({
-    "Route:  " .. (route and #route.stops > 0 and (#route.stops .. " stops") or "none here (/nw plan)"),
-    "Loops:  " .. s.loops .. "    Last loop: " .. fmtTime(s.lastLoopTime),
-    "Gathered:  " .. s.nodes .. " nodes",
-    ("Per hour:  %d nodes"):format(math.floor(s.nodes / hours))
-      .. ((s.value or 0) > 0 and NW.Money and ("  ·  " .. NW.Money(math.floor(s.value / hours), true)) or ""),
-    (s.value or 0) > 0 and NW.Money and ("Value:  " .. NW.Money(s.value, true)) or nil,
-  }, "\n"))
+  local secs = GetTime() - s.started
+  local hours = math.max(secs / 3600, 1 / 60)
+  local hasValue = (s.value or 0) > 0 and NW.Money
+  local vals = {
+    fmtDuration(secs),
+    tostring(s.nodes),
+    s.loops > 0 and (("%d  |cff938c80last %s|r"):format(s.loops, fmtTime(s.lastLoopTime))) or "0",
+    hasValue and ("~" .. NW.Money(s.value, "gs")) or "|cff938c80–|r",
+    hasValue and ("~" .. NW.Money(math.floor(s.value / hours), "gs")) or (("%d nodes"):format(math.floor(s.nodes / hours))),
+  }
+  for i, row in ipairs(panel.rows) do row[2]:SetText(vals[i]) end
 end
 
 ------------------------------------------------------------------------
 -- Entering a zone: a banner with what Nodewalker knows there, a fresh
 -- start on the route, and a route built by itself if the zone has none.
 ------------------------------------------------------------------------
-local S = NW.STYLE
 local banner = CreateFrame("Frame", "NodewalkerZoneBanner", UIParent, "BackdropTemplate")
 banner:SetSize(360, 52)
 banner:SetPoint("TOP", UIParent, "TOP", 0, -92)
 banner:SetFrameStrata("MEDIUM")
-NW.UI.Flat(banner, { 0.055, 0.06, 0.07, 0.88 }, { 0, 0, 0, 1 })
+NW.UI.Flat(banner, { S.bg[1], S.bg[2], S.bg[3], 0.9 }, S.edge)
 banner:Hide()
 local accent = banner:CreateTexture(nil, "ARTWORK")
 accent:SetPoint("TOPLEFT", 1, -1)
 accent:SetPoint("TOPRIGHT", -1, -1)
 accent:SetHeight(2)
-accent:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], 1)
+accent:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
 banner.zone = NW.UI.Text(banner, 16, S.gold, "CENTER")
 banner.zone:SetPoint("TOP", 0, -10)
 banner.info = NW.UI.Text(banner, 12, S.text, "CENTER")
 banner.info:SetPoint("TOP", banner.zone, "BOTTOM", 0, -5)
+banner.note = NW.UI.Text(banner, 11, S.dim, "CENTER")
+banner.note:SetPoint("TOP", banner.info, "BOTTOM", 0, -3)
 
 local HOLD, FADE = 6, 1
-local function showBanner(zone, info)
+local function showBanner(zone, info, note)
   banner.zone:SetText(zone)
   banner.info:SetText(info or "")
-  banner:SetWidth(math.max(300, banner.zone:GetStringWidth(), banner.info:GetStringWidth()) + 48)
+  banner.note:SetText(note or "")
+  banner:SetHeight(note and note ~= "" and 66 or 52)
+  banner:SetWidth(math.max(300, banner.zone:GetStringWidth(), banner.info:GetStringWidth(), banner.note:GetStringWidth()) + 48)
   banner.t = 0
   banner:SetAlpha(1)
   banner:Show()
@@ -238,9 +258,24 @@ local function routeLine(route)
   if route.focus then
     local names = {}
     for n in pairs(route.focus) do names[#names + 1] = n end
-    focus = table.concat(names, ", ") .. " route: "
+    focus = table.concat(names, ", ") .. "  ·  "
   end
-  return ("%s%d stops, %s per loop"):format(focus, #route.stops, fmt(route.seconds or 0))
+  return ("%s%d route stops  ·  ~%s %s"):format(focus, #route.stops, fmt(route.seconds or 0), route.open and "each way" or "per loop")
+end
+-- Why none of this zone's spots show for you: no gathering profession, or your filters
+local function whyNone(mapID, s)
+  local kinds = {}
+  for _, n in ipairs(NW.db.nodes[mapID] or {}) do kinds[n.kind] = true end
+  if not next(kinds) then return nil end
+  if s.onlyMyProfessions then
+    local missing = {}
+    if kinds.herb and not NW.GetSkill("herb") then missing[#missing + 1] = "Herbalism" end
+    if kinds.ore and not NW.GetSkill("ore") then missing[#missing + 1] = "Mining" end
+    if #missing > 0 and #missing == (kinds.herb and 1 or 0) + (kinds.ore and 1 or 0) then
+      return table.concat(missing, " and ") .. " not learned"
+    end
+  end
+  return "Your filters hide this zone's spots"
 end
 
 local lastMap, leftAt = nil, {}
@@ -264,24 +299,28 @@ local function entered(mapID)
   local spots = {}
   if herbs > 0 then spots[#spots + 1] = herbs .. " herb" end
   if ores > 0 then spots[#spots + 1] = ores .. " ore" end
-  local spotText = #spots > 0 and (table.concat(spots, ", ") .. " spots") or "No known spots for you here"
+  local spotText = #spots > 0 and (table.concat(spots, ", ") .. " spots") or nil
+  -- a line that never contradicts itself: the route if there is one, then why nothing shows
+  local note = wanted == 0 and whyNone(mapID, s) or nil
 
   local route = NW.db.routes[mapID]
   local line
   if route and #route.stops > 1 then
-    line = spotText .. "   ·   " .. routeLine(route)
+    line = routeLine(route)
   elseif s.autoRoute and wanted >= 3 and not NW.routeStatus then
-    line = spotText .. "   ·   building a route..."
+    line = spotText .. "  ·  building a route..."
     NW.BuildRoute(mapID, function(r)
-      updateBanner(spotText .. "   ·   " .. routeLine(r))
+      updateBanner(routeLine(r))
       if NW.RefreshPlanner then NW.RefreshPlanner() end
     end)
   elseif wanted > 0 then
-    line = spotText .. "   ·   no route yet (/nw plan)"
+    line = spotText .. "  ·  no route yet"
+  elseif note then
+    line, note = note, nil
   else
-    line = spotText .. "   ·   import GatherMate2 or gather a few"
+    line = "No known spots here"
   end
-  if s.zoneBanner then showBanner(info.name, line) end
+  if s.zoneBanner then showBanner(info.name, line, note) end
 end
 
 local function check()

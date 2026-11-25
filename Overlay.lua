@@ -957,11 +957,16 @@ local function drawInner(force)
       local vx, vy = toView(st.x, st.y)
       local label, base = stopName(mapID, st)
       stopItem[i] = nil
+      local state, seen
       if onScreen(vx, vy) and not NW.IsHidden(base) then
-        local state = "stop"
-        local seen = prog and prog.visited[i]
+        state = "stop"
+        seen = prog and prog.visited[i]
         if seen and now - seen < respawn then state = "picked" end
-        if state ~= "picked" and vx * vx + vy * vy < nearPx * nearPx then near = true end
+        -- gathered spots can be left off (Minimal)
+        if state == "picked" and s.hidePicked then state = nil end
+        if state and state ~= "picked" and vx * vx + vy * vy < nearPx * nearPx then near = true end
+      end
+      if state then
         local up = state ~= "picked" and NW.StopSeenAgo(mapID, i)
         local it = item(vx, vy, state == "next" and 5 or (up and 4 or (state == "picked" and 0 or 2)))
         it.stop, it.st, it.state, it.up, it.label, it.name, it.kind = i, st, state, up, label, base, st.kind
@@ -1022,9 +1027,9 @@ local function drawInner(force)
       -- bright near you, fainter toward the edge of the map
       local mx0, my0 = (ax + bx) / 2, (ay + by) / 2
       local far = math.sqrt(mx0 * mx0 + my0 * my0) / fadeRadius
-      local alpha = far < 0.3 and 0.95 or math.max(0.3, 0.95 - (far - 0.3) * 0.95)
+      local alpha = far < 0.3 and 0.95 or math.max(0.18, 0.95 - (far - 0.3) * 1.1)
       local l = getLine()
-      l:SetThickness(alpha > 0.6 and 3 or 2)
+      l:SetThickness(alpha > 0.7 and 3.5 or (alpha > 0.4 and 2.5 or 1.5))
       l:SetColorTexture(C.route[1], C.route[2], C.route[3], alpha)
       l.under:SetColorTexture(0, 0, 0, 0.5 * alpha)
       l:SetStartPoint("CENTER", pan, ax, ay)

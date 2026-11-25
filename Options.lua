@@ -132,13 +132,13 @@ newPage("look", "Appearance")
 -- One-click looks
 local PRESETS = {
   { "Farming", "Half the screen, live dots, ring, compass and session panel.", {
-    overlaySize = 0.5, opacity = 0.55, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.6,
-    brightNear = true, mountZoom = true, liveDots = true, showRangeRing = true, showCompass = true, showSession = true } },
+    overlaySize = 0.5, opacity = 0.4, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.6,
+    brightNear = true, mountZoom = true, liveDots = true, showRangeRing = true, showCompass = true, showSession = true, hidePicked = false } },
   { "Questing", "Smaller and fainter, out of the way.", {
-    overlaySize = 0.35, opacity = 0.35, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.4,
-    brightNear = true, mountZoom = true, showRangeRing = false, showCompass = false, showSession = false } },
+    overlaySize = 0.35, opacity = 0.2, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.4,
+    brightNear = true, mountZoom = true, showRangeRing = false, showCompass = false, showSession = false, hidePicked = false } },
   { "Minimal", "Icons and route only, no terrain or panels.", {
-    tint = "none", fadeMoving = false, mountZoom = false, showRangeRing = false, showCompass = false, showSession = false } },
+    tint = "none", fadeMoving = false, mountZoom = false, showRangeRing = false, showCompass = false, showSession = false, hidePicked = true } },
 }
 local presetBtns = {}
 local function presetMatches(values)
@@ -203,11 +203,14 @@ place(2, UI.Dropdown(page, COL_W, "Window scale", {
 newPage("gather", "Gathering")
 heading(1, "Live nodes")
 check(1, "Show live nodes", "liveDots", "Moves your minimap into the overlay, like FarmHud, so its herb and ore dots show. Off keeps your minimap where it is.")
-dependsOn(check(1, "Show detection radius", "showRangeRing", "Live nodes can only appear inside this ring."), "liveDots")
+dependsOn(check(1, "Show detection radius", "showRangeRing", "Your minimap's range: live nodes can only appear inside this ring."), "liveDots")
 dependsOn(check(1, "Show distant known spots", "showKnownSpots", "Known spots outside the ring stay on the map."), "liveDots")
 dependsOn(check(1, "Always show node tooltips", "liveHoverNoAlt",
   "No need to hold Alt. Herbs and veins inside the ring then can't be clicked in the world."), "liveDots")
 dependsOn(check(1, "Icon tooltips", "hoverTooltips", "Hover an icon on the overlay for its name."), "liveDots", false)
+place(1, UI.Check(page, "Show gathered spots", function() return not s().hidePicked end,
+  function(v) s().hidePicked = not v or nil; changed(); refreshAll() end,
+  "A small grey dot where you gathered, until the gathered node cooldown ends."), 24, 2)
 
 heading(2, "Resource filters")
 check(2, "Only my professions", "onlyMyProfessions", "Herbs if you have Herbalism, ore if you have Mining.")

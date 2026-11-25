@@ -50,3 +50,28 @@ Skill-up colours (orange, yellow, green, grey) mean skill-ups only. Item names m
 - `NW.Money(c)` full; `"gs"` gold and silver for summaries; `"mid"` keeps silver under 10g; `true` short.
 - Estimates carry `~`. A total missing prices carries a red `+?`. An unknown price is "No price" or "–", never zero.
 - Resale, profit and gold per hour are estimates, and say so on hover.
+
+## Gathering overlay
+
+The overlay is a map for getting around, not a second window. It keeps its own cyan route; the window's gold and bronze aren't forced onto it.
+
+- **Route:** cyan (`C.route`) with a dark underline. Legs near you are brightest and thickest (3.5 px, 95%) and carry direction arrows. Further out they thin (2.5 px, then 1.5 px) and fade, down to 18% at the map's edge. Nothing animates.
+- **No "next stop" highlight.** It was removed on purpose: a highlighted stop read as "a herb is here" when nothing was.
+- **Marker states**, using the game's herb and ore icons:
+  - **Confirmed up:** seen on your minimap or in the world recently. Full opacity, green edge and soft glow.
+  - **Known spot:** a saved location with no recent sighting. Faded (`fadedAlpha`, 35%). Never drawn as available.
+  - **Gathered:** a small grey dot until the gathered node cooldown ends. Can be hidden ("Show gathered spots", off in Minimal).
+- **Detection radius:** a thin dashed ring showing your minimap's range, the area live nodes can appear in. It is not a gathering range.
+- **Player:** the game's arrow at the centre.
+- **Zone banner:** shows the route (stops and approximate loop time), or how many spots are known. Why nothing shows (a profession not learned, or your filters) goes on its own line, so the banner never contradicts itself. Gone after about 7 seconds.
+- **Session panel:** only what you've actually gathered: duration, nodes, loops, and value at Auctionator prices, all marked ~. Never the route's theoretical rate.
+- **Presets:**
+
+| | Terrain | Ring | Compass | Session | Gathered spots |
+|---|---|---|---|---|---|
+| Farming | 40% | on | on | on | shown |
+| Questing | 20% | off | off | off | shown |
+| Minimal | off | off | off | off | hidden |
+
+  Presets only change settings when you click one.
+- **Performance:** markers and lines come from pools. A full redraw happens at most every 0.15 s; in between, the map slides by how far you've moved. Terrain tiles are cached per tile.
