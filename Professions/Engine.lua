@@ -864,7 +864,7 @@ function NW.BuildPlan(key, from, to)
   -- Cooking has no resale choice on its page, so it never counts one
   local sell = key ~= "cooking" and s.planSellBack or false
   local cacheKey = ("%s:%d:%d:%s%s:%s:%s"):format(key, from, to, s.planRecipeItems and "r" or "", sell == "de" and "d" or sell and "s" or "", strategy or "",
-    allow and NW.CookAllowKey() or "")
+    allow and NW.CookAllowKey() or "") .. ":" .. (NW.FavorKey and NW.FavorKey() or "")
   local recipes = NW.RECIPES[key] or {}
   -- this profession's "make it yourself" table, even when the plan comes from the cache
   if NW.craftKey ~= key then
@@ -919,6 +919,8 @@ function NW.BuildPlan(key, from, to)
         end
         if NW.NO_LEVEL[r.name] then avail = nil end
         if allow and avail ~= nil and not allow(r, sk) then avail = nil end
+        -- a Merchant's Favor recipe your reputation can't buy yet (unless you know it)
+        if avail ~= nil and NW.FavorBlocked and NW.FavorBlocked(r) and not isKnown(key, r) then avail = nil end
         local needsRecipe = not avail
         if avail ~= nil and (avail or pass == 2 or s.planRecipeItems) and required(key, r) <= sk then
           local p = NW.SkillUpChance(r, sk)

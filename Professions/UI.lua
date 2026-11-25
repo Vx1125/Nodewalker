@@ -1618,7 +1618,120 @@ MS.FAVOR = {
 MS.FAVOR_HELP = "Favor comes from Waylaid Crates; some recipes need Friendly or Honored."
 function MS.myFaction() return (UnitFactionGroup and UnitFactionGroup("player")) == "Alliance" and "Alliance" or "Horde" end
 function MS.otherFaction() return MS.myFaction() == "Alliance" and "Horde" or "Alliance" end
-function MS.merchantShort() return "Merchant's Favor  ·  " .. MS.FAVOR[MS.myFaction()][2] end
+-- Reputation a Merchant's Favor recipe needs (Method's WoW Forever guide to
+-- Azeroth Commerce Authority and Durotar Supply and Logistics); the rest need none
+MS.FAVOR_FRIENDLY = {
+  ["Elixir of Greater Spirit"] = true, ["Greater Mageblood Elixir"] = true, ["Disorienting Smog Potion"] = true,
+  ["Greater Cleric's Elixir"] = true, ["Elixir of Greater Fortitude"] = true, ["Dragonfire Potion"] = true,
+  ["Black Handwraps"] = true, ["Fiery Handwraps"] = true, ["Frothing Handwraps"] = true, ["Golden Handwraps"] = true,
+  ["Radiant Handwraps"] = true, ["Mageweave Reagent Bag"] = true, ["Netherflame Shoulders"] = true,
+  ["Netherfroth Shoulders"] = true, ["Nethergeld Shoulders"] = true, ["Netherlight Shoulders"] = true,
+  ["Netherpearl Shoulders"] = true, ["Nethershine Shoulders"] = true, ["Netherflame Cuffs"] = true, ["Netherfroth Cuffs"] = true,
+  ["Nethergeld Cuffs"] = true, ["Netherlight Cuffs"] = true, ["Netherpearl Cuffs"] = true, ["Nethershine Cuffs"] = true,
+  ["Black Waistcord"] = true, ["Fiery Waistcord"] = true, ["Frothing Waistcord"] = true, ["Gilded Waistcord"] = true,
+  ["Golden Waistcord"] = true, ["Radiant Waistcord"] = true, ["Runecloth Reagent Bag"] = true,
+  ["Enchant Necklace - Agility"] = true, ["Enchant Necklace - Deflection"] = true, ["Enchant Necklace - Healing Power"] = true,
+  ["Enchant Necklace - Spell Power"] = true, ["Enchant Necklace - Strength"] = true, ["Libram of Invocation"] = true,
+  ["Talons of Wrath"] = true, ["Totem of Ancestral Protection"] = true, ["Dreamstaff"] = true,
+  ["Enchant Chest - Absorption"] = true, ["Radiant Staff"] = true, ["Truesilver Conduit"] = true,
+  ["Twisting Essence Jar"] = true, ["Satchel of Bronze Bombs"] = true, ["Clanking Cord"] = true, ["Gizmo Girdle"] = true,
+  ["SAF-T Bell"] = true, ["Whimsical Waistwrap"] = true, ["EZ-Thro Fireproof Fuse"] = true, ["Bent Goggles"] = true,
+  ["Dented Goggles"] = true, ["Floppy Goggles"] = true, ["Stuckbutton Goggles"] = true, ["Forceful Thick Armor Kit"] = true,
+  ["Mender's Leather Gloves"] = true, ["Prowler's Leather Gloves"] = true, ["Skulker's Leather Gloves"] = true,
+  ["Skycaller's Leather Gloves"] = true, ["Stalker's Leather Gloves"] = true, ["Mender's Leather Shoulder"] = true,
+  ["Mender's Mail Shoulder"] = true, ["Prowler's Leather Shoulder"] = true, ["Skirmisher's Mail Shoulder"] = true,
+  ["Skulker's Leather Shoulder"] = true, ["Skycaller's Leather Shoulder"] = true, ["Skycaller's Mail Shoulder"] = true,
+  ["Stalker's Mail Shoulder"] = true, ["Warden's Leather Shoulder"] = true, ["Skirmisher's Leather Gloves"] = true,
+  ["Justicar's Gauntlet"] = true, ["Officer's Gauntlet"] = true, ["Prefect's Gauntlet"] = true, ["Sentinel's Gauntlet"] = true,
+  ["Warder's Gauntlet"] = true, ["Justicar's Pauldrons"] = true, ["Officer's Pauldrons"] = true, ["Prefect's Pauldrons"] = true,
+  ["Sentinel's Pauldrons"] = true, ["Warder's Pauldrons"] = true, ["Calcified Smoothie"] = true, ["Spicy Smoothie"] = true,
+}
+MS.FAVOR_HONORED = {
+  ["Elixir of the Phalanx"] = true, ["Caustic Smog Potion"] = true, ["Elixir of Cunning"] = true, ["Elixir of Ferocity"] = true,
+  ["Elixir of Sages"] = true, ["Elixir of the Whale"] = true, ["Potion of Venomous Blood"] = true, ["Elixir of the Owl"] = true,
+  ["Major Mender's Potion"] = true, ["Potion of Elemental Purging"] = true, ["Elixir of Nature Power"] = true,
+  ["Elixir of Wicked Regeneration"] = true, ["Major Spellblasting Potion"] = true, ["Major Frenzy Potion"] = true,
+  ["Elixir of the Grizzly"] = true, ["Black Sandals"] = true, ["Fiery Sandals"] = true, ["Frothing Sandals"] = true,
+  ["Gilded Sandals"] = true, ["Golden Sandals"] = true, ["Radiant Sandals"] = true, ["Brilliant Wand"] = true,
+  ["Enchant 2H Weapon - Mighty Healing Power"] = true, ["Enchant 2H Weapon - Mighty Spell Power"] = true,
+  ["Enchant 2H Weapon - Spellblasting"] = true, ["Enchant Bracer - Greater Spellpower"] = true,
+  ["Enchant Bracer - Superior Deflection"] = true, ["Enchant Bracer - Superior Intellect"] = true,
+  ["Enchant Cloak - Agility"] = true, ["Enchant Gloves - Arcane Power"] = true, ["Enchant Gloves - Holy Power"] = true,
+  ["Enchant Gloves - Natural Power"] = true, ["Enchant Gloves - Superior Strength"] = true, ["Enchant Off Hand - Wisdom"] = true,
+  ["Enchant Off-Hand - Wisdom"] = true, ["Idol of the Dream"] = true, ["Libram of Holy Alacrity"] = true,
+  ["Totem of Thunder"] = true, ["Compact Critter Carrier"] = true, ["Emergency Field Cloak"] = true,
+  ["Satchel of Iron Bombs"] = true, ["Gnomish Army Knife"] = true, ["SAF-T Disposable Parachute"] = true, ["Loot-A-Rang"] = true,
+  ["Satchel of Dark Iron Bombs"] = true, ["Gnomish Poultryizer"] = true, ["Stealthman 52"] = true,
+  ["Ultralight Goblin Glider"] = true, ["Ultrasafe Rechargeable Battery"] = true, ["Mender's Leather Bracers"] = true,
+  ["Mender's Mail Bracers"] = true, ["Prowler's Leather Bracers"] = true, ["Skirmisher's Mail Bracers"] = true,
+  ["Skulker's Leather Bracers"] = true, ["Skycaller's Leather Bracers"] = true, ["Skycaller's Mail Bracers"] = true,
+  ["Stalker's Mail Bracers"] = true, ["Warden's Leather Bracers"] = true, ["Mender's Leather Waistguard"] = true,
+  ["Mender's Mail Belt"] = true, ["Prowler's Leather Waistguard"] = true, ["Skirmisher's Mail Belt"] = true,
+  ["Skulker's Leather Waistguard"] = true, ["Skycaller's Leather Waistguard"] = true, ["Skycaller's Mail Belt"] = true,
+  ["Stalker's Mail Belt"] = true, ["Warden's Leather Waistguard"] = true, ["Mender's Leather Boots"] = true,
+  ["Mender's Mail Sabatons"] = true, ["Mystic Rugged Armor Kit"] = true, ["Prowler's Leather Boots"] = true,
+  ["Skirmisher's Mail Sabatons"] = true, ["Skulker's Leather Boots"] = true, ["Skycaller's Leather Boots"] = true,
+  ["Skycaller's Mail Sabatons"] = true, ["Stalker's Mail Sabatons"] = true, ["Warden's Leather Boots"] = true,
+  ["Justicar's Wristguards"] = true, ["Officer's Wristguard"] = true, ["Officer's Wristguards"] = true,
+  ["Prefect's Wristguard"] = true, ["Prefect's Wristguards"] = true, ["Sentinel's Wristguard"] = true,
+  ["Sentinel's Wristguards"] = true, ["Warder's Wristguard"] = true, ["Warder's Wristguards"] = true,
+  ["Justicar's Sabatons"] = true, ["Officer's Sabatons"] = true, ["Prefect's Sabatons"] = true, ["Sentinel's Sabatons"] = true,
+  ["Warder's Sabatons"] = true, ["Justicar's Waistguard"] = true, ["Officer's Waistguard"] = true,
+  ["Prefect's Waistguard"] = true, ["Sentinel's Waistguard"] = true, ["Warder's Waistguard"] = true, ["Thorium Cestus"] = true,
+  ["Thorium Greatmace"] = true, ["Enriched Thorium Breastplate"] = true, ["Enriched Thorium Helm"] = true,
+  ["Enriched Thorium Leggings"] = true, ["Legionite Glaive"] = true, ["Wicked Smoothie"] = true,
+}
+MS.FAVOR_FACTION_IDS = { 2586, 2587 } -- Azeroth Commerce Authority, Durotar Supply and Logistics
+local STANDING_NAME = { [4] = "Neutral", [5] = "Friendly", [6] = "Honored", [7] = "Revered", [8] = "Exalted" }
+-- the reputation a recipe needs: 5 (Friendly), 6 (Honored) or nil
+function MS.favorRep(r)
+  if not r then return nil end
+  if MS.FAVOR_HONORED[r.name] then return 6 end
+  if MS.FAVOR_FRIENDLY[r.name] then return 5 end
+  return nil
+end
+-- your standing with your faction's Merchant's Favor group (1-8), or nil if the game won't say
+function MS.favorStanding()
+  local now = GetTime()
+  if MS.favAt and now - MS.favAt < 5 then return MS.favCache end
+  MS.favAt, MS.favCache = now, nil
+  local want = MS.FAVOR[MS.myFaction()][1]
+  for _, id in ipairs(MS.FAVOR_FACTION_IDS) do
+    local name, standing
+    if C_Reputation and C_Reputation.GetFactionDataByID then
+      local ok, d = pcall(C_Reputation.GetFactionDataByID, id)
+      if ok and type(d) == "table" then name, standing = d.name, d.reaction end
+    end
+    if not name and GetFactionInfoByID then
+      local ok, n, _, sid = pcall(GetFactionInfoByID, id)
+      if ok then name, standing = n, sid end
+    end
+    if name == want and standing then MS.favCache = standing return standing end
+  end
+  return nil
+end
+-- "Friendly" / "Honored", green when you have it, red when you don't
+function MS.favorRepText(r, plain)
+  local need = MS.favorRep(r)
+  if not need then return nil end
+  local have = MS.favorStanding()
+  local text = STANDING_NAME[need]
+  if plain or not have then return text end
+  return (have >= need and "|cff94ba78" or "|cffd17665") .. text .. "|r"
+end
+function MS.standingName(n) return STANDING_NAME[n] end
+-- a Favor recipe you can't buy yet: reputation too low (only when the game says your standing)
+function NW.FavorBlocked(r)
+  local need = MS.favorRep(r)
+  if not need then return false end
+  local have = MS.favorStanding()
+  return have ~= nil and have < need
+end
+function NW.FavorKey() return tostring(MS.favorStanding() or "") end
+function MS.merchantShort(r)
+  local rep = MS.favorRepText(r)
+  return "Merchant's Favor  ·  " .. (rep and (rep .. "|cffd6b266  ·  ") or "") .. MS.FAVOR[MS.myFaction()][2]
+end
 
 -- Forever's new recipes are sold for Merchant's Favor; their items have new IDs
 local function isForeverNew(r)
@@ -1680,6 +1793,11 @@ local function whereText(r)
     end
   end
   if #parts == 0 and other then parts[1] = "Sold to the other faction: auction house" end
+  -- Favor vendors want reputation for some recipes
+  if fav then
+    local repText = MS.favorRepText(r, true)
+    table.insert(parts, 1, "Merchant's Favor" .. (repText and (", " .. repText) or ""))
+  end
   return table.concat(parts, "  ·  "), fav
 end
 
@@ -1688,7 +1806,9 @@ function sourceText(key, r, rank)
   if r.src == "scan" or (r.src == "recipe" and e and e.source) then
     if e and e.source then
       local merchant = e.source:find("Merchant") or e.source:find("Durotar Supply") or e.source:find("Commerce Authority")
-      return (merchant and "|cffd6b266" or "") .. MS.collapseDrops(cleanSource(e.source, true)) .. (merchant and "|r" or ""), merchant and "merchant" or "drop"
+      local repText = merchant and MS.favorRepText(r, true)
+      return (merchant and "|cffd6b266" or "") .. MS.collapseDrops(cleanSource(e.source, true)) .. (repText and ("  ·  Needs " .. repText) or "")
+        .. (merchant and "|r" or ""), merchant and "merchant" or "drop"
     end
     if r.src == "scan" then return "Source not listed by the game", "drop" end
   end
@@ -1700,7 +1820,7 @@ function sourceText(key, r, rank)
   end
   local w, fav = whereText(r)
   if w and w ~= "" then return (fav and ("|cffd6b266" .. w .. "|r") or w), fav and "merchant" or "drop" end
-  if fav or isForeverNew(r) then return "|cffd6b266" .. MS.merchantShort() .. "|r", "merchant" end
+  if fav or isForeverNew(r) then return "|cffd6b266" .. MS.merchantShort(r) .. "|r", "merchant" end
   return "Vendor or world drop  ·  click to search the AH", "drop"
 end
 
@@ -1724,7 +1844,7 @@ function MS.shortSource(key, r, rank)
   if r.src == "scan" or (r.src == "recipe" and e and e.source) then
     if e and e.source then
       if e.source:find("Merchant") or e.source:find("Durotar Supply") or e.source:find("Commerce Authority") then
-        return "|cffd6b266" .. MS.merchantShort() .. "|r", "merchant"
+        return "|cffd6b266" .. MS.merchantShort(r) .. "|r", "merchant"
       end
       local first = MS.firstPart(MS.collapseDrops(cleanSource(e.source, true)))
       return first, MS.kindOfLabel(first)
@@ -1738,7 +1858,7 @@ function MS.shortSource(key, r, rank)
     return ("Trainer  ·  Skill %d"):format(req), "later"
   end
   local w, fav = whereText(r)
-  if fav or (isForeverNew(r) and not (w and w ~= "")) then return "|cffd6b266" .. MS.merchantShort() .. "|r", "merchant" end
+  if fav or (isForeverNew(r) and not (w and w ~= "")) then return "|cffd6b266" .. MS.merchantShort(r) .. "|r", "merchant" end
   if w and w ~= "" then
     local first, more = MS.firstPart(w)
     return first .. (more > 0 and ("  |cff938c80+%d|r"):format(more) or ""), MS.kindOfLabel(first)
@@ -2205,6 +2325,11 @@ function MS.fillAcquisition(key, r)
     rows[#rows + 1] = { "Source", "|cffd6b266Merchant's Favor|r" }
     rows[#rows + 1] = { "Vendor", MS.FAVOR[fac][1] }
     rows[#rows + 1] = { "Location", MS.FAVOR[fac][2] }
+    local need = MS.favorRep(r)
+    if need then
+      local have = MS.favorStanding()
+      rows[#rows + 1] = { "Reputation", MS.favorRepText(r) .. (have and ("  |cff938c80you: %s|r"):format(MS.standingName(have) or "below Neutral") or "") }
+    end
   end
   -- the game's own source lines ("Vendor: ...", "Zone: ...", "Cost: ...")
   local e = r.scanned or scanOf(key, r)
