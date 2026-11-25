@@ -62,7 +62,7 @@ Recalculates on bags, skill lines, new recipes and equipment changes (half-secon
 ## Smart Fishing, Journal and HUD
 
 ### Smart Fishing (`Professions/SmartFishing.lua`)
-One key, set in Settings › Fishing, applied as an override binding (`SetOverrideBindingClick`) so the game's own key bindings are never changed. A key already bound to something asks for a second press. Each press clicks the hidden secure button `NodewalkerSmartFish`, whose action is set out of combat from the current state:
+One key, a normal game binding (`CLICK NodewalkerSmartFish:LeftButton`): Key Bindings › AddOns › Smart Fishing, or the button in Settings › Fishing, which sets the same binding (a key already bound to something asks for a second press, then moves). A key set in Settings by an earlier version moves to the game binding at login. Each press clicks the hidden secure button `NodewalkerSmartFish`, whose action is set out of combat from the current state:
 
 1. no pole on, and a fishing set or a pole in your bags: a macro of `/equipslot` lines;
 2. lures on (Settings › Fishing › Lure), no temporary enchant on the pole, and a lure in your bags: `/use item:<lure>` then `/use 16`;

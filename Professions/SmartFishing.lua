@@ -280,7 +280,7 @@ end
 function SF.Next()
   if not NW.ProfSkill("fishing") then return "none", "Fishing not learned" end
   if SF.channeling then
-    return "reel", SF.interactOK() and st().fishKey and "Bobber out: press when it splashes" or "Bobber out: click it when it splashes"
+    return "reel", SF.interactOK() and SF.key() and "Bobber out: press when it splashes" or "Bobber out: click it when it splashes"
   end
   if combat() then return "combat", "In combat" end
   if not SF.poleOn() then
@@ -438,21 +438,36 @@ function SF.Queue(delay)
 end
 
 ------------------------------------------------------------------------
--- The key: an override binding of your own, so nothing in the game's key
--- bindings is touched. While the bobber is out it points at Interact.
--- The interact CVar's previous value is saved, so a reload or combat
--- mid-cast can't leave it changed.
+-- The key: a normal game binding (Key Bindings › AddOns › Smart Fishing, or
+-- Settings › Fishing), like PallyPulse's Smart Buff. While the bobber is out,
+-- that key is overridden to Interact; the override is cleared when the
+-- channel ends. The interact CVar's previous value is saved, so a reload or
+-- combat mid-cast can't leave it changed.
 ------------------------------------------------------------------------
+SF.COMMAND = "CLICK NodewalkerSmartFish:LeftButton"
+_G["BINDING_NAME_CLICK NodewalkerSmartFish:LeftButton"] = "Smart Fishing"
+function SF.keys()
+  if not GetBindingKey then return {} end
+  return { GetBindingKey(SF.COMMAND) }
+end
+function SF.key() return SF.keys()[1] end
 function SF.ApplyKey()
   if combat() then SF.pendingKey = true return end
   ClearOverrideBindings(main)
-  local key = st().fishKey
-  if not key then return end
   if SF.channeling and SF.interactOK() then
-    SetOverrideBinding(main, true, key, "INTERACTTARGET")
-  else
-    SetOverrideBindingClick(main, true, key, "NodewalkerSmartFish", "LeftButton")
+    for _, k in ipairs(SF.keys()) do SetOverrideBinding(main, true, k, "INTERACTTARGET") end
   end
+end
+local function saveBindings() pcall(function() SaveBindings(GetCurrentBindingSet and GetCurrentBindingSet() or 1) end) end
+-- a key set in Settings before Smart Fishing was a game binding: move it over
+local function migrateKey()
+  local old = st().fishKey
+  if not old or combat() then return end
+  if not SF.key() and SetBinding then
+    local bound = GetBindingAction and GetBindingAction(old) or ""
+    if bound == "" or bound == SF.COMMAND then SetBinding(old, SF.COMMAND); saveBindings() end
+  end
+  st().fishKey = nil
 end
 local function restoreSoft()
   local saved = st().fishSoftSaved
@@ -465,7 +480,7 @@ local function isFishing(unit, spellID) return J and J.isFishing(spellID, unit) 
 NW.On("UNIT_SPELLCAST_CHANNEL_START", function(unit, _, spellID)
   if not isFishing(unit, spellID) then return end
   SF.channeling = true
-  if SF.interactOK() and st().fishKey and not combat() then
+  if SF.interactOK() and SF.key() and not combat() then
     local cur = C_CVar.GetCVar("SoftTargetInteract")
     if cur ~= "3" then
       if st().fishSoftSaved == nil then st().fishSoftSaved = cur end
@@ -501,52 +516,64 @@ NW.On("SKILL_LINES_CHANGED", function() SF.Queue() end)
 table.insert(NW.OnLoad, function()
   local s = st()
   if s.fishLure == nil then s.fishLure = "off" end
-  C_Timer.After(1, function() restoreSoft(); SF.ApplyKey(); SF.Update() end)
+  C_Timer.After(1, function() migrateKey(); restoreSoft(); SF.ApplyKey(); SF.Update() end)
 end)
+NW.On("UPDATE_BINDINGS", function() if SF.RefreshHUD then SF.RefreshHUD() end end)
 
--- A button that takes the next key you press as the Smart Fishing key.
--- A key already bound to something else asks for a second press.
+-- A button that sets the Smart Fishing key binding (the same one as in the
+-- game's Key Bindings). A key already bound to something else asks for a
+-- second press, then moves to Smart Fishing.
 function SF.KeyButton(parent, w)
   local b = UI.Button(parent, "", w, nil, 24)
   local function label()
-    local key = st().fishKey
+    local key = SF.key()
     b:SetText(b.waiting and (b.confirm and ("Press %s again to use it"):format(b.confirm) or "Press a key...")
-      or (key and ("Smart Fishing: %s"):format(GetBindingText and GetBindingText(key) or key) or "Set Smart Fishing key"))
+      or (key and ("Smart Fishing: %s"):format(GetBindingText and GetBindingText(key, "KEY_") or key) or "Set Smart Fishing key"))
   end
   b.Refresh = label
+  local function stop(self) self.waiting, self.confirm = nil, nil; self:EnableKeyboard(false); label() end
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   b:SetScript("OnClick", function(self, button)
-    if button == "RightButton" then st().fishKey = nil; self.waiting = nil; SF.ApplyKey(); label() return end
+    if combat() then return end -- the game blocks binding changes in combat
+    if button == "RightButton" then
+      for _, k in ipairs(SF.keys()) do SetBinding(k) end
+      saveBindings()
+      stop(self)
+      return
+    end
+    if self.waiting then stop(self) return end
     self.waiting, self.confirm = true, nil
     self:EnableKeyboard(true)
+    pcall(self.SetPropagateKeyboardInput, self, false)
     label()
   end)
   b:SetScript("OnKeyDown", function(self, key)
     if not self.waiting then return end
-    if key == "ESCAPE" then self.waiting, self.confirm = nil, nil; self:EnableKeyboard(false); label() return end
-    if key:find("SHIFT") or key:find("CTRL") or key:find("ALT") then return end
+    if key == "ESCAPE" then stop(self) return end
+    if key:find("SHIFT$") or key:find("CTRL$") or key:find("ALT$") then return end
     local full = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "") .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
     local bound = GetBindingAction and GetBindingAction(full) or ""
-    if bound ~= "" and self.confirm ~= full then
+    if bound ~= "" and bound ~= SF.COMMAND and self.confirm ~= full then
       self.confirm = full
       self.boundTo = bound
       label()
       return
     end
-    st().fishKey = full
-    self.waiting, self.confirm = nil, nil
-    self:EnableKeyboard(false)
+    if combat() then stop(self) return end
+    for _, k in ipairs(SF.keys()) do SetBinding(k) end
+    SetBinding(full, SF.COMMAND)
+    saveBindings()
+    stop(self)
     SF.ApplyKey()
-    label()
   end)
   b:SetScript("OnHide", function(self) self.waiting, self.confirm = nil, nil; self:EnableKeyboard(false) end)
   b:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText("Smart Fishing key", 1, 1, 1)
     if self.confirm and self.boundTo then
-      GameTooltip:AddLine(("%s is bound to %s. Smart Fishing takes it over while Nodewalker is loaded; the game's binding is kept for when you clear this."):format(self.confirm, _G["BINDING_NAME_" .. self.boundTo] or self.boundTo), 1, 0.82, 0.2, true)
+      GameTooltip:AddLine(("%s is bound to %s. Pressing it again moves it to Smart Fishing."):format(self.confirm, _G["BINDING_NAME_" .. self.boundTo] or self.boundTo), 1, 0.82, 0.2, true)
     end
-    GameTooltip:AddLine("Right-click to clear.", S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:AddLine("Also in Key Bindings › AddOns. Right-click to clear.", S.dim[1], S.dim[2], S.dim[3], true)
     GameTooltip:Show()
   end)
   b:HookScript("OnLeave", GameTooltip_Hide)
@@ -781,7 +808,8 @@ function SF.RefreshHUD()
   hud.key:SetPoint("TOPRIGHT", -10, y - 2)
   local label = inCombat and not SF.channeling and "In combat" or (SF.label or "Cast Fishing")
   hud.nextText:SetText(mini and ("Next: " .. (label:gsub(" Fishing$", ""))) or label)
-  hud.key:SetText(s.fishKey and (H.dim .. (GetBindingText and GetBindingText(s.fishKey) or s.fishKey) .. "|r") or (H.dim .. "no key|r"))
+  local key = SF.key()
+  hud.key:SetText(key and (H.dim .. (GetBindingText and GetBindingText(key, "KEY_") or key) .. "|r") or (H.dim .. "no key|r"))
   y = y - 18
   -- notices for a few seconds
   local showNotice = SF.notice and GetTime() - (SF.noticeAt or 0) < 6

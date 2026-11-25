@@ -8,6 +8,8 @@
   <Binding name="NODEWALKER_NEXT" category="ADDONS">
     Nodewalker.SkipNext()
   </Binding>
+  <Binding name="CLICK NodewalkerSmartFish:LeftButton" category="ADDONS">
+  </Binding>
   <Binding name="NODEWALKER_FISHHUD" category="ADDONS">
     Nodewalker.ToggleFishHUD()
   </Binding>
