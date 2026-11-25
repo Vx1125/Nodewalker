@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.18
+
+- Route and Farm Guide: a warning with the GatherMate2 steps and an Import button while hardly any spots are known (/nw import help shows it).
+- Session panel: drag to move; it stays where you leave it.
+
 ## 1.1.17
 
 - New look: warm charcoal and bronze, tick checkboxes, window scale setting.
