@@ -320,7 +320,7 @@ function NW.CraftStatus(msg)
   if page:IsShown() then refresh() end
   C_Timer.After(4.1, function() if page:IsShown() then refresh() end end)
 end
-local STEP_H, STEP_ROWS, STEP_FRAMES, HEAD_ROW_H = 40, 10, 15, 24
+local STEP_H, STEP_ROWS, STEP_FRAMES, HEAD_ROW_H = 38, 10, 15, 24
 local STEPS_BOX_H = STEP_H * STEP_ROWS + 2
 local stepsBox = UI.Box(mid, MID_W, STEPS_BOX_H)
 stepsBox:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -32)
@@ -382,7 +382,7 @@ for i = 1, STEP_FRAMES do
   row.cost = UI.Text(row, 12, S.text, "RIGHT")
   row.cost:SetPoint("TOPRIGHT", -8, -5)
   row.mats = UI.Text(row, 11, S.dim)
-  row.mats:SetPoint("TOPLEFT", 96, -24)
+  row.mats:SetPoint("TOPLEFT", 96, -22)
   row.mats:SetWidth(MID_W - 116)
   row.mats:SetWordWrap(false)
   -- Craft what this row makes, as many as your bags allow
@@ -2064,13 +2064,17 @@ function MS.build()
     GameTooltip:Show()
   end)
   ov.trainHead:SetScript("OnLeave", GameTooltip_Hide)
+  local function under(t, anchor, gap)
+    t:ClearAllPoints()
+    t:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -(gap or 3))
+  end
   ov.trainCity = line(12, S.text)
-  y = y - 16
   ov.trainNames = line(11, S.dim)
-  y = y - 30
+  under(ov.trainNames, ov.trainCity)
   ov.trainMore = line(11, S.dim)
-  y = y - 32
-  ov.favHead = heading("Merchant's Favor")
+  under(ov.trainMore, ov.trainNames, 6)
+  ov.favHead = UI.Heading(ov, "Merchant's Favor", RIGHT_W)
+  under(ov.favHead, ov.trainMore, 16)
   ov.favHead:EnableMouse(true)
   ov.favHead:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
@@ -2087,10 +2091,11 @@ function MS.build()
   favHelp:SetPoint("LEFT", ov.favHead.text, "RIGHT", 4, 0)
   favHelp:SetTexture("Interface\\Common\\help-i")
   ov.favVendor = line(12, S.text)
-  y = y - 16
+  under(ov.favVendor, ov.favHead, 6)
   ov.favPlace = line(11, S.dim)
-  y = y - 28
+  under(ov.favPlace, ov.favVendor)
   ov.note = line(11, S.dim)
+  under(ov.note, ov.favPlace, 16)
 
   -- the filter above the list
   local ctl = CreateFrame("Frame", nil, mid)
