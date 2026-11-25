@@ -178,16 +178,36 @@ do
 end
 slider(1, "Overlay size", 0.25, 1, 0.05, function(v) return pct(v) .. " of the screen" end, "overlaySize",
   function() if NW.SizeOverlay then NW.SizeOverlay() end presetMark.Refresh() end)
-slider(1, "Terrain opacity", 0.1, 1, 0.05, pct, "opacity", function() presetMark.Refresh() end,
-  "Icons and the route stay easy to read at any setting.")
+-- with Terrain colour off there's no terrain: opacity and map style are greyed out (values kept)
+local function terrainOn() return s().tint ~= "none" end
+local function whileTerrain(widget)
+  local old = widget.Refresh
+  function widget:Refresh()
+    if old then old(self) end
+    local on = terrainOn()
+    local sl = rawget(self, "slider")
+    if sl then sl:SetEnabled(on) end
+    self:SetAlpha(on and 1 or 0.45)
+  end
+  return widget
+end
+whileTerrain(slider(1, "Terrain opacity", 0.1, 1, 0.05, pct, "opacity", function() presetMark.Refresh() end,
+  "How strongly the map shows under your icons and route."))
 slider(1, "Map zoom", 0.5, 3, 0.1, function(v) return ("%.1fx"):format(v) end, "scale", function() changed() presetMark.Refresh() end)
-place(1, UI.Dropdown(page, COL_W, "Map style", {
+whileTerrain(place(1, UI.Dropdown(page, COL_W, "Map style", {
   { "minimap", "Detailed (minimap tiles)" }, { "zonemap", "World map art" },
-}, function() return s().terrainSource end, function(v) s().terrainSource = v; changed() end, 190), 30)
+}, function() return s().terrainSource end, function(v) s().terrainSource = v; changed() end, 190), 30))
 place(1, UI.Dropdown(page, COL_W, "Terrain colour", {
   { "natural", "Natural" }, { "muted", "Muted" }, { "silhouette", "Silhouette (dark)" },
   { "gold", "Gold tint" }, { "blue", "Blue tint" }, { "none", "Off (icons and route only)" },
-}, function() return s().tint end, function(v) s().tint = v; changed(); presetMark.Refresh() end, 190), 30)
+}, function() return s().tint end, function(v) s().tint = v; changed(); refreshAll() end, 190), 30)
+-- says why the two above do nothing while it's off
+local terrainNote = UI.Text(page, 11, S.dim)
+terrainNote:SetText("Terrain colour is Off (Minimal): no map is drawn, so opacity and map style don't apply.")
+terrainNote:SetWidth(COL_W)
+place(1, terrainNote, 18, 2)
+local tnRefresh = { Refresh = function() terrainNote:SetShown(not terrainOn()) end }
+widgets[#widgets + 1] = tnRefresh
 
 heading(2, "On screen")
 check(2, "Compass bar", "showCompass")
