@@ -68,7 +68,7 @@ One key, a normal game binding (`CLICK NodewalkerSmartFish:LeftButton`): Key Bin
 2. lures on (Settings › Fishing › Lure), no temporary enchant on the pole, and a lure in your bags: `/use item:<lure>` then `/use 16`;
 3. otherwise: the Fishing spell.
 
-While the Fishing channel runs, the key is pointed at `INTERACTTARGET` and `SoftTargetInteract` is set to 3 (its earlier value is saved in the settings and put back when the channel ends, after combat, or at the next login), so the same key reels in through the game's soft-target interact. The game gives addons no bite signal: the HUD says "press when it splashes", nothing more. Nothing happens without a key press, and bindings and secure buttons aren't changed in combat (queued for `PLAYER_REGEN_ENABLED`).
+While the Fishing channel runs, the key is pointed at `INTERACTTARGET` and `SoftTargetInteract` is set to 3 (its earlier value is saved in the settings and put back when the channel ends, after combat, or at the next login), so the same key reels in through the game's soft-target interact. The game gives addons no bite signal: the HUD says "Press on the splash", nothing more. Nothing happens without a key press, and bindings and secure buttons aren't changed in combat (queued for `PLAYER_REGEN_ENABLED`).
 
 Researched: EzFishing Forever and Fishing-OneKey (MIT) do the same cast / interact switch; FishFry Forever (all rights reserved) wasn't read for code.
 

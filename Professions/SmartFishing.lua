@@ -280,7 +280,7 @@ end
 function SF.Next()
   if not NW.ProfSkill("fishing") then return "none", "Fishing not learned" end
   if SF.channeling then
-    return "reel", SF.interactOK() and SF.key() and "Bobber out: press when it splashes" or "Bobber out: click it when it splashes"
+    return "reel", SF.interactOK() and SF.key() and "Press on the splash" or "Click the bobber on the splash"
   end
   if combat() then return "combat", "In combat" end
   if not SF.poleOn() then
@@ -809,7 +809,8 @@ function SF.RefreshHUD()
   if not mini and s.fishHudValue ~= false and sess then
     if not SF.sessValue then sessionValue() end
     local sv = SF.sessValue or { 0, false }
-    rows[#rows + 1] = { "Est. value", (sv[1] > 0 and ("~" .. NW.Money(sv[1], "gs")) or "–") .. (sv[2] and (H.bad .. " +?|r") or "") }
+    rows[#rows + 1] = { "Est. value", sv[1] > 0 and ("~" .. NW.Money(sv[1], "gs") .. (sv[2] and (H.bad .. " +?|r") or ""))
+      or (sv[2] and (H.dim .. "no price|r") or "–") }
   end
   local y = -8
   hud.title:SetShown(not mini)
@@ -864,6 +865,8 @@ function SF.RefreshHUD()
   hud.nextText:SetText(mini and ("Next: " .. (label:gsub(" Fishing$", ""))) or label)
   local key = SF.key()
   hud.key:SetText(key and (H.dim .. (GetBindingText and GetBindingText(key, "KEY_") or key) .. "|r") or (H.dim .. "no key|r"))
+  -- the next action gets the row, less the key
+  hud.nextText:SetWidth(math.max(80, 200 - math.ceil(hud.key:GetStringWidth() or 0) - 8))
   y = y - 18
   -- notices for a few seconds
   local showNotice = SF.notice and GetTime() - (SF.noticeAt or 0) < 6
