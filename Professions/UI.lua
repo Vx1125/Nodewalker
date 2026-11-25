@@ -2617,8 +2617,9 @@ do
   local need = {}
   local function buildStrip(f)
     strip = CreateFrame("Frame", nil, f, "BackdropTemplate")
-    strip:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -2)
-    strip:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, -2)
+    -- a little below the window: the game writes the next skill-up under it
+    strip:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -26)
+    strip:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, -26)
     strip:SetHeight(30)
     UI.Flat(strip, S.bg, S.edge)
     strip:SetFrameStrata(f:GetFrameStrata())
@@ -2677,15 +2678,16 @@ do
   ----------------------------------------------------------------------
   -- 2. The plan beside the window
   ----------------------------------------------------------------------
-  local DOCK_W, DROW_H = 300, 30
+  local DOCK_W, DROW_H, DOCK_GAP = 300, 30, 52
   local dock, dTitle, dSub, dRows, dEmpty, dOffset, dSteps, dKey = nil, nil, nil, {}, nil, 0, {}, nil
   local dToggle
   local function dockShown() return st().blizzDock ~= false end
   local drawDock
   local function buildDock(f)
     dock = CreateFrame("Frame", nil, f, "BackdropTemplate")
-    dock:SetPoint("TOPLEFT", f, "TOPRIGHT", 2, 0)
-    dock:SetPoint("BOTTOMLEFT", f, "BOTTOMRIGHT", 2, 0)
+    -- clear of the game's profession tabs down the window's right edge
+    dock:SetPoint("TOPLEFT", f, "TOPRIGHT", DOCK_GAP, 0)
+    dock:SetPoint("BOTTOMLEFT", f, "BOTTOMRIGHT", DOCK_GAP, 0)
     dock:SetWidth(DOCK_W)
     UI.Flat(dock, S.bg, S.edge)
     dock:EnableMouse(true)
@@ -2707,7 +2709,7 @@ do
     end)
     -- reopen it once closed
     dToggle = UI.Button(f, "Plan", 60, function() st().blizzDock = true; dToggle:Hide(); dock:Show(); drawDock() end, 22)
-    dToggle:SetPoint("TOPLEFT", f, "TOPRIGHT", 2, -6)
+    dToggle:SetPoint("TOPLEFT", f, "TOPRIGHT", DOCK_GAP, -6)
     UI.Tip(dToggle, "Nodewalker plan", "Shows the leveling plan beside this window.")
   end
   local function ensureRows()
@@ -2765,7 +2767,7 @@ do
     local to = 300
     local plan = NW.BuildPlan(key, rank, to)
     for _, stp in ipairs(plan.steps) do
-      if stp.rankUp then dSteps[#dSteps + 1] = { train = stp.rankUp, from = stp.from } end
+      if stp.rankUp then dSteps[#dSteps + 1] = { trainRank = stp.rankUp, from = stp.from } end
       if stp.recipe and stp.to > rank then dSteps[#dSteps + 1] = stp end
     end
     dTitle:SetText(prof.name .. " plan")
@@ -2779,12 +2781,12 @@ do
       local row, stp = dRows[i], dSteps[i + dOffset]
       row.step = stp
       if not stp then row:Hide()
-      elseif stp.train then
+      elseif stp.trainRank then
         row:Show()
         row:SetSelected(false)
         row.range:SetText(tostring(stp.from))
         row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
-        local rn = type(stp.train) == "table" and stp.train.name or nil
+        local rn = stp.trainRank.name
         row.name:SetText("|cffe8c46aTrain " .. (rn or "next rank") .. "|r")
         row.sub:SetText(rn and rankWhereText(key, rn) or "")
         row.count:SetText("")
