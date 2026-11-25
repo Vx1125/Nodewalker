@@ -299,6 +299,7 @@ local CHAR_KEYS = {
   profSelected = true, planTarget = true, lastTab = true,
 }
 local function splitCharSettings(db)
+  if not (UnitName and GetRealmName) then return end
   db.chars = db.chars or {}
   local ck = (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
   local c = db.chars[ck] or {}
