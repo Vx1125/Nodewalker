@@ -309,6 +309,59 @@ function UI.Dropdown(parent, width, label, items, get, set, btnW, tip)
 end
 
 ------------------------------------------------------------------------
+-- A button that opens a short list of check boxes (for filters you don't
+-- change often). items = { { label, get, set, tip }, ... }. onChange() after a click.
+------------------------------------------------------------------------
+function UI.CheckMenu(parent, text, w, items, onChange)
+  local b = UI.Button(parent, text, w, nil, 22)
+  b.label:ClearAllPoints()
+  b.label:SetPoint("LEFT", 8, 0)
+  b.label:SetPoint("RIGHT", -20, 0)
+  b.label:SetJustifyH("LEFT")
+  local arrow = b:CreateTexture(nil, "OVERLAY")
+  arrow:SetSize(10, 10)
+  arrow:SetPoint("RIGHT", -6, 0)
+  arrow:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+  arrow:SetRotation(-math.pi / 2)
+  arrow:SetVertexColor(unpack(S.gold))
+  local RH = 22
+  local menu = UI.Panel(nil, UIParent, 200, 10)
+  menu:SetFrameStrata("FULLSCREEN_DIALOG")
+  menu:SetClampedToScreen(true)
+  menu:Hide()
+  menu.anchor = b
+  autoClose(menu)
+  local checks = {}
+  local widest = 0
+  for i, it in ipairs(items) do
+    local cb = UI.Check(menu, it[1], it[2], function(v) it[3](v) if onChange then onChange() end b:Refresh() end, it[4])
+    cb:SetPoint("TOPLEFT", 10, -8 - (i - 1) * RH)
+    checks[i] = cb
+    widest = math.max(widest, cb.label:GetStringWidth())
+  end
+  menu:SetSize(math.max(w, widest + 44), 12 + #items * RH)
+  -- the button shows how many are on
+  function b:Refresh()
+    local n = 0
+    for _, it in ipairs(items) do if it[2]() then n = n + 1 end end
+    self:SetText(n > 0 and ("%s (%d)"):format(text, n) or text)
+  end
+  b:SetScript("OnClick", function()
+    if menu:IsShown() then menu:Hide() return end
+    if openMenu and openMenu ~= menu then openMenu:Hide() end
+    openMenu = menu
+    for _, cb in ipairs(checks) do cb:Refresh() end
+    menu:SetScale(b:GetEffectiveScale() / UIParent:GetEffectiveScale())
+    menu:ClearAllPoints()
+    menu:SetPoint("TOPRIGHT", b, "BOTTOMRIGHT", 0, -2)
+    menu:Show()
+  end)
+  b:HookScript("OnHide", function() menu:Hide() end)
+  b:HookScript("OnShow", function(self) self:Refresh() end) -- saved settings aren't loaded yet at build time
+  return b
+end
+
+------------------------------------------------------------------------
 -- Close button: a flat X drawn with two lines
 ------------------------------------------------------------------------
 function UI.Close(parent, onClick)

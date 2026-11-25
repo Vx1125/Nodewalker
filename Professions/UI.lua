@@ -36,27 +36,38 @@ NW.On("GET_ITEM_INFO_RECEIVED", function() page.dirty = true end)
 ------------------------------------------------------------------------
 -- Left: professions
 ------------------------------------------------------------------------
-local LIST_W = 196
-local list = UI.Box(page, LIST_W, #NW.PROFS * 34 + 10)
+local LIST_W, PROF_H = 164, 30
+local list = UI.Box(page, LIST_W, #NW.PROFS * PROF_H + 8)
 list:SetPoint("TOPLEFT", 16, -8)
 local profRows = {}
 local mode, openMode, craftClick, knowsRecipe
 local firstOpen = true -- the first look picks the view that fits your skill
 for i, p in ipairs(NW.PROFS) do
   local b = CreateFrame("Button", nil, list)
-  b:SetSize(LIST_W - 2, 34)
-  b:SetPoint("TOPLEFT", 1, -5 - (i - 1) * 34)
+  b:SetSize(LIST_W - 2, PROF_H)
+  b:SetPoint("TOPLEFT", 1, -4 - (i - 1) * PROF_H)
   UI.RowHighlight(b)
   b.icon = b:CreateTexture(nil, "ARTWORK")
-  b.icon:SetSize(22, 22)
-  b.icon:SetPoint("LEFT", 8, 0)
+  b.icon:SetSize(20, 20)
+  b.icon:SetPoint("LEFT", 7, 0)
   b.icon:SetTexture(p.icon)
   b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   b.name = UI.Text(b, 12, S.text)
-  b.name:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
+  b.name:SetPoint("LEFT", b.icon, "RIGHT", 7, 0)
+  b.name:SetPoint("RIGHT", -30, 0)
+  b.name:SetWordWrap(false)
   b.name:SetText(p.name)
   b.skill = UI.Text(b, 11, S.dim, "RIGHT")
-  b.skill:SetPoint("RIGHT", -8, 0)
+  b.skill:SetPoint("RIGHT", -6, 0)
+  -- a profession whose recipes Nodewalker hasn't read yet says so here
+  b:HookScript("OnEnter", function(self)
+    if not self.unread then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(p.name, 1, 1, 1)
+    GameTooltip:AddLine("Open it once so Nodewalker sees which recipes you know.", S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:Show()
+  end)
+  b:HookScript("OnLeave", GameTooltip_Hide)
   b.prof = p
   b:SetScript("OnClick", function()
     if selected ~= p.key then mode = openMode(p.key) end
@@ -79,7 +90,7 @@ listNote:SetText("Open your profession window once so Nodewalker sees which reci
 ------------------------------------------------------------------------
 -- Middle: header, options, steps
 ------------------------------------------------------------------------
-local MID_X, MID_W = 16 + LIST_W + 16, 488
+local MID_X, MID_W = 16 + LIST_W + 12, 508
 local mid = CreateFrame("Frame", nil, page)
 mid:SetPoint("TOPLEFT", MID_X, -8)
 mid:SetSize(MID_W, 530)
@@ -203,22 +214,36 @@ priceLine:SetWidth(MID_W)
 priceLine:SetHeight(26)
 priceLine:SetJustifyV("TOP")
 
--- Profit: only recipes your bags can make now
-local haveMats = UI.Check(mid, "Have materials", function() return st().profitHaveMats end, function(v)
-  st().profitHaveMats = v
+-- Profit: how to order it, a floor on what's worth it, and less-used filters
+local profitCtl = CreateFrame("Frame", nil, mid)
+profitCtl:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, 0)
+profitCtl:SetSize(MID_W, 24)
+profitCtl:Hide()
+local sortDrop = UI.Dropdown(profitCtl, 168, "Sort", {
+  { "profit", "Profit each" }, { "roi", "Return" }, { "total", "Total I can make" },
+  { "cheap", "Cheapest materials" }, { "count", "Most I can make" },
+}, function() return st().profitSort or "profit" end, function(v)
+  st().profitSort = v
   refresh()
-end, "Only recipes you know and have the materials for in your bags.")
-haveMats:SetPoint("TOPLEFT", optRow, "TOPLEFT", MID_W - 128, -3)
-haveMats:Hide()
--- Profit: leave out crafts that earn too little to bother with
-local minProfit = UI.Dropdown(mid, 124, "At least", {
+end, 128)
+sortDrop:SetPoint("LEFT", 0, 0)
+local minProfit = UI.Dropdown(profitCtl, 132, "At least", {
   { 0, "Any" }, { 1000, NW.Money(1000, true) }, { 5000, NW.Money(5000, true) }, { 10000, NW.Money(10000, true) }, { 50000, NW.Money(50000, true) },
 }, function() return st().profitMin or 1000 end, function(v)
   st().profitMin = v
   refresh()
-end, 62, "Hides crafts that earn less than this each.")
-minProfit:SetPoint("TOPRIGHT", haveMats, "TOPLEFT", -12, 2)
-minProfit:Hide()
+end, 66, "Profit each, after the auction cut.")
+minProfit:SetPoint("LEFT", sortDrop, "RIGHT", 18, 0)
+local profitFilters = UI.CheckMenu(profitCtl, "Filters", 100, {
+  { "Have materials", function() return st().profitHaveMats end, function(v) st().profitHaveMats = v end,
+    "Only recipes your bags can make now." },
+  { "Complete prices only", function() return st().profitComplete end, function(v) st().profitComplete = v or nil end,
+    "Leave out recipes with a material or result that has no auction price." },
+  { "10% return or more", function() return st().profitMinRoi end, function(v) st().profitMinRoi = v or nil end },
+  { "Recent prices only", function() return st().profitFresh end, function(v) st().profitFresh = v or nil end,
+    "Leave out results Auctionator last saw 3 or more days ago." },
+}, function() refresh() end)
+profitFilters:SetPoint("RIGHT", 0, 0)
 
 -- Search: filters the list below (recipes, materials, zones)
 local search = CreateFrame("EditBox", nil, mid, "BackdropTemplate")
@@ -294,8 +319,10 @@ function NW.CraftStatus(msg)
   if page:IsShown() then refresh() end
   C_Timer.After(4.1, function() if page:IsShown() then refresh() end end)
 end
-local stepsBox = UI.Box(mid, MID_W, 382)
-stepsBox:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -38)
+local STEP_H, STEP_ROWS = 40, 10
+local STEPS_BOX_H = STEP_H * STEP_ROWS + 2
+local stepsBox = UI.Box(mid, MID_W, STEPS_BOX_H)
+stepsBox:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -32)
 -- What each column is, per view
 local caps = {}
 for i, c in ipairs({ { "BOTTOMLEFT", "TOPLEFT", 9 }, { "BOTTOMLEFT", "TOPLEFT", 73 }, { "BOTTOMRIGHT", "TOPRIGHT", -107 }, { "BOTTOMRIGHT", "TOPRIGHT", -19 } }) do
@@ -310,7 +337,6 @@ local CAPS = {
   gather = { "Skill", "Gather", "", "" },
 }
 stepsBox:EnableMouseWheel(true)
-local STEP_H, STEP_ROWS = 47, 8
 local stepRows = {}
 local stepOffset = 0
 local steps = {}
@@ -329,38 +355,57 @@ for i = 1, STEP_ROWS do
   bg:SetAllPoints()
   bg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.025 or 0)
   row.range = UI.Text(row, 12, S.gold)
-  row.range:SetPoint("TOPLEFT", 8, -7)
+  row.range:SetPoint("TOPLEFT", 8, -5)
   row.range:SetWidth(62)
   row.icon = row:CreateTexture(nil, "ARTWORK")
-  row.icon:SetSize(18, 18)
-  row.icon:SetPoint("TOPLEFT", 72, -4)
+  row.icon:SetSize(20, 20)
+  row.icon:SetPoint("TOPLEFT", 70, -2)
   row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   row.name = UI.Text(row, 12, S.text)
   row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-  row.name:SetWidth(250)
+  row.name:SetWidth(270)
   row.name:SetWordWrap(false)
   row.crafts = UI.Text(row, 12, S.text, "RIGHT")
-  row.crafts:SetPoint("TOPRIGHT", -96, -7)
+  row.crafts:SetPoint("TOPRIGHT", -96, -5)
   row.cost = UI.Text(row, 12, S.text, "RIGHT")
-  row.cost:SetPoint("TOPRIGHT", -8, -7)
+  row.cost:SetPoint("TOPRIGHT", -8, -5)
   row.mats = UI.Text(row, 11, S.dim)
-  row.mats:SetPoint("TOPLEFT", 72, -27)
-  row.mats:SetWidth(MID_W - 92)
+  row.mats:SetPoint("TOPLEFT", 96, -24)
+  row.mats:SetWidth(MID_W - 116)
   row.mats:SetWordWrap(false)
   -- Craft what this row makes, as many as your bags allow
-  row.craft = UI.Button(row, "", 78, function(self) craftClick(self) end, 18)
-  row.craft:SetPoint("BOTTOMRIGHT", -6, 4)
+  row.craft = UI.Button(row, "", 64, function(self) craftClick(self) end, 17)
+  row.craft.label:SetFont(UI.FONT, 11, "")
+  row.craft:SetPoint("BOTTOMRIGHT", -6, 3)
   row.craft:Hide()
+  row.craft:HookScript("OnEnter", function(self)
+    if not self.why then return end
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:SetText(self.why, 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  row.craft:HookScript("OnLeave", GameTooltip_Hide)
   function row:SetCraft(key, r, want)
     local can = r and NW.CanCraft(key, r)
     local n = can and math.min(can, want or can) or 0
     local b = self.craft
     -- any recipe you know gets the button; it's dim until your bags can make one
     b:SetShown(can ~= nil or knowsRecipe(key, r))
-    self.mats:SetWidth(MID_W - 92 - (b:IsShown() and 84 or 0))
+    self.mats:SetWidth(MID_W - 116 - (b:IsShown() and 70 or 0))
     b.key, b.r, b.n = key, r, n
-    b:SetText(n > 0 and ("Craft " .. n) or "Craft")
+    b:SetText(n > 1 and ("Craft " .. n) or "Craft")
     b:SetAlpha(n > 0 and 1 or 0.45)
+    -- why it can't, for the tooltip
+    b.why = nil
+    if b:IsShown() and n < 1 then
+      if can == nil then
+        local prof = NW.PROF_BY_KEY[key]
+        b.why = ("Open %s once to craft from here."):format(prof and prof.name or "the profession")
+      else
+        local id, short = NW.CraftMissing(r)
+        b.why = id and ("Need %d more %s."):format(short, (itemName(id))) or "Missing materials."
+      end
+    end
   end
   row:SetScript("OnEnter", function(self)
     local stp = self.step
@@ -431,13 +476,13 @@ local function makeScroller(box, boxH, visible, getCount, getOffset, setOffset)
   track:EnableMouse(true)
   local bg = track:CreateTexture(nil, "BACKGROUND")
   bg:SetAllPoints()
-  bg:SetColorTexture(1, 1, 1, 0.04)
+  bg:SetColorTexture(S.edge[1], S.edge[2], S.edge[3], 0.35)
   local thumb = CreateFrame("Frame", nil, track)
   thumb:SetWidth(8)
   thumb:EnableMouse(true)
   local tex = thumb:CreateTexture(nil, "OVERLAY")
-  tex:SetPoint("TOPLEFT", 2, 0)
-  tex:SetPoint("BOTTOMRIGHT", -2, 0)
+  tex:SetPoint("TOPLEFT", 1, 0)
+  tex:SetPoint("BOTTOMRIGHT", -1, 0)
   tex:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.55)
   thumb:SetScript("OnEnter", function() tex:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.9) end)
   thumb:SetScript("OnLeave", function() if not thumb.dragging then tex:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.55) end end)
@@ -469,6 +514,7 @@ local function makeScroller(box, boxH, visible, getCount, getOffset, setOffset)
     tex:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], self:IsMouseOver() and 0.9 or 0.55)
   end)
   track:SetScript("OnMouseDown", function() setFromCursor() end)
+  function sc:SetVisible(h, n) trackH, visible = h - 4, n end
   function sc:Update()
     local n = getCount()
     if n <= visible then track:Hide() return end
@@ -484,7 +530,7 @@ end
 local drawSteps
 local scrollDraw
 local function redrawSteps() if scrollDraw then scrollDraw() else drawSteps() end end
-local stepScroll = makeScroller(stepsBox, 382, STEP_ROWS, function() return #steps end,
+local stepScroll = makeScroller(stepsBox, STEPS_BOX_H, STEP_ROWS, function() return #steps end,
   function() return stepOffset end, function(v) stepOffset = v; redrawSteps() end)
 stepsBox:SetScript("OnMouseWheel", function(_, d)
   stepOffset = math.max(0, math.min(math.max(0, #steps - STEP_ROWS), stepOffset - d))
@@ -494,7 +540,7 @@ end)
 ------------------------------------------------------------------------
 -- Right: shopping list (crafting) or extra info (gathering)
 ------------------------------------------------------------------------
-local RIGHT_X = MID_X + MID_W + 16
+local RIGHT_X = MID_X + MID_W + 12
 local RIGHT_W = 1020 - RIGHT_X - 16
 local right = CreateFrame("Frame", nil, page)
 right:SetPoint("TOPLEFT", RIGHT_X, -8)
@@ -518,17 +564,6 @@ local targetSlider = UI.Slider(right, RIGHT_W, "Level to", 25, 300, 5, function(
     refresh()
   end)
 targetSlider:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -10)
-local cardBack = UI.Button(right, "", RIGHT_W, function()
-  if not card then return end
-  local prev = table.remove(card.stack)
-  if prev then card.r, card.key = prev.r, prev.key else card = nil end
-  refresh()
-end, 24)
-cardBack:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -14)
-cardBack:Hide()
-local cardCraft = UI.Button(right, "Craft", 96, function(self) craftClick(self) end, 24, "primary")
-cardCraft:SetPoint("TOPRIGHT", rTotal, "BOTTOMLEFT", RIGHT_W, -14)
-cardCraft:Hide()
 local KEY = "|cffff8040Orange|r recipes always skill up, |cffffff00yellow|r often, |cff40bf40green|r rarely.\n"
   .. "|cffe0dbd06/78|r have / need  ·  |cffe0dbd0v|r vendor  ·  |cffd17665~|r guessed, no auction price  ·  |cffffd133!|r odd price or few listed (hover)\n"
   .. "Shift-click anything to search the auction house.\n\n"
@@ -536,6 +571,7 @@ local shopBox = UI.Box(right, RIGHT_W, 240)
 shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
 shopBox:EnableMouseWheel(true)
 local SHOP_H, SHOP_ROWS = 26, 9
+local shopVisible = SHOP_ROWS -- the opened recipe shows only as many rows as it has materials
 local RECIPE_PREFIX, sourceText -- set further down
 -- Shift-click: put an item (or a recipe's spell) into chat. With no chat box
 -- open, `open` starts one. Returns true when the link went somewhere.
@@ -698,7 +734,7 @@ local drawShop
 local shopScroll = makeScroller(shopBox, 240, SHOP_ROWS, function() return #shop end,
   function() return shopOffset end, function(v) shopOffset = v; drawShop() end)
 shopBox:SetScript("OnMouseWheel", function(_, d)
-  shopOffset = math.max(0, math.min(math.max(0, #shop - SHOP_ROWS), shopOffset - d))
+  shopOffset = math.max(0, math.min(math.max(0, #shop - shopVisible), shopOffset - d))
   drawShop()
 end)
 local searchBtn = UI.Button(right, "Search all in Auctionator", RIGHT_W, function()
@@ -729,6 +765,113 @@ infoText:SetPoint("TOPLEFT")
 infoText:SetWidth(RIGHT_W)
 infoText:SetJustifyV("TOP")
 infoText:SetSpacing(3)
+
+------------------------------------------------------------------------
+-- The opened recipe (Profit and Missing recipes): header, money, materials, actions
+------------------------------------------------------------------------
+local CW = {} -- the opened recipe's widgets (one table: the file is near Lua's local limit)
+local cardFrame = CreateFrame("Frame", nil, right)
+cardFrame:SetPoint("TOPLEFT")
+cardFrame:SetSize(RIGHT_W, 200)
+cardFrame:Hide()
+CW.cIconBox = UI.Box(cardFrame, 38, 38)
+CW.cIconBox:SetPoint("TOPLEFT")
+CW.cIcon = CW.cIconBox:CreateTexture(nil, "ARTWORK")
+CW.cIcon:SetPoint("TOPLEFT", 1, -1)
+CW.cIcon:SetPoint("BOTTOMRIGHT", -1, 1)
+CW.cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+CW.cName = UI.Text(cardFrame, 13, S.text)
+CW.cName:SetPoint("TOPLEFT", CW.cIconBox, "TOPRIGHT", 8, -2)
+CW.cName:SetPoint("RIGHT", -24, 0)
+CW.cName:SetWordWrap(false)
+CW.cProf = UI.Text(cardFrame, 11, S.dim)
+CW.cProf:SetPoint("TOPLEFT", CW.cName, "BOTTOMLEFT", 0, -4)
+CW.cProf:SetPoint("RIGHT", -4, 0)
+CW.cProf:SetWordWrap(false)
+CW.cClose = UI.Close(cardFrame, function() card = nil refresh() end)
+CW.cClose:SetPoint("TOPRIGHT", 2, 2)
+CW.cSource = UI.Text(cardFrame, 11, S.dim)
+CW.cSource:SetPoint("TOPLEFT", CW.cIconBox, "BOTTOMLEFT", 0, -6)
+CW.cSource:SetWidth(RIGHT_W)
+CW.cSource:SetJustifyV("TOP")
+if CW.cSource.SetMaxLines then CW.cSource:SetMaxLines(2) end
+
+-- Money in a 2x2 grid: what it's worth, what goes in, what's left, what to buy
+CW.CELL_W, CW.CELL_H = math.floor((RIGHT_W - 4) / 2), 36
+CW.cells = {}
+CW.grid = CreateFrame("Frame", nil, cardFrame)
+CW.grid:SetSize(RIGHT_W, CW.CELL_H * 2 + 4)
+CW.grid:SetPoint("TOPLEFT", CW.cSource, "BOTTOMLEFT", 0, -8)
+for i = 1, 4 do
+  local c = CreateFrame("Frame", nil, CW.grid)
+  c:SetSize(CW.CELL_W, CW.CELL_H)
+  c:SetPoint("TOPLEFT", ((i - 1) % 2) * (CW.CELL_W + 4), -math.floor((i - 1) / 2) * (CW.CELL_H + 4))
+  local bg = c:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  bg:SetColorTexture(unpack(S.sunk))
+  c.label = UI.Text(c, 10, S.dim)
+  c.label:SetPoint("TOPLEFT", 7, -5)
+  c.value = UI.Text(c, 13, S.text)
+  c.value:SetPoint("BOTTOMLEFT", 7, 5)
+  c.value:SetPoint("RIGHT", -6, 0)
+  c.value:SetWordWrap(false)
+  c:EnableMouse(true)
+  c:SetScript("OnEnter", function(self)
+    if not self.tip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:SetText(self.label:GetText(), 1, 1, 1)
+    GameTooltip:AddLine(self.tip, S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:Show()
+  end)
+  c:SetScript("OnLeave", GameTooltip_Hide)
+  CW.cells[i] = c
+end
+CW.cAge = UI.Text(cardFrame, 10, S.dim)
+CW.cAge:SetPoint("TOPLEFT", CW.grid, "BOTTOMLEFT", 0, -5)
+CW.cAge:SetWidth(RIGHT_W)
+CW.cAge:SetWordWrap(false)
+CW.cMatsHead = UI.Text(cardFrame, 12, S.gold)
+CW.cMatsHead:SetPoint("TOPLEFT", CW.cAge, "BOTTOMLEFT", 0, -10)
+CW.cMatsHead:SetText("Materials")
+CW.cMatsCount = UI.Text(cardFrame, 11, S.dim, "RIGHT")
+CW.cMatsCount:SetPoint("BOTTOMRIGHT", CW.cMatsHead, "BOTTOMLEFT", RIGHT_W, 0)
+
+-- Actions under the materials
+CW.HALF = math.floor((RIGHT_W - 6) / 2)
+local cardCraft = UI.Button(right, "Craft", CW.HALF, function(self) craftClick(self) end, 24, "primary")
+cardCraft:HookScript("OnEnter", function(self)
+  if not self.why then return end
+  GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+  GameTooltip:SetText(self.why, 1, 1, 1, true)
+  GameTooltip:Show()
+end)
+cardCraft:HookScript("OnLeave", GameTooltip_Hide)
+function CW.cardSearch(what)
+  if not card then return end
+  local items = {}
+  if what == "item" then
+    local n, ok = itemName(card.r.item)
+    if ok then items[1] = { n, 1 } end
+  else
+    for _, e in ipairs(shop) do
+      local n, ok = itemName(e.id)
+      local qty = what == "all" and e.need or e.buy
+      if ok and qty > 0 and e.src ~= "vendor" then items[#items + 1] = { n, qty } end
+    end
+  end
+  if not searchAH(items) then NW.Print("Open the auction house with Auctionator to search.") end
+end
+CW.cardMissing = UI.Button(right, "Search missing", CW.HALF, function() CW.cardSearch("missing") end, 24)
+CW.cardAll = UI.Button(right, "Search all materials", CW.HALF, function() CW.cardSearch("all") end, 24)
+CW.cardItem = UI.Button(right, "Search the item", CW.HALF, function() CW.cardSearch("item") end, 24)
+local cardBack = UI.Button(right, "", RIGHT_W, function()
+  if not card then return end
+  local prev = table.remove(card.stack)
+  if prev then card.r, card.key = prev.r, prev.key else card = nil end
+  refresh()
+end, 22)
+CW.cardButtons = { cardCraft, CW.cardMissing, CW.cardAll, CW.cardItem, cardBack }
+for _, b in ipairs(CW.cardButtons) do b:Hide() end
 
 ------------------------------------------------------------------------
 -- Drawing: crafting
@@ -834,7 +977,7 @@ end
 drawShop = function()
   shopScroll:Update()
   for i, row in ipairs(shopRows) do
-    local e = shop[i + shopOffset]
+    local e = i <= shopVisible and shop[i + shopOffset] or nil
     row.entry = e
     if e then
       row:Show()
@@ -843,6 +986,13 @@ drawShop = function()
       row.icon:SetTexture(e.id and itemIcon(e.id) or "Interface\\Icons\\INV_Scroll_03")
       row.name:SetText("|cffff8040" .. e.term .. "|r")
       row.cost:SetText((e.buy == 0 and "|cff94ba78have|r") or (e.cost and NW.Money(e.cost, "mid")) or "|cff938c80find|r")
+    elseif e and card then
+      -- have/need, the name (gold: you can make it), and what's still to buy
+      row.icon:SetTexture(itemIcon(e.id))
+      local ok = e.have >= e.need
+      row.name:SetText(("%s%d|r|cff938c80/%d|r  %s%s|r"):format(ok and "|cff94ba78" or "|cffd17665", math.min(e.have, e.need), e.need,
+        e.maker and "|cffd6b266" or "|cffe0dbd0", (itemName(e.id))))
+      row.cost:SetText(ok and "|cff94ba78Have|r" or e.cost and NW.Money(e.cost, "mid") or "|cff938c80No price|r")
     elseif e then
       row.icon:SetTexture(itemIcon(e.id))
       local have = e.have > 0 and ("|cff94ba78%d|r/"):format(math.min(e.have, e.need)) or ""
@@ -860,7 +1010,7 @@ end
 local viewChanged, lastView = true, nil
 local function clampOffsets()
   stepOffset = math.max(0, math.min(stepOffset, math.max(0, #steps - STEP_ROWS)))
-  shopOffset = math.max(0, math.min(shopOffset, math.max(0, #shop - SHOP_ROWS)))
+  shopOffset = math.max(0, math.min(shopOffset, math.max(0, #shop - shopVisible)))
 end
 
 local function has(text)
@@ -993,7 +1143,7 @@ local function drawCraft(p)
   local ah = NW.HasAuctionator()
   local nextUp = rankLine(p.key)
   priceLine:SetText(not ah and "|cffd17665Auctionator isn't loaded:|r using vendor prices and rough estimates. Install or enable it for live prices."
-    or nextUp or "Buy the shopping list on the right, then craft each step in order.")
+    or nextUp or "")
 end
 
 ------------------------------------------------------------------------
@@ -1353,13 +1503,18 @@ local function drawProfitRows(key)
       row.icon:Show()
       row.crafts:SetText("")
       if e.profit then
-        local pct = e.cost > 0 and math.floor(e.profit / e.cost * 100 + 0.5) or nil
         local col = e.profit > 0 and "94ba78" or "d17665"
-        row.range:SetText(pct and ("|cff%s%s%d%%|r"):format(col, pct > 0 and "+" or "", math.max(-999, math.min(999, pct))) or "")
-        row.name:SetText(("|cff%s%s|r%s"):format(e.profit > 0 and "ffffff" or "938c80", r.name, e.known and "" or "  |cff938c80not known|r"))
-        row.cost:SetText(signedMoney(e.profit))
-        row.mats:SetText(("%s %s  ·  materials %s%s%s"):format(e.de and "Disenchants" or "Sells", NW.Money(e.sale, "mid"), NW.Money(e.cost, "mid"),
-          (r.yield or 1) > 1 and ("  ·  makes %d"):format(r.yield) or "", e.unknown and "  ·  |cffd6b266some prices missing|r" or ""))
+        row.range:SetText(e.roi and ("|cff%s%s%d%%|r"):format(col, e.roi > 0 and "+" or "", math.max(-999, math.min(999, e.roi))) or "")
+        row.name:SetText(("|cff%s%s|r%s"):format(e.profit > 0 and "e0dbd0" or "938c80", r.name, e.known and "" or "  |cff938c80not known|r"))
+        row.cost:SetText((e.unknown and "|cff938c80~|r" or "") .. signedMoney(e.profit))
+        local parts = {
+          ("%s %s"):format(e.de and "Disenchants" or "Sells", NW.Money(e.sale, "mid")),
+          "materials " .. NW.Money(e.cost, "mid") .. (e.unknown and " |cffd17665+?|r" or ""),
+        }
+        if e.count > 0 and e.profit > 0 then parts[#parts + 1] = ("|cffe0dbd0%d now, %s|r"):format(e.count, signedMoney(e.total)) end
+        if (r.yield or 1) > 1 then parts[#parts + 1] = ("makes %d"):format(r.yield) end
+        if e.age and e.age >= 3 then parts[#parts + 1] = ("|cffd6b266price %dd old|r"):format(e.age) end
+        row.mats:SetText(table.concat(parts, "  ·  "))
       else
         row.range:SetText("")
         row.name:SetText(("|cff938c80%s|r"):format(r.name))
@@ -1387,7 +1542,12 @@ local function drawProfit(p)
         local makeable = not st().profitHaveMats or (NW.CanCraft(p.key, r) or 0) > 0
         if (isKnown or all) and makeable and (isKnown or not NW.NotYet(r)) then
           local profit, cost, sale, unknown, de = NW.RecipeProfit(r)
-          out[#out + 1] = { r = r, profit = profit, cost = cost or 0, sale = sale, unknown = unknown, known = isKnown, de = de }
+          cost = cost or 0
+          -- return on what goes in; what your bags can make now, and what that earns
+          local count = isKnown and (NW.CanCraft(p.key, r) or 0) or 0
+          out[#out + 1] = { r = r, profit = profit, cost = cost, sale = sale, unknown = unknown, known = isKnown, de = de,
+            roi = profit and cost > 0 and math.floor(profit / cost * 100 + 0.5) or nil,
+            count = count, total = profit and profit * count or 0, age = sale and NW.PriceAge(r.item) or nil }
         end
       end
     end
@@ -1398,8 +1558,29 @@ local function drawProfit(p)
     for _, re in ipairs(r.reagents) do if has((itemName(re[1]))) then return true end end
     return false
   end)
+  -- less-used filters
+  local s0 = st()
+  if s0.profitComplete or s0.profitMinRoi or s0.profitFresh then
+    local kept = {}
+    for _, e in ipairs(steps) do
+      if not (s0.profitComplete and (not e.profit or e.unknown))
+        and not (s0.profitMinRoi and not (e.roi and e.roi >= 10))
+        and not (s0.profitFresh and (not e.age or e.age >= 3)) then
+        kept[#kept + 1] = e
+      end
+    end
+    steps = kept
+  end
+  -- profit each first: a big return on a copper craft isn't worth more than gold on a modest one
+  local by = s0.profitSort or "profit"
+  local key = ({ roi = "roi", total = "total", count = "count" })[by]
   table.sort(steps, function(a, b)
     if (a.profit ~= nil) ~= (b.profit ~= nil) then return a.profit ~= nil end
+    if by == "cheap" and a.cost ~= b.cost then return a.cost < b.cost end
+    if key then
+      local x, y = a[key] or -math.huge, b[key] or -math.huge
+      if x ~= y then return x > y end
+    end
     if a.profit and a.profit ~= b.profit then return a.profit > b.profit end
     return a.r.name < b.r.name
   end)
@@ -1426,26 +1607,34 @@ local function drawProfit(p)
   drawProfitRows(p.key)
   hCost:SetText(("%d worth making"):format(worth))
   hCostSub:SetText(("of %d recipes"):format(#everything))
-  priceLine:SetText(NW.HasAuctionator()
-    and "Best first. Click one for its materials."
+  priceLine:SetText(NW.HasAuctionator() and ""
     or "|cffd17665Auctionator isn't loaded:|r profit needs its auction prices.")
+  local stale, canNow, nowTotal = 0, 0, 0
+  for _, e in ipairs(everything) do
+    if e.age and e.age >= 3 then stale = stale + 1 end
+    if e.count > 0 and e.profit and e.profit > 0 then canNow = canNow + 1 nowTotal = nowTotal + e.total end
+  end
   local lines = {
     ("|cff94ba78%d|r make a profit"):format(good),
     ("|cffd17665%d|r cost more than they sell for"):format(bad),
     ("%d with no auction price"):format(none),
-    "",
-    "|cffd6b266How it's worked out|r",
-    "Sale price less the 5% auction cut, minus materials.",
-    "|cff938c80% is profit over materials. Deposits aren't counted.|r",
-    "|cff938c80Gear counts disenchant value when it pays more.|r",
-    "",
-    "|cffd6b266Click|r: materials",
-    "|cffd6b266Shift-click|r: search the auction house",
   }
+  if stale > 0 then lines[#lines + 1] = ("|cffd6b266%d|r with prices 3+ days old"):format(stale) end
+  if canNow > 0 then
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = ("Your bags can make |cffe0dbd0%d|r of them, for %s"):format(canNow, signedMoney(nowTotal))
+  end
+  for _, l in ipairs({
+    "",
+    "|cffd6b266Profit each|r  auction price less the 5% cut, minus every material at today's price, bags included",
+    "|cffd6b266Return|r  profit over material value",
+    "|cff938c80Deposits aren't counted. Gear counts its disenchant value when that pays more. ~ means a price is missing.|r",
+  }) do lines[#lines + 1] = l end
   infoText:SetText(table.concat(lines, "\n"))
 end
 
--- The opened recipe: its materials as a list, each with its price
+-- The opened recipe: header, a money CW.grid, its materials, and what you can do
+CW.MAX_CARD_ROWS = 7
 local function drawCard()
   local r = card.r
   local list = {}
@@ -1465,50 +1654,122 @@ local function drawCard()
       end
     end
     list[#list + 1] = { id = re[1], need = re[2], have = have, buy = buy, live = live,
-      price = price, src = src, cost = cost, full = price and price * re[2] or nil, maker = maker, makerKey = makerKey }
+      price = price, src = src, cost = cost, full = price and src ~= "est" and price * re[2] or nil, maker = maker, makerKey = makerKey }
   end
   shop = list
   shopOffset = 0
-  drawShop()
-  local profit, _, sale, _, de = NW.RecipeProfit(r)
-  rHead.text:SetText(r.name)
-  -- every material at today's price, and what's left to buy after your bags
-  local full, toBuy, unpriced, haveAny = 0, 0, false, false
-  for _, e in ipairs(list) do
-    if e.full and e.src ~= "est" then full = full + e.full else unpriced = true end
-    if e.buy > 0 then
-      if e.cost then toBuy = toBuy + e.cost else unpriced = true end
-    end
-    if e.have > 0 then haveAny = true end
-  end
-  local q = unpriced and "|cffd17665+?|r" or ""
-  local parts = {}
-  if sale then parts[#parts + 1] = (de and "Disenchants " or "Sells ") .. NW.Money(sale, "mid") end
-  parts[#parts + 1] = "materials " .. NW.Money(full, "mid") .. q
-  if haveAny then parts[#parts + 1] = "|cffe0dbd0to buy " .. NW.Money(toBuy, "mid") .. "|r" .. q end
-  if profit then parts[#parts + 1] = "profit " .. signedMoney(profit) end
-  rTotal:SetText(table.concat(parts, "  ·  "))
-  local prev = card.stack[#card.stack]
-  cardBack:SetText(prev and ("< " .. prev.r.name) or "< All recipes")
-  -- a recipe you know can be made from here
-  local can = NW.CanCraft(card.key, r)
-  local craftable = can ~= nil or knowsRecipe(card.key, r)
-  cardCraft:SetShown(craftable)
-  cardBack:SetWidth(craftable and RIGHT_W - 102 or RIGHT_W)
-  cardCraft.key, cardCraft.r, cardCraft.n = card.key, r, can or 0
-  cardCraft:SetText((can or 0) > 0 and ("Craft " .. can) or "Craft")
-  cardCraft:SetAlpha((can or 0) > 0 and 1 or 0.45)
-  -- how you get to make it
+
+  -- header
+  CW.cIcon:SetTexture(recipeIcon(r))
+  local q = r.item and select(3, NW.ItemInfo(r.item))
+  local qc = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
+  CW.cName:SetText(r.name)
+  if qc then CW.cName:SetTextColor(qc.r, qc.g, qc.b) else CW.cName:SetTextColor(unpack(S.text)) end
   local prof = NW.PROF_BY_KEY[card.key]
   local req = r.orange or r.yellow
-  local lines = {
-    ("|cffd6b266%s|r%s"):format(prof and prof.name or "", req and req > 0 and (", skill " .. req) or ""),
-    (sourceText(card.key, r, NW.ProfSkill(card.key))),
-  }
-  if (r.yield or 1) > 1 then lines[#lines + 1] = ("Makes %d per craft"):format(r.yield) end
-  lines[#lines + 1] = ""
-  lines[#lines + 1] = "|cff938c80Hover a material for its prices. Gold ones can be made: click to see how.|r"
-  tips:SetText(table.concat(lines, "\n"))
+  CW.cProf:SetText(("%s%s%s"):format(prof and prof.name or "", req and req > 0 and (" " .. req) or "",
+    (r.yield or 1) > 1 and ("  ·  makes %d"):format(r.yield) or ""))
+  CW.cSource:SetText((sourceText(card.key, r, NW.ProfSkill(card.key))) or "")
+
+  -- money: every material counts at its price, even the ones in your bags
+  local profit, _, sale, _, de = NW.RecipeProfit(r)
+  local full, toBuy, unpriced, missingUnpriced, ready = 0, 0, false, false, 0
+  for _, e in ipairs(list) do
+    if e.full then full = full + e.full else unpriced = true end
+    if e.buy > 0 then
+      if e.cost then toBuy = toBuy + e.cost else missingUnpriced = true end
+    else
+      ready = ready + 1
+    end
+  end
+  local function m(c, partial) return NW.Money(c, "mid") .. (partial and " |cffd17665+?|r" or "") end
+  CW.cells[1].label:SetText(de and "Disenchant value" or "Market value")
+  CW.cells[1].value:SetText(sale and m(sale) or "|cff938c80No price|r")
+  CW.cells[1].value:SetTextColor(unpack(S.text))
+  CW.cells[1].tip = sale and (de and "Its dust at auction, less the 5% cut." or "Auction price less the 5% cut. Not a promise it sells.") or nil
+  CW.cells[2].label:SetText("Material value")
+  CW.cells[2].value:SetText((full > 0 or not unpriced) and m(full, unpriced) or "|cff938c80No price|r")
+  CW.cells[2].tip = "Every material at today's price, including what's in your bags."
+  CW.cells[3].label:SetText("Estimated profit")
+  if profit and not unpriced then
+    CW.cells[3].value:SetText((profit >= 0 and "+" or "-") .. NW.Money(math.abs(profit), "mid"))
+    CW.cells[3].value:SetTextColor(unpack(profit >= 0 and S.good or S.bad))
+  else
+    CW.cells[3].value:SetText(profit and ("~" .. NW.Money(math.abs(profit), "mid")) or "|cff938c80Unknown|r")
+    CW.cells[3].value:SetTextColor(unpack(S.dim))
+  end
+  CW.cells[3].tip = "Market value minus material value. Deposits aren't counted."
+  CW.cells[4].label:SetText("To buy")
+  if toBuy > 0 or missingUnpriced then
+    CW.cells[4].value:SetText(m(toBuy, missingUnpriced))
+    CW.cells[4].value:SetTextColor(unpack(S.gold))
+  else
+    CW.cells[4].value:SetText("Nothing")
+    CW.cells[4].value:SetTextColor(unpack(S.good))
+  end
+  CW.cells[4].tip = "Gold you'd spend on the materials you don't have."
+
+  -- how old the price for what it makes is
+  local age = r.item and NW.PriceAge(r.item)
+  if not sale then
+    CW.cAge:SetText("|cff938c80No auction data for what it makes|r")
+  elseif age == nil then
+    CW.cAge:SetText("")
+  elseif age >= 3 then
+    CW.cAge:SetText(("|cffd6b266Auction price %d days old|r"):format(age))
+  else
+    CW.cAge:SetText(age == 0 and "Auction price from today" or ("Auction price %d day%s old"):format(age, age == 1 and "" or "s"))
+  end
+
+  -- materials: as many rows as it has, up to a few
+  CW.cMatsCount:SetText(("%d/%d available"):format(ready, #list))
+  shopVisible = math.min(#list, CW.MAX_CARD_ROWS)
+  local boxH = math.max(1, shopVisible) * SHOP_H + 4
+  shopBox:SetHeight(boxH)
+  shopScroll:SetVisible(boxH, shopVisible)
+  shopBox:ClearAllPoints()
+  shopBox:SetPoint("TOPLEFT", CW.cMatsHead, "BOTTOMLEFT", 0, -6)
+  drawShop()
+
+  -- actions
+  local can = NW.CanCraft(card.key, r)
+  local craftable = can ~= nil or knowsRecipe(card.key, r)
+  cardCraft.key, cardCraft.r, cardCraft.n = card.key, r, can or 0
+  cardCraft:SetText((can or 0) > 1 and ("Craft " .. can) or "Craft")
+  cardCraft:SetAlpha((can or 0) > 0 and 1 or 0.45)
+  cardCraft.why = nil
+  if craftable and (can or 0) < 1 then
+    if can == nil then
+      cardCraft.why = ("Open %s once to craft from here."):format(prof and prof.name or "the profession")
+    else
+      local id, short = NW.CraftMissing(r)
+      cardCraft.why = id and ("Need %d more %s."):format(short, (itemName(id))) or "Missing materials."
+    end
+  end
+  for _, b in ipairs(CW.cardButtons) do b:Hide() end
+  local below = shopBox
+  local function under(b) b:ClearAllPoints() b:SetPoint("TOPLEFT", below, "BOTTOMLEFT", 0, -8) b:Show() end
+  local function beside(b, left) b:ClearAllPoints() b:SetPoint("LEFT", left, "RIGHT", 6, 0) b:Show() end
+  -- the main thing to do now: craft it, and buy what's missing
+  local missing = toBuy > 0 or missingUnpriced
+  if craftable then
+    under(cardCraft)
+    if missing then beside(CW.cardMissing, cardCraft) end
+    below = cardCraft
+  elseif missing then
+    under(CW.cardMissing)
+    below = CW.cardMissing
+  end
+  -- the other searches
+  under(CW.cardAll)
+  if r.item then beside(CW.cardItem, CW.cardAll) end
+  below = CW.cardAll
+  -- back to the recipe you came from
+  local prev = card.stack[#card.stack]
+  if prev then
+    cardBack:SetText("< " .. prev.r.name)
+    under(cardBack)
+  end
 end
 
 local function drawMissing(p)
@@ -1714,6 +1975,8 @@ refresh = function()
     b.name:SetTextColor(unpack(rank and S.text or S.dim))
     b.icon:SetDesaturated(not rank)
     b:SetSelected(b.prof.key == selected)
+    local k = NW.charDB.known[b.prof.key]
+    b.unread = b.prof.kind == "craft" and rank ~= nil and not (k and next(k) ~= nil)
   end
   -- only nag about the profession window while a craft you have is unread
   local unread = false
@@ -1723,7 +1986,7 @@ refresh = function()
       if not (k and next(k) ~= nil) then unread = true end
     end
   end
-  listNote:SetShown(unread)
+  listNote:Hide()
   local p = NW.PROF_BY_KEY[selected]
   local vk = selected .. ":" .. mode .. ":" .. searchText
   viewChanged = vk ~= lastView
@@ -1747,17 +2010,16 @@ refresh = function()
   -- Leveling has its options row with one line under it; the list views
   -- use both rows for their description
   priceLine:ClearAllPoints()
-  if isMissing then
+  if isMissing and not isProfit then
     priceLine:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, -2)
     priceLine:SetHeight(36)
   else
     priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -5)
     priceLine:SetHeight(13)
   end
-  haveMats:SetShown(isProfit)
-  minProfit:SetShown(isProfit)
-  if isProfit then haveMats:Refresh() minProfit:Refresh() end
-  priceLine:SetWidth(isProfit and MID_W - 290 or MID_W)
+  profitCtl:SetShown(isProfit)
+  if isProfit then sortDrop:Refresh() minProfit:Refresh() profitFilters:Refresh() end
+  priceLine:SetWidth(MID_W)
   local capSet = CAPS[isProfit and "profit" or isMissing and "missing" or isCraft and "plan" or "gather"]
   for i, t in ipairs(caps) do t:SetText(capSet[i]) end
   -- an opened recipe belongs to the Profit view of one profession
@@ -1769,12 +2031,21 @@ refresh = function()
   optRow:SetShown(planPanel)
   priceLine:SetShown(isCraft)
   shopBox:SetShown(planPanel or showCard)
-  searchBtn:SetShown(planPanel or showCard)
-  tips:SetShown(planPanel or showCard)
+  searchBtn:SetShown(planPanel)
+  tips:SetShown(planPanel)
   tips:SetText(KEY .. (NW.PROF_TIPS[p.key] or ""))
-  rTotal:SetShown(planPanel or showCard)
-  cardBack:SetShown(showCard)
-  if not showCard then cardCraft:Hide() end
+  rTotal:SetShown(planPanel)
+  rHead:SetShown(not showCard)
+  cardFrame:SetShown(showCard)
+  if not showCard then
+    for _, b in ipairs(CW.cardButtons) do b:Hide() end
+    -- the shopping list's own size and place
+    shopVisible = SHOP_ROWS
+    shopBox:SetHeight(240)
+    shopScroll:SetVisible(240, SHOP_ROWS)
+    shopBox:ClearAllPoints()
+    shopBox:SetPoint("TOPLEFT", targetSlider, "BOTTOMLEFT", 0, -10)
+  end
   targetSlider:SetShown(planPanel)
   if targetSlider:IsShown() then targetSlider:Refresh() end
   info:SetShown((not isCraft or isMissing) and not showCard)
