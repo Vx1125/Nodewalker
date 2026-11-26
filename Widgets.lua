@@ -549,6 +549,37 @@ local function layoutTabs()
   end
 end
 
+-- A group's switches sit at the right of the tab row, in whatever room the
+-- main tabs leave: a step smaller (font, padding, gap) until they fit
+local function layoutSubs(g)
+  local used = 10
+  for _, k in ipairs(tabOrder) do
+    local b = tabs[k] and tabs[k].button or groups[k] and groups[k].button
+    if b then used = used + b:GetWidth() + 2 end
+  end
+  local room = WIN_W - 10 - used - 12
+  local STEPS = { { 12, 22, 2 }, { 12, 14, 0 }, { 11, 12, 0 }, { 11, 8, 0 } }
+  for si, step in ipairs(STEPS) do
+    local total = 0
+    for _, k in ipairs(g.keys) do
+      local sb = g.subs[k]
+      sb.text:SetFont(UI.FONT or STANDARD_TEXT_FONT, step[1])
+      total = total + sb.text:GetStringWidth() + step[2] + step[3]
+    end
+    if total <= room or si == #STEPS then
+      local prev
+      for i = #g.keys, 1, -1 do
+        local sb = g.subs[g.keys[i]]
+        sb:SetSize(sb.text:GetStringWidth() + step[2], TABS_H)
+        sb:ClearAllPoints()
+        if prev then sb:SetPoint("RIGHT", prev, "LEFT", -step[3], 0) else sb:SetPoint("TOPRIGHT", -10, -TITLE_H) end
+        prev = sb
+      end
+      return
+    end
+  end
+end
+
 function NW.ShowTab(key)
   if groups[key] then key = groups[key].last or groups[key].keys[1] end
   local t = tabs[key] or tabs[tabOrder[1]] or (groups[tabOrder[1]] and tabs[groups[tabOrder[1]].keys[1]])
@@ -562,6 +593,7 @@ function NW.ShowTab(key)
   end
   for name, g in pairs(groups) do
     local inside = t.group == name
+    if inside then layoutSubs(g) end
     setOn(g.button, inside)
     if inside then g.last = t.key end
     for k, sb in pairs(g.subs) do
@@ -662,6 +694,39 @@ function NW.SetWindowScale(v)
     NW.db.settings.winPos = { p, rp, x, y }
   end
 end
+
+-- A size grip in the bottom-right corner: drag to make the whole window
+-- bigger or smaller (it scales; the top-left corner stays put). Saved as
+-- the same Window scale as in Settings › Appearance.
+local SCALE_MIN, SCALE_MAX = 0.6, 1.5
+local grip = CreateFrame("Button", nil, win)
+grip:SetSize(16, 16)
+grip:SetPoint("BOTTOMRIGHT", -3, 3)
+grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+grip:SetFrameLevel(win:GetFrameLevel() + 20)
+local function cursorX() return GetCursorPosition() / UIParent:GetEffectiveScale() end
+grip:SetScript("OnMouseDown", function(self, button)
+  if button ~= "LeftButton" then return end
+  self.startX, self.startScale = cursorX(), win:GetScale()
+  self:SetScript("OnUpdate", function(g)
+    -- the window's right edge follows the cursor
+    local w = WIN_W * g.startScale + (cursorX() - g.startX)
+    local v = math.max(SCALE_MIN, math.min(SCALE_MAX, w / WIN_W))
+    v = math.floor(v * 100 + 0.5) / 100
+    if math.abs(v - win:GetScale()) >= 0.01 then NW.SetWindowScale(v) end
+  end)
+end)
+grip:SetScript("OnMouseUp", function(self) self:SetScript("OnUpdate", nil) end)
+grip:SetScript("OnHide", function(self) self:SetScript("OnUpdate", nil) end)
+grip:SetScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+  GameTooltip:SetText("Window size", 1, 1, 1)
+  GameTooltip:AddLine(("Drag to resize. %d%% now."):format(math.floor(win:GetScale() * 100 + 0.5)), S.dim[1], S.dim[2], S.dim[3], true)
+  GameTooltip:Show()
+end)
+grip:SetScript("OnLeave", GameTooltip_Hide)
 table.insert(NW.OnLoad, function()
   win:SetScale(NW.db.settings.winScale or 1)
   local p = NW.db.settings.winPos

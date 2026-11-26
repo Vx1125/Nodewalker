@@ -213,9 +213,8 @@ heading(2, "On screen")
 check(2, "Compass bar", "showCompass")
 check(2, "Session panel", "showSession", "Loops, nodes and gold per hour while you farm.")
 heading(2, "This window")
-place(2, UI.Dropdown(page, COL_W, "Window scale", {
-  { 0.8, "80%" }, { 0.9, "90%" }, { 1, "100%" }, { 1.1, "110%" }, { 1.2, "120%" },
-}, function() return s().winScale or 1 end, function(v) NW.SetWindowScale(v) end, 100), 30)
+slider(2, "Window size", 0.6, 1.5, 0.05, pct, "winScale", function() NW.SetWindowScale(s().winScale or 1) end)
+-- (or drag the grip in the window's bottom-right corner)
 
 ------------------------------------------------------------------------
 -- Gathering: live nodes and which ones show

@@ -35,6 +35,7 @@ Skill-up colours (orange, yellow, green, grey) mean skill-ups only. Item names m
 
 - Font: the game's standard font. 17 headers, 13–14 values, 12 body, 11 secondary, 10 captions.
 - Window 1020 × 622; title bar 38; tab bar 32; page padding 16; panel gap 10–12.
+- The window scales as a whole (60–150%): the grip in its bottom-right corner or Settings › Appearance › Window size. Layout is always 1020 × 622 units, so nothing reflows. A tab group's switches shrink a step (font, padding, gap) to fit the room the main tabs leave.
 - Rows: 38–40 two-line, 24 compact headings and table rows, 26 shopping rows, 16–17 dense lists.
 - Icons: 20–24 in rows, 16 in material lists, 38–40 in headers.
 

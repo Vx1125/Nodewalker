@@ -48,6 +48,7 @@ local DEFAULTS = {
     includeHerb = true,
     onlyGatherable = true,
     onlySkillUps = false,
+    winScale = 1,             -- the window's size (Appearance, or the grip in its corner)
     fishHud = true,           -- the fishing HUD, while a pole is on
     fishHudScale = 1,
     fishHudAlpha = 0.9,
