@@ -406,7 +406,7 @@ for i = 1, TROWS do
   UI.RowHighlight(r)
   r.name = UI.Text(r, 12, S.text)
   r.name:SetPoint("LEFT", 8, 0)
-  r.name:SetWidth(112) -- ends before the first number column
+  r.name:SetWidth(116) -- ends before the first number column
   r.name:SetWordWrap(false)
   r.cells = {}
   for k = 1, 3 do r.cells[k] = UI.Text(r, 12, S.text, "RIGHT") end
@@ -422,6 +422,25 @@ tbox:SetScript("OnMouseWheel", function(_, d)
   if o ~= W.zoneOffset then W.zoneOffset = o; refresh() end
 end)
 local COLX = { C_W - 96, C_W - 50, C_W - 8 }
+-- long zone names, the way players shorten them, for when the full one won't fit
+local SHORT_ZONE = {
+  ["Eastern Plaguelands"] = "E. Plaguelands", ["Western Plaguelands"] = "W. Plaguelands",
+  ["Stranglethorn Vale"] = "Stranglethorn", ["Hillsbrad Foothills"] = "Hillsbrad",
+  ["Alterac Mountains"] = "Alterac", ["Redridge Mountains"] = "Redridge",
+  ["Silverpine Forest"] = "Silverpine", ["Tirisfal Glades"] = "Tirisfal",
+  ["Stonetalon Mountains"] = "Stonetalon", ["Thousand Needles"] = "Thousand Needles",
+  ["Dustwallow Marsh"] = "Dustwallow", ["Swamp of Sorrows"] = "Swamp of Sorrows",
+  ["Blasted Lands"] = "Blasted Lands", ["Arathi Highlands"] = "Arathi",
+  ["Deadwind Pass"] = "Deadwind", ["Burning Steppes"] = "Burning Steppes",
+  ["Searing Gorge"] = "Searing Gorge", ["Elwynn Forest"] = "Elwynn", ["Duskwood"] = "Duskwood",
+  ["Teldrassil"] = "Teldrassil", ["Durotar"] = "Durotar", ["Feralas"] = "Feralas",
+}
+-- a zone name in a table row: shortened only when the whole one doesn't fit
+local function zoneText(fs, prefix, name)
+  fs:SetText(prefix .. name)
+  local short = SHORT_ZONE[name]
+  if short and short ~= name and fs:GetStringWidth() > fs:GetWidth() then fs:SetText(prefix .. short) end
+end
 local function setCols(names)
   for k = 1, 3 do
     local x = COLX[k]
@@ -494,8 +513,8 @@ local function sortItems()
   for _, s in ipairs(H.SORTS) do items[#items + 1] = { s[1], s[2] } end
   return items
 end
-W.huntSort = UI.Dropdown(tbl, 130, "", sortItems(), function() return st().huntSort or "density" end,
-  function(v) st().huntSort = v ~= "density" and v or nil; refresh() end, 112,
+W.huntSort = UI.Dropdown(tbl, 150, "", sortItems(), function() return st().huntSort or "density" end,
+  function(v) st().huntSort = v ~= "density" and v or nil; refresh() end, 136,
   "Most spawns: known spawn points, each counted at its creature's drop chance (Classic data). Not creatures alive now.\nNearest my level: zones whose creature levels are closest to yours, then most spawns.\nMy history: where you've collected it most, from your own log.")
 W.huntSort:SetPoint("TOPRIGHT", 0, 3)
 W.nodeSort = UI.Dropdown(tbl, 130, "", { { "best", "Best" }, { "rate", "Spots per minute" }, { "gold", "Theoretical g/h" }, { "count", "Known spots" }, { "loop", "Shortest loop" } },
@@ -1184,7 +1203,7 @@ local function viewNodes(e)
   for _, r in ipairs(W.zrows) do
     local row = r.row
     if row then
-      r.name:SetText((row.recommended and "|cffd6b266*|r " or "") .. row.name)
+      zoneText(r.name, row.recommended and "|cffd6b266*|r " or "", row.name)
       r.name:SetTextColor(unpack(row.count > 0 and S.text or S.dim))
       r.cells[1]:SetText(row.count > 0 and row.count or dash())
       r.cells[2]:SetText(row.loop and fmtTime(row.loop / NW.MOUNT_YPS) or dash())
@@ -1325,7 +1344,7 @@ local function viewFishing(e)
   tableRows(zones)
   for _, r in ipairs(W.zrows) do
     if r.row then
-      r.name:SetText(r.row.name)
+      zoneText(r.name, "", r.row.name)
       r.name:SetTextColor(unpack(S.text))
       r.cells[3]:SetText(r.row.n > 0 and (TEAL .. r.row.n .. "|r") or dash())
       r:SetSelected(r.row == pick)
@@ -1388,7 +1407,7 @@ local function viewHunt(e, method)
     local z = r.row
     if z then
       local active = hunt and hunt.item == e.id and hunt.method == method and hunt.zone == z.name
-      r.name:SetText((active and "|cff5fd4e0›|r " or "") .. z.name)
+      zoneText(r.name, active and "|cff5fd4e0›|r " or "", z.name)
       r.name:SetTextColor(unpack(z.mapID and S.text or S.dim))
       local mine = z.mapID and NW.GatherLog and NW.GatherLog.ZoneCount(z.mapID, e.id) or 0
       if method == "skin" then
