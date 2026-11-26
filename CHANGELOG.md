@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.24
+
+- Smart Fishing can be bound to a controller button (Settings › Fishing or Key Bindings).
+
 ## 1.1.23
 
 - Recipe materials show how many one craft takes and how many you have.
