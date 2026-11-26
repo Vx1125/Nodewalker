@@ -503,7 +503,7 @@ tabLine:SetColorTexture(unpack(S.sep))
 local tabs, tabOrder, current = {}, {}, nil
 local ticker
 -- Left to right; tabs not listed go at the end
-local ORDER = { "profs", "find", "consumes", "guide", "route", "settings" }
+local ORDER = { "profs", "guide", "route", "find", "consumes", "settings" }
 local rank = {}
 for i, k in ipairs(ORDER) do rank[k] = i end
 -- Pages grouped under one tab (Settings): small switches at the right of the tab row
