@@ -284,7 +284,8 @@ function UI.Dropdown(parent, width, label, items, get, set, btnW, tip)
     r.text:SetText(it[2])
     local hl = r:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
-    hl:SetColorTexture(unpack(S.hover))
+    -- a light gold wash: the highlight layer draws over the text, so it can't be solid
+    hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.12)
     r:SetScript("OnClick", function() set(it[1]); menu:Hide(); f:Refresh() end)
     r.value = it[1]
     menu.rows[i] = r
