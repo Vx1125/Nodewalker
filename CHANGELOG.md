@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0
+
+- Material Finder: one search for every material (herbs, ore, leather, fish, cloth, meat, reagents, vendor goods, crafted parts).
+- Material Finder: category and filters (in bags, priced, can gather), sort by name, price or owned.
+- Material Finder: larger map with known spots, your history, heatmap and routes; zone list beside it.
+- Hunting grounds for skins and creature drops: click a ground or creature, farm one area, edit the route.
+- Targets: track how many of a material you want; the session panel shows progress.
+- Gathering log: what you skinned, looted and gathered, and where.
+- Fish Finder is now the Fish category of the Material Finder.
+- Leveling kits: each profession keeps one 1-300 plan; Re-plan picks new recipes at today's prices.
+- Leveling: plans make their own bolts and bars when cheaper, and stop hopping between recipes.
+- Leveling: shopping lists count bolts already in your bags and bolts made along the way.
+- Leveling: no more riding a recipe to grey; cooldown materials only as a last resort.
+- Leveling: recipe colours and trainer recipes are learned from your profession and trainer windows.
+- Recipe data checked against WoW Forever sources for every profession.
+- Tabs: Professions, Material Finder, Route, Find a craft, Consumes, Settings.
+
 ## 1.1.25
 
 - Settings tabs no longer overlap the main tabs.

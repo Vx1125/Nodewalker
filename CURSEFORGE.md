@@ -31,13 +31,15 @@ Leveling a profession, getting ready for raid night, or out picking herbs and or
 - Built for you when you enter a zone; **Optimize loop** rebuilds it
 - Draw avoid zones on a large, fully explored map, and the route goes around them
 
-## Farm Guide
+## Material Finder
 
-![Farm Guide](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/herb-guide.jpg)
+![Material Finder](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/herb-guide.jpg)
 
-- The best zones for each herb and ore, side by side: known spots, loop time, spots per minute, estimated gold per hour
-- A map preview of each zone's loop
-- One click builds the route
+- Search every material: herbs, ore, leather, fish, cloth, meat, reagents, vendor goods, crafted parts
+- Where to get it: best zones for herbs and ore, hunting grounds for skins and creature drops, fishing waters, vendors, recipes
+- A map of each zone: known spots, your own gathering, heatmap, route
+- Targets: track how many you want; the session panel counts them
+- One click builds a herb, ore or hunting route
 - **Both** view for Herbalism and Mining together
 
 Loop times and gold per hour are worked out from known spots and current prices. What you actually gather depends on spawns and other players.
@@ -93,7 +95,7 @@ Listing prices aren't sales. Profit here means worth a look, not guaranteed gold
 
 - **Cooking** levels like any craft, from any ingredients: meat, fish, vendor goods, your bags. Or only fish recipes, or none
 - **Fishing** has its own guide: where to fish at each skill, what's caught there, when to train, your effective skill with gear and lures
-- **Fish Finder**: every fish, where it's caught, and what it cooks
+- **Fish** in the Material Finder: every fish, where it's caught, and what it cooks
 - **Fishing + Cooking**: one plan for both from the fish you catch. What to fish, how many of each fish (estimated), when to train, what to cook, as it happens
 
 Zone fishing skill and catch rates aren't published for WoW Forever, so Nodewalker doesn't guess them. Zone shares in the Journal are your own catches, not drop rates.
@@ -138,7 +140,7 @@ Zone fishing skill and catch rates aren't published for WoW Forever, so Nodewalk
 ## Requirements
 
 - **Required:** nothing else. Nodewalker works on its own.
-- **Recommended: Auctionator.** Auction prices for leveling costs, profit, consumes, the Farm Guide and the session panel, and the Search buttons. Without it, vendor items keep their vendor price and the rest show as estimates (~) or "No price".
+- **Recommended: Auctionator.** Auction prices for leveling costs, profit, consumes, the Material Finder and the session panel, and the Search buttons. Without it, vendor items keep their vendor price and the rest show as estimates (~) or "No price".
 - **Optional: GatherMate2 + GatherMate2_Data.** A one-time import of thousands of known spots (`/nw import`). Without it, Nodewalker learns spots as you gather and as they show on your minimap. You can turn GatherMate2 off after the import.
 
 Prices come from Auctionator's last scan, so scan the auction house now and then.
@@ -151,7 +153,7 @@ Prices come from Auctionator's last scan, so scan the auction house now and then
 
 **Are the spots guaranteed to have a node?** No. Faded spots are where nodes have spawned before. Your minimap's dots on the overlay show what's really up.
 
-**Do I need a gathering profession?** Only for the overlay, routes and Farm Guide. Leveling, Profit, Consumes and Find a Craft work for everyone.
+**Do I need a gathering profession?** Only for the overlay, routes and Material Finder herb and ore zones. Leveling, Profit, Consumes and Find a Craft work for everyone.
 
 **Why do some items say "No price"?** Auctionator hasn't seen them listed. Scan the auction house and they fill in.
 
@@ -163,7 +165,7 @@ Prices come from Auctionator's last scan, so scan the auction house now and then
 
 ## Commands
 
-`/nw` overlay · `/nw plan` routes · `/nw guide` Farm Guide · `/nw prof` professions · `/nw consumes` · `/nw journal` Fishing Journal · `/nw fishhud` · `/nw options` · `/nw import` GatherMate2 · `/nw status` · `/nw reset session`
+`/nw` overlay · `/nw plan` routes · `/nw guide` Material Finder · `/nw prof` professions · `/nw consumes` · `/nw journal` Fishing Journal · `/nw fishhud` · `/nw options` · `/nw import` GatherMate2 · `/nw status` · `/nw reset session`
 
 ## Credits
 
