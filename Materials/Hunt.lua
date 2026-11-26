@@ -241,7 +241,7 @@ function H.ClearCache() cache = {} end
 -- Sorting zones; each says what it's based on
 H.SORTS = {
   { "density", "Most per clear", "Expected items if every known spawn here were killed once: spawn points × drop chance × average count (Classic data). Not creatures alive now, not per hour." },
-  { "spawns", "Most spawn points", "Known spawn points of creatures that give it, whatever their chance." },
+  { "spawns", "Most spawns", "Known spawn points of creatures that give it, whatever their chance." },
   { "level", "Nearest my level", "Zones whose creatures are closest to your level, then most per clear." },
   { "near", "Nearest to me", "Straight-line distance from you to the zone's middle, on your continent. Other continents come last." },
   { "mine", "My history", "Where you've collected it most, from your own log. Shows only zones you've farmed." },

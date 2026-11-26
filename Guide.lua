@@ -275,7 +275,7 @@ end
 
 -- Category: a button that opens the list of categories
 local CAT_H, CAT_N = 24, 14
-local CAT_BTN_W = L_W - 96
+local CAT_BTN_W = L_W - 106
 W.catBtn = UI.Button(page, "", CAT_BTN_W, nil, 22)
 W.catBtn:SetPoint("TOPLEFT", 16, -38)
 W.catBtn.label:ClearAllPoints()
@@ -335,7 +335,7 @@ end
 
 -- Filters: what to leave out, and the order
 local function sortSet(key) return function(v) st().matSort = v and key or nil end end
-W.filters = UI.CheckMenu(page, "Filters", 90, {
+W.filters = UI.CheckMenu(page, "Filters", 100, {
   { "In my bags", function() return st().matHave end, function(v) st().matHave = v or nil end },
   { "Has a price", function() return st().matPriced end, function(v) st().matPriced = v or nil end },
   { "I can gather it", function() return st().matCan end, function(v) st().matCan = v or nil end,
@@ -489,7 +489,7 @@ local function trackNow()
 end
 W.goalSet = UI.Button(goalBar, "Track", 56, trackNow, 20)
 local MODES = { { "total", "Own total" }, { "more", "Collect more" } }
-W.goalMode = UI.Dropdown(goalBar, 100, "", MODES, function() return W.mode or "total" end, function(v) W.mode = v end, 100,
+W.goalMode = UI.Dropdown(goalBar, 114, "", MODES, function() return W.mode or "total" end, function(v) W.mode = v end, 114,
   "Own total: have this many in your bags and bank.\nCollect more: get this many more than you have now.")
 W.goalMode:SetPoint("RIGHT", W.goalSet, "LEFT", -4, 0)
 W.goalEdit = CreateFrame("EditBox", nil, goalBar, "BackdropTemplate")
@@ -2375,7 +2375,7 @@ refresh = function()
     end
     W.goalHint:SetShown((W.goalEdit:GetText() or "") == "" and not W.goalEdit:HasFocus())
     W.goalMode:Refresh()
-    goalW = (W.goalText:GetStringWidth() or 60) + 8 + 56 + 4 + 100 + 4 + 56 + (g and 50 or 0)
+    goalW = (W.goalText:GetStringWidth() or 60) + 8 + 56 + 4 + 114 + 4 + 56 + (g and 50 or 0)
   end
   W.sub:SetWidth(math.max(80, R_W - 50 - goalW - 12))
   -- source switches, then what that way needs from you
