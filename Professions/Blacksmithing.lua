@@ -3,7 +3,7 @@ local _, NW = ...
 -- Source: seemeta.com WoW Forever recipe database (Sept 2026).
 local R = NW.RecipeAdder("blacksmithing")
 R("Rough Sharpening Stone",1,15,35,55,"rank",2862,"2835:1",1)
-R("Rough Weightstone",1,15,35,55,"rank",3239,"2835:1",1)
+R("Rough Weightstone",1,15,35,55,"rank",3239,"2835:1,2589:1",1)
 R("Rough Copper Vest",1,15,35,55,"rank",10421,"2840:4",1)
 R("Copper Bracers",1,20,40,60,"rank",2853,"2840:2",1)
 R("Coarse Sharpening Stone",nil,40,48,55,"trainer",2863,"2836:1",1)

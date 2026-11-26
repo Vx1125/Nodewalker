@@ -197,7 +197,7 @@ NW.RANK_FEE.blacksmithing = { Apprentice=9, Journeyman=450, Expert=4500, Artisan
 C("Copper Rod",1,10,12,15,6217,nil,nil,"B","2840:1",1)
 C("Rough Copper Vest",1,15,35,55,10421,nil,nil,"B","2840:4",1)
 C("Rough Sharpening Stone",1,15,35,55,2862,nil,nil,"B","2835:1",1)
-C("Rough Weightstone",1,15,35,55,3239,nil,nil,"B","2835:1",1)
+C("Rough Weightstone",1,15,35,55,3239,nil,nil,"B","2835:1,2589:1",1)
 C("Copper Bracers",1,20,40,60,2853,nil,nil,"B","2840:2",1)
 C("Sharpening Wheel",20,20,20,20,279944,nil,nil,"T","2835:1,2840:1",1)
 C("Coarse Weightstone",40,40,47,55,3240,nil,90,"T","2836:1",1)

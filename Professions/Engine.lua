@@ -907,6 +907,20 @@ function NW.BuildPlan(key, from, to)
   local gaps = 0
   for sk = from, to - 1 do
     local best, bestCost, bestNeeds
+    -- Known recipes: the trainer's are fair game once nothing you know is still
+    -- likely to give a point (under half a chance), not only once it's grey
+    local knownP = 0
+    if strategy == "known" then
+      for _, r in ipairs(recipes) do
+        if (isKnown(key, r) or r.src == "rank") and required(key, r) <= sk and not NW.NO_LEVEL[r.name] then
+          knownP = math.max(knownP, NW.SkillUpChance(r, sk))
+        end
+      end
+    end
+    -- every craft is a little effort on top of its materials (time, the
+    -- cast): without it, a near-grey recipe with dirt-cheap materials (Rough
+    -- Stone) looks cheapest even at 20 crafts per point
+    local effort = 20 + sk
     for pass = 1, 2 do
       for i, r in ipairs(recipes) do
         local trainer = r.src == "rank" or r.src == "trainer"
@@ -914,7 +928,7 @@ function NW.BuildPlan(key, from, to)
         -- Known recipes: what you know first, the trainer's only where nothing you know works; never a bought one
         if strategy == "known" then
           if isKnown(key, r) or r.src == "rank" then avail = true
-          elseif trainer and pass == 2 then avail = true
+          elseif trainer and (pass == 2 or knownP < 0.5) then avail = true
           else avail = nil end
         end
         if NW.NO_LEVEL[r.name] then avail = nil end
@@ -926,7 +940,7 @@ function NW.BuildPlan(key, from, to)
           local p = NW.SkillUpChance(r, sk)
           if p > 0 and onceOf[i] < 1e9 then -- (1e9: can't be learned yet)
             -- unknown prices count as expensive so priced options win
-            local c = (costOf[i] + (r.guessExtra or 0) + unknownOf[i] * 10000) / p
+            local c = (costOf[i] + (r.guessExtra or 0) + unknownOf[i] * 10000 + effort) / p
             -- Fewest crafts: the best skill-up chance wins; cost only breaks ties
             if strategy == "crafts" then c = 1 / p + c * 1e-7 end
             if needsRecipe then c = c * 1.15 end -- slight nudge toward what you can learn now
