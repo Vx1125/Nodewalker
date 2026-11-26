@@ -113,16 +113,20 @@ Small, movable, flat: the same charcoal and bronze, nothing animated.
 
 ## Material Finder
 
-- **Left (176):** search, then categories with an icon and count: Tracked (when you have targets), All materials, and only categories that have materials.
-- **Centre (236):** two-line rows, 30 high: icon, name in the category's accent, the ways to get it; owned (or have / target) and price on the right. Mouse wheel scrolls; Sort below.
-- **Right:** icon, name, category · recipes it's used in · price. Back to the profession (when opened from one) and **Search AH** at the top right. The target strip: owned, target, remaining, session, lifetime, then Target, Own / Collect, Track.
-- **Source switches:** one button per way to get it, gold underline on the selected one. No button for a way the material doesn't have.
-- **Body:** a list on the left (zones, hunting grounds, vendors, recipe materials), a map on the right, its numbers under it, one primary action at the bottom (Build route, Build hunting route, Fish Finder, Open profession) and one secondary above it.
+Flow: browse (left, centre) → compare (centre table) → view the map → build a route → track the target.
+
+- **Left (160):** search, categories with icon and count (only categories that have materials; Tracked when you have targets), then the tracked targets with have / target. Click one to open it.
+- **Centre (262):** the materials (two-line rows, 30 high: icon, name in the category's accent, the ways to get it; owned or have/target, price). Five rows when a source table follows, nine for crafted items. Under them, the selected source's table: zones, hunting grounds, vendors, or what makes it, with its sort at the right of the heading. Creatures in the selected zone fold under the table (closed by default for skinning); filters sit under that.
+- **Right (546):** icon, name, category · recipes it's used in · price; back to the profession and **Search AH** at the top right. The target strip: owned / target, remaining, session, lifetime, then Target, Own / Collect, Track. One switch per way to get it.
+- **Map workspace:** tabs above the map (Known Sources, My History, Route, Heatmap; tabs a source can't fill are greyed), the map at **440 × 290**, a zone or source plate top left, a legend bottom right, a one-line caption under it saying what the map shows and where the data is from. Beside the map, a narrow column of label / value pairs; with a hunting route here, the route: ground n of N, "here", Next / Skip, when a hunted ground is back.
+- **Crafted materials:** no map. Recipe with its skill-up bar and where your skill sits; materials for the target (need, have, missing, Find); ways to get it (craft from gathered, craft from bought, buy it), estimates only; what it's used in, coloured for your skill.
+- **Actions:** one row at the bottom: the primary action at left (Build route, Build hunting route, Stop route, Find <material>, Fish Finder, Show on map), secondary buttons after it, a short note at the right.
 - **Category accents** (names only): herbs muted green, ore stone grey, leather warm brown, fish muted blue, cloth muted purple, meat muted rust, elemental amber, reagents rust.
 
 ### Maps
-- **Known spawns:** 3% squares, green to amber to red by density, 25–65% opaque; bronze rings for the clusters. Labelled "Known spawns × drop chance · Classic data".
-- **My history:** muted teal dots, sized by count. Your own data is always teal; database data never is.
+- **Known Sources:** known spawn points (bronze dots) or known herb and ore spots, with bronze rings for hunting grounds. Hover a ring: who lives there.
+- **Heatmap:** 3% squares, green to amber to red, 25–65% opaque, rings over them.
+- **My History:** muted teal dots, sized by count. Your own data is always teal; database data never is.
 - **Route:** cyan legs (bright into the current ground), numbered rings: muted gold current, bronze upcoming, grey hunted or skipped.
 
 ### Hunting route on the overlay

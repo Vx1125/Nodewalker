@@ -185,18 +185,39 @@ local function focusOf(entry)
   return f
 end
 
-------------------------------------------------------------------------
--- Layout
-------------------------------------------------------------------------
-local LEFT_W, MID_X, MID_W, RIGHT_X = 176, 202, 236, 450
-local RIGHT_W = UI.CONTENT_W - RIGHT_X - 16
-local function fmtTime(sec) return ("%d:%02d"):format(math.floor(sec / 60), math.floor(sec % 60)) end
-local function money(c) return c and NW.Money(c, "mid") or DIM .. "–|r" end
 
--- Left: search, then categories
+------------------------------------------------------------------------
+-- Layout (second pass): categories | materials and the source table |
+-- the material, its target, a large map workspace, actions.
+------------------------------------------------------------------------
+local L_W, C_X, C_W, R_X = 160, 186, 262, 458
+local R_W = UI.CONTENT_W - R_X - 16
+local MAP_W, MAP_H = 440, 290
+local SIDE_X = MAP_W + 12
+local SIDE_W = R_W - SIDE_X
+local WS_Y = -124 -- top of the workspace (map tabs)
+local SKILL_HEX = { red = "|cffff4033", orange = "|cffff8040", yellow = "|cffffe633", green = "|cff59cc59", grey = "|cff8c8c8c" }
+local TEAL = "|cff59bfb8"
+local function fmtTime(sec) return ("%d:%02d"):format(math.floor(sec / 60), math.floor(sec % 60)) end
+local function dash() return DIM .. "–|r" end
+local function heading(parent, text, w)
+  local h = UI.Heading(parent, text, w)
+  return h
+end
+local function tabMark(b)
+  b.mark = b:CreateTexture(nil, "OVERLAY")
+  b.mark:SetPoint("BOTTOMLEFT", 1, 1)
+  b.mark:SetPoint("BOTTOMRIGHT", -1, 1)
+  b.mark:SetHeight(2)
+  b.mark:SetColorTexture(unpack(S.gold))
+end
+
+------------------------------------------------------------------------
+-- Left: search, categories, tracked targets
+------------------------------------------------------------------------
 local search = CreateFrame("EditBox", nil, page, "BackdropTemplate")
-search:SetSize(LEFT_W, 22)
-search:SetPoint("TOPLEFT", 16, -6)
+search:SetSize(L_W, 22)
+search:SetPoint("TOPLEFT", 16, -8)
 UI.Flat(search, S.sunk, S.edge)
 search:SetFont(UI.FONT, 12, "")
 search:SetTextColor(unpack(S.text))
@@ -220,14 +241,14 @@ search:SetScript("OnTextChanged", function(self)
   if t ~= searchText then searchText = t; W.listOffset = 0; refresh() end
 end)
 
-local CAT_H = 24
+local CAT_H, CAT_N = 24, 13
 W.cats = {}
-local catBox = UI.Box(page, LEFT_W, 13 * CAT_H + 8)
-catBox:SetPoint("TOPLEFT", 16, -34)
-for i = 1, 13 do
+local catBox = UI.Box(page, L_W, CAT_N * CAT_H + 6)
+catBox:SetPoint("TOPLEFT", 16, -36)
+for i = 1, CAT_N do
   local b = CreateFrame("Button", nil, catBox)
-  b:SetSize(LEFT_W - 2, CAT_H)
-  b:SetPoint("TOPLEFT", 1, -4 - (i - 1) * CAT_H)
+  b:SetSize(L_W - 2, CAT_H)
+  b:SetPoint("TOPLEFT", 1, -3 - (i - 1) * CAT_H)
   UI.RowHighlight(b)
   b.icon = b:CreateTexture(nil, "ARTWORK")
   b.icon:SetSize(16, 16)
@@ -246,22 +267,40 @@ for i = 1, 13 do
   end)
   W.cats[i] = b
 end
+W.trackHead = heading(page, "Tracked", L_W)
+W.track = {}
+for i = 1, 8 do
+  local r = CreateFrame("Button", nil, page)
+  r:SetSize(L_W, 18)
+  r.name = UI.Text(r, 11, S.text)
+  r.name:SetPoint("LEFT", 2, 0)
+  r.name:SetPoint("RIGHT", -60, 0)
+  r.name:SetWordWrap(false)
+  r.n = UI.Text(r, 11, S.dim, "RIGHT")
+  r.n:SetPoint("RIGHT", -2, 0)
+  r:SetScript("OnClick", function(self)
+    if self.id then sel.id, sel.src, sel.zone = self.id, nil, nil; st().matSel = self.id; refresh() end
+  end)
+  W.track[i] = r
+end
 
--- Centre: materials
-local LROW_H, LROWS = 30, 15
-local mid = UI.Box(page, MID_W, LROWS * LROW_H + 8)
-mid:SetPoint("TOPLEFT", MID_X, -34)
-mid:EnableMouseWheel(true)
+------------------------------------------------------------------------
+-- Centre: materials, then the selected source's table
+------------------------------------------------------------------------
+local LROW_H, LROW_MAX = 30, 9
 W.midHead = UI.Text(page, 12, S.gold)
-W.midHead:SetPoint("BOTTOMLEFT", mid, "TOPLEFT", 2, 8)
+W.midHead:SetPoint("TOPLEFT", C_X + 2, -10)
 W.midCount = UI.Text(page, 11, S.dim, "RIGHT")
-W.midCount:SetPoint("BOTTOMRIGHT", mid, "TOPRIGHT", -2, 8)
+W.midCount:SetPoint("TOPRIGHT", page, "TOPLEFT", C_X + C_W - 2, -10)
+local mid = UI.Box(page, C_W, 5 * LROW_H + 4)
+mid:SetPoint("TOPLEFT", C_X, -30)
+mid:EnableMouseWheel(true)
 W.rows = {}
 W.listOffset = 0
-for i = 1, LROWS do
+for i = 1, LROW_MAX do
   local r = CreateFrame("Button", nil, mid)
-  r:SetSize(MID_W - 2, LROW_H)
-  r:SetPoint("TOPLEFT", 1, -4 - (i - 1) * LROW_H)
+  r:SetSize(C_W - 2, LROW_H)
+  r:SetPoint("TOPLEFT", 1, -2 - (i - 1) * LROW_H)
   UI.RowStripe(r)
   r:SetStripe(i % 2 == 0)
   UI.RowHighlight(r)
@@ -271,11 +310,11 @@ for i = 1, LROWS do
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   r.name = UI.Text(r, 12, S.text)
   r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 7, 2)
-  r.name:SetPoint("RIGHT", -60, 0)
+  r.name:SetPoint("RIGHT", -64, 0)
   r.name:SetWordWrap(false)
   r.sub = UI.Text(r, 10, S.dim)
   r.sub:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 7, -2)
-  r.sub:SetPoint("RIGHT", -70, 0)
+  r.sub:SetPoint("RIGHT", -64, 0)
   r.sub:SetWordWrap(false)
   r.have = UI.Text(r, 12, S.text, "RIGHT")
   r.have:SetPoint("TOPRIGHT", -8, -4)
@@ -298,22 +337,135 @@ for i = 1, LROWS do
   W.rows[i] = r
 end
 mid:SetScript("OnMouseWheel", function(_, d)
-  local max = math.max(0, (W.listN or 0) - LROWS)
-  local o = math.max(0, math.min(max, W.listOffset - d * 3))
+  local max = math.max(0, (W.listN or 0) - (W.listShown or 5))
+  local o = math.max(0, math.min(max, W.listOffset - d * 2))
   if o ~= W.listOffset then W.listOffset = o; refresh() end
 end)
-W.midSort = UI.Dropdown(page, MID_W, "Sort", { { "default", "Default" }, { "name", "Name" }, { "have", "Owned" }, { "price", "Price" } },
-  function() return st().matSort or "default" end, function(v) st().matSort = v ~= "default" and v or nil; refresh() end, 150)
-W.midSort:SetPoint("TOPLEFT", mid, "BOTTOMLEFT", 0, -6)
+
+-- the source table: heading (+ sort), column captions, rows
+local tbl = CreateFrame("Frame", nil, page)
+tbl:SetSize(C_W, 200)
+W.tblHead = heading(tbl, "", C_W)
+W.tblHead:SetPoint("TOPLEFT")
+W.colName = UI.Text(tbl, 10, S.dim)
+W.colName:SetPoint("TOPLEFT", 8, -22)
+W.cols = {}
+for k = 1, 3 do
+  local t = UI.Text(tbl, 10, S.dim, "RIGHT")
+  W.cols[k] = t
+end
+local TROW_H, TROWS = 22, 7
+local tbox = UI.Box(tbl, C_W, TROWS * TROW_H + 4)
+tbox:SetPoint("TOPLEFT", 0, -36)
+tbox:EnableMouseWheel(true)
+W.zrows = {}
+for i = 1, TROWS do
+  local r = CreateFrame("Button", nil, tbox)
+  r:SetSize(C_W - 2, TROW_H)
+  r:SetPoint("TOPLEFT", 1, -2 - (i - 1) * TROW_H)
+  r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  UI.RowStripe(r)
+  r:SetStripe(i % 2 == 0)
+  UI.RowHighlight(r)
+  r.name = UI.Text(r, 12, S.text)
+  r.name:SetPoint("LEFT", 8, 0)
+  r.name:SetWidth(128)
+  r.name:SetWordWrap(false)
+  r.cells = {}
+  for k = 1, 3 do r.cells[k] = UI.Text(r, 12, S.text, "RIGHT") end
+  r:SetScript("OnClick", function(self, button) if self.onClick then self.onClick(self, button) end end)
+  r:SetScript("OnEnter", function(self) if self.onEnter then self.onEnter(self) end end)
+  r:SetScript("OnLeave", GameTooltip_Hide)
+  W.zrows[i] = r
+end
+W.zoneOffset = 0
+tbox:SetScript("OnMouseWheel", function(_, d)
+  local max = math.max(0, (W.zoneN or 0) - TROWS)
+  local o = math.max(0, math.min(max, W.zoneOffset - d * 2))
+  if o ~= W.zoneOffset then W.zoneOffset = o; refresh() end
+end)
+local COLX = { C_W - 96, C_W - 50, C_W - 8 }
+local function setCols(names)
+  for k = 1, 3 do
+    local x = COLX[k]
+    W.cols[k]:ClearAllPoints()
+    W.cols[k]:SetPoint("TOPRIGHT", tbl, "TOPLEFT", x, -22)
+    W.cols[k]:SetText(names[k] or "")
+    for _, r in ipairs(W.zrows) do
+      r.cells[k]:ClearAllPoints()
+      r.cells[k]:SetPoint("RIGHT", r, "LEFT", x, 0)
+      r.cells[k]:SetText("")
+    end
+  end
+end
+
+-- the fold under the table: creatures in the selected zone
+W.fold = CreateFrame("Button", nil, tbl)
+W.fold:SetSize(C_W, 20)
+W.fold:SetPoint("TOPLEFT", tbox, "BOTTOMLEFT", 0, -6)
+local fbg = W.fold:CreateTexture(nil, "BACKGROUND")
+fbg:SetAllPoints()
+fbg:SetColorTexture(unpack(S.header))
+W.fold.sign = UI.Text(W.fold, 12, S.gold)
+W.fold.sign:SetPoint("LEFT", 6, 0)
+W.fold.text = UI.Text(W.fold, 12, S.gold)
+W.fold.text:SetPoint("LEFT", 20, 0)
+W.fold.n = UI.Text(W.fold, 11, S.dim, "RIGHT")
+W.fold.n:SetPoint("RIGHT", -8, 0)
+W.fold:SetScript("OnClick", function()
+  local key = "huntFold" .. (sel.src or "")
+  local open = st()[key]
+  if open == nil then open = sel.src ~= "skin" end
+  st()[key] = not open
+  refresh()
+end)
+W.crows = {}
+for i = 1, 4 do
+  local r = CreateFrame("Button", nil, tbl)
+  r:SetSize(C_W, 18)
+  r:SetPoint("TOPLEFT", W.fold, "BOTTOMLEFT", 0, -2 - (i - 1) * 18)
+  UI.RowStripe(r)
+  r:SetStripe(i % 2 == 0)
+  r.name = UI.Text(r, 11, S.text)
+  r.name:SetPoint("LEFT", 8, 0)
+  r.name:SetWidth(140)
+  r.name:SetWordWrap(false)
+  r.lvl = UI.Text(r, 11, S.dim, "RIGHT")
+  r.lvl:SetPoint("RIGHT", r, "LEFT", C_W - 92, 0)
+  r.ch = UI.Text(r, 11, S.text, "RIGHT")
+  r.ch:SetPoint("RIGHT", r, "LEFT", C_W - 48, 0)
+  r.req = UI.Text(r, 11, S.text, "RIGHT")
+  r.req:SetPoint("RIGHT", -8, 0)
+  r:SetScript("OnEnter", function(self) if self.onEnter then self.onEnter(self) end end)
+  r:SetScript("OnLeave", GameTooltip_Hide)
+  W.crows[i] = r
+end
+W.checkA = UI.Check(tbl, "", function() return W.checkAGet and W.checkAGet() end, function(v) if W.checkASet then W.checkASet(v) end refresh() end)
+W.checkB = UI.Check(tbl, "", function() return W.checkBGet and W.checkBGet() end, function(v) if W.checkBSet then W.checkBSet(v) end refresh() end)
+
+-- sorts for the table, shown with their views
+local function sortItems()
+  local items = {}
+  for _, s in ipairs(H.SORTS) do items[#items + 1] = { s[1], s[2] } end
+  return items
+end
+W.huntSort = UI.Dropdown(tbl, 130, "", sortItems(), function() return st().huntSort or "density" end,
+  function(v) st().huntSort = v ~= "density" and v or nil; refresh() end, 112,
+  "Most spawns: known spawn points × drop chance (Classic data).\nNearest my level: creatures closest to your level.\nMy history: where you've collected it.")
+W.huntSort:SetPoint("TOPRIGHT", 0, 3)
+W.nodeSort = UI.Dropdown(tbl, 130, "", { { "best", "Best" }, { "rate", "Spots per minute" }, { "gold", "Gold per hour" }, { "count", "Known spots" }, { "loop", "Shortest loop" } },
+  function() return st().guideSort or "best" end, function(v) st().guideSort = v ~= "best" and v or nil; refresh() end, 112,
+  "Best: spots per minute (gold per hour for Herbs and ore), favouring zones with enough spots for a loop.")
+W.nodeSort:SetPoint("TOPRIGHT", 0, 3)
 
 ------------------------------------------------------------------------
--- Right: the material
+-- Right: header, target strip, source switches
 ------------------------------------------------------------------------
 local right = CreateFrame("Frame", nil, page)
-right:SetPoint("TOPLEFT", RIGHT_X, -6)
-right:SetSize(RIGHT_W, UI.CONTENT_H - 14)
+right:SetPoint("TOPLEFT", R_X, 0)
+right:SetSize(R_W, UI.CONTENT_H)
 local iconBox = UI.Box(right, 40, 40)
-iconBox:SetPoint("TOPLEFT")
+iconBox:SetPoint("TOPLEFT", 0, -8)
 W.icon = iconBox:CreateTexture(nil, "ARTWORK")
 W.icon:SetPoint("TOPLEFT", 1, -1)
 W.icon:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -328,35 +480,38 @@ end)
 iconBox:SetScript("OnLeave", GameTooltip_Hide)
 W.name = UI.Text(right, 17, S.gold)
 W.name:SetPoint("TOPLEFT", iconBox, "TOPRIGHT", 10, -1)
+W.name:SetPoint("RIGHT", right, "RIGHT", -230, 0)
+W.name:SetWordWrap(false)
 W.sub = UI.Text(right, 11, S.dim)
 W.sub:SetPoint("TOPLEFT", W.name, "BOTTOMLEFT", 0, -5)
-W.sub:SetWidth(RIGHT_W - 200)
+W.sub:SetPoint("RIGHT", right, "RIGHT", -110, 0)
 W.sub:SetWordWrap(false)
-W.back = UI.Button(right, "", 150, function()
-  if sel.from and NW.OpenProfession then NW.OpenProfession(sel.from) end
-end, 22)
-W.back:SetPoint("TOPRIGHT", 0, 0)
-W.ah = UI.Button(right, "Search AH", 100, function()
+W.ah = UI.Button(right, "Search AH", 92, function()
   if type(sel.id) ~= "number" or not NW.SearchAH then return end
   local n = NW.ItemName(sel.id)
   local g = M.Goal(sel.id)
   local need = g and M.Progress(g).remaining or 1
   if n then NW.SearchAH({ { n, math.max(1, need) } }) end
 end, 22)
-W.ah:SetPoint("TOPRIGHT", 0, -24)
+W.ah:SetPoint("TOPRIGHT", 0, -8)
 UI.Tip(W.ah, "Search AH", "Searches Auctionator for it (at the auction house). With a target, for what's still missing.")
+W.back = UI.Button(right, "", 120, function()
+  if sel.from and NW.OpenProfession then NW.OpenProfession(sel.from) end
+end, 22)
+W.back:SetPoint("RIGHT", W.ah, "LEFT", -4, 0)
 
--- Objective strip: owned, target, remaining, session, lifetime
 local goalBar = CreateFrame("Frame", nil, right)
-goalBar:SetSize(RIGHT_W, 26)
-goalBar:SetPoint("TOPLEFT", iconBox, "BOTTOMLEFT", 0, -8)
+goalBar:SetSize(R_W, 26)
+goalBar:SetPoint("TOPLEFT", 0, -58)
 local gbg = goalBar:CreateTexture(nil, "BACKGROUND")
 gbg:SetAllPoints()
 gbg:SetColorTexture(unpack(S.header))
 W.goalText = UI.Text(goalBar, 12, S.text)
 W.goalText:SetPoint("LEFT", 8, 0)
+W.goalText:SetPoint("RIGHT", goalBar, "RIGHT", -262, 0)
+W.goalText:SetWordWrap(false)
 W.goalEdit = CreateFrame("EditBox", nil, goalBar, "BackdropTemplate")
-W.goalEdit:SetSize(46, 20)
+W.goalEdit:SetSize(44, 20)
 UI.Flat(W.goalEdit, S.sunk, S.edge)
 W.goalEdit:SetFont(UI.FONT, 12, "")
 W.goalEdit:SetTextColor(unpack(S.text))
@@ -366,7 +521,7 @@ W.goalEdit:SetNumeric(true)
 W.goalEdit:SetMaxLetters(5)
 W.goalEdit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 local MODES = { { "total", "Own" }, { "more", "Collect" } }
-W.goalMode = UI.Dropdown(goalBar, 84, "", MODES, function() return W.mode or "total" end, function(v) W.mode = v end, 84,
+W.goalMode = UI.Dropdown(goalBar, 70, "", MODES, function() return W.mode or "total" end, function(v) W.mode = v end, 70,
   "Own: have this many in bags and bank.\nCollect: get this many more than you have now.")
 local function trackNow()
   local n = tonumber(W.goalEdit:GetText() or "")
@@ -377,132 +532,75 @@ local function trackNow()
   refresh()
 end
 W.goalEdit:SetScript("OnEnterPressed", trackNow)
-W.goalSet = UI.Button(goalBar, "Track", 60, trackNow, 20)
-W.goalClear = UI.Button(goalBar, "Clear", 54, function() M.ClearGoal(sel.id); refresh() end, 20)
+W.goalSet = UI.Button(goalBar, "Track", 54, trackNow, 20)
+W.goalClear = UI.Button(goalBar, "Clear", 46, function() M.ClearGoal(sel.id); refresh() end, 20)
 W.goalClear:SetPoint("RIGHT", -3, 0)
-W.goalSet:SetPoint("RIGHT", W.goalClear, "LEFT", -4, 0)
 W.goalMode:SetPoint("RIGHT", W.goalSet, "LEFT", -4, 0)
 W.goalEdit:SetPoint("RIGHT", W.goalMode, "LEFT", -4, 0)
 W.goalLabel = UI.Text(goalBar, 11, S.dim, "RIGHT")
 W.goalLabel:SetPoint("RIGHT", W.goalEdit, "LEFT", -6, 0)
 W.goalLabel:SetText("Target")
 
--- Source switches: one per way to get it
 W.srcBtns = {}
 local SRC_ORDER = { "nodes", "fishing", "skin", "loot", "vendor", "craft" }
-for i, k in ipairs(SRC_ORDER) do
-  local b = UI.Button(right, k, 90, function() sel.src = k; sel.zone = nil; refresh() end, 22)
-  b.key = k
-  b.mark = b:CreateTexture(nil, "OVERLAY")
-  b.mark:SetPoint("BOTTOMLEFT", 1, 1)
-  b.mark:SetPoint("BOTTOMRIGHT", -1, 1)
-  b.mark:SetHeight(2)
-  b.mark:SetColorTexture(unpack(S.gold))
+for _, k in ipairs(SRC_ORDER) do
+  local b = UI.Button(right, k, 90, function() sel.src = k; sel.zone = nil; W.zoneOffset = 0; refresh() end, 24)
+  tabMark(b)
   W.srcBtns[k] = b
 end
 
--- Body: list on the left, map on the right
-local BODY_Y = -112
-local LIST_W = 300
-local PV_W, PV_H = RIGHT_W - LIST_W - 12, 168
-local body = CreateFrame("Frame", nil, right)
-body:SetPoint("TOPLEFT", 0, BODY_Y)
-body:SetPoint("BOTTOMRIGHT")
-W.listHead = UI.Heading(body, "", LIST_W)
-W.listHead:SetPoint("TOPLEFT")
-W.cols = {}
-for k = 1, 4 do
-  local t = UI.Text(body, 10, S.dim, "RIGHT")
-  t:SetPoint("TOPRIGHT", body, "TOPLEFT", 0, -28)
-  W.cols[k] = t
+------------------------------------------------------------------------
+-- Map workspace: tabs, the map, the side column, caption
+------------------------------------------------------------------------
+local ws = CreateFrame("Frame", nil, right)
+ws:SetPoint("TOPLEFT", 0, WS_Y)
+ws:SetSize(R_W, 340)
+local MODES_MAP = { { "known", "Known Sources" }, { "mine", "My History" }, { "route", "Route" }, { "heat", "Heatmap" } }
+W.mapTabs = {}
+local TAB_W = (MAP_W + 2 - 9) / 4
+for i, m in ipairs(MODES_MAP) do
+  local b = UI.Button(ws, m[2], TAB_W, function(self)
+    if not self.ok then return end
+    st().huntMap = m[1]
+    refresh()
+  end, 22)
+  b:SetPoint("TOPLEFT", (i - 1) * (TAB_W + 3), 0)
+  tabMark(b)
+  b.key = m[1]
+  W.mapTabs[i] = b
 end
-W.colName = UI.Text(body, 10, S.dim)
-W.colName:SetPoint("TOPLEFT", 10, -28)
-
-local ZROW_H, ZROWS = 22, 9
-W.zrows = {}
-local zbox = CreateFrame("Frame", nil, body)
-zbox:SetSize(LIST_W, ZROWS * ZROW_H)
-zbox:SetPoint("TOPLEFT", 0, -42)
-zbox:EnableMouseWheel(true)
-for i = 1, ZROWS do
-  local r = CreateFrame("Button", nil, zbox)
-  r:SetSize(LIST_W, ZROW_H - 1)
-  r:SetPoint("TOPLEFT", 0, -(i - 1) * ZROW_H)
-  r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-  UI.RowStripe(r)
-  r:SetStripe(i % 2 == 0)
-  UI.RowHighlight(r)
-  r.name = UI.Text(r, 12, S.text)
-  r.name:SetPoint("LEFT", 8, 0)
-  r.name:SetWidth(150)
-  r.name:SetWordWrap(false)
-  r.cells = {}
-  for k = 1, 4 do
-    local t = UI.Text(r, 12, S.text, "RIGHT")
-    r.cells[k] = t
-  end
-  r:SetScript("OnClick", function(self, button) if self.onClick then self.onClick(self, button) end end)
-  r:SetScript("OnEnter", function(self) if self.onEnter then self.onEnter(self) end end)
-  r:SetScript("OnLeave", GameTooltip_Hide)
-  W.zrows[i] = r
-end
-W.zoneOffset = 0
-zbox:SetScript("OnMouseWheel", function(_, d)
-  local max = math.max(0, (W.zoneN or 0) - ZROWS)
-  local o = math.max(0, math.min(max, W.zoneOffset - d * 2))
-  if o ~= W.zoneOffset then W.zoneOffset = o; refresh() end
-end)
-local function placeCols(xs)
-  for k = 1, 4 do
-    W.cols[k]:ClearAllPoints()
-    W.cols[k]:SetPoint("TOPRIGHT", body, "TOPLEFT", xs[k] or -100, -28)
-    W.cols[k]:SetShown(xs[k] ~= nil)
-    for _, r in ipairs(W.zrows) do
-      r.cells[k]:ClearAllPoints()
-      r.cells[k]:SetPoint("RIGHT", r, "LEFT", xs[k] or -100, 0)
-      r.cells[k]:SetShown(xs[k] ~= nil)
-    end
-  end
-end
-
--- the second list: creatures in the selected zone
-local CROWS = 6
-W.crowHead = UI.Heading(body, "Creatures", LIST_W)
-W.crowHead:SetPoint("TOPLEFT", zbox, "BOTTOMLEFT", 0, -8)
-W.crows = {}
-for i = 1, CROWS do
-  local r = CreateFrame("Button", nil, body)
-  r:SetSize(LIST_W, 20)
-  r:SetPoint("TOPLEFT", W.crowHead, "BOTTOMLEFT", 0, -4 - (i - 1) * 20)
-  UI.RowStripe(r)
-  r:SetStripe(i % 2 == 0)
-  r.name = UI.Text(r, 11, S.text)
-  r.name:SetPoint("LEFT", 8, 0)
-  r.name:SetWidth(150)
-  r.name:SetWordWrap(false)
-  r.lvl = UI.Text(r, 11, S.dim, "RIGHT")
-  r.lvl:SetPoint("RIGHT", r, "LEFT", 196, 0)
-  r.ch = UI.Text(r, 11, S.text, "RIGHT")
-  r.ch:SetPoint("RIGHT", r, "LEFT", 246, 0)
-  r.req = UI.Text(r, 11, S.text, "RIGHT")
-  r.req:SetPoint("RIGHT", -8, 0)
-  r:SetScript("OnEnter", function(self) if self.onEnter then self.onEnter(self) end end)
-  r:SetScript("OnLeave", GameTooltip_Hide)
-  W.crows[i] = r
-end
-
--- Map
-local preview = UI.Box(body, PV_W + 2, PV_H + 2)
-preview:SetPoint("TOPRIGHT", 0, -30)
+local preview = UI.Box(ws, MAP_W + 2, MAP_H + 2)
+preview:SetPoint("TOPLEFT", 0, -22)
 preview:SetClipsChildren(true)
 local pvArt = CreateFrame("Frame", nil, preview)
 pvArt:SetPoint("TOPLEFT", 1, -1)
-pvArt:SetSize(PV_W, PV_H)
+pvArt:SetSize(MAP_W, MAP_H)
 local pvShade = pvArt:CreateTexture(nil, "BORDER")
 pvShade:SetAllPoints()
-pvShade:SetColorTexture(0, 0, 0, 0.18)
+pvShade:SetColorTexture(0, 0, 0, 0.15)
 local pvTiles = {}
+W.plate = CreateFrame("Frame", nil, preview, "BackdropTemplate")
+W.plate:SetPoint("TOPLEFT", 8, -8)
+W.plate:SetFrameLevel(pvArt:GetFrameLevel() + 5)
+UI.Flat(W.plate, { S.bg[1], S.bg[2], S.bg[3], 0.85 }, S.edge)
+W.plate.text = UI.Text(W.plate, 12, S.gold)
+W.plate.text:SetPoint("LEFT", 8, 0)
+W.plate:SetHeight(20)
+W.legend = CreateFrame("Frame", nil, preview, "BackdropTemplate")
+W.legend:SetPoint("BOTTOMRIGHT", -8, 8)
+W.legend:SetSize(132, 18)
+W.legend:SetFrameLevel(pvArt:GetFrameLevel() + 5)
+UI.Flat(W.legend, { S.bg[1], S.bg[2], S.bg[3], 0.85 }, S.edge)
+W.legend.text = UI.Text(W.legend, 10, S.dim)
+W.legend.text:SetPoint("CENTER")
+W.mapNone = UI.Text(preview, 12, S.dim, "CENTER")
+W.mapNone:SetPoint("CENTER")
+W.mapNone:SetWidth(MAP_W - 60)
+W.caption = UI.Text(ws, 11, S.dim)
+W.caption:SetPoint("TOPLEFT", preview, "BOTTOMLEFT", 0, -6)
+W.caption:SetWidth(MAP_W)
+W.caption:SetWordWrap(false)
+
 local getDot, resetDots = UI.Pool(function()
   local t = pvArt:CreateTexture(nil, "OVERLAY")
   local mask = pvArt:CreateMaskTexture()
@@ -520,123 +618,127 @@ local getLine, resetLines = UI.Pool(function()
 end)
 local getNum, resetNums = UI.Pool(function()
   local f = pvArt:CreateFontString(nil, "OVERLAY")
-  f:SetFont(UI.FONT, 11, "OUTLINE")
+  f:SetFont(UI.FONT, 13, "OUTLINE")
   return f
 end)
-local function px(x, y) return x * PV_W, -y * PV_H end
+-- invisible hover areas over hunting grounds: who lives there
+local getHot, resetHots = UI.Pool(function()
+  local b = CreateFrame("Frame", nil, pvArt)
+  b:EnableMouse(true)
+  b:SetScript("OnEnter", function(self)
+    local g = self.g
+    if not g then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(self.title or "Hunting ground", 1, 1, 1)
+    local list = {}
+    for npc, n in pairs(g.npcs or {}) do list[#list + 1] = { u = H.Unit(npc), n = n } end
+    table.sort(list, function(a, b2) return a.n > b2.n end)
+    local skill = NW.ProfSkill and NW.ProfSkill("skinning")
+    for i = 1, math.min(5, #list) do
+      local u = list[i].u
+      if u then
+        local lv = u.min == u.max and tostring(u.min) or (u.min .. "-" .. u.max)
+        local right2 = lv
+        if self.method == "skin" then
+          local req = H.SkinReq(u.max)
+          right2 = lv .. "   " .. (SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r"
+        end
+        GameTooltip:AddDoubleLine(u.name, right2, 0.88, 0.86, 0.82, S.dim[1], S.dim[2], S.dim[3])
+      end
+    end
+    GameTooltip:AddLine(("%d spawn points"):format(g.n or 0) .. (g.respawn and ("  ·  respawn ~%d min"):format(math.ceil(g.respawn / 60)) or ""), S.dim[1], S.dim[2], S.dim[3])
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", GameTooltip_Hide)
+  return b
+end)
+local function px(x, y) return x * MAP_W, -y * MAP_H end
 local function clearMap()
-  resetDots(); resetCells(); resetLines(); resetNums()
+  resetDots(); resetCells(); resetLines(); resetNums(); resetHots()
   for _, t in ipairs(pvTiles) do t:Hide() end
   if pvTiles.reveal then for _, t in ipairs(pvTiles.reveal) do t:Hide() end end
+  W.plate:Hide(); W.legend:Hide(); W.mapNone:SetText("")
 end
-W.mapModes = {}
-local MAP_MODES = { { "density", "Known spawns" }, { "mine", "My history" }, { "route", "Route" } }
-for i, m in ipairs(MAP_MODES) do
-  local b = UI.Button(body, m[2], (PV_W + 2 - 8) / 3, function() st().huntMap = m[1]; refresh() end, 20)
-  b:SetPoint("TOPLEFT", preview, "TOPLEFT", (i - 1) * ((PV_W + 2 - 8) / 3 + 4), 24)
-  b.mark = b:CreateTexture(nil, "OVERLAY")
-  b.mark:SetPoint("BOTTOMLEFT", 1, 1)
-  b.mark:SetPoint("BOTTOMRIGHT", -1, 1)
-  b.mark:SetHeight(2)
-  b.mark:SetColorTexture(unpack(S.gold))
-  b.key = m[1]
-  W.mapModes[i] = b
-end
-UI.Tip(W.mapModes[1], "Known spawns", "Where creatures that give it have spawned (Classic data), weighted by drop chance. Not creatures alive now, not guaranteed drops.")
-UI.Tip(W.mapModes[2], "My history", "Where you've collected it yourself.")
-UI.Tip(W.mapModes[3], "Route", "The hunting grounds a route would visit, in order.")
-W.mapTitle = UI.Text(body, 12, S.text)
-W.mapTitle:SetPoint("TOPLEFT", preview, "BOTTOMLEFT", 0, -6)
-W.mapTitle:SetWidth(PV_W)
-W.mapSub = UI.Text(body, 11, S.dim)
-W.mapSub:SetPoint("TOPLEFT", W.mapTitle, "BOTTOMLEFT", 0, -3)
-W.mapSub:SetWidth(PV_W)
-W.stats = {}
-for i = 1, 5 do
-  local a = UI.Text(body, 12, S.dim)
-  a:SetPoint("TOPLEFT", W.mapSub, "BOTTOMLEFT", 0, -8 - (i - 1) * 17)
-  local v = UI.Text(body, 12, S.text, "RIGHT")
-  v:SetPoint("TOPRIGHT", W.mapSub, "BOTTOMLEFT", PV_W, -8 - (i - 1) * 17)
-  W.stats[i] = { a, v }
-end
-local function stat(i, label, value)
-  W.stats[i][1]:SetText(label or "")
-  W.stats[i][2]:SetText(value or "")
-end
-W.checkA = UI.Check(body, "", function() return W.checkAGet and W.checkAGet() end, function(v) if W.checkASet then W.checkASet(v) end refresh() end)
-W.checkA:SetPoint("TOPLEFT", W.mapSub, "BOTTOMLEFT", 2, -8 - 5 * 17)
-W.checkB = UI.Check(body, "", function() return W.checkBGet and W.checkBGet() end, function(v) if W.checkBSet then W.checkBSet(v) end refresh() end)
-W.checkB:SetPoint("TOPLEFT", W.checkA, "BOTTOMLEFT", 0, -2)
-W.main = UI.Button(body, "", PV_W + 2, function() if W.mainClick then W.mainClick() end end, 26, "primary")
-W.main:SetPoint("BOTTOMRIGHT", 0, 8)
-W.second = UI.Button(body, "", PV_W + 2, function() if W.secondClick then W.secondClick() end end, 22)
-W.second:SetPoint("BOTTOMRIGHT", W.main, "TOPRIGHT", 0, 4)
-W.note = UI.Text(body, 11, S.dim)
-W.note:SetPoint("BOTTOMLEFT", 0, 10)
-W.note:SetWidth(LIST_W)
-
-------------------------------------------------------------------------
--- Map drawing
-------------------------------------------------------------------------
-local function heat(t)
-  -- restrained green, amber, red
-  if t < 0.5 then local k = t * 2 return 0.35 + 0.55 * k, 0.65 + 0.1 * k, 0.3 - 0.1 * k end
-  local k = (t - 0.5) * 2
-  return 0.9, 0.75 - 0.4 * k, 0.2
-end
-local function drawArt(mapID)
+local function drawArt(mapID, title)
   clearMap()
-  if mapID then UI.DrawZoneArt(mapID, pvArt, pvTiles, PV_W, PV_H, true) end
+  if mapID then UI.DrawZoneArt(mapID, pvArt, pvTiles, MAP_W, MAP_H, true) end
+  if title then
+    W.plate:Show()
+    W.plate.text:SetText(title)
+    W.plate:SetWidth(W.plate.text:GetStringWidth() + 16)
+  end
 end
-local function drawDensity(z)
+local function heat(t)
+  if t < 0.5 then local k = t * 2 return 0.56 + 0.29 * k, 0.68 - 0.03 * k, 0.35 - 0.1 * k end
+  local k = (t - 0.5) * 2
+  return 0.85 - 0.03 * k, 0.65 - 0.27 * k, 0.25 - 0.02 * k
+end
+local function drawBins(bins, size)
   local maxW = 0
-  for _, b in pairs(z.bins) do maxW = math.max(maxW, b.w) end
+  for _, b in pairs(bins) do maxW = math.max(maxW, b.w) end
   if maxW <= 0 then return end
-  local s = 3 / 100
-  for _, b in pairs(z.bins) do
+  local s = size / 100
+  for _, b in pairs(bins) do
     local t = b.w / maxW
     local c = getCell()
     local r, g, bl = heat(t)
     c:SetColorTexture(r, g, bl, 0.25 + 0.4 * t)
     c:ClearAllPoints()
-    c:SetSize(s * PV_W, s * PV_H)
+    c:SetSize(s * MAP_W, s * MAP_H)
     c:SetPoint("TOPLEFT", pvArt, "TOPLEFT", px(b.bx * s, b.by * s))
   end
+  W.legend:Show()
+  W.legend.text:SetText("Low  |cff8fae5a■|r |cffd9a640■|r |cffd0603a■|r  High")
 end
-local function drawRings(stops, ordered, cur)
+local RING = {
+  current = { 0.84, 0.70, 0.40, 1, 2.4 }, upcoming = { 0.66, 0.55, 0.36, 0.8, 1.5 },
+  hunted = { 0.5, 0.5, 0.5, 0.55, 1.4 }, skipped = { 0.5, 0.5, 0.5, 0.55, 1.4 }, plain = { 0.66, 0.55, 0.36, 0.75, 1.4 },
+}
+local function ring(s, look)
+  local c = RING[look] or RING.plain
+  local SEG = 28
+  for k = 1, SEG do
+    local a1, a2 = (k - 1) / SEG * 2 * math.pi, k / SEG * 2 * math.pi
+    local l = getLine()
+    l:SetThickness(c[5])
+    l:SetColorTexture(c[1], c[2], c[3], c[4])
+    l:SetStartPoint("TOPLEFT", pvArt, px(s.x + math.cos(a1) * s.rx, s.y + math.sin(a1) * s.ry))
+    l:SetEndPoint("TOPLEFT", pvArt, px(s.x + math.cos(a2) * s.rx, s.y + math.sin(a2) * s.ry))
+  end
+end
+local function hot(s, g, method, title)
+  local h = getHot()
+  h:ClearAllPoints()
+  h:SetSize(math.max(16, s.rx * 2 * MAP_W), math.max(16, s.ry * 2 * MAP_H))
+  h:SetPoint("CENTER", pvArt, "TOPLEFT", px(s.x, s.y))
+  h.g, h.method, h.title = g, method, title
+end
+local function drawRoute(stops, states, cur)
   local n = #stops
-  if ordered and n > 1 then
+  local Cr = C.route
+  if n > 1 then
     for i = 1, n do
       local a, b = stops[i], stops[(i % n) + 1]
+      local into = (i % n) + 1 == cur
       local l = getLine()
-      l:SetThickness(2)
-      local Cr = C.route
-      l:SetColorTexture(Cr[1], Cr[2], Cr[3], ((i % n) + 1 == cur) and 0.95 or 0.5)
+      l:SetThickness(into and 3 or 2)
+      l:SetColorTexture(Cr[1], Cr[2], Cr[3], into and 0.95 or 0.4)
       l:SetStartPoint("TOPLEFT", pvArt, px(a.x, a.y))
       l:SetEndPoint("TOPLEFT", pvArt, px(b.x, b.y))
     end
   end
   for i, s in ipairs(stops) do
-    local SEG = 20
-    local r, g, bl, a = 0.66, 0.55, 0.36, 0.7
-    if cur and i == cur then r, g, bl, a = 0.84, 0.70, 0.40, 1 end
-    if s.state == "hunted" or s.state == "skipped" then r, g, bl, a = 0.55, 0.55, 0.55, 0.5 end
-    for k = 1, SEG do
-      local a1, a2 = (k - 1) / SEG * 2 * math.pi, k / SEG * 2 * math.pi
-      local l = getLine()
-      l:SetThickness(1.5)
-      l:SetColorTexture(r, g, bl, a)
-      l:SetStartPoint("TOPLEFT", pvArt, px(s.x + math.cos(a1) * s.rx, s.y + math.sin(a1) * s.ry))
-      l:SetEndPoint("TOPLEFT", pvArt, px(s.x + math.cos(a2) * s.rx, s.y + math.sin(a2) * s.ry))
-    end
-    if ordered then
-      local f = getNum()
-      f:ClearAllPoints()
-      f:SetPoint("CENTER", pvArt, "TOPLEFT", px(s.x, s.y))
-      f:SetText(i)
-      f:SetTextColor(r, g, bl)
-    end
+    local look = states and states[i] or (i == cur and "current" or "upcoming")
+    ring(s, look)
+    local f = getNum()
+    f:ClearAllPoints()
+    f:SetPoint("CENTER", pvArt, "TOPLEFT", px(s.x, s.y))
+    f:SetText(i)
+    local c = RING[look] or RING.plain
+    if look == "current" then f:SetTextColor(0.91, 0.77, 0.42) elseif look == "upcoming" then f:SetTextColor(0.85, 0.81, 0.73) else f:SetTextColor(c[1], c[2], c[3]) end
   end
+  W.legend:Show()
+  W.legend.text:SetText("|cffd6b266o|r Current   |cffa88c5co|r Next   |cff808080o|r Done")
 end
 local function drawMine(mapID, id)
   local spots = NW.GatherLog and mapID and NW.GatherLog.Spots(mapID, id) or {}
@@ -644,44 +746,236 @@ local function drawMine(mapID, id)
   for _, p in ipairs(spots) do maxN = math.max(maxN, p.n) end
   for _, p in ipairs(spots) do
     local d = getDot()
-    local sz = 4 + 6 * math.sqrt(p.n / maxN)
+    local sz = 4 + 7 * math.sqrt(p.n / maxN)
     d:SetSize(sz, sz)
-    d:SetColorTexture(0.35, 0.75, 0.72, 0.85) -- muted teal: yours
+    d:SetColorTexture(0.35, 0.75, 0.72, 0.85)
     d:ClearAllPoints()
     d:SetPoint("CENTER", pvArt, "TOPLEFT", px(p.x, p.y))
   end
   return #spots
 end
+local function dotAt(x, y, size, r, g, b, a)
+  local d = getDot()
+  d:SetSize(size, size)
+  d:SetColorTexture(r, g, b, a or 1)
+  d:ClearAllPoints()
+  d:SetPoint("CENTER", pvArt, "TOPLEFT", px(x, y))
+end
+
+-- side column: a title, label/value pairs, Next / Skip
+local side = CreateFrame("Frame", nil, ws)
+side:SetPoint("TOPLEFT", SIDE_X, -22)
+side:SetSize(SIDE_W, MAP_H)
+W.sideTitle = UI.Text(side, 13, S.gold)
+W.sideTitle:SetPoint("TOPLEFT", 0, -2)
+W.sideTitle:SetWidth(SIDE_W)
+W.sideTitle:SetWordWrap(false)
+W.sideStats = {}
+for i = 1, 7 do
+  local l = UI.Text(side, 10, S.dim)
+  local v = UI.Text(side, 13, S.text)
+  v:SetWidth(SIDE_W)
+  v:SetWordWrap(false)
+  W.sideStats[i] = { l, v }
+end
+W.next = UI.Button(side, "Next", 44, function() H.Advance() end, 18)
+W.skip = UI.Button(side, "Skip", 40, function() H.Advance(true) end, 18)
+W.next.label:SetFont(UI.FONT, 11, "")
+W.skip.label:SetFont(UI.FONT, 11, "")
+W.skip:SetPoint("LEFT", W.next, "RIGHT", 4, 0)
+UI.Tip(W.next, "Next hunting ground", "Marks this one hunted and moves on.")
+UI.Tip(W.skip, "Skip", "Moves on without marking it hunted.")
+local sideN, sideY
+local function sideReset(title)
+  W.sideTitle:SetText(title or "")
+  sideN, sideY = 0, -24
+  for _, s in ipairs(W.sideStats) do s[1]:SetText(""); s[2]:SetText("") end
+  W.next:Hide(); W.skip:Hide()
+end
+local function sideStat(label, value)
+  if sideN >= #W.sideStats then return end
+  sideN = sideN + 1
+  local s = W.sideStats[sideN]
+  s[1]:ClearAllPoints(); s[1]:SetPoint("TOPLEFT", 0, sideY); s[1]:SetText(label)
+  s[2]:ClearAllPoints(); s[2]:SetPoint("TOPLEFT", 0, sideY - 12); s[2]:SetText(value)
+  sideY = sideY - 34
+end
+local function sideButtons()
+  W.next:ClearAllPoints()
+  W.next:SetPoint("TOPLEFT", side, "TOPLEFT", 0, sideY + 4)
+  W.next:Show(); W.skip:Show()
+  sideY = sideY - 24
+end
 
 ------------------------------------------------------------------------
--- Views, one per source. Each fills the list, the map, stats and buttons.
+-- Craft workspace (in place of the map for crafted materials)
 ------------------------------------------------------------------------
-local function resetBody()
-  for _, r in ipairs(W.zrows) do r:Hide(); r.onClick, r.onEnter = nil, nil; r:SetSelected(false) end
-  for _, r in ipairs(W.crows) do r:Hide(); r.onEnter = nil end
-  W.crowHead:Hide()
-  for i = 1, 5 do stat(i) end
-  W.checkA:Hide(); W.checkB:Hide()
-  W.checkAGet, W.checkASet, W.checkBGet, W.checkBSet = nil, nil, nil, nil
-  W.main:Hide(); W.second:Hide()
-  W.mainClick, W.secondClick = nil, nil
-  W.main.tipTitle, W.main.tipBody = nil, nil
-  W.main:SetEnabled(true); W.second:SetEnabled(true)
-  W.note:SetText("")
-  W.colName:SetText("")
-  for _, b in ipairs(W.mapModes) do b:Hide() end
-  W.mapTitle:SetText(""); W.mapSub:SetText("")
-  zbox:Show()
-  preview:Show()
+local craft = CreateFrame("Frame", nil, right)
+craft:SetPoint("TOPLEFT", 0, WS_Y)
+craft:SetSize(R_W, 384)
+local CL_W = 318
+W.cRecipeHead = heading(craft, "Recipe", CL_W)
+W.cRecipeHead:SetPoint("TOPLEFT")
+local cIconBox = UI.Box(craft, 24, 24)
+cIconBox:SetPoint("TOPLEFT", 0, -22)
+W.cIcon = cIconBox:CreateTexture(nil, "ARTWORK")
+W.cIcon:SetPoint("TOPLEFT", 1, -1)
+W.cIcon:SetPoint("BOTTOMRIGHT", -1, 1)
+W.cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+W.cName = UI.Text(craft, 12, S.text)
+W.cName:SetPoint("TOPLEFT", cIconBox, "TOPRIGHT", 8, 0)
+W.cName:SetWidth(CL_W - 34)
+W.cName:SetWordWrap(false)
+W.cDesc = UI.Text(craft, 11, S.dim)
+W.cDesc:SetPoint("BOTTOMLEFT", cIconBox, "BOTTOMRIGHT", 8, 0)
+W.cDesc:SetWidth(CL_W - 34)
+W.cDesc:SetWordWrap(false)
+W.cBar = {}
+local BAR_COL = { { 1, 0.5, 0.25 }, { 1, 0.9, 0.2 }, { 0.35, 0.8, 0.35 }, { 0.44, 0.44, 0.44 } }
+for k = 1, 4 do
+  local t = craft:CreateTexture(nil, "ARTWORK")
+  t:SetColorTexture(BAR_COL[k][1], BAR_COL[k][2], BAR_COL[k][3], 1)
+  t:SetHeight(6)
+  W.cBar[k] = t
 end
-local function setCheck(cb, label, get, set, tip)
-  cb:Show()
-  cb:SetLabel(label)
-  cb.tipTitle, cb.tipBody = label, tip
-  if cb == W.checkA then W.checkAGet, W.checkASet = get, set else W.checkBGet, W.checkBSet = get, set end
-  cb:Refresh()
+W.cBarMark = craft:CreateTexture(nil, "OVERLAY")
+W.cBarMark:SetColorTexture(1, 1, 1, 1)
+W.cBarMark:SetSize(2, 10)
+W.cBarLbl = {}
+for k = 1, 4 do W.cBarLbl[k] = UI.Text(craft, 10, S.dim) end
+W.cSkill = UI.Text(craft, 11, S.text)
+W.cSkill:SetPoint("TOPLEFT", 0, -78)
+W.cSkill:SetWidth(CL_W)
+W.cMatHead = heading(craft, "", CL_W)
+W.cMatHead:SetPoint("TOPLEFT", 0, -98)
+local MATCOL = { { "Need", CL_W - 158 }, { "Have", CL_W - 114 }, { "Missing", CL_W - 62 } }
+for _, c in ipairs(MATCOL) do
+  local t = UI.Text(craft, 10, S.dim, "RIGHT")
+  t:SetPoint("TOPRIGHT", craft, "TOPLEFT", c[2], -120)
+  t:SetText(c[1])
 end
--- tooltips that change with the view: set .tipTitle / .tipBody, nil for none
+local cbox = UI.Box(craft, CL_W, 4 * 22 + 4)
+cbox:SetPoint("TOPLEFT", 0, -134)
+W.cMats = {}
+for i = 1, 4 do
+  local r = CreateFrame("Button", nil, cbox)
+  r:SetSize(CL_W - 2, 22)
+  r:SetPoint("TOPLEFT", 1, -2 - (i - 1) * 22)
+  UI.RowStripe(r)
+  r:SetStripe(i % 2 == 0)
+  r.icon = r:CreateTexture(nil, "ARTWORK")
+  r.icon:SetSize(16, 16)
+  r.icon:SetPoint("LEFT", 6, 0)
+  r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  r.name = UI.Text(r, 12, S.text)
+  r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+  r.name:SetWidth(120)
+  r.name:SetWordWrap(false)
+  r.cells = {}
+  for k, c in ipairs(MATCOL) do
+    local t = UI.Text(r, 12, S.text, "RIGHT")
+    t:SetPoint("RIGHT", r, "LEFT", c[2], 0)
+    r.cells[k] = t
+  end
+  r.find = UI.Button(r, "Find", 46, function(self)
+    local id = self:GetParent().id
+    if id and NW.FindMaterial then NW.FindMaterial(id, sel.from, self:GetParent().missing) end
+  end, 18)
+  r.find.label:SetFont(UI.FONT, 11, "")
+  r.find:SetPoint("RIGHT", -4, 0)
+  r:SetScript("OnEnter", function(self)
+    if not self.id then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetItemByID(self.id)
+    GameTooltip:Show()
+  end)
+  r:SetScript("OnLeave", GameTooltip_Hide)
+  W.cMats[i] = r
+end
+W.cBuyLine = UI.Text(craft, 11, S.dim)
+W.cBuyLine:SetPoint("TOPLEFT", cbox, "BOTTOMLEFT", 0, -4)
+W.cBuyCost = UI.Text(craft, 11, S.text, "RIGHT")
+W.cBuyCost:SetPoint("TOPRIGHT", cbox, "BOTTOMRIGHT", 0, -4)
+W.cWaysHead = heading(craft, "", CL_W)
+W.cWaysHead:SetPoint("TOPLEFT", 0, -250)
+local wcap = UI.Text(craft, 10, S.dim)
+wcap:SetPoint("TOPLEFT", 8, -272)
+wcap:SetText("Option  ·  estimates")
+local wcap2 = UI.Text(craft, 10, S.dim, "RIGHT")
+wcap2:SetPoint("TOPRIGHT", craft, "TOPLEFT", CL_W - 8, -272)
+wcap2:SetText("You pay")
+local wbox = UI.Box(craft, CL_W, 3 * 30 + 4)
+wbox:SetPoint("TOPLEFT", 0, -286)
+W.cWays = {}
+for i = 1, 3 do
+  local r = CreateFrame("Frame", nil, wbox)
+  r:SetSize(CL_W - 2, 30)
+  r:SetPoint("TOPLEFT", 1, -2 - (i - 1) * 30)
+  UI.RowStripe(r)
+  r:SetStripe(i % 2 == 0)
+  UI.RowHighlight(r)
+  r.a = UI.Text(r, 12, S.text)
+  r.a:SetPoint("TOPLEFT", 8, -3)
+  r.a:SetWidth(CL_W - 90)
+  r.a:SetWordWrap(false)
+  r.b = UI.Text(r, 10, S.dim)
+  r.b:SetPoint("BOTTOMLEFT", 8, 3)
+  r.b:SetWidth(CL_W - 90)
+  r.b:SetWordWrap(false)
+  r.c = UI.Text(r, 12, S.text, "RIGHT")
+  r.c:SetPoint("RIGHT", -8, 0)
+  W.cWays[i] = r
+end
+-- used in
+local CR_X = CL_W + 14
+local CR_W = R_W - CR_X
+W.cUsedHead = heading(craft, "", CR_W)
+W.cUsedHead:SetPoint("TOPLEFT", CR_X, 0)
+local ucap = UI.Text(craft, 10, S.dim)
+ucap:SetPoint("TOPLEFT", CR_X + 6, -22)
+ucap:SetText("Recipe")
+local ucap2 = UI.Text(craft, 10, S.dim, "RIGHT")
+ucap2:SetPoint("TOPRIGHT", craft, "TOPLEFT", CR_X + CR_W - 40, -22)
+ucap2:SetText("Uses")
+local ucap3 = UI.Text(craft, 10, S.dim, "RIGHT")
+ucap3:SetPoint("TOPRIGHT", craft, "TOPLEFT", CR_X + CR_W - 6, -22)
+ucap3:SetText("Skill")
+local ubox = UI.Box(craft, CR_W, 10 * 20 + 4)
+ubox:SetPoint("TOPLEFT", CR_X, -36)
+W.cUsed = {}
+for i = 1, 10 do
+  local r = CreateFrame("Frame", nil, ubox)
+  r:SetSize(CR_W - 2, 20)
+  r:SetPoint("TOPLEFT", 1, -2 - (i - 1) * 20)
+  UI.RowStripe(r)
+  r:SetStripe(i % 2 == 0)
+  r.name = UI.Text(r, 11, S.text)
+  r.name:SetPoint("LEFT", 6, 0)
+  r.name:SetWidth(CR_W - 72)
+  r.name:SetWordWrap(false)
+  r.n = UI.Text(r, 11, S.text, "RIGHT")
+  r.n:SetPoint("RIGHT", r, "LEFT", CR_W - 40, 0)
+  r.req = UI.Text(r, 11, S.text, "RIGHT")
+  r.req:SetPoint("RIGHT", -6, 0)
+  W.cUsed[i] = r
+end
+W.cUsedMore = UI.Text(craft, 10, S.dim)
+W.cUsedMore:SetPoint("TOPLEFT", ubox, "BOTTOMLEFT", 0, -4)
+W.cUsedMore:SetWidth(CR_W)
+
+------------------------------------------------------------------------
+-- Action row
+------------------------------------------------------------------------
+W.main = UI.Button(right, "", 190, function() if W.mainClick then W.mainClick() end end, 26, "primary")
+W.main:SetPoint("BOTTOMLEFT", 0, 10)
+W.second = UI.Button(right, "", 120, function() if W.secondClick then W.secondClick() end end, 26)
+W.second:SetPoint("LEFT", W.main, "RIGHT", 6, 0)
+W.third = UI.Button(right, "", 120, function() if W.thirdClick then W.thirdClick() end end, 26)
+W.third:SetPoint("LEFT", W.second, "RIGHT", 6, 0)
+W.note = UI.Text(right, 11, S.dim, "RIGHT")
+W.note:SetPoint("BOTTOMRIGHT", 0, 17)
+W.note:SetWidth(R_W - 330)
+W.note:SetWordWrap(false)
 local function liveTip(f)
   f:HookScript("OnEnter", function(self)
     if not self.tipBody then return end
@@ -692,16 +986,59 @@ local function liveTip(f)
   end)
   f:HookScript("OnLeave", GameTooltip_Hide)
 end
-liveTip(W.checkA); liveTip(W.checkB); liveTip(W.main)
-local function listRows(rows, offsetKey)
+liveTip(W.checkA); liveTip(W.checkB); liveTip(W.main); liveTip(W.second)
+local function action(btn, text, fn, tipTitle, tipBody, enabled)
+  btn:Show()
+  btn:SetText(text)
+  btn:SetWidth(math.max(btn == W.main and 190 or 100, btn.label:GetStringWidth() + 26))
+  btn:SetEnabled(enabled ~= false)
+  btn.tipTitle, btn.tipBody = tipTitle, tipBody
+  if btn == W.main then W.mainClick = fn elseif btn == W.second then W.secondClick = fn else W.thirdClick = fn end
+end
+
+------------------------------------------------------------------------
+-- Per-view helpers
+------------------------------------------------------------------------
+local function setCheck(cb, label, get, set, tip)
+  cb:Show()
+  cb:SetLabel(label)
+  cb.tipTitle, cb.tipBody = label, tip
+  if cb == W.checkA then W.checkAGet, W.checkASet = get, set else W.checkBGet, W.checkBSet = get, set end
+  cb:Refresh()
+end
+-- which map tabs a view offers; returns the mode to draw
+local function mapTabs(avail, default)
+  local mode = st().huntMap or default
+  if not avail[mode] then mode = default end
+  if not avail[mode] then for _, m in ipairs(MODES_MAP) do if avail[m[1]] then mode = m[1] break end end end
+  for _, b in ipairs(W.mapTabs) do
+    b.ok = avail[b.key] and true or false
+    b:SetEnabled(b.ok)
+    b.mark:SetShown(b.key == mode)
+    if b.ok then b.label:SetTextColor(unpack(b.key == mode and S.gold or S.dim)) end
+  end
+  return mode
+end
+local function tableRows(rows)
   W.zoneN = #rows
+  W.zoneOffset = math.min(W.zoneOffset, math.max(0, #rows - TROWS))
   for i, r in ipairs(W.zrows) do
     local row = rows[i + W.zoneOffset]
     r.row = row or false
     r:SetShown(row ~= nil)
+    r:SetSelected(false)
+    r.onClick, r.onEnter = nil, nil
   end
 end
+local function foldState()
+  local open = st()["huntFold" .. (sel.src or "")]
+  if open == nil then open = sel.src ~= "skin" end
+  return open
+end
 
+------------------------------------------------------------------------
+-- Views
+------------------------------------------------------------------------
 -- Herbs and ore
 local function viewNodes(e)
   local both = e.id == "both"
@@ -720,31 +1057,26 @@ local function viewNodes(e)
     end)
     rows = sorted
   end
-  W.listHead.text:SetText("Zones")
+  W.tblHead.text:SetText("Zones")
+  W.nodeSort:Show()
   W.colName:SetText("Zone")
-  placeCols({ 196, 244, LIST_W - 8 })
-  W.cols[1]:SetText("Spots"); W.cols[2]:SetText("Loop"); W.cols[3]:SetText("g/h")
+  setCols({ "Spots", "Loop", "g/h" })
   local pick = rows[1]
   for _, row in ipairs(rows) do if sel.zone and row.name == sel.zone then pick = row end end
-  listRows(rows)
+  tableRows(rows)
   for _, r in ipairs(W.zrows) do
     local row = r.row
     if row then
-      r.name:SetText((row.recommended and "|cffd6b266*|r " or "   ") .. row.name)
+      r.name:SetText((row.recommended and "|cffd6b266*|r " or "") .. row.name)
       r.name:SetTextColor(unpack(row.count > 0 and S.text or S.dim))
-      if row.rate then
-        r.cells[1]:SetText(row.count)
-        r.cells[2]:SetText(fmtTime(row.loop / NW.MOUNT_YPS))
-        r.cells[3]:SetText(row.gold and ("~" .. NW.Money(row.gold, true)) or DIM .. "–|r")
-      else
-        r.cells[1]:SetText(row.count > 0 and row.count or DIM .. "–|r")
-        r.cells[2]:SetText(DIM .. "–|r"); r.cells[3]:SetText(DIM .. "–|r")
-      end
+      r.cells[1]:SetText(row.count > 0 and row.count or dash())
+      r.cells[2]:SetText(row.loop and fmtTime(row.loop / NW.MOUNT_YPS) or dash())
+      r.cells[3]:SetText(row.gold and ("~" .. NW.Money(row.gold, true)) or dash())
       r:SetSelected(row == pick)
       r.onClick = function(self, button)
         sel.zone = self.row.name
-        if button == "RightButton" and W.mainClick then refresh(); W.mainClick() return end
         refresh()
+        if button == "RightButton" and W.mainClick then W.mainClick() end
       end
       r.onEnter = function(self)
         local rw = self.row
@@ -753,43 +1085,43 @@ local function viewNodes(e)
         if rw.recommended then GameTooltip:AddLine("Recommended by farming guides" .. (rw.note and (": " .. rw.note) or ""), S.gold[1], S.gold[2], S.gold[3], true)
         elseif not rw.missing then GameTooltip:AddLine("Found in your own node data", S.dim[1], S.dim[2], S.dim[3]) end
         if rw.missing then GameTooltip:AddLine("Not on your client's map list", S.dim[1], S.dim[2], S.dim[3]) end
-        if rw.rate then GameTooltip:AddDoubleLine("Spots per minute", ("%.1f"):format(rw.rate), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         GameTooltip:AddLine("g/h: if every spot were up, about two items each at Auctionator prices. An estimate.", S.dim[1], S.dim[2], S.dim[3], true)
         if rw.mapID and rw.count > 0 then GameTooltip:AddLine("Right-click: build its route", S.dim[1], S.dim[2], S.dim[3]) end
         GameTooltip:Show()
       end
     end
   end
-  -- map: your route if it's for this, else the known spots and a quick loop
+  if not both then
+    setCheck(W.checkA, "Also pick other herbs and ore", function() return st().guideAlsoOthers end,
+      function(v) st().guideAlsoOthers = v end, "The route also stops at every other herb and ore your filters allow.")
+  end
+  -- map
   local row = pick
-  local kind = both and "both" or e.nodeKind
-  drawArt(row and row.mapID)
-  if row then
-    W.mapTitle:SetText(row.name)
-    local route = row.mapID and NW.db.routes[row.mapID]
-    local isFocus = route and ((route.focus and route.focus[entry[1]]) or (both and not route.focus))
-    local function p(x, y) return x * PV_W, -y * PV_H end
-    if isFocus and #route.stops > 1 then
+  local route = row and row.mapID and NW.db.routes[row.mapID]
+  local isFocus = route and ((route.focus and route.focus[entry[1]]) or (both and not route.focus)) and #route.stops > 1
+  local mode = mapTabs({ known = true, mine = not both, route = true, heat = true }, isFocus and "route" or "known")
+  drawArt(row and row.mapID, row and row.name)
+  local function p(x, y) return x * MAP_W, -y * MAP_H end
+  if row and not row.mapID then
+    W.mapNone:SetText("Not on your client's map list")
+  elseif row and mode == "route" then
+    if isFocus then
       local stp = route.stops
       for i = 1, #stp do
         local pts = i == route.open and {} or NW.LegPoints(route, i)
         for q = 1, #pts - 1 do
           local l = getLine()
-          l:SetThickness(2)
+          l:SetThickness(2.5)
           l:SetColorTexture(C.route[1], C.route[2], C.route[3], 0.9)
           l:SetStartPoint("TOPLEFT", pvArt, p(pts[q][1], pts[q][2]))
           l:SetEndPoint("TOPLEFT", pvArt, p(pts[q + 1][1], pts[q + 1][2]))
         end
       end
       for _, a in ipairs(stp) do
-        local d = getDot()
         local ed = a.kind == "ore" and C.oreEdge or C.herbEdge
-        d:SetSize(7, 7)
-        d:SetColorTexture(ed[1], ed[2], ed[3], 1)
-        d:ClearAllPoints()
-        d:SetPoint("CENTER", pvArt, "TOPLEFT", p(a.x, a.y))
+        dotAt(a.x, a.y, 7, ed[1], ed[2], ed[3], 1)
       end
-      W.mapSub:SetText(("Your route  ·  %d stops, %s %s"):format(#stp, fmtTime(route.seconds or 0), route.open and "each way" or "per loop"))
+      W.caption:SetText(("Your route  ·  %d stops, %s %s"):format(#stp, fmtTime(route.seconds or 0), route.open and "each way" or "per loop"))
     else
       if row.order and #row.pts <= 400 then
         for i = 1, #row.order do
@@ -801,36 +1133,49 @@ local function viewNodes(e)
           l:SetEndPoint("TOPLEFT", pvArt, p(b[3], b[4]))
         end
       end
-      for _, pt in ipairs(row.pts) do
-        local d = getDot()
-        d:SetSize(5, 5)
-        local ed = pt[5] == "ore" and C.oreEdge or C.herbEdge
-        d:SetColorTexture(ed[1], ed[2], ed[3], 1)
-        d:ClearAllPoints()
-        d:SetPoint("CENTER", pvArt, "TOPLEFT", p(pt[3], pt[4]))
-      end
-      W.mapSub:SetText(row.missing and "Not on your client's map list" or row.count > 0 and "Known spots  ·  no route built" or "No spots saved yet")
+      W.caption:SetText("A quick loop past every known spot  ·  no route built")
     end
-    stat(1, "Known spots", tostring(row.count))
+  elseif row and mode == "mine" then
+    local n = drawMine(row.mapID, e.id)
+    W.caption:SetText(n > 0 and (TEAL .. "Where you gathered it|r") or "Nothing gathered here yet")
+  elseif row and mode == "heat" then
+    local bins = {}
+    for _, pt in ipairs(row.pts) do
+      local bx, by2 = math.floor(pt[3] * 100 / 3), math.floor(pt[4] * 100 / 3)
+      local k = bx * 100 + by2
+      bins[k] = bins[k] or { bx = bx, by = by2, w = 0 }
+      bins[k].w = bins[k].w + 1
+    end
+    drawBins(bins, 3)
+    W.caption:SetText("Known spots per area  ·  not nodes up now")
+  elseif row then
+    W.caption:SetText(row.count > 0 and "Known spots  ·  where nodes have spawned, not nodes up now" or "No spots saved yet")
+  end
+  if row and row.mapID and mode ~= "mine" and mode ~= "heat" and not (mode == "route" and isFocus) then
+    for _, pt in ipairs(row.pts) do
+      local ed = pt[5] == "ore" and C.oreEdge or C.herbEdge
+      dotAt(pt[3], pt[4], 5, ed[1], ed[2], ed[3], 1)
+    end
+  end
+  -- side
+  sideReset(row and row.name or "")
+  if row then
+    sideStat("Known spots", tostring(row.count))
     if row.rate then
-      stat(2, "Loop", fmtTime(row.loop / NW.MOUNT_YPS))
-      stat(3, "Spots per minute", ("%.1f"):format(row.rate))
-      stat(4, "Gold per hour", row.gold and ("~" .. NW.Money(row.gold, true)) or DIM .. "no prices|r")
+      sideStat("Loop", fmtTime(row.loop / NW.MOUNT_YPS))
+      sideStat("Spots per minute", ("%.1f"):format(row.rate))
+      sideStat("Gold per hour", row.gold and ("~" .. NW.Money(row.gold, true)) or DIM .. "no prices|r")
     end
+    if isFocus then sideStat("Your route", ("%d stops"):format(#route.stops)) end
+    local mine = NW.GatherLog and row.mapID and NW.GatherLog.ZoneCount(row.mapID, not both and e.id or nil) or 0
+    if mine > 0 then sideStat("You gathered here", TEAL .. mine .. "|r") end
   end
-  if not both then
-    setCheck(W.checkA, "Also pick other herbs and ore", function() return st().guideAlsoOthers end,
-      function(v) st().guideAlsoOthers = v end, "The route also stops at every other herb and ore your filters allow.")
-  end
-  W.main:Show()
-  W.main:SetText("Build route")
-  W.main:SetEnabled(row ~= nil and row.mapID ~= nil and row.count > 0)
-  W.mainClick = function()
+  action(W.main, "Build route", function()
     if not (row and row.mapID and row.count > 0) then return end
     NW.BuildRoute(row.mapID, function() if page:IsShown() then refresh() end end,
       both and {} or { focus = focusOf(entry), alsoOthers = st().guideAlsoOthers })
-  end
-  W.main.tipTitle, W.main.tipBody = "Build route", "Replaces this zone's saved route."
+  end, "Build route", "Replaces this zone's saved route.", row ~= nil and row.mapID ~= nil and row.count > 0)
+  local kind = both and "both" or e.nodeKind
   local req = not both and NW.RequiredSkill(entry[1])
   local skill = NW.GetSkill(kind)
   if both then
@@ -846,19 +1191,16 @@ end
 local function viewFishing(e)
   local F = NW.FISHING
   local f = F and F.FISH[e.id]
-  W.listHead.text:SetText("Where to fish it")
+  W.tblHead.text:SetText("Where to fish it")
   W.colName:SetText("Zone")
-  placeCols({ LIST_W - 8 })
-  W.cols[1]:SetText("Caught")
-  local zones = {}
-  local seen = {}
-  local mine = {}
+  setCols({ nil, nil, "Caught" })
+  local zones, seen, mine = {}, {}, {}
   for _, z in ipairs(NW.GatherLog and NW.GatherLog.ZonesFor(e.id) or {}) do mine[z.map] = z.n end
   for _, z in ipairs(F and F.zonesFor(e.id) or {}) do
     local name = type(z) == "table" and (z.name or z[1]) or z
     if name and not seen[name] then seen[name] = true; zones[#zones + 1] = { name = name, mapID = zoneID(name) } end
   end
-  for m, n in pairs(mine) do
+  for m in pairs(mine) do
     local info = C_Map.GetMapInfo and C_Map.GetMapInfo(m)
     local name = info and info.name
     if name and not seen[name] then seen[name] = true; zones[#zones + 1] = { name = name, mapID = m } end
@@ -867,33 +1209,30 @@ local function viewFishing(e)
   table.sort(zones, function(a, b) if a.n ~= b.n then return a.n > b.n end return a.name < b.name end)
   local pick = zones[1]
   for _, z in ipairs(zones) do if sel.zone == z.name then pick = z end end
-  listRows(zones)
+  tableRows(zones)
   for _, r in ipairs(W.zrows) do
     if r.row then
       r.name:SetText(r.row.name)
       r.name:SetTextColor(unpack(S.text))
-      r.cells[1]:SetText(r.row.n > 0 and r.row.n or DIM .. "–|r")
+      r.cells[3]:SetText(r.row.n > 0 and (TEAL .. r.row.n .. "|r") or dash())
       r:SetSelected(r.row == pick)
       r.onClick = function(self) sel.zone = self.row.name; refresh() end
     end
   end
-  drawArt(pick and pick.mapID)
+  mapTabs({ mine = true }, "mine")
+  drawArt(pick and pick.mapID, pick and pick.name)
   local n = pick and pick.mapID and drawMine(pick.mapID, e.id) or 0
-  W.mapTitle:SetText(pick and pick.name or "")
-  W.mapSub:SetText(n > 0 and "|cff59bfb8Your catches|r" or "Fishing data is by zone, not by spot")
+  W.caption:SetText(n > 0 and (TEAL .. "Your catches|r") or "Fishing data is by zone, not by spot")
+  sideReset(pick and pick.name or "")
   if f then
-    stat(1, "Fishing skill", f.skill and tostring(f.skill) or DIM .. "unknown|r")
-    if f.note then stat(2, "When", f.note) end
-  else
-    W.note:SetText("Not in Nodewalker's fishing data.")
+    sideStat("Fishing skill", f.skill and tostring(f.skill) or DIM .. "unknown|r")
+    if f.note then sideStat("When", f.note) end
   end
-  W.main:Show(); W.main:SetText("Fish Finder")
-  W.main:SetEnabled(NW.OpenFishFinder ~= nil)
-  W.mainClick = function() if NW.OpenFishFinder then NW.OpenFishFinder(e.id) end end
-  W.second:Show(); W.second:SetText("Fishing + Cooking plan")
-  W.second:SetEnabled(NW.OpenFishCook ~= nil)
-  W.secondClick = function() if NW.OpenFishCook then NW.OpenFishCook() end end
-  W.main.tipTitle, W.main.tipBody = "Fish Finder", "Where it's caught, lures and your catches."
+  if pick and pick.n > 0 then sideStat("You caught here", TEAL .. pick.n .. "|r") end
+  if not f then W.note:SetText("Not in Nodewalker's fishing data.") end
+  action(W.main, "Fish Finder", function() if NW.OpenFishFinder then NW.OpenFishFinder(e.id) end end,
+    "Fish Finder", "Where it's caught, lures and your catches.", NW.OpenFishFinder ~= nil)
+  action(W.second, "Fishing + Cooking plan", function() if NW.OpenFishCook then NW.OpenFishCook() end end, nil, nil, NW.OpenFishCook ~= nil)
 end
 
 -- Skinning and creature loot: Hunting Grounds
@@ -903,32 +1242,37 @@ local function huntOpts(method)
   return o
 end
 local function viewHunt(e, method)
-  local opts = huntOpts(method)
-  local g = H.Grounds(e.id, method, opts)
+  local g = H.Grounds(e.id, method, huntOpts(method))
   local zones = H.Sort(g.zones, st().huntSort or "density", e.id)
   if st().huntSort == "mine" then
     local f = {}
     for _, z in ipairs(zones) do if z.mapID and NW.GatherLog.ZoneCount(z.mapID, e.id) > 0 then f[#f + 1] = z end end
     zones = f
   end
-  W.listHead.text:SetText("Hunting grounds")
+  local skill = NW.ProfSkill and NW.ProfSkill("skinning")
+  W.tblHead.text:SetText("Hunting grounds")
+  W.huntSort:Show()
   W.colName:SetText("Zone")
-  placeCols({ 196, 244, LIST_W - 8 })
-  W.cols[1]:SetText("Level"); W.cols[2]:SetText("Spawns"); W.cols[3]:SetText("Mine")
+  setCols({ "Level", method == "skin" and "Skill" or "Spawns", "Mine" })
   local pick = zones[1]
   for _, z in ipairs(zones) do if sel.zone == z.name then pick = z end end
-  listRows(zones)
   local hunt = H.Route()
+  tableRows(zones)
   for _, r in ipairs(W.zrows) do
     local z = r.row
     if z then
       local active = hunt and hunt.item == e.id and hunt.zone == z.name
-      r.name:SetText((active and "|cff5fd4e0>|r " or "") .. z.name)
+      r.name:SetText((active and "|cff5fd4e0›|r " or "") .. z.name)
       r.name:SetTextColor(unpack(z.mapID and S.text or S.dim))
       r.cells[1]:SetText(z.minL and (z.minL == z.maxL and z.minL or (z.minL .. "-" .. z.maxL)) or DIM .. "?|r")
-      r.cells[2]:SetText(z.n)
+      if method == "skin" then
+        local req = H.SkinReq(z.maxL)
+        r.cells[2]:SetText(req and ((SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r") or dash())
+      else
+        r.cells[2]:SetText(z.n)
+      end
       local mine = z.mapID and NW.GatherLog and NW.GatherLog.ZoneCount(z.mapID, e.id) or 0
-      r.cells[3]:SetText(mine > 0 and mine or DIM .. "–|r")
+      r.cells[3]:SetText(mine > 0 and (TEAL .. mine .. "|r") or dash())
       r:SetSelected(z == pick)
       r.onClick = function(self) sel.zone = self.row.name; refresh() end
       r.onEnter = function(self)
@@ -937,140 +1281,155 @@ local function viewHunt(e, method)
         GameTooltip:SetText(zz.name, 1, 1, 1)
         GameTooltip:AddDoubleLine("Known spawn points", zz.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
         GameTooltip:AddDoubleLine("Hunting grounds", #zz.grounds, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-        if (zz.scattered or 0) > 0 then GameTooltip:AddDoubleLine("Scattered spawns", zz.scattered, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        if method == "skin" then GameTooltip:AddLine("Skill: the most any creature here needs (Classic rule).", S.dim[1], S.dim[2], S.dim[3], true) end
         if not zz.mapID then GameTooltip:AddLine("Not on your client's map list", S.bad[1], S.bad[2], S.bad[3]) end
         GameTooltip:AddLine("Classic data: creatures and chances may differ in WoW Forever.", S.dim[1], S.dim[2], S.dim[3], true)
         GameTooltip:Show()
       end
     end
   end
-  -- creatures in the selected zone
-  W.crowHead:Show()
-  W.crowHead.text:SetText(method == "skin" and "Creatures to skin" or "Creatures that drop it")
-  local skill = NW.ProfSkill and NW.ProfSkill("skinning")
+  -- the fold: creatures in the zone
+  local open = foldState()
+  W.fold:Show()
+  W.fold.sign:SetText(open and "–" or "+")
+  W.fold.text:SetText(method == "skin" and "Creatures to skin here" or "Creatures here")
+  local list = {}
   if pick then
-    local list = {}
     local chance = {}
     for _, s in ipairs(H.Sources(e.id, method)) do chance[s.npc] = s end
-    for npc, n in pairs(pick.npcs) do list[#list + 1] = { u = H.Unit(npc), n = n, s = chance[npc] } end
+    for npc, n in pairs(pick.npcs) do if chance[npc] then list[#list + 1] = { u = H.Unit(npc), n = n, s = chance[npc] } end end
     table.sort(list, function(a, b) return a.n * a.s.chance > b.n * b.s.chance end)
-    for i, r in ipairs(W.crows) do
-      local c = list[i]
-      r:SetShown(c ~= nil)
-      if c then
-        local u = c.u
-        r.name:SetText(u.name)
-        r.lvl:SetText(u.min == u.max and u.min or (u.min .. "-" .. u.max))
-        r.ch:SetText(("%d%%"):format(math.floor(c.s.chance + 0.5)))
-        if method == "skin" then
-          local req = H.SkinReq(u.max)
-          local col = NW.SkillColor(req, skill)
-          local hex = ({ red = "|cffff4033", orange = "|cffff8040", yellow = "|cffffe633", green = "|cff59cc59", grey = "|cff8c8c8c" })[col] or "|cffe0dbd0"
-          r.req:SetText(hex .. req .. "|r")
-        else
-          r.req:SetText(H.TYPE[u.type] or "")
-          r.req:SetTextColor(unpack(S.dim))
-        end
-        r.onEnter = function(self)
-          GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-          GameTooltip:SetText(u.name, 1, 1, 1)
-          GameTooltip:AddDoubleLine("Level", u.min == u.max and u.min or (u.min .. "-" .. u.max), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-          if H.TYPE[u.type] then GameTooltip:AddDoubleLine("Type", H.TYPE[u.type], S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
-          GameTooltip:AddDoubleLine(method == "skin" and "Skinning gives it" or "Drops it", ("%.1f%%"):format(c.s.chance), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-          if c.s.max and c.s.max > 1 then GameTooltip:AddDoubleLine("Each time", c.s.min .. "-" .. c.s.max, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
-          if method == "skin" then GameTooltip:AddDoubleLine("Skinning needed", H.SkinReq(u.max) .. " (Classic rule)", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
-          GameTooltip:AddDoubleLine("Known spawns here", c.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-          if u.respawn and u.respawn > 0 then GameTooltip:AddDoubleLine("Respawn", ("~%d min"):format(math.ceil(u.respawn / 60)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
-          local mine = NW.GatherLog and NW.GatherLog.Npc(u.npc)
-          if mine and (mine.skin + mine.loot) > 0 then
-            local got = mine.items[e.id] or 0
-            local times = method == "skin" and mine.skin or mine.loot
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddDoubleLine(method == "skin" and "You skinned" or "You looted", times .. "x", 0.35, 0.75, 0.72, 1, 1, 1)
-            GameTooltip:AddDoubleLine("It gave you", got, 0.35, 0.75, 0.72, 1, 1, 1)
-            if times >= 10 then GameTooltip:AddDoubleLine("Per " .. (method == "skin" and "skin" or "loot"), ("%.2f"):format(got / times), 0.35, 0.75, 0.72, 1, 1, 1) end
-          end
-          GameTooltip:AddLine("Classic data", S.dim[1], S.dim[2], S.dim[3])
-          GameTooltip:Show()
-        end
-      end
-    end
   end
-  -- the map: known spawn density, your history, or the route
-  local mode = st().huntMap or "density"
-  for _, b in ipairs(W.mapModes) do
-    b:Show()
-    b.mark:SetShown(b.key == mode)
-    b.label:SetTextColor(unpack(b.key == mode and S.gold or S.dim))
-  end
-  drawArt(pick and pick.mapID)
-  local plan = pick and H.Plan(pick) or {}
-  local active = hunt and hunt.item == e.id and pick and hunt.zone == pick.name
-  if pick then
-    W.mapTitle:SetText(pick.name)
-    if mode == "density" then
-      drawDensity(pick)
-      drawRings(pick.grounds, false)
-      W.mapSub:SetText("Known spawns × drop chance  ·  Classic data")
-    elseif mode == "mine" then
-      local n = drawMine(pick.mapID, e.id)
-      W.mapSub:SetText(n > 0 and "|cff59bfb8Where you collected it|r" or "Nothing collected here yet")
-    else
-      if active then
-        local stops = {}
-        for i, s in ipairs(hunt.stops) do stops[i] = { x = s.x, y = s.y, rx = s.rx, ry = s.ry, state = H.State(i) } end
-        drawRings(stops, true, hunt.cur)
+  W.fold.n:SetText(#list)
+  local shown = 0
+  for i, r in ipairs(W.crows) do
+    local c = open and list[i]
+    r:SetShown(c and true or false)
+    if c then
+      shown = i
+      local u = c.u
+      r.name:SetText(u.name)
+      r.lvl:SetText(u.min == u.max and u.min or (u.min .. "-" .. u.max))
+      r.ch:SetText(("%d%%"):format(math.floor(c.s.chance + 0.5)))
+      if method == "skin" then
+        local req = H.SkinReq(u.max)
+        r.req:SetText((SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r")
       else
-        drawRings(plan, true, 1)
+        r.req:SetText(DIM .. (H.TYPE[u.type] or "") .. "|r")
       end
-      local len = H.Length(pick.mapID, active and hunt.stops or plan)
-      W.mapSub:SetText(#plan == 1 and "One area: stay and hunt" or len and ("~%d yd loop, straight lines"):format(math.floor(len / 10 + 0.5) * 10) or "")
+      r.onEnter = function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(u.name, 1, 1, 1)
+        GameTooltip:AddDoubleLine(method == "skin" and "Skinning gives it" or "Drops it", ("%.1f%%"):format(c.s.chance), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        if c.s.max and c.s.max > 1 then GameTooltip:AddDoubleLine("Each time", c.s.min .. "-" .. c.s.max, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        if method == "skin" then GameTooltip:AddDoubleLine("Skinning needed", H.SkinReq(u.max) .. " (Classic rule)", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        GameTooltip:AddDoubleLine("Known spawns here", c.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        if u.respawn and u.respawn > 0 then GameTooltip:AddDoubleLine("Respawn", ("~%d min"):format(math.ceil(u.respawn / 60)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        local mine = NW.GatherLog and NW.GatherLog.Npc(u.npc)
+        if mine and (mine.skin + mine.loot) > 0 then
+          local got = mine.items[e.id] or 0
+          local times = method == "skin" and mine.skin or mine.loot
+          GameTooltip:AddLine(" ")
+          GameTooltip:AddDoubleLine(method == "skin" and "You skinned" or "You looted", times .. "x", 0.35, 0.75, 0.72, 1, 1, 1)
+          GameTooltip:AddDoubleLine("It gave you", got, 0.35, 0.75, 0.72, 1, 1, 1)
+          if times >= 10 then GameTooltip:AddDoubleLine("Each time", ("%.2f"):format(got / times), 0.35, 0.75, 0.72, 1, 1, 1) end
+        end
+        GameTooltip:AddLine("Classic data", S.dim[1], S.dim[2], S.dim[3])
+        GameTooltip:Show()
+      end
     end
-    local lo, hi = pick.minL, pick.maxL
-    stat(1, "Hunting grounds", tostring(#pick.grounds))
-    stat(2, "Known spawn points", tostring(pick.n))
-    stat(3, "Creature levels", lo and (lo == hi and tostring(lo) or (lo .. "-" .. hi)) or "?")
-    local rs = plan[1] and plan[1].respawn
-    if rs then stat(4, "Respawn (Classic)", ("~%d min"):format(math.ceil(rs / 60))) end
-  else
-    W.mapSub:SetText("")
   end
-  local outN = 0
-  for _, n in pairs(g.out or {}) do outN = outN + n end
-  if #zones == 0 then
-    W.note:SetText(st().huntSort == "mine" and "You haven't collected it anywhere yet."
-      or (outN > 0 and "No creatures left with these filters." or "No known spawns outdoors."))
-  elseif g.out and g.out.skill then
-    W.note:SetText(("%d creature%s need more Skinning"):format(g.out.skill, g.out.skill == 1 and "" or "s"))
-  end
+  W.checkAnchor = shown > 0 and W.crows[shown] or W.fold
   if method == "skin" then
     setCheck(W.checkA, "Only what I can skin", function() return st().huntSkill ~= false end,
       function(v) st().huntSkill = v end, "Leaves out creatures above your Skinning skill (Classic rule: level × 5 from level 20).")
   end
-  setCheck(W.checkB, "Include elites and rares", function() return st().huntElites end, function(v) st().huntElites = v end)
-  W.main:Show()
-  if active then
-    W.main:SetText("Stop route")
-    W.mainClick = function() H.Stop(); refresh() end
-  else
-    W.main:SetText(#plan > 1 and "Build hunting route" or "Hunt here")
-    W.mainClick = function()
-      if pick then
-        H.Start(e.id, method, pick)
-        st().huntMap = "route"
-        refresh()
+  setCheck(method == "skin" and W.checkB or W.checkA, "Include elites and rares", function() return st().huntElites end, function(v) st().huntElites = v end)
+  -- map
+  local plan = pick and H.Plan(pick) or {}
+  local active = hunt and hunt.item == e.id and pick and hunt.zone == pick.name
+  local mode = mapTabs({ known = true, mine = true, route = true, heat = true }, active and "route" or "heat")
+  drawArt(pick and pick.mapID, pick and pick.name)
+  if pick and not pick.mapID then W.mapNone:SetText("Not on your client's map list") end
+  if pick and pick.mapID then
+    if mode == "known" then
+      for _, b in pairs(pick.bins) do
+        for _, c in ipairs(b.cells) do dotAt(c[1], c[2], 4, 0.85, 0.72, 0.45, 0.8) end
       end
+      for i, gr in ipairs(pick.grounds) do ring(gr, "plain"); hot(gr, gr, method, "Hunting ground " .. i) end
+      W.caption:SetText("Known spawn points  ·  Classic data  ·  not creatures alive now")
+    elseif mode == "heat" then
+      drawBins(pick.bins, 3)
+      for i, gr in ipairs(pick.grounds) do ring(gr, "plain"); hot(gr, gr, method, "Hunting ground " .. i) end
+      W.caption:SetText("Known spawns × drop chance  ·  Classic data  ·  not creatures alive now")
+    elseif mode == "mine" then
+      local n = drawMine(pick.mapID, e.id)
+      W.caption:SetText(n > 0 and (TEAL .. "Where you collected it|r") or "Nothing collected here yet")
+    else
+      local stops, states, cur = plan, nil, 1
+      if active then
+        stops, states, cur = hunt.stops, {}, hunt.cur
+        for i in ipairs(hunt.stops) do states[i] = H.State(i) end
+      end
+      drawRoute(stops, states, cur)
+      for i, s in ipairs(stops) do
+        local src = plan[i] or s
+        hot(s, { npcs = (function() local t = {} for _, npc in ipairs(s.npcs or {}) do t[npc] = 1 end return next(t) and t or src.npcs end)(), n = s.n, respawn = s.respawn },
+          method, "Ground " .. i .. (states and states[i] and ("  ·  " .. states[i]) or ""))
+      end
+      local len = H.Length(pick.mapID, stops)
+      W.caption:SetText(#stops == 1 and "One area: stay and hunt" or
+        (("%d grounds  ·  ~%d yd loop, straight lines  ·  Classic data"):format(#stops, len and math.floor(len / 10 + 0.5) * 10 or 0)))
     end
   end
-  W.main:SetEnabled(pick ~= nil and pick.mapID ~= nil and #plan > 0)
-  W.main.tipTitle, W.main.tipBody = "Hunting route", "Circles the densest hunting grounds, nearest first. On the overlay; Next in the session panel moves on. Straight-line distances, not paths."
-  W.second:Show()
-  W.second:SetText("Show on map")
-  W.second:SetEnabled(pick ~= nil and pick.mapID ~= nil and plan[1] ~= nil)
-  W.secondClick = function()
-    local s = plan[1]
-    if s and NW.PinMap then NW.PinMap(pick.mapID, s.x * 100, s.y * 100, "Hunting ground") end
+  -- side: the route when it's here, else the zone
+  if active then
+    sideReset("Route")
+    local here = H.Here()
+    sideStat("Ground", ("%d of %d"):format(hunt.cur, #hunt.stops) .. (here == hunt.cur and "  |cff94ba78here|r" or ""))
+    if #hunt.stops > 1 then sideButtons() end
+    for i = 1, #hunt.stops do
+      local back = H.Revisit(i)
+      if back and i ~= hunt.cur then sideStat("Ground " .. i, back > 0 and ("back ~%d min"):format(math.ceil(back / 60)) or "back now") break end
+    end
+    sideStat("Creature levels", pick.minL and (pick.minL .. "-" .. pick.maxL) or "?")
+    if method == "skin" and skill then sideStat("Your Skinning", tostring(skill)) end
+    local sess = NW.GatherLog and NW.GatherLog.Session(e.id) or 0
+    if sess > 0 then sideStat("This session", TEAL .. sess .. "|r") end
+  else
+    sideReset(pick and pick.name or "")
+    if pick then
+      sideStat("Creature levels", pick.minL and (pick.minL == pick.maxL and tostring(pick.minL) or (pick.minL .. "-" .. pick.maxL)) or "?")
+      sideStat("Hunting grounds", tostring(#pick.grounds))
+      sideStat("Spawn points", tostring(pick.n))
+      if plan[1] and plan[1].respawn then sideStat("Respawn (Classic)", ("~%d min"):format(math.ceil(plan[1].respawn / 60))) end
+      local mine = pick.mapID and NW.GatherLog and NW.GatherLog.ZoneCount(pick.mapID, e.id) or 0
+      if mine > 0 then sideStat("You collected here", TEAL .. mine .. "|r") end
+      if method == "skin" and skill then sideStat("Your Skinning", tostring(skill)) end
+    end
   end
+  -- note: empty lists, filtered creatures
+  local outN = 0
+  for _, n in pairs(g.out or {}) do outN = outN + n end
+  if #zones == 0 then
+    W.mapNone:SetText(st().huntSort == "mine" and "You haven't collected it anywhere yet."
+      or (outN > 0 and "No creatures left with these filters." or "No known spawns outdoors."))
+  elseif g.out and g.out.skill then
+    W.note:SetText(("%d creature%s need more Skinning"):format(g.out.skill, g.out.skill == 1 and "" or "s"))
+  end
+  if active then
+    action(W.main, "Stop route", function() H.Stop(); refresh() end)
+    if W.note:GetText() == "" then W.note:SetText("Next and Skip are in the session panel too") end
+  else
+    action(W.main, #plan > 1 and "Build hunting route" or "Hunt here", function()
+      if pick then H.Start(e.id, method, pick); st().huntMap = "route"; refresh() end
+    end, "Hunting route", "Circles the densest hunting grounds, nearest first. On the overlay; Next in the session panel moves on. Straight-line distances, not paths.",
+      pick ~= nil and pick.mapID ~= nil and #plan > 0)
+  end
+  action(W.second, "Show on map", function()
+    local s = (active and hunt.stops[hunt.cur]) or plan[1]
+    if s and NW.PinMap then NW.PinMap(pick.mapID, s.x * 100, s.y * 100, "Hunting ground") end
+  end, nil, nil, pick ~= nil and pick.mapID ~= nil and plan[1] ~= nil)
 end
 
 -- Vendors
@@ -1084,84 +1443,256 @@ local function viewVendor(e)
     local at = SR.vendorAt[npc]
     if u and at then
       local zname = SR.zones[at[1]]
-      local ok = u.fac == "" or u.fac:find(myF, 1, true) ~= nil
+      local ok = u.fac == "" or myF == "" or u.fac:find(myF, 1, true) ~= nil
       list[#list + 1] = { u = u, zone = zname, x = at[2], y = at[3], ok = ok, mapID = zoneID(zname) }
     end
   end
   table.sort(list, function(a, b)
     if a.ok ~= b.ok then return a.ok end
-    return a.zone < b.zone
+    if a.zone ~= b.zone then return a.zone < b.zone end
+    return a.u.name < b.u.name
   end)
-  W.listHead.text:SetText("Vendors")
+  W.tblHead.text:SetText("Vendors")
   W.colName:SetText("Vendor")
-  placeCols({ LIST_W - 8 })
-  W.cols[1]:SetText("Zone")
-  listRows(list)
+  setCols({ nil, nil, "Zone" })
+  local pick = list[1]
+  for _, v in ipairs(list) do if sel.zone == v.u.name then pick = v end end
+  tableRows(list)
   for _, r in ipairs(W.zrows) do
     local v = r.row
     if v then
       r.name:SetText(v.u.name)
       r.name:SetTextColor(unpack(v.ok and S.text or S.dim))
-      r.cells[1]:SetText(v.zone)
-      r.onClick = function(self)
-        local vv = self.row
-        if vv.mapID and NW.PinMap then NW.PinMap(vv.mapID, vv.x, vv.y, vv.u.name) end
-      end
+      r.cells[3]:SetText(v.zone)
+      r:SetSelected(v == pick)
+      r.onClick = function(self) sel.zone = self.row.u.name; refresh() end
       r.onEnter = function(self)
         local vv = self.row
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(vv.u.name, 1, 1, 1)
         GameTooltip:AddLine(("%s  %.1f, %.1f"):format(vv.zone, vv.x, vv.y), S.dim[1], S.dim[2], S.dim[3])
         if not vv.ok then GameTooltip:AddLine("Other faction", S.bad[1], S.bad[2], S.bad[3]) end
-        GameTooltip:AddLine("Click: put it on your map", S.dim[1], S.dim[2], S.dim[3])
         GameTooltip:AddLine("Classic data", S.dim[1], S.dim[2], S.dim[3])
         GameTooltip:Show()
       end
     end
   end
-  preview:Hide()
+  mapTabs({ known = true }, "known")
+  drawArt(pick and pick.mapID, pick and pick.zone)
+  if pick and pick.mapID then
+    dotAt(pick.x / 100, pick.y / 100, 11, 0.84, 0.70, 0.40, 1)
+    for _, v in ipairs(list) do
+      if v ~= pick and v.mapID == pick.mapID then dotAt(v.x / 100, v.y / 100, 7, 0.66, 0.55, 0.36, 0.9) end
+    end
+  elseif pick then
+    W.mapNone:SetText(pick.zone .. " isn't on your client's map list")
+  end
+  W.caption:SetText(#list > 0 and "Vendor locations  ·  Classic data" or "")
+  sideReset(pick and pick.u.name or "")
+  if pick then
+    sideStat("Where", ("%s  %.0f, %.0f"):format(pick.zone, pick.x, pick.y))
+    if not pick.ok then sideStat("Faction", "|cffd17665Other faction|r") end
+  end
   local vp = NW.BuyPrice and NW.BuyPrice(e.id)
-  stat(1, "Vendor price", vp and NW.Money(vp) or DIM .. "visit a vendor|r")
-  if #list == 0 then W.note:SetText("Sold by vendors; no vendor locations in Nodewalker's data.") end
+  sideStat("Vendor price", vp and NW.Money(vp) or DIM .. "visit a vendor|r")
+  if #list == 0 then W.mapNone:SetText("Sold by vendors; no vendor locations in Nodewalker's data.") end
+  action(W.main, "Show on map", function()
+    if pick and pick.mapID and NW.PinMap then NW.PinMap(pick.mapID, pick.x, pick.y, pick.u.name) end
+  end, nil, nil, pick ~= nil and pick.mapID ~= nil)
 end
 
--- Crafting
+-- Crafting: recipe, materials for the target, ways to get it, what it's used in
+local function diffColor(r, skill)
+  if not skill then return nil end
+  local o, y, g, gr = r.orange or r.yellow, r.yellow, r.green, r.grey
+  if o and skill < o then return "red" end
+  if y and skill < y then return "orange" end
+  if g and skill < g then return "yellow" end
+  if gr and skill < gr then return "green" end
+  return "grey"
+end
 local function viewCraft(e)
   local r, key = NW.RecipeFor(e.id)
-  W.listHead.text:SetText("Made by")
-  W.colName:SetText("Material")
-  placeCols({ LIST_W - 8 })
-  W.cols[1]:SetText("Need")
+  ws:Hide()
+  craft:Show()
+  -- centre: made by, also from
+  W.tblHead.text:SetText("Made by")
+  W.colName:SetText("")
+  setCols({ nil, nil, nil })
   local rows = {}
-  if r then for _, re in ipairs(r.reagents) do rows[#rows + 1] = { id = re[1], n = re[2] } end end
-  listRows(rows)
+  local p = r and NW.PROF_BY_KEY[key]
+  if r then rows[#rows + 1] = { kind = "recipe" } end
+  local ahP, ahSrc
+  if NW.Price then ahP, ahSrc = NW.Price(e.id) end
+  if ahP and ahSrc == "ah" then rows[#rows + 1] = { kind = "ah", price = ahP } end
+  for _, k in ipairs(M.Sources(e)) do
+    if k ~= "craft" then rows[#rows + 1] = { kind = "src", src = k } end
+  end
+  tableRows(rows)
+  local skill = key and NW.ProfSkill and NW.ProfSkill(key)
   for _, row in ipairs(W.zrows) do
-    local m = row.row
-    if m then
-      row.name:SetText(NW.ItemName(m.id) or ("item " .. m.id))
+    local x = row.row
+    if x then
+      if x.kind == "recipe" then
+        row.name:SetText(p and p.name or key)
+        row.cells[3]:SetText(r.orange and ("Skill " .. r.orange) or "")
+        row.onClick = function() if NW.OpenProfession then NW.OpenProfession(key) end end
+      elseif x.kind == "ah" then
+        row.name:SetText("Auction house")
+        row.cells[3]:SetText("~" .. NW.Money(x.price, true) .. " each")
+      else
+        row.name:SetText(M.SourceText(e, x.src))
+        row.cells[3]:SetText(DIM .. "see the switch above|r")
+        row.onClick = function() sel.src = x.src; sel.zone = nil; refresh() end
+      end
       row.name:SetTextColor(unpack(S.text))
-      row.cells[1]:SetText(("%d  " .. DIM .. "(have %d)|r"):format(m.n, NW.ItemCount(m.id)))
-      row.onClick = function(self) if M.Get(self.row.id) then sel.id, sel.src, sel.zone = self.row.id, nil, nil; refresh() end end
-      row.onEnter = function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetItemByID(self.row.id)
-        if M.Get(self.row.id) then GameTooltip:AddLine("Click: where to get it", S.gold[1], S.gold[2], S.gold[3]) end
-        GameTooltip:Show()
+    end
+  end
+  if not r then
+    W.cName:SetText("No recipe in Nodewalker's data")
+    return
+  end
+  -- recipe line
+  W.cIcon:SetTexture(NW.ItemIcon(e.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
+  W.cName:SetText(r.name)
+  local parts = {}
+  for _, re in ipairs(r.reagents) do parts[#parts + 1] = re[2] .. " " .. (NW.ItemName(re[1]) or ("item " .. re[1])) end
+  W.cDesc:SetText((p and p.name or key) .. "  ·  makes " .. (r.yield or 1) .. "  ·  " .. table.concat(parts, ", "))
+  -- skill bar: orange, yellow, green, grey
+  local o, y, g, gr = r.orange or r.yellow or 1, r.yellow or r.orange or 1, r.green or r.yellow or 1, r.grey or r.green or 1
+  local lo, hi = o, gr + math.max(10, math.floor((gr - o) * 0.25))
+  local span = math.max(1, hi - lo)
+  local edges = { o, y, g, gr, hi }
+  local x0 = 0
+  for k = 1, 4 do
+    local w = math.max(1, (edges[k + 1] - edges[k]) / span * CL_W)
+    W.cBar[k]:ClearAllPoints()
+    W.cBar[k]:SetPoint("TOPLEFT", craft, "TOPLEFT", x0, -54)
+    W.cBar[k]:SetWidth(w)
+    W.cBarLbl[k]:ClearAllPoints()
+    W.cBarLbl[k]:SetPoint("TOPLEFT", craft, "TOPLEFT", x0, -63)
+    W.cBarLbl[k]:SetText(edges[k])
+    x0 = x0 + w
+  end
+  if skill and skill >= lo then
+    W.cBarMark:Show()
+    W.cBarMark:ClearAllPoints()
+    W.cBarMark:SetPoint("TOPLEFT", craft, "TOPLEFT", math.min(CL_W - 2, (skill - lo) / span * CL_W), -52)
+  else
+    W.cBarMark:Hide()
+  end
+  local col = diffColor(r, skill)
+  local WORDS = { red = "too high for you", orange = "always a skill-up", yellow = "usually a skill-up", green = "small chance of a skill-up", grey = "no skill-ups" }
+  W.cSkill:SetText(skill and ((SKILL_HEX[col] or "") .. (col and (col:sub(1, 1):upper() .. col:sub(2)) or "") .. " at your " .. skill .. "|r" .. DIM .. ": " .. WORDS[col] .. "|r")
+    or DIM .. ((p and p.name or key) .. " not learned") .. "|r")
+  -- materials for the target (or one craft)
+  local goal = M.Goal(e.id)
+  local want = goal and M.Progress(goal).remaining or 0
+  local crafts = want > 0 and math.ceil(want / (r.yield or 1)) or 1
+  W.cMatHead.text:SetText(want > 0 and ("Materials for %d more"):format(want) or "Materials for one")
+  local buyCost, buyUnknown, missingList = 0, false, {}
+  for i, mr in ipairs(W.cMats) do
+    local re = r.reagents[i]
+    mr:SetShown(re ~= nil)
+    if re then
+      local need = re[2] * crafts
+      local have = NW.ItemCount(re[1])
+      local miss = math.max(0, need - have)
+      mr.id, mr.missing = re[1], miss > 0 and miss or nil
+      mr.icon:SetTexture(NW.ItemIcon(re[1]))
+      mr.name:SetText(NW.ItemName(re[1]) or ("item " .. re[1]))
+      mr.cells[1]:SetText(need)
+      mr.cells[2]:SetText(have)
+      mr.cells[3]:SetText(miss > 0 and ("|cffd17665" .. miss .. "|r") or "|cff94ba780|r")
+      mr.find:SetShown(M.Get(re[1]) ~= nil)
+      if miss > 0 then
+        missingList[#missingList + 1] = { id = re[1], n = miss }
+        local pr = NW.Price and NW.Price(re[1])
+        if pr then buyCost = buyCost + pr * miss else buyUnknown = true end
       end
     end
   end
-  preview:Hide()
-  if r then
-    local p = NW.PROF_BY_KEY[key]
-    stat(1, "Recipe", r.name)
-    stat(2, "Profession", p and p.name or key)
-    if r.orange then stat(3, "Skill", tostring(r.orange)) end
-    if (r.yield or 1) > 1 then stat(4, "Makes", tostring(r.yield)) end
-    local _, _, craft = NW.PriceParts(e.id)
-    stat(5, "Materials cost", craft and ("~" .. NW.Money(craft)) or DIM .. "no price|r")
-    W.main:Show(); W.main:SetText("Open " .. (p and p.name or "profession"))
-    W.mainClick = function() if NW.OpenProfession then NW.OpenProfession(key) end end
+  if #missingList == 0 then
+    W.cBuyLine:SetText("You have everything for it")
+    W.cBuyCost:SetText("")
+  else
+    W.cBuyLine:SetText("Buy what's missing")
+    W.cBuyCost:SetText("~" .. NW.Money(buyCost, true) .. (buyUnknown and " |cffd17665+?|r" or ""))
   end
+  -- ways to get it
+  local n = want > 0 and want or 1
+  W.cWaysHead.text:SetText(("Ways to get %d"):format(n))
+  local farmable = true
+  local farmWhere = {}
+  for _, m in ipairs(missingList) do
+    local me = M.Get(m.id)
+    if not (me and (me.src.nodes or me.src.skin or me.src.loot or me.src.fishing)) then farmable = false
+    else farmWhere[#farmWhere + 1] = NW.ItemName(m.id) or ("item " .. m.id) end
+  end
+  local ways = {}
+  if #missingList == 0 then
+    ways[#ways + 1] = { "Craft from what you have", "Your bags and bank", S.HEX.good .. "0|r" }
+  else
+    if farmable then ways[#ways + 1] = { "Craft, gather what's missing", "Collect: " .. table.concat(farmWhere, ", "), S.HEX.good .. "0|r" } end
+    ways[#ways + 1] = { "Craft, buy what's missing", "Auction house or vendor, today's price", "~" .. NW.Money(buyCost, true) .. (buyUnknown and " |cffd17665+?|r" or "") }
+  end
+  if ahP and ahSrc == "ah" then ways[#ways + 1] = { ("Buy %d"):format(n), "Auction house; no skill-ups from buying", "~" .. NW.Money(ahP * n, true) } end
+  for i, wr in ipairs(W.cWays) do
+    local w = ways[i]
+    wr:SetShown(w ~= nil)
+    if w then wr.a:SetText(w[1]); wr.b:SetText(w[2]); wr.c:SetText(w[3]); wr:SetSelected(i == 1) end
+  end
+  -- used in
+  local used = {}
+  for k, lst in pairs(NW.RECIPES or {}) do
+    for _, rr in ipairs(lst) do
+      for _, re in ipairs(rr.reagents) do
+        if re[1] == e.id then used[#used + 1] = { r = rr, key = k, n = re[2] } break end
+      end
+    end
+  end
+  local RANK = { orange = 1, yellow = 2, green = 3, red = 4, grey = 5 }
+  for _, u in ipairs(used) do
+    u.col = diffColor(u.r, NW.ProfSkill and NW.ProfSkill(u.key))
+    u.rank = RANK[u.col or ""] or 6
+  end
+  table.sort(used, function(a, b)
+    if a.rank ~= b.rank then return a.rank < b.rank end
+    return (a.r.orange or a.r.yellow or 0) < (b.r.orange or b.r.yellow or 0)
+  end)
+  W.cUsedHead.text:SetText(("Used in %d"):format(#used))
+  for i, ur in ipairs(W.cUsed) do
+    local u = used[i]
+    ur:SetShown(u ~= nil)
+    if u then
+      ur.name:SetText(u.r.name)
+      ur.n:SetText(u.n)
+      ur.req:SetText((SKILL_HEX[u.col] or S.HEX.dim) .. (u.r.orange or u.r.yellow or "?") .. "|r")
+    end
+  end
+  W.cUsedMore:SetText(#used > #W.cUsed and (("%d more  ·  colours: skill-ups at your skill"):format(#used - #W.cUsed)) or "Colours: skill-ups at your skill")
+  -- actions
+  local first = missingList[1]
+  if first and M.Get(first.id) then
+    action(W.main, "Find " .. (NW.ItemName(first.id) or "material"), function() NW.FindMaterial(first.id, sel.from, first.n) end)
+  else
+    action(W.main, "Open " .. (p and p.name or "profession"), function() if NW.OpenProfession then NW.OpenProfession(key) end end)
+  end
+  if #missingList > 0 and NW.SearchAH then
+    action(W.second, "Search missing", function()
+      local q = {}
+      for _, m in ipairs(missingList) do local nm = NW.ItemName(m.id) if nm then q[#q + 1] = { nm, m.n } end end
+      NW.SearchAH(q)
+    end, "Search missing", "Searches Auctionator for every missing material (at the auction house).")
+  end
+  if first and M.Get(first.id) then
+    action(W.third, "Open " .. (p and p.name or "profession"), function() if NW.OpenProfession then NW.OpenProfession(key) end end)
+  end
+  W.note:SetText(("Craft %d: %s"):format(crafts, table.concat((function()
+    local t = {}
+    for _, re in ipairs(r.reagents) do t[#t + 1] = (re[2] * crafts) .. " " .. (NW.ItemName(re[1]) or "?") end
+    return t
+  end)(), ", ")))
 end
 
 ------------------------------------------------------------------------
@@ -1187,17 +1718,38 @@ local function subText(e)
   local parts = {}
   for _, k in ipairs(M.Sources(e)) do parts[#parts + 1] = M.SourceText(e, k) end
   local req = e.src.nodes and NW.RequiredSkill(e.name)
-  return (req and (req .. "  ") or "") .. table.concat(parts, " · ")
+  local rr, rk = e.src.craft and not e.src.nodes and NW.RecipeFor(e.id)
+  local txt = table.concat(parts, " · ")
+  if req then txt = txt .. " " .. req
+  elseif rr and #parts == 1 and rr.orange then txt = txt .. " · " .. ((NW.PROF_BY_KEY[rk] or {}).name or "") .. " " .. rr.orange end
+  return txt
+end
+
+local function resetViews()
+  for _, r in ipairs(W.crows) do r:Hide(); r.onEnter = nil end
+  W.fold:Hide()
+  W.checkA:Hide(); W.checkB:Hide()
+  W.checkAGet, W.checkASet, W.checkBGet, W.checkBSet = nil, nil, nil, nil
+  W.checkAnchor = nil
+  W.huntSort:Hide(); W.nodeSort:Hide()
+  for _, b in ipairs({ W.main, W.second, W.third }) do b:Hide(); b.tipTitle, b.tipBody = nil, nil end
+  W.mainClick, W.secondClick, W.thirdClick = nil, nil, nil
+  W.note:SetText("")
+  W.caption:SetText("")
+  ws:Show()
+  craft:Hide()
+  tbl:Show()
 end
 
 refresh = function()
   if not page:IsShown() then return end
   local s = st()
   sel.cat = sel.cat or s.matCat or "herb"
-  -- categories with materials
+  -- left: categories with materials
   local counts = M.Counts()
   local catList = {}
-  if #M.Goals() > 0 then catList[#catList + 1] = { key = "tracked", label = "Tracked", n = #M.Goals(), icon = "Interface\\Icons\\INV_Misc_Note_01" } end
+  local goals = M.Goals()
+  if #goals > 0 then catList[#catList + 1] = { key = "tracked", label = "Tracked", n = #goals, icon = "Interface\\Icons\\INV_Misc_Note_01" } end
   catList[#catList + 1] = { key = "all", label = "All materials", n = counts.all, icon = "Interface\\Icons\\INV_Misc_Bag_10" }
   for _, c in ipairs(M.CATS) do
     if (counts[c.key] or 0) > 0 then catList[#catList + 1] = { key = c.key, label = c.label, n = counts[c.key], icon = NW.ItemIcon(c.icon) } end
@@ -1218,7 +1770,25 @@ refresh = function()
       b.text:SetTextColor(unpack(on and S.gold or S.text))
     end
   end
-  -- materials
+  catBox:SetHeight(#catList * CAT_H + 6)
+  W.trackHead:ClearAllPoints()
+  W.trackHead:SetPoint("TOPLEFT", catBox, "BOTTOMLEFT", 0, -10)
+  W.trackHead:SetShown(#goals > 0)
+  for i, r in ipairs(W.track) do
+    local g = goals[i]
+    r:SetShown(g ~= nil)
+    if g then
+      local p = M.Progress(g)
+      r.id = g.id
+      r:ClearAllPoints()
+      r:SetPoint("TOPLEFT", W.trackHead, "BOTTOMLEFT", 0, -4 - (i - 1) * 18)
+      r.name:SetText(NW.ItemName(g.id) or ("item " .. g.id))
+      r.n:SetText((p.done and S.HEX.good or "") .. p.shown .. " / " .. p.target .. "|r")
+      local on = g.id == sel.id
+      r.name:SetTextColor(unpack(on and S.gold or S.text))
+    end
+  end
+  -- centre: materials
   local list = M.Search(searchText, sel.cat)
   if searchText == "" and (sel.cat == "herb" or sel.cat == "ore") then table.insert(list, 1, BOTH) end
   local by = s.matSort
@@ -1234,15 +1804,33 @@ refresh = function()
       return M.Name(a) < M.Name(b)
     end)
   end
-  W.listN = #list
-  W.listOffset = math.min(W.listOffset, math.max(0, #list - LROWS))
-  W.midHead:SetText(searchText ~= "" and "Search" or (M.CAT[sel.cat] and M.CAT[sel.cat].label or (sel.cat == "tracked" and "Tracked" or "All materials")))
-  W.midCount:SetText(#list > LROWS and ("%d-%d of %d"):format(W.listOffset + 1, math.min(#list, W.listOffset + LROWS), #list) or #list)
   sel.id = sel.id or s.matSel
   local e = sel.id == "both" and BOTH or (type(sel.id) == "number" and M.Get(sel.id))
   if not e then e = list[1]; sel.id = e and e.id end
+  -- the source decides how tall the list is: crafted items have a short table
+  local srcs = e and (e.id == "both" and { "nodes" } or M.Sources(e)) or {}
+  local okSrc = false
+  for _, k in ipairs(srcs) do if k == sel.src then okSrc = true end end
+  if not okSrc then sel.src = srcs[1]; sel.zone = nil; W.zoneOffset = 0 end
+  local shortTable = sel.src == "craft" or sel.src == nil
+  local shownN = shortTable and LROW_MAX or 5
+  W.listShown = shownN
+  W.listN = #list
+  W.listOffset = math.min(W.listOffset, math.max(0, #list - shownN))
+  -- a newly selected material (from a shopping list, say) scrolls into view
+  if e and W.lastSel ~= e.id then
+    W.lastSel = e.id
+    for i, x in ipairs(list) do
+      if x == e and (i <= W.listOffset or i > W.listOffset + shownN) then
+        W.listOffset = math.max(0, math.min(i - 1, #list - shownN))
+      end
+    end
+  end
+  mid:SetHeight(shownN * LROW_H + 4)
+  W.midHead:SetText(searchText ~= "" and "Search" or (M.CAT[sel.cat] and M.CAT[sel.cat].label or (sel.cat == "tracked" and "Tracked" or "All materials")))
+  W.midCount:SetText(#list > shownN and ("%d-%d of %d"):format(W.listOffset + 1, math.min(#list, W.listOffset + shownN), #list) or #list)
   for i, r in ipairs(W.rows) do
-    local x = list[i + W.listOffset]
+    local x = i <= shownN and list[i + W.listOffset] or nil
     r.e = x or false
     r:SetShown(x ~= nil)
     if x then
@@ -1255,8 +1843,11 @@ refresh = function()
       r:SetSelected(x == e)
     end
   end
-  -- details
+  tbl:ClearAllPoints()
+  tbl:SetPoint("TOPLEFT", mid, "BOTTOMLEFT", 0, -10)
+  -- right
   right:SetShown(e ~= nil)
+  tbl:SetShown(e ~= nil)
   if not e then return end
   W.icon:SetTexture(iconOf(e))
   W.name:SetText(M.Name(e))
@@ -1265,33 +1856,36 @@ refresh = function()
   if e.uses and e.uses > 0 then subParts[#subParts + 1] = ("Used in %d recipe%s"):format(e.uses, e.uses == 1 and "" or "s") end
   local p, psrc
   if type(e.id) == "number" and NW.Price then p, psrc = NW.Price(e.id) end
-  if p then subParts[#subParts + 1] = (psrc == "vendor" and "Vendor " or "~") .. NW.Money(p) end
+  if p then subParts[#subParts + 1] = (psrc == "vendor" and "Vendor " or "~") .. NW.Money(p, "mid") .. " each" end
   W.sub:SetText(table.concat(subParts, "  ·  "))
   local fromP = sel.from and NW.PROF_BY_KEY[sel.from]
-  W.back:SetShown(fromP ~= nil)
-  if fromP then W.back:SetText("‹ " .. fromP.name) end
-  W.ah:SetShown(type(e.id) == "number" and NW.HasAuctionator and NW.HasAuctionator())
-  if W.back:IsShown() then W.ah:SetPoint("TOPRIGHT", 0, -24) else W.ah:SetPoint("TOPRIGHT", 0, 0) end
-  -- objective
   local isItem = type(e.id) == "number"
+  W.ah:SetShown(isItem and NW.HasAuctionator ~= nil and NW.HasAuctionator())
+  W.back:ClearAllPoints()
+  if W.ah:IsShown() then W.back:SetPoint("RIGHT", W.ah, "LEFT", -4, 0) else W.back:SetPoint("TOPRIGHT", 0, -8) end
+  W.back:SetShown(fromP ~= nil)
+  if fromP then W.back:SetText("‹ " .. fromP.name); W.back:SetWidth(W.back.label:GetStringWidth() + 24) end
+  -- target strip
   goalBar:SetShown(isItem)
   if isItem then
     local g = M.Goal(e.id)
     local have = NW.ItemCount(e.id)
     local life = NW.GatherLog and NW.GatherLog.Item(e.id).n or 0
     local sess = NW.GatherLog and NW.GatherLog.Session(e.id) or 0
+    local sep = "  " .. DIM .. "·|r  "
     local txt
     if g then
       local pr = M.Progress(g)
       txt = (g.mode == "more" and "Collected %s / %d" or "Owned %s / %d"):format((pr.done and S.HEX.good or "") .. pr.shown .. "|r", pr.target)
-        .. (pr.done and ("  " .. S.HEX.good .. "done|r") or ("  " .. DIM .. "·|r  Remaining " .. pr.remaining))
+        .. (pr.done and (sep .. S.HEX.good .. "done|r") or (sep .. "Remaining " .. pr.remaining))
     else
       txt = "Owned " .. have
     end
-    if sess > 0 then txt = txt .. "  " .. DIM .. "·|r  Session " .. sess end
-    if life > 0 then txt = txt .. "  " .. DIM .. "·|r  Lifetime " .. life end
+    if sess > 0 then txt = txt .. sep .. "Session " .. sess end
+    if life > 0 then txt = txt .. sep .. "Lifetime " .. life end
     W.goalText:SetText(txt)
     W.goalClear:SetShown(g ~= nil)
+    W.goalSet:ClearAllPoints()
     if g then W.goalSet:SetPoint("RIGHT", W.goalClear, "LEFT", -4, 0) else W.goalSet:SetPoint("RIGHT", -3, 0) end
     W.goalSet:SetText(g and "Update" or "Track")
     if not W.goalEdit:HasFocus() then
@@ -1302,60 +1896,46 @@ refresh = function()
     W.goalMode:Refresh()
   end
   -- source switches
-  local srcs = e.id == "both" and { "nodes" } or M.Sources(e)
-  local okSrc = false
-  for _, k in ipairs(srcs) do if k == sel.src then okSrc = true end end
-  if not okSrc then sel.src = srcs[1]; sel.zone = nil; W.zoneOffset = 0 end
   local x = 0
   for _, k in ipairs(SRC_ORDER) do W.srcBtns[k]:Hide() end
   for _, k in ipairs(srcs) do
     local b = W.srcBtns[k]
     b:SetText(e.id == "both" and "Gathering" or M.SourceText(e, k))
-    b:SetWidth(math.max(80, b.label:GetStringWidth() + 24))
+    b:SetWidth(math.max(80, b.label:GetStringWidth() + 26))
     b:ClearAllPoints()
-    b:SetPoint("TOPLEFT", right, "TOPLEFT", x, isItem and -82 or -50)
+    b:SetPoint("TOPLEFT", right, "TOPLEFT", x, isItem and -92 or -58)
     x = x + b:GetWidth() + 4
     b.mark:SetShown(k == sel.src)
     b.label:SetTextColor(unpack(k == sel.src and S.gold or S.dim))
     b:Show()
   end
-  body:ClearAllPoints()
-  body:SetPoint("TOPLEFT", 0, isItem and BODY_Y or BODY_Y + 32)
-  body:SetPoint("BOTTOMRIGHT")
-  resetBody()
+  local wsY = isItem and WS_Y or WS_Y + 34
+  ws:ClearAllPoints(); ws:SetPoint("TOPLEFT", 0, wsY)
+  craft:ClearAllPoints(); craft:SetPoint("TOPLEFT", 0, wsY)
+  resetViews()
   if sel.src == "nodes" then viewNodes(e)
   elseif sel.src == "fishing" then viewFishing(e)
   elseif sel.src == "skin" or sel.src == "loot" then viewHunt(e, sel.src)
   elseif sel.src == "vendor" then viewVendor(e)
   elseif sel.src == "craft" then viewCraft(e)
   else
-    zbox:Hide(); preview:Hide()
-    W.note:SetText("No known source in Nodewalker's data. Check the auction house.")
+    tbl:Hide()
+    mapTabs({}, nil)
+    drawArt(nil)
+    sideReset("")
+    W.mapNone:SetText("No known source in Nodewalker's data. Check the auction house.")
   end
+  -- checks sit under the table, or under the fold when it's showing
+  local anchor = W.checkAnchor or tbox
+  W.checkA:ClearAllPoints()
+  W.checkA:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 2, -8)
+  W.checkB:ClearAllPoints()
+  W.checkB:SetPoint("TOPLEFT", W.checkA, "BOTTOMLEFT", 0, -5)
   local sk = sel.src == "skin" and "skinning" or (sel.src == "fishing" and "fishing") or (e.nodeKind == "herb" and "herbalism") or (e.nodeKind == "ore" and "mining")
+    or (sel.src == "craft" and select(2, NW.RecipeFor(e.id)))
   local pr = sk and NW.PROF_BY_KEY[sk]
   local lv = sk and NW.ProfSkill and NW.ProfSkill(sk)
   NW.SetWindowSubtitle(pr and (pr.name .. "  " .. (lv or "·  Not learned")) or "")
-end
-
--- sort for hunting grounds (shown with the creature views)
-W.huntSort = UI.Dropdown(page, 186, "Sort", (function()
-  local items = {}
-  for _, s in ipairs(H.SORTS) do items[#items + 1] = { s[1], s[2] } end
-  return items
-end)(), function() return st().huntSort or "density" end, function(v) st().huntSort = v ~= "density" and v or nil; refresh() end, 140,
-  "Most spawns: known spawn points × drop chance (Classic data).\nNearest my level: creatures closest to your level.\nMy history: where you've collected it.")
-W.huntSort:SetPoint("TOPRIGHT", body, "TOPLEFT", LIST_W, 2)
-W.nodeSort = UI.Dropdown(page, 186, "Sort", { { "best", "Best" }, { "rate", "Spots per minute" }, { "gold", "Gold per hour" }, { "count", "Known spots" }, { "loop", "Shortest loop" } },
-  function() return st().guideSort or "best" end, function(v) st().guideSort = v ~= "best" and v or nil; refresh() end, 140,
-  "Best: spots per minute (gold per hour for Herbs and ore), favouring zones with enough spots for a loop.")
-W.nodeSort:SetPoint("TOPRIGHT", body, "TOPLEFT", LIST_W, 2)
-local baseRefresh = refresh
-refresh = function()
-  baseRefresh()
-  if not page:IsShown() then return end
-  W.huntSort:SetShown(right:IsShown() and (sel.src == "skin" or sel.src == "loot"))
-  W.nodeSort:SetShown(right:IsShown() and sel.src == "nodes")
 end
 
 -- live: bags, objectives, routes, your log
@@ -1391,7 +1971,7 @@ function NW.GuideSelectHerb(name)
   local id = NW.NODE_ITEMS[name]
   if not (id and NW.FindMaterial(id)) then open() end
 end
--- Open on a category, optionally a source (Skinning's brackets)
+-- Open on a category, optionally a material and a source (Skinning's ranges)
 function NW.FindMaterials(cat, id, src)
   sel.cat, sel.from, sel.need = cat, nil, nil
   if id then sel.id = id end
