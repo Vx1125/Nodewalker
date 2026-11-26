@@ -409,6 +409,22 @@ SlashCmdList.NODEWALKER = function(msg)
     end
   elseif msg == "frame" then
     if NW.FrameUnderMouse then NW.FrameUnderMouse() end
+  elseif msg == "cut" then
+    -- debug: every word cut short on the open Nodewalker page
+    local found, seen = {}, {}
+    local function walk(f)
+      if not f or seen[f] or not f:IsVisible() then return end
+      seen[f] = true
+      for _, r in ipairs({ f:GetRegions() }) do
+        if r.IsTruncated and r:IsVisible() and r:IsTruncated() then
+          local t = (r:GetText() or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
+          if t ~= "" then found[#found + 1] = t end
+        end
+      end
+      for _, c in ipairs({ f:GetChildren() }) do walk(c) end
+    end
+    walk(NW.window)
+    NW.Print(#found == 0 and "Nothing cut off." or (#found .. " cut off: " .. table.concat(found, " | ", 1, math.min(#found, 25))))
   elseif msg == "status" then
     local mapID = NW.PlayerPos()
     local n = 0

@@ -457,7 +457,7 @@ F.frame = fp
 local W = {} -- widgets
 
 local function st() return NW.db.settings end
-local function tab() return st().fishTab or "leveling" end
+local function tab() local t = st().fishTab return (t and t ~= "finder") and t or "leveling" end
 local function money(c, mode) return c and NW.Money(c, mode or "mid") or (H.dim .. "–|r") end
 
 -- header
@@ -483,7 +483,8 @@ W.next2:SetPoint("TOPRIGHT", W.next, "BOTTOMRIGHT", 0, -4)
 -- sub-tabs, styled like a craft's views
 W.tabs = {}
 do
-  local TABS = { { "leveling", "Leveling", 84 }, { "finder", "Fish Finder", 100 }, { "combined", "Fishing + Cooking", 136 }, { "journal", "Journal", 76 } }
+  -- (the Fish Finder is the Material Finder's Fish category now)
+  local TABS = { { "leveling", "Leveling", 84 }, { "combined", "Fishing + Cooking", 136 }, { "journal", "Journal", 76 } }
   local x = 0
   for _, t in ipairs(TABS) do
     local b = CreateFrame("Button", nil, fp, "BackdropTemplate")
@@ -1183,7 +1184,7 @@ function F.actionDetail(a, plan)
     end
     F.detail("Fish", NW.ItemIcon(a.fish), F.itemName(a.fish), "Estimate: skill-ups are random", rows,
       zones[1] and { "Show on map", F.showZone(zones[1]) } or nil,
-      { "Fish Finder", function() st().fishTab = "finder"; F.sel = "fish" .. a.fish; F.Redraw() end })
+      { "Find fish", function() NW.OpenFishFinder(a.fish) end })
   elseif k == "cook" then
     local r, stp = a.recipe, a.step
     local known = (NW.charDB.known.cooking or {})[r.name]
@@ -1631,7 +1632,7 @@ function F.jFishDetail(id, scope)
     end
   end
   F.detail("Fish", NW.ItemIcon(id), F.itemName(id), n > 0 and "Prices are estimates" or "Not caught yet", rows,
-    { "Fish Finder", function() st().fishTab = "finder"; F.sel = "fish" .. id; F.Redraw() end },
+    { "Find fish", function() NW.OpenFishFinder(id) end },
     where[1] and where[1].map ~= 0 and { "Show on map", function() if OpenWorldMap then pcall(OpenWorldMap, where[1].map) end end } or nil)
 end
 
@@ -1738,12 +1739,13 @@ function NW.OpenFishCook()
   F.sel = nil
   NW.OpenProfession("fishing")
 end
+-- Fish open in the Material Finder (its Fish category, the fishing view)
 function NW.OpenFishFinder(id)
-  st().fishTab = "finder"
-  F.sel = id and ("fish" .. id) or nil
-  F.search = ""
-  if W.search then W.search:SetText("") end
-  NW.OpenProfession("fishing")
+  if id and NW.FindMaterials and NW.Mat and NW.Mat.Get(id) then
+    NW.FindMaterials("fish", id, "fishing")
+  elseif NW.FindMaterials then
+    NW.FindMaterials("fish")
+  end
 end
 
 -- Live: bags, skills and recipes change what's left
