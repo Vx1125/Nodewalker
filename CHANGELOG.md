@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.25
+
+- Settings tabs no longer overlap the main tabs.
+- Window size: drag the grip in the bottom-right corner, or the slider in Appearance.
+- Dropdowns: the hovered option no longer goes blank.
+
 ## 1.1.24
 
 - Smart Fishing can be bound to a controller button (Settings › Fishing or Key Bindings).
