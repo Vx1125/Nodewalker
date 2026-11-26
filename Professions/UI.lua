@@ -444,7 +444,7 @@ for i = 1, STEP_FRAMES do
   row.mats:SetWidth(MID_W - 116)
   row.mats:SetWordWrap(false)
   -- Craft what this row makes, as many as your bags allow
-  row.craft = UI.Button(row, "", 64, function(self) craftClick(self) end, 17)
+  row.craft = UI.Button(row, "", 70, function(self) craftClick(self) end, 17)
   row.craft.label:SetFont(UI.FONT, 11, "")
   row.craft:SetPoint("BOTTOMRIGHT", -6, 3)
   row.craft:Hide()
@@ -461,12 +461,27 @@ for i = 1, STEP_FRAMES do
     local b = self.craft
     -- any recipe you know gets the button; it's dim until your bags can make one
     b:SetShown(can ~= nil or knowsRecipe(key, r))
-    self.mats:SetWidth(MID_W - 116 - (b:IsShown() and 70 or 0))
+    self.mats:SetWidth(MID_W - 116 - (b:IsShown() and 76 or 0))
     b.key, b.r, b.n = key, r, n
-    b:SetText(n > 1 and ("Craft " .. n) or "Craft")
+    -- what your bags make now, against what the step needs: "Craft 6/8"
+    local short = want and n > 0 and n < want
+    b:SetText(short and ("Craft %d/%d"):format(n, want) or (n > 1 and ("Craft " .. n) or "Craft"))
     b:SetAlpha(n > 0 and 1 or 0.45)
-    -- why it can't, for the tooltip
+    -- why it can't (or can't do them all), for the tooltip
     b.why = nil
+    if short then
+      local id, need = NW.CraftMissing(r)
+      local _ = need
+      b.why = ("Your bags make %d; this step needs %d."):format(n, want)
+      -- what's short for the rest
+      local lacks = {}
+      for _, re in ipairs(r.reagents) do
+        local have = NW.ItemCount and C_Item and C_Item.GetItemCount and (C_Item.GetItemCount(re[1]) or 0) or 0
+        local more = re[2] * want - have
+        if more > 0 then lacks[#lacks + 1] = ("%d %s"):format(more, (itemName(re[1]))) end
+      end
+      if #lacks > 0 then b.why = b.why .. "\nFor all of them: " .. table.concat(lacks, ", ") .. " more." end
+    end
     if b:IsShown() and n < 1 then
       if can == nil then
         local prof = NW.PROF_BY_KEY[key]
@@ -2632,16 +2647,17 @@ end
 for _, row in ipairs(stepRows) do
   row:HookScript("OnEnter", function(self)
     local b = self.bracket
-    -- Skinning: Material Finder on the leather for that range, creatures to skin
-    if b and selected == "skinning" and NW.FindMaterials then
-      local leather = b.to <= 75 and 2318 or b.to <= 150 and 2319 or b.to <= 205 and 4234 or b.to <= 260 and 4304 or 8170
-      NW.FindMaterials("leather", leather, "skin")
+    if b and selected == "skinning" then
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(("%d-%d"):format(b.from, b.to), 1, 1, 1)
+      GameTooltip:AddLine("Click: creatures to skin for this range, in Material Finder", S.dim[1], S.dim[2], S.dim[3], true)
+      GameTooltip:Show()
       return
     end
     if not (b and b.gather and b.nodes) then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(("%d-%d"):format(b.from, b.to), 1, 1, 1)
-    GameTooltip:AddLine(selected == "herbalism" and "Click: the best herb for you in the Farm Guide"
+    GameTooltip:AddLine(selected == "herbalism" and "Click: the best herb for you in Material Finder"
       or "Click: a mining route where you know the most of these veins", S.dim[1], S.dim[2], S.dim[3], true)
     GameTooltip:Show()
   end)

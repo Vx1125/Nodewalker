@@ -53,7 +53,7 @@ local function update()
     if sess > 0 then line("This session", tostring(sess)) end
   end
   local r = H.Route()
-  nextBtn:Hide(); skipBtn:Hide()
+  local wantBtns, btnRow = false, nil
   if r then
     local here = H.Here()
     local label = ("Ground %d of %d"):format(r.cur, #r.stops)
@@ -65,12 +65,20 @@ local function update()
       n = n + 1
       lines[n][1]:SetText("")
       lines[n][2]:SetText("")
-      nextBtn:ClearAllPoints()
-      nextBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -12, TOP - (n - 1) * 15 + 1)
-      skipBtn:SetPoint("RIGHT", nextBtn, "LEFT", -4, 0)
-      nextBtn:Show(); skipBtn:Show()
+      wantBtns, btnRow = true, n
     end
   end
+  -- only touch the buttons when something changed: hiding them under the
+  -- mouse five times a second would eat clicks and flicker their tooltips
+  if wantBtns and btnRow ~= nextBtn.row then
+    nextBtn.row = btnRow
+    nextBtn:ClearAllPoints()
+    nextBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -12, TOP - (btnRow - 1) * 15 + 1)
+    skipBtn:ClearAllPoints()
+    skipBtn:SetPoint("RIGHT", nextBtn, "LEFT", -4, 0)
+  end
+  if not wantBtns then nextBtn.row = nil end
+  if nextBtn:IsShown() ~= wantBtns then nextBtn:SetShown(wantBtns); skipBtn:SetShown(wantBtns) end
   local s = NW.session
   local skins = s and s.events and s.events.skin or 0
   if skins > 0 and n < #lines then line("Skinned", tostring(skins)) end

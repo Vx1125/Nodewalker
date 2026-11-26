@@ -139,6 +139,7 @@ for r in sql_rows(sql, "creature_template"):
     ctemplate[int(r[ci["Entry"]])] = {
         "name": r[ci["Name"]], "min": int(r[ci["MinLevel"]]), "max": int(r[ci["MaxLevel"]]),
         "type": int(r[ci["CreatureType"]]), "rank": int(r[ci["Rank"]]), "skin": int(r[ci["SkinningLootId"]]),
+        "flags": int(r[ci["CreatureTypeFlags"]]),
     }
 
 
@@ -181,8 +182,15 @@ def effective(entries, scale=1.0, depth=0):
     return out
 
 
+# The skinning loot table also holds what Herbalism, Mining and Engineering
+# take from creatures flagged for them (CreatureTypeFlags 0x100, 0x200, 0x8000):
+# those aren't skinning. Critters (type 8) are left out too (a Sheep "skinned"
+# for Wool Cloth in the source data).
+GATHER_FLAGS = 0x100 | 0x200 | 0x8000
 skin_by_item = {}
 for uid, ct in ctemplate.items():
+    if ct["flags"] & GATHER_FLAGS or ct["type"] == 8:
+        continue
     if ct["skin"] and ct["skin"] in skin_tab:
         for item, (ch, a, b) in effective(skin_tab[ct["skin"]]).items():
             if ch >= SKIN_MIN:
@@ -305,7 +313,7 @@ for uid in sorted(keep_units):
         lo = int(lv[0]) if lv else 0
         hi = int(lv[-1]) if lv else 0
     w("[%d]={%s,%d,%d,%d,%d,%s,%d,%s}," % (uid, lstr(name), lo, hi, ct.get("type", 0), ct.get("rank", 0),
-                                         lstr(units[uid]["fac"]), respawn(uid), "true" if ct.get("skin") else "false"))
+                                         lstr(units[uid]["fac"]), respawn(uid), "true" if (ct.get("skin") and not (ct.get("flags", 0) & GATHER_FLAGS) and ct.get("type") != 8) else "false"))
 w("}")
 w("-- [npc] = { zone, \"xxyyxxyy...\" (1% cells), zone, ... }")
 w("S.spawns = {")

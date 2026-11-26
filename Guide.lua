@@ -239,11 +239,24 @@ sHint:SetText("Search materials")
 local searchText = ""
 search:SetScript("OnEscapePressed", function(self) self:SetText("") self:ClearFocus() end)
 search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-search:SetScript("OnTextChanged", function(self)
+search:SetScript("OnTextChanged", function(self, userInput)
   local t = self:GetText() or ""
   sHint:SetShown(t == "")
-  if t ~= searchText then searchText = t; W.listOffset = 0; sel.hist = nil; refresh() end
+  if t ~= searchText then
+    searchText = t
+    -- typed by you: a new browse (code clears the search through clearSearch)
+    if userInput ~= false then W.listOffset = 0; sel.hist = nil end
+    refresh()
+  end
 end)
+-- Clear the search from code: the text is emptied first, so whenever the
+-- game fires OnTextChanged (now or next frame) there's nothing to redo
+local function clearSearch()
+  if searchText == "" and (search:GetText() or "") == "" then return end
+  searchText = ""
+  search:SetText("")
+  sHint:Show()
+end
 
 local CAT_H, CAT_N = 24, 13
 W.cats = {}
@@ -277,9 +290,9 @@ for i = 1, CAT_N do
   b:SetScript("OnClick", function(self)
     sel.cat = self.key
     st().matCat = self.key
-    sel.hist = nil
+    sel.hist, sel.from = nil, nil
     W.listOffset = 0
-    if searchText ~= "" then search:SetText("") end
+    clearSearch()
     refresh()
   end)
   W.cats[i] = b
@@ -296,7 +309,11 @@ for i = 1, 8 do
   r.n = UI.Text(r, 11, S.dim, "RIGHT")
   r.n:SetPoint("RIGHT", -2, 0)
   r:SetScript("OnClick", function(self)
-    if self.id then sel.id, sel.src, sel.zone = self.id, nil, nil; st().matSel = self.id; refresh() end
+    if not self.id then return end
+    clearSearch()
+    sel.cat, sel.id, sel.src, sel.zone, sel.hist, sel.from = "tracked", self.id, nil, nil, nil, nil
+    st().matSel = self.id
+    refresh()
   end)
   W.track[i] = r
 end
@@ -343,7 +360,7 @@ for i = 1, LROW_MAX do
   r:SetScript("OnClick", function(self)
     if not self.e then return end
     if IsShiftKeyDown() and type(self.e.id) == "number" and NW.ChatLink and NW.ChatLink(self.e.id, nil, true) then return end
-    sel.id, sel.src, sel.zone, sel.hist = self.e.id, nil, nil, nil
+    sel.id, sel.src, sel.zone, sel.hist, sel.from = self.e.id, nil, nil, nil, nil
     st().matSel = self.e.id
     refresh()
   end)
@@ -523,7 +540,7 @@ W.back = UI.Button(right, "", 120, function()
     local pe = M.Get(prev.id)
     if pe then
       sel.id, sel.src, sel.zone, sel.cat = prev.id, prev.src, nil, prev.cat or pe.cat
-      if searchText ~= "" then search:SetText("") end
+      clearSearch()
       refresh()
       return
     end
@@ -565,7 +582,7 @@ local function trackNow()
     return
   end
   local _, err = M.SetGoal(sel.id, W.mode or "total", n, sel.from)
-  if err == "full" then NW.Print("Up to 8 targets. Clear one first.") end
+  if err == "full" then W.note:SetText("|cffd17665Up to 8 targets: clear one first|r") return end
   W.goalEdit:ClearFocus()
   refresh()
 end
@@ -1319,7 +1336,7 @@ local function viewHunt(e, method)
   for _, r in ipairs(W.zrows) do
     local z = r.row
     if z then
-      local active = hunt and hunt.item == e.id and hunt.zone == z.name
+      local active = hunt and hunt.item == e.id and hunt.method == method and hunt.zone == z.name
       r.name:SetText((active and "|cff5fd4e0›|r " or "") .. z.name)
       r.name:SetTextColor(unpack(z.mapID and S.text or S.dim))
       r.cells[1]:SetText(z.minL and (z.minL == z.maxL and z.minL or (z.minL .. "-" .. z.maxL)) or DIM .. "?|r")
@@ -1405,7 +1422,7 @@ local function viewHunt(e, method)
   setCheck(method == "skin" and W.checkB or W.checkA, "Include elites and rares", function() return st().huntElites end, function(v) st().huntElites = v end)
   -- map
   local plan = pick and H.Plan(pick) or {}
-  local active = hunt and hunt.item == e.id and pick and hunt.zone == pick.name
+  local active = hunt and hunt.item == e.id and hunt.method == method and pick and hunt.zone == pick.name
   local mode = mapTabs({ known = true, mine = true, route = true, heat = true }, active and "route" or "heat")
   drawArt(pick and pick.mapID, pick and pick.name)
   if pick and not pick.mapID then W.mapNone:SetText("Not on your client's map list") end
@@ -1780,7 +1797,8 @@ local function subText(e)
   for _, k in ipairs(M.Sources(e)) do parts[#parts + 1] = M.SourceText(e, k) end
   local nn = e.src.nodes and M.NodeNames(e.id)
   local req = nn and nn[1] and NW.RequiredSkill(nn[1])
-  local rr, rk = e.src.craft and not e.src.nodes and NW.RecipeFor(e.id)
+  local rr, rk
+  if e.src.craft and not e.src.nodes then rr, rk = NW.RecipeFor(e.id) end
   local txt = table.concat(parts, " · ")
   if req then txt = txt .. " " .. req
   elseif rr and #parts == 1 and rr.orange then txt = txt .. " · " .. ((NW.PROF_BY_KEY[rk] or {}).name or "") .. " " .. rr.orange end
@@ -1996,6 +2014,8 @@ refresh = function()
   right:SetShown(e ~= nil)
   tbl:SetShown(e ~= nil)
   if not e then
+    W.expanded = false
+    for _, f in ipairs({ mid, W.midHead, W.midCount }) do f:Show() end
     NW.SetWindowSubtitle("")
     return
   end
@@ -2051,10 +2071,12 @@ refresh = function()
     W.goalSet:ClearAllPoints()
     if g then W.goalSet:SetPoint("RIGHT", W.goalClear, "LEFT", -4, 0) else W.goalSet:SetPoint("RIGHT", -3, 0) end
     W.goalSet:SetText(g and "Update" or "Track")
-    if not W.goalEdit:HasFocus() then
+    local gkey = tostring(e.id) .. ":" .. tostring(g and g.at) .. ":" .. tostring(sel.need)
+    if W.goalKey ~= gkey and not W.goalEdit:HasFocus() then
+      W.goalKey = gkey
       if sel.need and not g then W.goalEdit:SetText(sel.need); W.mode = "more"
       elseif g then W.goalEdit:SetText(g.n); W.mode = g.mode
-      else W.goalEdit:SetText(""); W.mode = W.mode or "total" end
+      else W.goalEdit:SetText(""); W.mode = "total" end
     end
     W.goalMode:Refresh()
   end
@@ -2179,7 +2201,7 @@ function NW.FindMaterial(id, from, need)
   if not e then return false end
   sel.id, sel.src, sel.zone, sel.from, sel.need, sel.needFor, sel.hist = id, nil, nil, from, need, id, nil
   sel.cat = e.cat
-  if searchText ~= "" then search:SetText("") end
+  clearSearch()
   open()
   return true
 end
@@ -2192,12 +2214,13 @@ W.goTo = function(id, need)
   for i = #hist, 1, -1 do
     if hist[i].id == id then for _ = i, #hist do table.remove(hist) end break end
   end
-  if sel.id and sel.id ~= id then hist[#hist + 1] = { id = sel.id, src = sel.src, cat = sel.cat } end
+  local curE = sel.id and M.Get(sel.id)
+  if sel.id and sel.id ~= id then hist[#hist + 1] = { id = sel.id, src = sel.src, cat = curE and curE.cat or sel.cat } end
   while #hist > 5 do table.remove(hist, 1) end
   sel.hist = hist
   sel.id, sel.src, sel.zone, sel.need, sel.needFor = id, nil, nil, need, id
   sel.cat = e.cat
-  if searchText ~= "" then search:SetText("") end
+  clearSearch()
   refresh()
 end
 -- Open on a herb or ore node (old Farm Guide entry point)
@@ -2210,6 +2233,6 @@ function NW.FindMaterials(cat, id, src)
   sel.cat, sel.from, sel.need, sel.hist = cat, nil, nil, nil
   if id then sel.id = id end
   sel.src, sel.zone = src, nil
-  if searchText ~= "" then search:SetText("") end
+  clearSearch()
   open()
 end

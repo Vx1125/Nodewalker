@@ -10,8 +10,10 @@ local _, NW = ...
 -- spawned, not creatures that are alive now.
 --
 --   density   each known spawn point (1% of the map) counts its creature's
---             chance for the material (0.6 for a 60% drop). Spawns of
---             several creatures add up. Bins are 3% of the map.
+--             chance for the material times its average count (0.6 for a
+--             60% drop of one; skinning 1-2 at 60% is 0.9). Spawns of several
+--             creatures add up: "per clear", the items if every known spawn
+--             were killed once. Bins are 3% of the map.
 --   clusters  the densest bin starts a hunting ground; bins within 6% join
 --             it; repeat. Grounds with under 3 spawn points are left out.
 --   routes    nearest ground first, then nearest next, improved by 2-opt;
@@ -89,6 +91,25 @@ function H.Why(u, method, opts)
   end
   if opts.level and u.min and u.min > opts.level + (opts.levelOver or 99) then return "level" end
   return nil
+end
+
+-- Known spawn points of one creature in one zone: { { x, y } } (cell centres)
+local zoneIndex
+function H.SpawnsIn(npc, zoneName)
+  local S = src()
+  if not S then return {} end
+  if not zoneIndex then zoneIndex = {} for i, z in ipairs(S.zones) do zoneIndex[z] = i end end
+  local zi, sp, out = zoneIndex[zoneName], S.spawns[npc], {}
+  if not (zi and sp) then return out end
+  for i = 1, #sp, 2 do
+    if sp[i] == zi then
+      local str = sp[i + 1]
+      for k = 1, #str, 4 do
+        out[#out + 1] = { (tonumber(str:sub(k, k + 1)) + 0.5) / 100, (tonumber(str:sub(k + 2, k + 3)) + 0.5) / 100 }
+      end
+    end
+  end
+  return out
 end
 
 ------------------------------------------------------------------------
@@ -177,7 +198,7 @@ function H.Grounds(id, method, opts)
     if why then
       out[why] = (out[why] or 0) + 1
     elseif sp then
-      local p = s.chance / 100
+      local p = s.chance / 100 * (((s.min or 1) + (s.max or s.min or 1)) / 2)
       for i = 1, #sp, 2 do
         local zname = S.zones[sp[i]]
         local z = zones[zname]
@@ -219,9 +240,11 @@ function H.ClearCache() cache = {} end
 
 -- Sorting zones; each says what it's based on
 H.SORTS = {
-  { "density", "Most spawns", "Known spawn points weighted by drop chance (Classic data). Not creatures alive now." },
-  { "level", "Nearest my level", "Zones whose creatures are closest to your level." },
-  { "mine", "My history", "Where you've collected it most. Shows only zones you've farmed." },
+  { "density", "Most per clear", "Expected items if every known spawn here were killed once: spawn points × drop chance × average count (Classic data). Not creatures alive now, not per hour." },
+  { "spawns", "Most spawn points", "Known spawn points of creatures that give it, whatever their chance." },
+  { "level", "Nearest my level", "Zones whose creatures are closest to your level, then most per clear." },
+  { "near", "Nearest to me", "Straight-line distance from you to the zone's middle, on your continent. Other continents come last." },
+  { "mine", "My history", "Where you've collected it most, from your own log. Shows only zones you've farmed." },
 }
 function H.Sort(zones, by, id)
   local lvl = UnitLevel and UnitLevel("player") or 1
@@ -231,8 +254,25 @@ function H.Sort(zones, by, id)
   if by == "mine" and NW.GatherLog then
     for _, z in ipairs(sorted) do mine[z] = z.mapID and NW.GatherLog.ZoneCount(z.mapID, id) or 0 end
   end
+  -- distance from you to each zone's middle, same continent only
+  local dist = {}
+  if by == "near" and C_Map and C_Map.GetWorldPosFromMapPos and CreateVector2D then
+    local here, px, py = NW.PlayerPos()
+    local okP, cont, pos = false, nil, nil
+    if here then okP, cont, pos = pcall(C_Map.GetWorldPosFromMapPos, here, CreateVector2D(px, py)) end
+    for _, z in ipairs(sorted) do
+      if okP and pos and z.mapID then
+        local ok, c2, p2 = pcall(C_Map.GetWorldPosFromMapPos, z.mapID, CreateVector2D(0.5, 0.5))
+        if ok and p2 and c2 == cont then
+          local ax, ay = pos.x or (pos.GetXY and select(1, pos:GetXY())), pos.y or (pos.GetXY and select(2, pos:GetXY()))
+          local bx, by2 = p2.x or (p2.GetXY and select(1, p2:GetXY())), p2.y or (p2.GetXY and select(2, p2:GetXY()))
+          if ax and bx then dist[z] = math.sqrt((ax - bx) ^ 2 + (ay - by2) ^ 2) end
+        end
+      end
+    end
+  end
   local function fit(z)
-    if not z.minL then return 99 end
+    if not (z.minL and z.maxL) then return 99 end
     if lvl >= z.minL and lvl <= z.maxL then return 0 end
     return math.min(math.abs(lvl - z.minL), math.abs(lvl - z.maxL))
   end
@@ -242,8 +282,15 @@ function H.Sort(zones, by, id)
       if fa ~= fb then return fa < fb end
     elseif by == "mine" then
       if mine[a] ~= mine[b] then return mine[a] > mine[b] end
+    elseif by == "spawns" then
+      if a.n ~= b.n then return a.n > b.n end
+    elseif by == "near" then
+      local da, db = dist[a], dist[b]
+      if (da ~= nil) ~= (db ~= nil) then return da ~= nil end
+      if da and da ~= db then return da < db end
     end
-    return a.w > b.w
+    if a.w ~= b.w then return a.w > b.w end
+    return a.name < b.name
   end)
   return sorted
 end
@@ -337,6 +384,100 @@ function H.Start(id, method, z, opts)
   if NW.DrawOverlay then NW.DrawOverlay() end
   return NW.charDB.hunt
 end
+local function toStop(g)
+  local npcs = {}
+  for npc in pairs(g.npcs or {}) do npcs[#npcs + 1] = npc end
+  return { x = g.x, y = g.y, rx = g.rx, ry = g.ry, w = g.w, n = g.n, npcs = npcs, respawn = g.respawn, minL = g.minL, maxL = g.maxL }
+end
+local function same(a, b) return math.abs(a.x - b.x) < 1e-4 and math.abs(a.y - b.y) < 1e-4 end
+-- the route's stop for a hunting ground, if it has one
+function H.StopFor(g)
+  local r = charHunt()
+  if not r then return nil end
+  for i, st in ipairs(r.stops) do if same(st, g) then return i end end
+end
+-- one ground only: stay and hunt
+function H.StartSingle(id, method, z, g)
+  if not (NW.charDB and g) then return end
+  NW.charDB.hunt = { item = id, method = method, zone = z.name, map = z.mapID, stops = { toStop(g) }, cur = 1, state = {}, at = {}, made = time(), custom = true }
+  H.Changed()
+  if NW.DrawOverlay then NW.DrawOverlay() end
+end
+-- add a ground where it lengthens the loop least
+function H.AddGround(g)
+  local r = charHunt()
+  if not (r and g) or H.StopFor(g) then return end
+  local st = toStop(g)
+  local n = #r.stops
+  local at, best = n + 1, math.huge
+  if n >= 2 then
+    for i = 1, n do
+      local a, b = r.stops[i], r.stops[(i % n) + 1]
+      local add = yards(r.map, a, st) + yards(r.map, st, b) - yards(r.map, a, b)
+      if add < best then at, best = i + 1, add end
+    end
+  end
+  table.insert(r.stops, at, st)
+  -- keep states and times with their stops
+  local state, ats = {}, {}
+  for i = 1, n + 1 do
+    local old = i < at and i or (i > at and i - 1 or nil)
+    if old then state[i], ats[i] = r.state[old], r.at[old] end
+  end
+  r.state, r.at = state, ats
+  if r.cur >= at then r.cur = r.cur + 1 end
+  r.custom = true
+  H.Changed()
+  if NW.DrawOverlay then NW.DrawOverlay() end
+end
+function H.RemoveStop(i)
+  local r = charHunt()
+  if not (r and r.stops[i]) then return end
+  if #r.stops == 1 then H.Stop() return end
+  table.remove(r.stops, i)
+  local state, ats = {}, {}
+  for k = 1, #r.stops + 1 do
+    if k < i then state[k], ats[k] = r.state[k], r.at[k] elseif k > i then state[k - 1], ats[k - 1] = r.state[k], r.at[k] end
+  end
+  r.state, r.at = state, ats
+  if r.cur > i then r.cur = r.cur - 1 elseif r.cur > #r.stops then r.cur = 1 end
+  r.custom = true
+  H.Changed()
+  if NW.DrawOverlay then NW.DrawOverlay() end
+end
+-- the loop starts from stop i (same order, rotated)
+function H.SetStart(i)
+  local r = charHunt()
+  if not (r and r.stops[i]) or i == 1 then return end
+  local n = #r.stops
+  local stops, state, ats = {}, {}, {}
+  for k = 0, n - 1 do
+    local old = ((i - 1 + k) % n) + 1
+    stops[k + 1], state[k + 1], ats[k + 1] = r.stops[old], r.state[old], r.at[old]
+  end
+  r.stops, r.state, r.at = stops, state, ats
+  r.cur = 1
+  r.state[1] = nil
+  r.custom = true
+  H.Changed()
+  if NW.DrawOverlay then NW.DrawOverlay() end
+end
+-- the other way round, from the current stop
+function H.Reverse()
+  local r = charHunt()
+  if not r or #r.stops < 3 then return end
+  local n = #r.stops
+  local stops, state, ats = {}, {}, {}
+  for k = 0, n - 1 do
+    local old = ((r.cur - 1 - k) % n) + 1
+    stops[k + 1], state[k + 1], ats[k + 1] = r.stops[old], r.state[old], r.at[old]
+  end
+  r.stops, r.state, r.at, r.cur = stops, state, ats, 1
+  r.custom = true
+  H.Changed()
+  if NW.DrawOverlay then NW.DrawOverlay() end
+end
+
 function H.Stop()
   if NW.charDB then NW.charDB.hunt = nil end
   H.Changed()
@@ -399,6 +540,8 @@ NW.On("PLAYER_LEVEL_UP", function() H.ClearCache() end)
 -- Called from Overlay.lua's rebuild (not every frame).
 ------------------------------------------------------------------------
 local RING_SEG = 28
+local COS, SIN = {}, {}
+for k = 0, RING_SEG do COS[k], SIN[k] = math.cos(k / RING_SEG * 2 * math.pi), math.sin(k / RING_SEG * 2 * math.pi) end
 local labels, nLabels = {}, 0
 function H.DrawOverlay(mapID, api)
   nLabels = 0
@@ -407,10 +550,15 @@ function H.DrawOverlay(mapID, api)
     local toView, onScreen, getLine, pan = api.toView, api.onScreen, api.getLine, api.pan
     local cur = r.cur
     local function ring(s, cr, cg, cb, a, thick)
+      -- a ground wholly off the view costs nothing
+      local lx, ty = toView(s.x - s.rx, s.y - s.ry)
+      local rx2, by = toView(s.x + s.rx, s.y + s.ry)
+      if not (onScreen(lx, ty) or onScreen(rx2, by) or onScreen(lx, by) or onScreen(rx2, ty) or onScreen(toView(s.x, s.y))) then return end
+      local px0, py0 = toView(s.x + COS[0] * s.rx, s.y + SIN[0] * s.ry)
       for k = 1, RING_SEG do
-        local a1, a2 = (k - 1) / RING_SEG * 2 * math.pi, k / RING_SEG * 2 * math.pi
-        local x1, y1 = toView(s.x + math.cos(a1) * s.rx, s.y + math.sin(a1) * s.ry)
-        local x2, y2 = toView(s.x + math.cos(a2) * s.rx, s.y + math.sin(a2) * s.ry)
+        local x1, y1 = px0, py0
+        local x2, y2 = toView(s.x + COS[k] * s.rx, s.y + SIN[k] * s.ry)
+        px0, py0 = x2, y2
         if onScreen(x1, y1) or onScreen(x2, y2) then
           local l = getLine()
           l:SetThickness(thick)

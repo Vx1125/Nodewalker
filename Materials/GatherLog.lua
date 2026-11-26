@@ -70,9 +70,14 @@ local function spellName(id)
 end
 local function castKind(spellID)
   if kindOf[spellID] then return kindOf[spellID] end
-  if not nameKind then
-    nameKind = {}
-    for k, ids in pairs(SPELLS) do local n = spellName(ids[1]) if n then nameKind[n] = k end end
+  if not nameKind or not nameKind._full then
+    nameKind = nameKind or {}
+    local all = true
+    for k, ids in pairs(SPELLS) do
+      local n = spellName(ids[1])
+      if n then nameKind[n] = k else all = false end
+    end
+    nameKind._full = all -- names not cached yet: ask again next time
   end
   local n = spellName(spellID)
   return n and nameKind[n]
@@ -108,7 +113,6 @@ function GL.Classify(slot)
   end
   if kind == "Creature" or kind == "Vehicle" then
     if recent == "skin" then return "skin", npc end
-    if recent == "herb" or recent == "ore" then return recent, npc end -- (herb-covered creatures in later clients)
     return "loot", npc
   end
   if kind == "GameObject" and (recent == "herb" or recent == "ore") then return recent, nil end
@@ -117,8 +121,9 @@ end
 
 local function isMaterial(id)
   if NW.Mat and NW.Mat.Get(id) then return true end
-  if C_Item and C_Item.GetItemInfoInstant then
-    local ok, _, _, _, _, _, classID = pcall(C_Item.GetItemInfoInstant, id)
+  local fn = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+  if fn then
+    local ok, _, _, _, _, _, classID = pcall(fn, id)
     return ok and classID == 7
   end
   return false
@@ -175,7 +180,8 @@ function GL.Record(id, qty, method, npc, newWindow)
     s.mats[id] = (s.mats[id] or 0) + qty
     if newWindow then s.events = s.events or {}; s.events[method] = (s.events[method] or 0) + 1 end
     -- herbs and ore are valued from the loot message (Nodes.lua); creature materials here
-    if (method == "skin" or method == "loot") and NW.Price then
+    -- (within a few seconds of a node, Nodes.lua values every loot message itself)
+    if (method == "skin" or method == "loot") and NW.Price and not (s.lootUntil and GetTime() <= s.lootUntil) then
       local price, from = NW.Price(id)
       if price and (from == "ah" or from == "vendor") then s.value = (s.value or 0) + price * qty end
     end
@@ -191,6 +197,9 @@ local function openWindow()
     local method = GL.Classify(1)
     if not method then win = { skip = true } return end
     win = { method = method, slots = {}, seen = {} }
+    -- the cast belongs to this window only: the next corpse within the
+    -- window is ordinary loot, not another skin (and a failed skin can't leak)
+    if method ~= "loot" then last.kind = nil end
   end
   for i = 1, (GetNumLootItems and GetNumLootItems() or 0) do
     if not win.seen[i] then
@@ -200,8 +209,8 @@ local function openWindow()
         win.seen[i] = true
         if isMaterial(id) then
           local _, _, qty = GetLootSlotInfo(i)
-          local method, npc = GL.Classify(i)
-          win.slots[i] = { id, tonumber(qty) or 1, method or win.method, npc }
+          local _, npc = GL.Classify(i)
+          win.slots[i] = { id, tonumber(qty) or 1, win.method, npc }
         end
       end
     end

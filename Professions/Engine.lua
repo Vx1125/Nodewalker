@@ -261,6 +261,58 @@ local function learnItemLink(link)
   if id and name then NW.db.itemIDs[name] = id end
 end
 
+-- Skill-up colours the game shows: the recipe data can be a few points off
+-- (Silver Rod turns green at 82, not 83). Each time the profession window
+-- shows a recipe's colour at your skill, that pins its thresholds:
+--   orange: skill < yellow   yellow: yellow <= skill < green
+--   green: green <= skill < grey   grey: grey <= skill
+-- Kept account-wide (db.colorSeen[key][name] = { yellow, green, grey } bounds)
+-- and applied to the leveling data and the catalog.
+local DIFF = { optimal = 0, medium = 1, easy = 2, trivial = 3 }
+local function applyColor(r, c)
+  if c.yellowMax and r.yellow > c.yellowMax then r.yellow = c.yellowMax end
+  if c.yellowMin and r.yellow < c.yellowMin then r.yellow = c.yellowMin end
+  if c.greenMax and r.green > c.greenMax then r.green = c.greenMax end
+  if c.greenMin and r.green < c.greenMin then r.green = c.greenMin end
+  if c.greyMax and r.grey > c.greyMax then r.grey = c.greyMax end
+  if c.greyMin and r.grey < c.greyMin then r.grey = c.greyMin end
+  if r.green < r.yellow then r.green = r.yellow end
+  if r.grey < r.green then r.grey = r.green end
+end
+function NW.ApplyColors(key)
+  local seen = NW.db and NW.db.colorSeen
+  if not seen then return end
+  for k, list in pairs(seen) do
+    if not key or k == key then
+      for _, src in ipairs({ NW.RECIPES[k] or {}, NW.CATALOG and NW.CATALOG[k] or {} }) do
+        for _, r in ipairs(src) do
+          local c = list[r.name]
+          if c and r.yellow and r.green and r.grey then applyColor(r, c) end
+        end
+      end
+    end
+  end
+end
+local function noteColor(key, name, diff, skill)
+  if not (key and name and skill and diff) then return end
+  if type(diff) == "string" then diff = DIFF[diff] end
+  if not diff then return end
+  NW.db.colorSeen = NW.db.colorSeen or {}
+  local list = NW.db.colorSeen[key] or {}
+  NW.db.colorSeen[key] = list
+  local c = list[name] or {}
+  local before = ("%s %s %s %s %s %s"):format(tostring(c.yellowMax), tostring(c.yellowMin), tostring(c.greenMax), tostring(c.greenMin), tostring(c.greyMax), tostring(c.greyMin))
+  local function lower(f, v) if not c[f] or v < c[f] then c[f] = v end end
+  local function raise(f, v) if not c[f] or v > c[f] then c[f] = v end end
+  if diff == 0 then raise("yellowMin", skill + 1)
+  elseif diff == 1 then lower("yellowMax", skill); raise("greenMin", skill + 1)
+  elseif diff == 2 then lower("greenMax", skill); raise("greyMin", skill + 1)
+  elseif diff == 3 then lower("greyMax", skill) end
+  list[name] = c
+  local after = ("%s %s %s %s %s %s"):format(tostring(c.yellowMax), tostring(c.yellowMin), tostring(c.greenMax), tostring(c.greenMin), tostring(c.greyMax), tostring(c.greyMin))
+  return before ~= after
+end
+
 -- Read the whole recipe list from the profession window (newer clients list
 -- unlearned recipes too, with where they come from).
 local function modernScan()
@@ -292,6 +344,8 @@ local function modernScan()
   local okIDs, ids = pcall(T.GetAllRecipeIDs)
   if not okIDs or not ids or #ids == 0 then return true end
   local scan = {}
+  local skillNow = NW.ProfSkill(key)
+  local colorsChanged = false
   NW.charDB.known[key] = {} -- the full list is the truth: rebuild what you know
   local catNames, catOrder = {}, {}
   -- The game can hand back every profession's recipes: keep this one's
@@ -336,11 +390,13 @@ local function modernScan()
         if okt and type(text) == "string" and text ~= "" then e.source = text end
       end
       if e.learned then remember(key, info.name) end
+      if e.learned and info.relativeDifficulty ~= nil and noteColor(key, info.name, info.relativeDifficulty, skillNow) then colorsChanged = true end
       scan[info.name] = e
     end
   end
   NW.charDB.recipeScan[key] = scan
   NW.charDB.recipeScanAt[key] = time()
+  if colorsChanged then NW.ApplyColors(key); NW.InvalidatePlans() end
   return true
 end
 
@@ -357,15 +413,18 @@ local function scanTradeSkill()
     local key = ok and profKeyFromName(line)
     if key then
       NW.currentTradeKey = key
+      local skillNow, changed = NW.ProfSkill(key), false
       for i = 1, GetNumTradeSkills() do
         local name, kind = GetTradeSkillInfo(i)
         if name and kind ~= "header" and kind ~= "subheader" then
           remember(key, name)
+          if noteColor(key, name, kind, skillNow) then changed = true end
           if GetTradeSkillReagentItemLink and GetTradeSkillNumReagents then
             for j = 1, (GetTradeSkillNumReagents(i) or 0) do learnItemLink(GetTradeSkillReagentItemLink(i, j)) end
           end
         end
       end
+      if changed then NW.ApplyColors(key); NW.InvalidatePlans() end
     end
   end
 end
@@ -1284,3 +1343,6 @@ function NW.FillCost(id, qty)
   end
   return cost, got, d.complete or false, seen
 end
+
+-- colours the profession window showed before (see noteColor above)
+table.insert(NW.OnLoad, function() if NW.ApplyColors then NW.ApplyColors() end end)

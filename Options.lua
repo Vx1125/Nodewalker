@@ -241,10 +241,10 @@ local chooseBtn = UI.Button(page, "Choose herbs and ore...", 200, function() NW.
 place(2, chooseBtn, 28, 2)
 heading(2, "Material Finder")
 place(2, UI.Check(page, "Record what I collect", function() return s().gatherTrack ~= false end,
-  function(v) s().gatherTrack = (not v) and false or nil; changed(); refreshAll() end,
+  function(v) if v then s().gatherTrack = nil else s().gatherTrack = false end; changed(); refreshAll() end,
   "Skinning, creature loot, herbs and ore, for your history and maps in Material Finder. Fishing has its own journal."), 24, 2)
 place(2, UI.Check(page, "Hunting route on the overlay", function() return s().huntOverlay ~= false end,
-  function(v) s().huntOverlay = (not v) and false or nil; changed(); refreshAll(); if NW.DrawOverlay then NW.DrawOverlay() end end,
+  function(v) if v then s().huntOverlay = nil else s().huntOverlay = false end; changed(); refreshAll(); if NW.DrawOverlay then NW.DrawOverlay() end end,
   "Rings for the hunting grounds and the route between them."), 24, 2)
 
 ------------------------------------------------------------------------
