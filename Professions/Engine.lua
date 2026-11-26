@@ -443,18 +443,43 @@ local function scanCraft()
 end
 
 -- Trainer: the real skill each recipe needs, for recipes the data leaves open
+-- The trainer window: what each recipe needs, and which recipes this
+-- profession's trainers teach at all. A "trainer" recipe from the data that
+-- no trainer you've opened offers, at a level that trainer's list reached,
+-- isn't planned (Rough Bronze Bracers isn't taught in WoW Forever).
 local function scanTrainer()
   if not (NW.db and GetNumTrainerServices and GetTrainerServiceSkillReq) then return end
+  local seenNow = {}
   for i = 1, GetNumTrainerServices() do
-    local name = GetTrainerServiceInfo(i)
+    local name, _, category = GetTrainerServiceInfo(i)
     local skillName, rank = GetTrainerServiceSkillReq(i)
     local key = profKeyFromName(skillName)
-    if key and name and rank then
+    if key and name and rank and category ~= "header" then
       NW.db.trainerReq[key] = NW.db.trainerReq[key] or {}
       NW.db.trainerReq[key][name] = rank
+      local t = seenNow[key] or { names = {}, max = 0 }
+      seenNow[key] = t
+      t.names[name] = true
+      if rank > t.max then t.max = rank end
     end
   end
+  NW.db.trainerSeen = NW.db.trainerSeen or {}
+  for key, t in pairs(seenNow) do
+    local all = NW.db.trainerSeen[key] or { names = {}, max = 0 }
+    for n in pairs(t.names) do all.names[n] = true end
+    if t.max > all.max then all.max = t.max end
+    NW.db.trainerSeen[key] = all
+  end
   NW.InvalidatePlans()
+end
+-- true when the trainers you've opened don't teach this recipe, though their
+-- lists went past its level (so it would have shown)
+function NW.NotAtTrainer(key, r)
+  local t = NW.db and NW.db.trainerSeen and NW.db.trainerSeen[key]
+  if not (t and r and (r.src == "trainer")) then return false end
+  if t.names[r.name] then return false end
+  local need = r.orange or r.yellow or 0
+  return t.max >= need + 10
 end
 
 -- Merchant: vendor prices for reagents
@@ -983,6 +1008,7 @@ function NW.BuildPlan(key, from, to)
     for pass = 1, 2 do
       for i, r in ipairs(recipes) do
         local trainer = r.src == "rank" or r.src == "trainer"
+        local notTaught = trainer and not isKnown(key, r) and NW.NotAtTrainer(key, r)
         local avail = trainer or isKnown(key, r)
         -- Known recipes: what you know first, the trainer's only where nothing you know works; never a bought one
         if strategy == "known" then
@@ -990,7 +1016,7 @@ function NW.BuildPlan(key, from, to)
           elseif trainer and (pass == 2 or knownP < 0.5) then avail = true
           else avail = nil end
         end
-        if NW.NO_LEVEL[r.name] then avail = nil end
+        if NW.NO_LEVEL[r.name] or notTaught then avail = nil end
         if allow and avail ~= nil and not allow(r, sk) then avail = nil end
         -- a Merchant's Favor recipe your reputation can't buy yet (unless you know it)
         if avail ~= nil and NW.FavorBlocked and NW.FavorBlocked(r) and not isKnown(key, r) then avail = nil end
