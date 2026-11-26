@@ -247,7 +247,9 @@ function F.Build()
     local s = NW.db.settings
     local a, b, d = s.planStrategy, s.planRecipeItems, s.planSellBack
     s.planStrategy, s.planRecipeItems, s.planSellBack = nil, not c.noRecipes, false
+    NW.kitHold = true -- its own plan: neither follows nor replaces Cooking's kit
     local ok, res = pcall(NW.BuildPlan, "cooking", cookFrom, cookTo)
+    NW.kitHold = nil
     s.planStrategy, s.planRecipeItems, s.planSellBack = a, b, d
     ctx = nil
     if ok then cp = res end
