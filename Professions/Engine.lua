@@ -951,6 +951,33 @@ end
 local RANK_AT = {}
 for _, r in ipairs(NW.RANKS) do if r.skill then RANK_AT[r.cap - 75] = r end end
 
+-- A locked plan ("kit"): the recipes chosen when you bought for it, kept
+-- point for point until you reach its end or re-plan. Prices and what's in
+-- your bags then change how many you still buy, never which recipes.
+function NW.Kit(key)
+  local kits = NW.charDB.planKit
+  local kit = kits and kits[key]
+  if not kit then return nil end
+  local sk = NW.ProfSkill(key)
+  if sk and sk >= kit.to then kits[key] = nil; return nil end
+  return kit
+end
+function NW.LockKit(key, plan)
+  if not plan or not plan.steps then return end
+  local kit = { to = plan.to, made = time(), steps = {} }
+  for _, st in ipairs(plan.steps) do
+    if st.recipe then kit.steps[#kit.steps + 1] = { st.from, st.to, st.recipe.name } end
+  end
+  if #kit.steps == 0 then return end
+  NW.charDB.planKit = NW.charDB.planKit or {}
+  NW.charDB.planKit[key] = kit
+  NW.InvalidatePlans()
+end
+function NW.ClearKit(key)
+  if NW.charDB.planKit then NW.charDB.planKit[key] = nil end
+  NW.InvalidatePlans()
+end
+
 -- Build the plan from skill `from` to `to`.
 -- Returns { steps = {...}, total, unknown, gaps }
 function NW.BuildPlan(key, from, to)
@@ -963,6 +990,8 @@ function NW.BuildPlan(key, from, to)
   local sell = key ~= "cooking" and s.planSellBack or false
   local cacheKey = ("%s:%d:%d:%s%s:%s:%s"):format(key, from, to, s.planRecipeItems and "r" or "", sell == "de" and "d" or sell and "s" or "", strategy or "",
     allow and NW.CookAllowKey() or "") .. ":" .. (NW.FavorKey and NW.FavorKey() or "")
+  local kit = NW.Kit(key)
+  if kit then cacheKey = cacheKey .. ":kit" .. kit.made end
   local recipes = NW.RECIPES[key] or {}
   -- this profession's "make it yourself" table, even when the plan comes from the cache
   if NW.craftKey ~= key then
@@ -1149,6 +1178,25 @@ function NW.BuildPlan(key, from, to)
     if not changed then break end
   end
 
+  -- a locked plan keeps its recipes wherever they can still be made
+  if kit then
+    local byName = {}
+    for i, r in ipairs(recipes) do byName[r.name] = byName[r.name] or i end
+    for _, ks in ipairs(kit.steps) do
+      local i = byName[ks[3]]
+      local r = i and recipes[i]
+      if r then
+        for sk = math.max(from, ks[1]), math.min(to, ks[2]) - 1 do
+          if required(key, r) <= sk and NW.SkillUpChance(r, sk) > 0 then
+            local wasGap = not pick[sk]
+            pick[sk] = { i = i, needs = not (isKnown(key, r) or r.src == "trainer" or r.src == "rank") }
+            if wasGap then gaps = gaps - 1 end
+          end
+        end
+      end
+    end
+  end
+
   -- remember the step you're on, so the next plan keeps it while it's still good
   NW.charDB.planSticky = NW.charDB.planSticky or {}
   local first = pick[from]
@@ -1225,7 +1273,7 @@ function NW.BuildPlan(key, from, to)
       for _, re in ipairs(st.recipe.reagents) do st.mats[#st.mats + 1] = { re[1], re[2] * st.crafts } end
     end
   end
-  local plan = { steps = steps, total = total, spend = spend, fees = fees, unknown = unknownTotal, gaps = gaps, from = from, to = to }
+  local plan = { steps = steps, total = total, spend = spend, fees = fees, unknown = unknownTotal, gaps = gaps, from = from, to = to, kit = kit }
   planCache[cacheKey] = plan
   return plan
 end
@@ -1234,10 +1282,18 @@ end
 -- broken down into what they're made from. Counts what's in your bags.
 function NW.ShoppingList(key, plan)
   local need = {}
+  local useBags = NW.db.settings.planUseBags
   local function add(id, n, depth, leaf)
     local r = craftOf and craftOf[id]
     local price, src = NW.Price(id)
     if r and src == "craft" and depth < 3 and not leaf then
+      -- the ones already in your bags first; only the rest are made from scratch
+      if useBags then
+        local spare = math.max(0, NW.ItemCount(id) - (need[id] or 0))
+        local use = math.min(spare, n)
+        if use > 0 then need[id] = (need[id] or 0) + use; n = n - use end
+        if n <= 0 then return end
+      end
       local crafts = math.ceil(n / (r.yield or 1))
       -- one step down, never a whole chain
       for _, re in ipairs(r.reagents) do add(re[1], re[2] * crafts, depth + 1, true) end
@@ -1274,7 +1330,6 @@ function NW.ShoppingList(key, plan)
     end
   end
   local list, total = {}, 0
-  local useBags = NW.db.settings.planUseBags
   for id, n in pairs(need) do
     local have = useBags and NW.ItemCount(id) or 0
     local buy = math.max(0, n - have)

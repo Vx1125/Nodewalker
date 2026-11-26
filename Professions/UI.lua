@@ -265,9 +265,32 @@ MS.cookSrc:Hide()
 
 local priceLine = UI.Text(mid, 11, S.dim)
 priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -6)
-priceLine:SetWidth(MID_W)
+priceLine:SetWidth(MID_W - 92)
 priceLine:SetHeight(26)
 priceLine:SetJustifyV("TOP")
+-- lock the plan as a kit: what you buy for it carries you to its end
+MS.kitBtn = UI.Button(mid, "Lock plan", 86, function()
+  local p = MS.kitKey and MS.kitPlan
+  if not p then return end
+  if NW.Kit(MS.kitKey) then NW.ClearKit(MS.kitKey) else NW.LockKit(MS.kitKey, MS.kitPlan) end
+  refresh()
+end, 18)
+MS.kitBtn.label:SetFont(UI.FONT, 10, "")
+MS.kitBtn:SetPoint("TOPRIGHT", optRow, "BOTTOMRIGHT", 0, -3)
+MS.kitBtn:SetScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+  local kit = MS.kitKey and NW.Kit(MS.kitKey)
+  if kit then
+    GameTooltip:SetText("Plan locked to " .. kit.to)
+    GameTooltip:AddLine("Re-plan: choose recipes again at today's prices.", 1, 1, 1, true)
+  else
+    GameTooltip:SetText("Lock plan")
+    GameTooltip:AddLine("Keeps these recipes to your target, so what you buy now carries you there. Searching the list locks it too.", 1, 1, 1, true)
+  end
+  GameTooltip:Show()
+end)
+MS.kitBtn:SetScript("OnLeave", GameTooltip_Hide)
+MS.kitBtn:Hide()
 
 -- Profit: how to order it, a floor on what's worth it, and less-used filters
 local profitCtl = CreateFrame("Frame", nil, mid)
@@ -865,6 +888,8 @@ shopBox:SetScript("OnMouseWheel", function(_, d)
   drawShop()
 end)
 local searchBtn = UI.Button(right, "Search missing in Auctionator", RIGHT_W, function()
+  -- buying the list: keep the plan it was made for
+  if MS.kitKey and MS.kitPlan and not NW.Kit(MS.kitKey) then NW.LockKit(MS.kitKey, MS.kitPlan) end
   local items = {}
   for _, e in ipairs(MS.shopAll or shop) do
     if e.header then
@@ -1277,6 +1302,7 @@ local function drawCraft(p)
     return
   end
   local plan = NW.BuildPlan(p.key, from, to)
+  MS.kitKey, MS.kitPlan = rank and p.key or nil, plan
   steps = filter(plan.steps, stepMatches)
   if searchText == "" then
     -- the plan by rank: a heading for each, and a trip to the trainer between them
@@ -1468,6 +1494,9 @@ local function drawCraft(p)
   end
   priceLine:SetText(not ah and "|cffd17665Auctionator isn't loaded:|r vendor prices and rough estimates only."
     or nowLine or "")
+  local kit = rank and NW.Kit(p.key)
+  MS.kitBtn:SetText(kit and "Re-plan" or "Lock plan")
+  MS.kitBtn:SetShown(rank and true or false)
 end
 
 ------------------------------------------------------------------------
@@ -2854,6 +2883,7 @@ refresh = function()
   searchBtn:SetShown(planPanel)
   MS.fcBtn:SetShown(planPanel and selected == "cooking")
   if not planPanel then MS.recipesBtn:Hide() end
+  if not planPanel then MS.kitBtn:Hide() end
   -- the key to the list's colours and marks, and notes on this profession: on hover
   tips:Hide()
   if not MS.help then
