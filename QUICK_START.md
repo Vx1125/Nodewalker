@@ -9,14 +9,24 @@ Type `/nw prof` to open the window, or click the Nodewalker button on your minim
 
 ## Start gathering
 
-1. Type `/nw guide` (Farm Guide).
-2. Pick an herb or ore on the left.
+1. Type `/nw guide` (Material Finder).
+2. Pick **Herbs** or **Ore** on the left, then an herb or ore.
 3. Click a zone in the list. The map shows its loop.
 4. Click **Build route**.
 5. Go to that zone and type `/nw` to show the overlay.
 6. Follow the cyan line. Your minimap's dots show what's up now; faded icons are spots seen before.
 
 When you enter a zone without a route, Nodewalker builds one by itself. To rebuild a route or steer it away from somewhere, open the Route tab (`/nw plan`), then use **Optimize loop** or **Draw avoid zone**.
+
+## Find any material
+
+1. Type `/nw guide`, or click a material in a profession's shopping list.
+2. Search by name, or pick a category on the left.
+3. The buttons under the name are the ways to get it: Herbalism, Mining, Fishing, Skinning, Creature loot, Vendor, Crafting.
+4. For leather, cloth, meat and other creature materials: pick a zone, check the creatures, then **Build hunting route**. The overlay rings each hunting ground; **Next** in the session panel moves on.
+5. Type a number in **Target** and click **Track** to follow your progress.
+
+Creature spawns and drop chances are WoW Classic data and may differ in WoW Forever.
 
 ## Level a profession
 

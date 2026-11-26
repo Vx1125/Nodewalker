@@ -115,3 +115,87 @@ Start with your first cast or catch (Settings: Start one when I cast), or not at
 - HUD, notices, 100k synthetic catches (bounded detail, view speed), every Journal view, sort, row and scope, the open session, Fish Finder history, the settings page.
 
 Needs the game: casting and reeling with the key, interact targeting on the bobber, equipping and restoring, putting a lure on, real loot windows (autoloot and manual), the HUD's look and position.
+
+## Material Finder
+
+The Farm Guide tab became Material Finder (tab key still `guide`, so saved tabs, `/nw guide` and the Route tab's button keep working). Herb and ore zone ranking, the preview loop and **Build route** are the Farm Guide's code, unchanged (`rankZones` in `Guide.lua`), now reached by picking an herb or ore.
+
+### Files
+| File | Does |
+|---|---|
+| `Materials/SourceData.lua` | Generated. Creatures, spawns, ordinary and skinning loot, vendors. Don't edit by hand. |
+| `Materials/Catalog.lua` | `NW.Mat`: categories, materials and their providers, search, collection objectives. |
+| `Materials/Hunt.lua` | `NW.Hunt`: Hunting Grounds: sources, density, clusters, routes, progress, overlay drawing. |
+| `Materials/GatherLog.lua` | `NW.GatherLog`: loot attribution and the per-character gathering log. |
+| `Materials/HUD.lua` | Adds objective and hunting-route lines (with Next / Skip) to the session panel. |
+| `Guide.lua` | The Material Finder page. |
+| `tools/build_sources.py` | Builds `SourceData.lua` (not packaged). |
+
+### Providers
+A material has every provider that applies; none is forced into one:
+
+- **nodes**: herbs and ore (`NODE_ITEMS`, the herb and ore guides, your spots). One material per item: Thorium Ore covers Small, Rich, Ooze Covered and Hakkari veins.
+- **fishing**: `NW.FISHING.FISH`, only fish with a skill or zones. Fish Finder and the Fishing + Cooking plan stay where they are.
+- **skin**, **loot**: `NW.SRC.items[id].skin` / `.loot`. Ordinary loot and skinning loot are separate lists from separate tables; a leather drop from a humanoid is loot, not skinning.
+- **vendor**: Engine's vendor price table plus vendor NPCs from the source data.
+- **craft**: `NW.RecipeFor(id)`.
+- The auction house is the **Search AH** action, not a provider.
+
+Categories are the material's first fitting kind (herb, ore, leather, fish, cloth, meat, elemental, reagent, vendor, crafted). Only categories with materials are shown. There's no Enchanting category: no disenchanting data Nodewalker could trust.
+
+### Source data (`tools/build_sources.py`)
+- **pfQuest** (MIT, Shagu, `LICENSES/pfQuest-MIT.txt`): creature spawn coordinates (zone %, respawn), ordinary loot chances, vendors.
+- **cMaNGOS classic-db** (GPL-3, compatible with Nodewalker's GPL-3.0-or-later): creature levels, types, ranks, skinning loot (groups and references resolved to a chance per item).
+- Both are **WoW Classic 1.12**, not WoW Forever. The page and tooltips say "Classic data". WoW Forever-only zones (Riverglades, Zephras Isle) and materials (Pristine Hide, Fel Leather and the like) have no creature data: they show no hunting grounds rather than made-up ones.
+- Read as text, never executed. Outdoor zones only. Kept: skinning chances ≥ 3%, ordinary loot ≥ 1% (cloth ≥ 3%), the 80 creatures per material with the most chance × spawns. Left to their own providers: crafted items, vendor goods, herbs, ore, stone and gems. Spawns are 1% map cells.
+- Rebuild: clone both repositories, decompress `Full_DB/ClassicDB_*.sql.gz`, then `python3 -I tools/build_sources.py <pfQuest> <classicdb.sql> .` About 370 KB, 145 materials, 2,068 creatures, 90 vendor-sold reagents.
+- Skinning skill a creature needs: WoW Classic's rule (1 to level 10, then (level − 10) × 10 to 20, then level × 5), labelled as such.
+
+### Hunting Grounds (`NW.Hunt`)
+- **Density**: each known spawn point counts its creature's chance (0.6 for 60%). Bins are 3% of the map. Labelled "Known spawns × drop chance". Not creatures alive now, not guaranteed drops.
+- **Filters**: creatures friendly to your faction, elites and rares (optional), and for skinning, creatures above your skill (optional, on by default).
+- **Clusters**: the densest bin starts a ground; bins within 2 bins (6%) join it; repeat. Under 3 spawn points: counted as scattered. Up to 8 per zone. Centre is the chance-weighted centroid; radius is the furthest spawn point, at least 40 yards.
+- **Routes**: grounds with at least a third of the best one's density, up to 6, nearest to you first, nearest next, then 2-opt. A loop. Straight-line yards, not paths; one ground is "stay and hunt".
+- **Progress**: current, upcoming, hunted, skipped. Only **Next** / **Skip** move it (session panel). Standing inside the current ground shows "here". Revisit times use the Classic respawn times.
+- **Sorting**: Most spawns (density), Nearest my level, My history (your log). Each says its basis on hover.
+- **Overlay**: `Overlay.lua` calls `NW.Hunt.DrawOverlay` on each rebuild (not each frame) with its own line pool: muted gold ring for the current ground, bronze for upcoming, grey for done, bright cyan leg into the current ground, muted cyan for the rest, numbers at the centres. Off in Settings › Gathering.
+- Cached per material, method and filters; cleared on skill and level changes.
+
+### Collection objectives (`charDB.matGoals`)
+`{ id, mode, n, base, from }`, at most 8. **Own** (`total`): have n in bags and bank. **Collect** (`more`): n more than you had when it was set (`base`). Progress is read from `GetItemCount(id, true)` every time, never from the log. Opening from a shopping list fills in the missing count as **Collect**; nothing is set until you click Track, and an existing target is only changed by Update. **Tracked** on the left lists them.
+
+### Loot attribution (`NW.GatherLog`)
+- `skin`: a creature loot window within 3 s of your Skinning cast (`UNIT_SPELLCAST_SUCCEEDED`, spells 8613/8617/8618/10768 or the same name).
+- `herb` / `ore`: a game object window within 3 s of Herb Gathering / Mining.
+- `loot`: a creature window with no Skinning cast before it. The loot before skinning is ordinary loot; the window after the cast is skinning.
+- Nothing for chests without a gathering cast, containers, Pick Pocket, fishing (the Fishing Journal's), mail, trades, vendors, the bank or crafting: they don't open a creature or gathering loot window.
+- Creature identity from `GetLootSourceInfo`'s GUID. Without that function: only windows right after a gathering cast, with no creature.
+- Counted at `LOOT_SLOT_CLEARED`, once per slot; `LOOT_READY` and `LOOT_OPENED` are one window. Loot left in a full bag isn't counted.
+- Only materials: Material Finder's catalog or the game's Trade Goods class.
+- The combat log isn't used (WoW Forever hides it from addons).
+
+### Storage (`charDB.gatherLog`, v 1)
+`items[id] = { n, first, last, m = { skin, loot, herb, ore } }`, `npcs[npc] = { skin, loot, items }` (up to 1,500), `zones[mapID] = { n, items }`, `spots[mapID][cell]` (2% cells, up to 400 per map), `events` (loot windows by method), `recent` (100). Item and creature names are never stored. Fish totals come from the Fishing Journal when shown, never copied. The session panel's session keeps `mats` and `events`; creature materials add to its value at Auctionator or vendor price.
+
+### Economics
+Prices come from `NW.Price` (Auctionator, else vendor). A missing price shows "–", never zero. Values are estimates. No gold-per-hour for hunting: no gathering speeds or kill rates to base it on.
+
+### Performance (test harness, texlua 5.3 on the dev box)
+- Catalog: 307 materials, under 1 ms.
+- Search: 200 keystrokes, 7 ms (one pass over a 307-entry index; rebuilt only when item names arrive).
+- Hunting grounds: Heavy Leather, 22 zones with clusters, 9 ms; every creature material and method, 240 ms total (each is computed once, when opened, then cached).
+- 100,000 gathering records: 300 ms; the log stays at its caps (1,500 creatures, 400 cells per map, 100 recent).
+- Page refresh with that log: 2 ms each.
+
+### Known limits
+- Creature data is Classic: spawns, levels and chances can differ in WoW Forever, and Forever-only creatures and zones aren't there.
+- Zone coordinates assume WoW Forever's zone maps match Classic's. A zone whose name isn't on your client's map list shows "Not on your client's map list" (The Barrens, if Forever splits it).
+- No terrain-aware paths: route lengths are straight lines.
+- No respawn or alive detection: "back ~5 min" is the Classic respawn time after you press Next.
+- No disenchanting provider and no Enchanting category.
+- No combined multi-material routes: one material at a time, a queue of up to 8 targets.
+
+### Tests
+`mat_test.lua` (scratchpad harness): every category; each provider on a known material; search by name, partial name, ID, link and "skinning"; grounds and clusters valid for Heavy Leather; skinning skill filter; Raptor Flesh only from loot; every creature material's grounds; plan, length, start, Next, Skip, revisit, "here", overlay drawing; attribution: ordinary loot then skinning the same corpse, late window, chest, herb, Pick Pocket, fishing, gear, no `GetLootSourceInfo`; objectives Own and Collect, clear done, the cap; the page for every category, every provider, every map mode and sort, from a profession, the old entry point, Skinning's brackets; the session panel lines; 100,000 records. Older harnesses (`ui_test`, `tabs_test`, fishing, professions, routes) still pass.
+
+Needs the game: skinning and loot windows (GUIDs, cast timing), creature names and levels against WoW Forever, zone maps lining up with the Classic coordinates, the overlay rings, the session panel's Next / Skip, the page layout at 60–150%.

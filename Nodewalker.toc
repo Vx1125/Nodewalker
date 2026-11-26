@@ -30,10 +30,15 @@ Professions\Catalog.lua
 Professions\Gathering.lua
 Nodes.lua
 Route.lua
+Materials\SourceData.lua
+Materials\Catalog.lua
+Materials\Hunt.lua
+Materials\GatherLog.lua
 Overlay.lua
 Compass.lua
 Planner.lua
 Guide.lua
+Materials\HUD.lua
 Professions\UI.lua
 Professions\Fishing.lua
 Professions\FishJournal.lua

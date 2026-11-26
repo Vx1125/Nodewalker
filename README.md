@@ -28,7 +28,7 @@ Client: WoW Forever (interface 16001).
 |---|---|
 | `/nw` | Overlay on or off |
 | `/nw plan` | Route tab |
-| `/nw guide` | Farm Guide |
+| `/nw guide` | Material Finder |
 | `/nw prof` | Professions |
 | `/nw consumes` | Consumes |
 | `/nw journal` | Fishing Journal |

@@ -117,7 +117,7 @@ helpBtn:SetScript("OnEnter", function(self)
   GameTooltip:AddDoubleLine("Ctrl + right-click a node", "hide that herb or ore", 0.84, 0.7, 0.4, d[1], d[2], d[3])
   GameTooltip:AddLine(" ")
   GameTooltip:AddLine("Commands", 1, 1, 1)
-  for _, c in ipairs({ { "/nw", "overlay" }, { "/nw window", "this window" }, { "/nw plan", "route" }, { "/nw guide", "Farm Guide" },
+  for _, c in ipairs({ { "/nw", "overlay" }, { "/nw window", "this window" }, { "/nw plan", "route" }, { "/nw guide", "Material Finder" },
     { "/nw prof", "professions" }, { "/nw consumes", "consumes" }, { "/nw options", "settings" }, { "/nw import", "GatherMate2 nodes" } }) do
     GameTooltip:AddDoubleLine(c[1], c[2], 0.84, 0.7, 0.4, d[1], d[2], d[3])
   end
@@ -239,6 +239,13 @@ check(2, "Only my professions", "onlyMyProfessions", "Herbs if you have Herbalis
 check(2, "Group nearby spots", "groupSpots", "Spots that would overlap share one icon with a count.")
 local chooseBtn = UI.Button(page, "Choose herbs and ore...", 200, function() NW.ShowTab("nodes") end, 24)
 place(2, chooseBtn, 28, 2)
+heading(2, "Material Finder")
+place(2, UI.Check(page, "Record what I collect", function() return s().gatherTrack ~= false end,
+  function(v) s().gatherTrack = (not v) and false or nil; changed(); refreshAll() end,
+  "Skinning, creature loot, herbs and ore, for your history and maps in Material Finder. Fishing has its own journal."), 24, 2)
+place(2, UI.Check(page, "Hunting route on the overlay", function() return s().huntOverlay ~= false end,
+  function(v) s().huntOverlay = (not v) and false or nil; changed(); refreshAll(); if NW.DrawOverlay then NW.DrawOverlay() end end,
+  "Rings for the hunting grounds and the route between them."), 24, 2)
 
 ------------------------------------------------------------------------
 -- Routes

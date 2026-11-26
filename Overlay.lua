@@ -843,6 +843,7 @@ local function zoom(s)
 end
 
 local items, heads, stopItem = {}, {}, {} -- reused each rebuild
+local huntApi = {}
 local built = {}   -- where you were when the icons were last placed
 local lastBuild = 0
 local NEAR_YARDS = 100
@@ -1169,6 +1170,12 @@ local function drawInner(force)
     nextLabel:Hide()
   end
 
+  -- the active hunting route (Materials/Hunt.lua): rings and legs, drawn with the same pooled lines
+  if NW.Hunt and NW.Hunt.DrawOverlay then
+    huntApi.toView, huntApi.onScreen, huntApi.getLine, huntApi.pan = toView, onScreen, getLine, pan
+    NW.Hunt.DrawOverlay(mapID, huntApi)
+  end
+
   NW.nearNode = near
   finishPools()
   return true
@@ -1204,6 +1211,7 @@ local function draw(force)
   if rebuilt == nil and built.mapID then
     -- nowhere to draw: clear what's there
     built.mapID = nil
+    if NW.Hunt and NW.Hunt.DrawOverlay then NW.Hunt.DrawOverlay(nil, huntApi) end
     resetPools()
     finishPools()
     rebuilt = true

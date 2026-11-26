@@ -747,6 +747,7 @@ for i = 1, SHOP_ROWS do
     GameTooltip:AddDoubleLine("Need", e.need, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     if e.quest then GameTooltip:AddDoubleLine("For", e.quest .. " quest", S.dim[1], S.dim[2], S.dim[3], 0.91, 0.77, 0.42) end
     if NW.IsFish and NW.IsFish(e.id) and not ahOpen() then GameTooltip:AddDoubleLine("Click", "where to fish it", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    elseif not ahOpen() and not e.recipe and NW.Mat and NW.Mat.Get(e.id) then GameTooltip:AddDoubleLine("Click", "where to get it", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     elseif e.buy > 0 and e.src ~= "vendor" then GameTooltip:AddDoubleLine("Click or Shift-click", ("search for %d"):format(e.buy), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     if e.have > 0 then GameTooltip:AddDoubleLine("In your bags and bank", e.have, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     local srcText = ({ ah = "Auction house (Auctionator)", vendor = "Vendor", craft = "Cheaper to make", est = "Estimate (no price yet)" })[e.src or ""] or "No price"
@@ -822,6 +823,11 @@ for i = 1, SHOP_ROWS do
     -- a fish away from the auction house: where to catch it
     if NW.IsFish and NW.IsFish(e.id) and not ahOpen() and not IsShiftKeyDown() and NW.OpenFishFinder then
       NW.OpenFishFinder(e.id)
+      return
+    end
+    -- any other material Material Finder knows, away from the auction house: where to get it
+    if not ahOpen() and not IsShiftKeyDown() and not e.recipe and NW.FindMaterial and NW.Mat and NW.Mat.Get(e.id) then
+      NW.FindMaterial(e.id, selected, e.buy and e.buy > 0 and e.buy or nil)
       return
     end
     -- Shift-click searches even when you already have enough
@@ -1518,6 +1524,12 @@ for _, row in ipairs(stepRows) do
   row:SetScript("OnClick", function(self)
     if self.linked then return end
     local b = self.bracket
+    -- Skinning: Material Finder on the leather for that range, creatures to skin
+    if b and selected == "skinning" and NW.FindMaterials then
+      local leather = b.to <= 75 and 2318 or b.to <= 150 and 2319 or b.to <= 205 and 4234 or b.to <= 260 and 4304 or 8170
+      NW.FindMaterials("leather", leather, "skin")
+      return
+    end
     if not (b and b.gather and b.nodes) then return end
     if selected == "herbalism" then
       -- the highest herb you can pick in this bracket
@@ -2620,6 +2632,12 @@ end
 for _, row in ipairs(stepRows) do
   row:HookScript("OnEnter", function(self)
     local b = self.bracket
+    -- Skinning: Material Finder on the leather for that range, creatures to skin
+    if b and selected == "skinning" and NW.FindMaterials then
+      local leather = b.to <= 75 and 2318 or b.to <= 150 and 2319 or b.to <= 205 and 4234 or b.to <= 260 and 4304 or 8170
+      NW.FindMaterials("leather", leather, "skin")
+      return
+    end
     if not (b and b.gather and b.nodes) then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(("%d-%d"):format(b.from, b.to), 1, 1, 1)

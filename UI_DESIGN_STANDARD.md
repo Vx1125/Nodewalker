@@ -110,3 +110,20 @@ Small, movable, flat: the same charcoal and bronze, nothing animated.
 - A gear button that swaps both ways ("Fishing gear" / "Normal gear"), Lure, Journal. A notice line for a few seconds (new fish, rare catch, lure alerts, collection complete); when the HUD is hidden, notices (lure alerts too) go to the game's error line. No chat messages.
 - Minimal mode: four lines (Fishing, Lure, Caught, Next), no buttons.
 - Shows only with a pole on, a bobber out, or for 5 minutes after you last fished. Scale and opacity in Settings › Fishing.
+
+## Material Finder
+
+- **Left (176):** search, then categories with an icon and count: Tracked (when you have targets), All materials, and only categories that have materials.
+- **Centre (236):** two-line rows, 30 high: icon, name in the category's accent, the ways to get it; owned (or have / target) and price on the right. Mouse wheel scrolls; Sort below.
+- **Right:** icon, name, category · recipes it's used in · price. Back to the profession (when opened from one) and **Search AH** at the top right. The target strip: owned, target, remaining, session, lifetime, then Target, Own / Collect, Track.
+- **Source switches:** one button per way to get it, gold underline on the selected one. No button for a way the material doesn't have.
+- **Body:** a list on the left (zones, hunting grounds, vendors, recipe materials), a map on the right, its numbers under it, one primary action at the bottom (Build route, Build hunting route, Fish Finder, Open profession) and one secondary above it.
+- **Category accents** (names only): herbs muted green, ore stone grey, leather warm brown, fish muted blue, cloth muted purple, meat muted rust, elemental amber, reagents rust.
+
+### Maps
+- **Known spawns:** 3% squares, green to amber to red by density, 25–65% opaque; bronze rings for the clusters. Labelled "Known spawns × drop chance · Classic data".
+- **My history:** muted teal dots, sized by count. Your own data is always teal; database data never is.
+- **Route:** cyan legs (bright into the current ground), numbered rings: muted gold current, bronze upcoming, grey hunted or skipped.
+
+### Hunting route on the overlay
+Same colours as the Route map. Rings are drawn with the overlay's own pooled lines on rebuild, never per frame. Nothing animates. The session panel shows the ground number, "here" when you're in it, and Next / Skip; no separate window.

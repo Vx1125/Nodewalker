@@ -357,7 +357,7 @@ SlashCmdList.NODEWALKER = function(msg)
     NW.ToggleOverlay()
   elseif msg == "plan" or msg == "route" then
     NW.TogglePlanner()
-  elseif msg == "guide" or msg == "herbs" or msg == "ore" or msg == "farm" then
+  elseif msg == "guide" or msg == "herbs" or msg == "ore" or msg == "farm" or msg == "mat" or msg == "materials" then
     NW.ToggleGuide()
   elseif msg == "consumes" or msg == "consume" then
     NW.ToggleWindow("consumes")

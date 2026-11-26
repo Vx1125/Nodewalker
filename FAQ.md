@@ -1,13 +1,13 @@
 # Nodewalker FAQ
 
 **Do I need Auctionator?**
-No, but it's recommended. Auctionator gives Nodewalker auction prices for leveling costs, Profit, Consumes, Find a Craft, the Farm Guide's gold per hour and the session panel, and makes the Search buttons work. Without it, vendor items keep their vendor price and everything else shows an estimate (~) or "No price". Prices are from Auctionator's last scan, so scan now and then.
+No, but it's recommended. Auctionator gives Nodewalker auction prices for leveling costs, Profit, Consumes, Find a Craft, Material Finder's gold per hour and the session panel, and makes the Search buttons work. Without it, vendor items keep their vendor price and everything else shows an estimate (~) or "No price". Prices are from Auctionator's last scan, so scan now and then.
 
 **Do I need GatherMate2?**
-No. GatherMate2 with GatherMate2_Data lets you import thousands of known spots at once (`/nw import`). Nodewalker keeps its own copy, so you can turn GatherMate2 off afterwards. Without it, Nodewalker learns spots as you gather and as nodes show on your minimap, so routes and the Farm Guide fill in as you play.
+No. GatherMate2 with GatherMate2_Data lets you import thousands of known spots at once (`/nw import`). Nodewalker keeps its own copy, so you can turn GatherMate2 off afterwards. Without it, Nodewalker learns spots as you gather and as nodes show on your minimap, so routes and Material Finder fill in as you play.
 
 **Can I use Nodewalker without a gathering profession?**
-Yes. Leveling, Missing recipes, Profit, Consumes and Find a Craft work for every profession. The overlay, routes and Farm Guide are for Herbalism and Mining. By default the overlay only shows what you can gather (**Only my professions** in `/nw options`).
+Yes. Leveling, Missing recipes, Profit, Consumes and Find a Craft work for every profession. The overlay and routes are for Herbalism and Mining; hunting routes in Material Finder work for anyone. By default the overlay only shows what you can gather (**Only my professions** in `/nw options`).
 
 **Does Nodewalker gather for me, or move my character?**
 No. It shows where to go and what's there. You walk, gather, buy and craft yourself. The Auctionator buttons fill in a search; you choose what to buy.
@@ -37,7 +37,7 @@ Nodewalker doesn't say. Catch rates and each zone's fishing skill aren't publish
 Yes. `/nw options`: size, opacity, zoom, terrain colour, the minimap range ring, compass, session panel, gathered spots, and which herbs and ore show. Farming, Questing and Minimal set several of these at once.
 
 **How do I change or rebuild a route?**
-Open the Route tab (`/nw plan`). **Optimize loop** rebuilds it from the spots you know now. **Draw avoid zone** and **Clear avoid zones** steer it. Building a zone's route from the Farm Guide replaces it too.
+Open the Route tab (`/nw plan`). **Optimize loop** rebuilds it from the spots you know now. **Draw avoid zone** and **Clear avoid zones** steer it. Building a zone's route from Material Finder replaces it too.
 
 **Which game versions are supported?**
 WoW Forever (interface 16001).

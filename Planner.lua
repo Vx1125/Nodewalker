@@ -166,7 +166,7 @@ local half = (SIDE_W - 6) / 2
 local btnImport = UI.Button(side, "GatherMate2", half, function() NW.ImportGatherMate2(); refresh() end)
 btnImport:SetPoint("TOPLEFT", btnClear, "BOTTOMLEFT", 0, -6)
 UI.Tip(btnImport, "Import GatherMate2", "Copies its herb and ore spots, and its data pack.")
-local btnGuide = UI.Button(side, "Farm Guide", half, function() NW.ShowTab("guide") end)
+local btnGuide = UI.Button(side, "Materials", half, function() NW.ShowTab("guide") end)
 btnGuide:SetPoint("LEFT", btnImport, "RIGHT", 6, 0)
 
 local btnStart = UI.Button(side, "Start route on overlay", SIDE_W, function()
