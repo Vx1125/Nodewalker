@@ -161,6 +161,18 @@ Categories are the material's first fitting kind (herb, ore, leather, fish, clot
 - **Overlay**: `Overlay.lua` calls `NW.Hunt.DrawOverlay` on each rebuild (not each frame) with its own line pool: muted gold ring for the current ground, bronze for upcoming, grey for done, bright cyan leg into the current ground, muted cyan for the rest, numbers at the centres. Off in Settings › Gathering.
 - Cached per material, method and filters; cleared on skill and level changes.
 
+### Selection state (`Guide.lua`, `sel`)
+One table holds the selection: category, search text, material ID, source, zone (or vendor), the profession it was opened from, the shopping-list amount (`need`, kept only for the material it came with), and a short trail for ingredient navigation (`hist`, at most 5, no repeats). The map tab is `settings.huntMap`. Each refresh validates top-down: the material must be in the list on screen (category + search), else the first result or none; the source must be one the material has; the zone must be in that source's rows, else the first. So no part of the page can show a material the list doesn't. An active hunting route (`charDB.hunt`) is separate: browsing never stops it; only Stop route does. The old defect: the material was looked up in the whole catalog by ID, so a category switch left the previous material (and its zones and map) on screen.
+
+### Layout
+The centre column splits the page height between the materials (5 to 12 rows) and the source table (4 to 8 rows): the table's rows, the creature fold and the filters are sized first, the list takes the rest, and a short list gives its spare room back to the table. **Expand map** scales the same map frame up over the centre and header (no second renderer); it ends when you pick another material or a source without a map. Actions sit right under the map's caption (or under the recipe workspace). What the selected source needs (profession, skill) is beside its switch: "Mining not learned · preview only" never blocks a preview.
+
+### Herb and ore value
+"g/h" is **theoretical**: every known spot up every lap, two items each, Auctionator prices, a mounted loop with no gathering time. Known spots are where nodes have spawned, not nodes up at once, so it's an upper bound, never income. Nodes without a price are left out and the figure is marked partial (+), never counted as zero. There is no observed gold per hour yet: the gathering log has no time per zone.
+
+### Mixed routes
+**Also pick other herbs and ore** adds only nodes you can gather now (profession learned, skill at least the node's requirement) on top of your filters; the selected herb or ore itself is always in, learned or not, so a route can be previewed. A mixed route says so on the map. Targets never change with it.
+
 ### Collection objectives (`charDB.matGoals`)
 `{ id, mode, n, base, from }`, at most 8. **Own** (`total`): have n in bags and bank. **Collect** (`more`): n more than you had when it was set (`base`). Progress is read from `GetItemCount(id, true)` every time, never from the log. Opening from a shopping list fills in the missing count as **Collect**; nothing is set until you click Track, and an existing target is only changed by Update. **Tracked** on the left lists them.
 

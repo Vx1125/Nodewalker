@@ -570,6 +570,11 @@ function NW.BuildRoute(mapID, callback, opts)
       want = true -- picked on purpose, even if hidden
     elseif focus and not opts.alsoOthers then
       want = false
+    elseif focus then
+      -- the others on a mixed route: only what you can gather now (profession
+      -- learned, skill high enough), on top of your filters
+      local skill, req = NW.GetSkill(node.kind), NW.RequiredSkill(node.name)
+      want = NW.NodeWanted(node, s) and skill ~= nil and (not req or req <= skill)
     else
       want = NW.NodeWanted(node, s)
     end
