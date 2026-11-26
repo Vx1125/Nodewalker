@@ -21,14 +21,14 @@ NW.Mat = M
 M.CATS = {
   { key = "herb", label = "Herbs", icon = 2447 },
   { key = "ore", label = "Ore", icon = 2770 },
-  { key = "leather", label = "Leather & Hides", icon = 4234 },
+  { key = "leather", label = "Leather & Hides", short = "Leather", icon = 4234 },
   { key = "fish", label = "Fish", icon = 6303 },
   { key = "cloth", label = "Cloth", icon = 2589 },
-  { key = "meat", label = "Meat & Cooking", icon = 769 },
+  { key = "meat", label = "Meat & Cooking", short = "Meat", icon = 769 },
   { key = "elemental", label = "Elemental", icon = 7068 },
-  { key = "reagent", label = "Specialty Reagents", icon = 5635 },
-  { key = "vendor", label = "Vendor Supplies", icon = 2320 },
-  { key = "crafted", label = "Crafted Components", icon = 2840 },
+  { key = "reagent", label = "Specialty Reagents", short = "Reagents", icon = 5635 },
+  { key = "vendor", label = "Vendor Supplies", short = "Vendor", icon = 2320 },
+  { key = "crafted", label = "Crafted Components", short = "Crafted", icon = 2840 },
 }
 M.CAT = {}
 for _, c in ipairs(M.CATS) do M.CAT[c.key] = c end

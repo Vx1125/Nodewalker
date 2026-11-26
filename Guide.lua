@@ -260,15 +260,16 @@ for i = 1, CAT_N do
   b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   b.count = UI.Text(b, 11, S.dim, "RIGHT")
   b.count:SetPoint("RIGHT", -6, 0)
-  b.count:SetWidth(28)
+  b.count:SetWidth(26)
   b.text = UI.Text(b, 12, S.text)
   b.text:SetPoint("LEFT", b.icon, "RIGHT", 7, 0)
   b.text:SetPoint("RIGHT", b.count, "LEFT", -4, 0)
   b.text:SetWordWrap(false)
   b:SetScript("OnEnter", function(self)
-    if self.text.IsTruncated and self.text:IsTruncated() then
+    local cut = self.text.IsTruncated and self.text:IsTruncated()
+    if cut or (self.full and self.full ~= self.text:GetText()) then
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip:SetText(self.text:GetText() or "", 1, 1, 1)
+      GameTooltip:SetText(self.full or self.text:GetText() or "", 1, 1, 1)
       GameTooltip:Show()
     end
   end)
@@ -645,6 +646,19 @@ W.caption = UI.Text(ws, 11, S.dim)
 W.caption:SetPoint("TOPLEFT", preview, "BOTTOMLEFT", 0, -6)
 W.caption:SetWidth(MAP_W)
 W.caption:SetWordWrap(false)
+-- the caption's caveat, on hover (the line itself stays short)
+W.capHit = CreateFrame("Frame", nil, ws)
+W.capHit:SetPoint("TOPLEFT", W.caption, "TOPLEFT")
+W.capHit:SetPoint("BOTTOMRIGHT", W.caption, "BOTTOMRIGHT", 0, -2)
+W.capHit:EnableMouse(true)
+W.capHit:SetScript("OnEnter", function(self)
+  if not W.capTip then return end
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText(W.caption:GetText() or "", 1, 1, 1)
+  GameTooltip:AddLine(W.capTip, S.dim[1], S.dim[2], S.dim[3], true)
+  GameTooltip:Show()
+end)
+W.capHit:SetScript("OnLeave", GameTooltip_Hide)
 
 local getDot, resetDots = UI.Pool(function()
   local t = pvArt:CreateTexture(nil, "OVERLAY")
@@ -1065,9 +1079,10 @@ local function mapTabs(avail, default)
 end
 local function tableRows(rows)
   W.zoneN = #rows
-  W.zoneOffset = math.min(W.zoneOffset, math.max(0, #rows - TROWS))
+  local n = W.tRows or 5
+  W.zoneOffset = math.min(W.zoneOffset, math.max(0, #rows - n))
   for i, r in ipairs(W.zrows) do
-    local row = rows[i + W.zoneOffset]
+    local row = i <= n and rows[i + W.zoneOffset] or nil
     r.row = row or false
     r:SetShown(row ~= nil)
     r:SetSelected(false)
@@ -1179,7 +1194,8 @@ local function viewNodes(e)
           l:SetEndPoint("TOPLEFT", pvArt, p(b[3], b[4]))
         end
       end
-      W.caption:SetText("A quick loop past every known spot  ·  no route built")
+      W.caption:SetText("Quick loop past every known spot  ·  no route built")
+      W.capTip = "Known spots are where nodes have spawned before, not nodes up now."
     end
   elseif row and mode == "mine" then
     local n = drawMine(row.mapID, e.id)
@@ -1193,10 +1209,12 @@ local function viewNodes(e)
       bins[k].w = bins[k].w + 1
     end
     drawBins(bins, 3)
-    W.caption:SetText("Known spots per area  ·  not nodes up now")
+    W.caption:SetText("Known spots per area")
+    W.capTip = "Known spots are where nodes have spawned before, not nodes up now."
   elseif row then
-    W.caption:SetText(row.count > 0 and (("%d known spots%s  ·  where nodes have spawned, not nodes up now"):format(row.count,
+    W.caption:SetText(row.count > 0 and (("%d known spots%s"):format(row.count,
       row.loop and ("  ·  loop " .. fmtTime(row.loop / NW.MOUNT_YPS)) or "")) or "No spots saved yet")
+    W.capTip = row.count > 0 and ("Known spots are where nodes have spawned before, not nodes up now. The loop is one mounted lap past all of them, no time to gather.") or nil
   end
   if row and row.mapID and mode ~= "mine" and mode ~= "heat" and not (mode == "route" and isFocus) then
     for _, pt in ipairs(row.pts) do
@@ -1394,11 +1412,13 @@ local function viewHunt(e, method)
         for _, c in ipairs(b.cells) do dotAt(c[1], c[2], 4, 0.85, 0.72, 0.45, 0.8) end
       end
       for i, gr in ipairs(pick.grounds) do ring(gr, "plain"); hot(gr, gr, method, "Hunting ground " .. i) end
-      W.caption:SetText("Known spawn points  ·  Classic data  ·  not creatures alive now")
+      W.caption:SetText("Known spawn points  ·  Classic data")
+      W.capTip = "Where creatures that give it spawned in WoW Classic, weighted by its drop chance in the heatmap. Not creatures alive now, and WoW Forever may differ."
     elseif mode == "heat" then
       drawBins(pick.bins, 3)
       for i, gr in ipairs(pick.grounds) do ring(gr, "plain"); hot(gr, gr, method, "Hunting ground " .. i) end
-      W.caption:SetText("Known spawns × drop chance  ·  Classic data  ·  not creatures alive now")
+      W.caption:SetText("Known spawns × drop chance  ·  Classic data")
+      W.capTip = "Where creatures that give it spawned in WoW Classic, weighted by its drop chance in the heatmap. Not creatures alive now, and WoW Forever may differ."
     elseif mode == "mine" then
       local n = drawMine(pick.mapID, e.id)
       W.caption:SetText(n > 0 and (TEAL .. "Where you collected it|r") or "Nothing collected here yet")
@@ -1416,7 +1436,8 @@ local function viewHunt(e, method)
       end
       local len = H.Length(pick.mapID, stops)
       W.caption:SetText(#stops == 1 and "One area: stay and hunt" or
-        (("%d grounds  ·  ~%d yd loop, straight lines  ·  Classic data"):format(#stops, len and math.floor(len / 10 + 0.5) * 10 or 0)))
+        (("%d grounds  ·  ~%d yd loop, straight lines"):format(#stops, len and math.floor(len / 10 + 0.5) * 10 or 0)))
+      W.capTip = "Hunting grounds from Classic spawn data. Distances are straight lines, not paths."
     end
   end
   -- side: the route when it's here, else the zone
@@ -1754,7 +1775,8 @@ local function subText(e)
   if e.id == "both" then return "Every node you can gather" end
   local parts = {}
   for _, k in ipairs(M.Sources(e)) do parts[#parts + 1] = M.SourceText(e, k) end
-  local req = e.src.nodes and NW.RequiredSkill(e.name)
+  local nn = e.src.nodes and M.NodeNames(e.id)
+  local req = nn and nn[1] and NW.RequiredSkill(nn[1])
   local rr, rk = e.src.craft and not e.src.nodes and NW.RecipeFor(e.id)
   local txt = table.concat(parts, " · ")
   if req then txt = txt .. " " .. req
@@ -1823,6 +1845,7 @@ local function resetViews()
   W.mainClick, W.secondClick, W.thirdClick = nil, nil, nil
   W.note:SetText("")
   W.caption:SetText("")
+  W.capTip = nil
   ws:Show()
   craft:Hide()
   tbl:Show()
@@ -1839,7 +1862,7 @@ refresh = function()
   if #goals > 0 then catList[#catList + 1] = { key = "tracked", label = "Tracked", n = #goals, icon = "Interface\\Icons\\INV_Misc_Note_01" } end
   catList[#catList + 1] = { key = "all", label = "All materials", n = counts.all, icon = "Interface\\Icons\\INV_Misc_Bag_10" }
   for _, c in ipairs(M.CATS) do
-    if (counts[c.key] or 0) > 0 then catList[#catList + 1] = { key = c.key, label = c.label, n = counts[c.key], icon = NW.ItemIcon(c.icon) } end
+    if (counts[c.key] or 0) > 0 then catList[#catList + 1] = { key = c.key, label = c.short or c.label, full = c.label, n = counts[c.key], icon = NW.ItemIcon(c.icon) } end
   end
   local catOk = false
   for _, c in ipairs(catList) do if c.key == sel.cat then catOk = true end end
@@ -1851,6 +1874,7 @@ refresh = function()
       b.key = c.key
       b.icon:SetTexture(c.icon)
       b.text:SetText(c.label)
+      b.full = c.full
       b.count:SetText(c.n)
       local on = searchText == "" and c.key == sel.cat
       b:SetSelected(on)
