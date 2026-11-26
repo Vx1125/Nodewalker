@@ -448,7 +448,7 @@ for i = 1, 3 do
   r:SetStripe(i % 2 == 0)
   r.name = UI.Text(r, 11, S.text)
   r.name:SetPoint("LEFT", 8, 0)
-  r.name:SetWidth(140)
+  r.name:SetWidth(120) -- ends before the level column
   r.name:SetWordWrap(false)
   r.lvl = UI.Text(r, 11, S.dim, "RIGHT")
   r.lvl:SetPoint("RIGHT", r, "LEFT", C_W - 92, 0)
@@ -828,13 +828,13 @@ side:SetSize(SIDE_W, MAP_H)
 W.sideTitle = UI.Text(side, 13, S.gold)
 W.sideTitle:SetPoint("TOPLEFT", 0, -2)
 W.sideTitle:SetWidth(SIDE_W)
-W.sideTitle:SetWordWrap(false)
+W.sideTitle:SetWordWrap(true) -- long zone names take two lines rather than being cut
 W.sideStats = {}
 for i = 1, 7 do
   local l = UI.Text(side, 10, S.dim)
   local v = UI.Text(side, 13, S.text)
   v:SetWidth(SIDE_W)
-  v:SetWordWrap(false)
+  v:SetWordWrap(true)
   W.sideStats[i] = { l, v }
 end
 W.next = UI.Button(side, "Next", 44, function() H.Advance() end, 18)
@@ -847,7 +847,8 @@ UI.Tip(W.skip, "Skip", "Moves on without marking it hunted.")
 local sideN, sideY
 local function sideReset(title)
   W.sideTitle:SetText(title or "")
-  sideN, sideY = 0, -24
+  local th = (title and title ~= "") and (W.sideTitle:GetStringHeight() or 14) or 0
+  sideN, sideY = 0, -math.max(24, math.ceil(th) + 10)
   for _, s in ipairs(W.sideStats) do s[1]:SetText(""); s[2]:SetText("") end
   W.next:Hide(); W.skip:Hide()
 end
@@ -857,7 +858,9 @@ local function sideStat(label, value)
   local s = W.sideStats[sideN]
   s[1]:ClearAllPoints(); s[1]:SetPoint("TOPLEFT", 0, sideY); s[1]:SetText(label)
   s[2]:ClearAllPoints(); s[2]:SetPoint("TOPLEFT", 0, sideY - 12); s[2]:SetText(value)
-  sideY = sideY - 34
+  -- a value that wraps pushes the next one down
+  local vh = math.max(15, math.ceil(s[2]:GetStringHeight() or 15))
+  sideY = sideY - 12 - vh - 7
 end
 local function sideButtons()
   W.next:ClearAllPoints()
@@ -1370,7 +1373,7 @@ local function viewHunt(e, method)
         local req = H.SkinReq(u.max)
         r.req:SetText((SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r")
       else
-        r.req:SetText(DIM .. (H.TYPE[u.type] or "") .. "|r")
+        r.req:SetText("") -- the creature type is in the tooltip; the column is too narrow for it
       end
       r.onEnter = function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
