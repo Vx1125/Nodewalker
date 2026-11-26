@@ -1028,9 +1028,12 @@ function NW.BuildPlan(key, from, to)
   -- pick the cheapest recipe for each skill point
   local pick = {}
   local gaps = 0
+  local costAt = {} -- [sk][i] = cost per point of every recipe that could do it
   local stickyI, stickyC, stickyNeeds
   for sk = from, to - 1 do
     local best, bestCost, bestNeeds
+    local here = {}
+    costAt[sk] = here
     -- Known recipes: the trainer's are fair game once nothing you know is still
     -- likely to give a point (under half a chance), not only once it's grey
     local knownP = 0
@@ -1076,6 +1079,7 @@ function NW.BuildPlan(key, from, to)
             if not owned[i] and onceOf[i] > 0 and strategy ~= "crafts" then
               c = c + onceOf[i] / math.max(1, math.min(r.green + (r.grey - r.green) / 2, to) - sk)
             end
+            if not here[i] then here[i] = { c, needsRecipe, p } end
             if not best or c < bestCost then best, bestCost, bestNeeds = i, c, needsRecipe end
             if stickyOn and r.name == sticky then stickyI, stickyC, stickyNeeds = i, c, needsRecipe end
           end
@@ -1092,6 +1096,13 @@ function NW.BuildPlan(key, from, to)
       end
     end
     stickyI, stickyC, stickyNeeds = nil, nil, nil
+    -- and point to point, the recipe you're already making stays unless
+    -- another is clearly cheaper: no hopping between two for a point or two
+    local prev = sk > from and pick[sk - 1]
+    local cur = prev and here[prev.i]
+    if cur and best ~= prev.i and cur[3] >= 0.25 and cur[1] <= bestCost * 1.10 then
+      best, bestCost, bestNeeds = prev.i, cur[1], cur[2]
+    end
     if best then
       owned[best] = true
       -- use up the stock this skill point takes
@@ -1102,6 +1113,40 @@ function NW.BuildPlan(key, from, to)
     end
     pick[sk] = best and { i = best, needs = bestNeeds } or false
     if not best then gaps = gaps + 1 end
+  end
+
+  -- a recipe for only a point or two, between others, folds into a neighbour
+  -- that can do those points too, unless that costs a lot more
+  for _ = 1, 3 do
+    local changed = false
+    local sk = from
+    while sk < to do
+      local pk = pick[sk]
+      local e = sk
+      while e + 1 < to and pick[e + 1] and pk and pick[e + 1].i == pk.i do e = e + 1 end
+      if pk and e - sk < 3 then
+        local own = 0
+        for k = sk, e do own = own + (costAt[k][pk.i] and costAt[k][pk.i][1] or 0) end
+        local bestN, bestSum
+        for _, nb in ipairs({ sk > from and pick[sk - 1], e + 1 < to and pick[e + 1] }) do
+          if nb and nb.i ~= pk.i then
+            local sum = 0
+            for k = sk, e do
+              local c = costAt[k][nb.i]
+              if not c or c[3] < 0.25 then sum = nil break end
+              sum = sum + c[1]
+            end
+            if sum and sum <= own * 1.25 and (not bestSum or sum < bestSum) then bestN, bestSum = nb, sum end
+          end
+        end
+        if bestN then
+          for k = sk, e do pick[k] = { i = bestN.i, needs = costAt[k][bestN.i][2] } end
+          changed = true
+        end
+      end
+      sk = e + 1
+    end
+    if not changed then break end
   end
 
   -- remember the step you're on, so the next plan keeps it while it's still good
