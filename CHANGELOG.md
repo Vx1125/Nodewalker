@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.23
+
+- Recipe materials show how many one craft takes and how many you have.
+- Merchant's Favor recipes show the reputation they need and your standing.
+- Leveling plans skip Favor recipes your reputation can't buy yet.
+
 ## 1.1.22
 
 - Overlay: removed the green "confirmed up" look; known spots all look the same, and your minimap's own dots show what's up.
