@@ -173,6 +173,19 @@ The centre column splits the page height between the materials (5 to 12 rows) an
 ### Mixed routes
 **Also pick other herbs and ore** adds only nodes you can gather now (profession learned, skill at least the node's requirement) on top of your filters; the selected herb or ore itself is always in, learned or not, so a route can be previewed. A mixed route says so on the map. Targets never change with it.
 
+### Interactive hunting grounds
+- **Sorts** (`H.SORTS`): Most per clear (spawn points × drop chance × average count, the items if every known spawn were killed once; not per hour), Most spawn points, Nearest my level, Nearest to me (straight line to the zone's middle, same continent), My history. Ties go to per clear, then name.
+- **Grounds**: click a ring (Known Sources, Heatmap or Route) to select it: the ring turns bright gold, the creature list shows only that ground's creatures, the side column shows its levels, spawn points, Skinning needed, Classic respawn and what you collected inside it. Actions: Farm this area (a one-ground route), Add to route / Remove from route (when this material's route is active here), Show on map. Click it again or the map's empty space to clear.
+- **Creatures**: click one in the list to show only its known spawn points (other grounds faint); click again or Show all to restore. The list scrolls with the mouse wheel ("1-3 of 14").
+- **Route edits** (`H.AddGround`, `H.RemoveStop`, `H.SetStart`, `H.Reverse`, `H.StartSingle`): adding inserts where the loop grows least; states and hunted times stay with their stops; an edited route is marked custom, and Restore rebuilds the suggested one. One route engine (Hunt.lua).
+- No zoom or pan: the window map has none to reuse. Expand map is the larger view.
+
+### Data notes (second pass)
+- The cMaNGOS skinning loot table also holds Herbalism, Mining and Engineering loot from creatures flagged for them (`CreatureTypeFlags` 0x100, 0x200, 0x8000), and lists a Sheep (a critter) as skinnable for Wool Cloth. Both are left out of skinning now: no cloth has a Skinning source.
+- Respawn times are cMaNGOS/pfQuest's Classic spawn timers, shown as "Respawn (Classic)"; WoW Forever's may differ. Kept because they're the only figure there is and they're labelled.
+- Spawn points are de-duplicated to 1% map cells, so stacked spawns count once.
+- Recipe colours: the profession window's colour for each recipe at your skill pins its thresholds (`db.colorSeen`), applied to the leveling data and the catalog at login and after each scan.
+
 ### Collection objectives (`charDB.matGoals`)
 `{ id, mode, n, base, from }`, at most 8. **Own** (`total`): have n in bags and bank. **Collect** (`more`): n more than you had when it was set (`base`). Progress is read from `GetItemCount(id, true)` every time, never from the log. Opening from a shopping list fills in the missing count as **Collect**; nothing is set until you click Track, and an existing target is only changed by Update. **Tracked** on the left lists them.
 

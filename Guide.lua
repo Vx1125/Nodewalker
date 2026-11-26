@@ -463,6 +463,14 @@ for i = 1, 3 do
   r:SetPoint("TOPLEFT", W.fold, "BOTTOMLEFT", 0, -2 - (i - 1) * 18)
   UI.RowStripe(r)
   r:SetStripe(i % 2 == 0)
+  UI.RowHighlight(r)
+  r:SetScript("OnClick", function(self) if self.npc and W.onCreature then W.onCreature(self.npc) end end)
+  r:EnableMouseWheel(true)
+  r:SetScript("OnMouseWheel", function(_, d)
+    local max = math.max(0, (W.cN or 0) - 3)
+    local o = math.max(0, math.min(max, (W.cOffset or 0) - d))
+    if o ~= W.cOffset then W.cOffset = o; refresh() end
+  end)
   r.name = UI.Text(r, 11, S.text)
   r.name:SetPoint("LEFT", 8, 0)
   r.name:SetWidth(120) -- ends before the level column
@@ -558,7 +566,7 @@ gbg:SetAllPoints()
 gbg:SetColorTexture(unpack(S.header))
 W.goalText = UI.Text(goalBar, 12, S.text)
 W.goalText:SetPoint("LEFT", 8, 0)
-W.goalText:SetPoint("RIGHT", goalBar, "RIGHT", -262, 0)
+W.goalText:SetPoint("RIGHT", goalBar, "RIGHT", -288, 0)
 W.goalText:SetWordWrap(false)
 W.goalEdit = CreateFrame("EditBox", nil, goalBar, "BackdropTemplate")
 W.goalEdit:SetSize(44, 20)
@@ -570,9 +578,9 @@ W.goalEdit:SetAutoFocus(false)
 W.goalEdit:SetNumeric(true)
 W.goalEdit:SetMaxLetters(5)
 W.goalEdit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-local MODES = { { "total", "Own" }, { "more", "Collect" } }
-W.goalMode = UI.Dropdown(goalBar, 70, "", MODES, function() return W.mode or "total" end, function(v) W.mode = v end, 70,
-  "Own: have this many in bags and bank.\nCollect: get this many more than you have now.")
+local MODES = { { "total", "Own total" }, { "more", "Collect more" } }
+W.goalMode = UI.Dropdown(goalBar, 96, "", MODES, function() return W.mode or "total" end, function(v) W.mode = v end, 96,
+  "Own total: have this many in your bags and bank.\nCollect more: get this many more than you have now.")
 local function trackNow()
   local n = tonumber(W.goalEdit:GetText() or "")
   if type(sel.id) ~= "number" then return end
@@ -642,6 +650,9 @@ local pvShade = pvArt:CreateTexture(nil, "BORDER")
 pvShade:SetAllPoints()
 pvShade:SetColorTexture(0, 0, 0, 0.15)
 local pvTiles = {}
+-- a click on the map away from any hunting ground clears the selection
+pvArt:EnableMouse(true)
+pvArt:SetScript("OnMouseUp", function() if W.onMapClick then W.onMapClick() end end)
 W.plate = CreateFrame("Frame", nil, preview, "BackdropTemplate")
 W.plate:SetPoint("TOPLEFT", 8, -8)
 W.plate:SetFrameLevel(pvArt:GetFrameLevel() + 5)
@@ -701,6 +712,7 @@ end)
 local getHot, resetHots = UI.Pool(function()
   local b = CreateFrame("Frame", nil, pvArt)
   b:EnableMouse(true)
+  b:SetScript("OnMouseUp", function(self) if W.onHot then W.onHot(self.ground) end end)
   b:SetScript("OnEnter", function(self)
     local g = self.g
     if not g then return end
@@ -767,6 +779,7 @@ local function drawBins(bins, size)
   W.legend.text:SetText("Low  |cff8fae5a■|r |cffd9a640■|r |cffd0603a■|r  High")
 end
 local RING = {
+  selected = { 0.95, 0.82, 0.50, 1, 3 },
   current = { 0.84, 0.70, 0.40, 1, 2.4 }, upcoming = { 0.66, 0.55, 0.36, 0.8, 1.5 },
   hunted = { 0.5, 0.5, 0.5, 0.55, 1.4 }, skipped = { 0.5, 0.5, 0.5, 0.55, 1.4 }, plain = { 0.66, 0.55, 0.36, 0.75, 1.4 },
 }
@@ -782,12 +795,12 @@ local function ring(s, look)
     l:SetEndPoint("TOPLEFT", pvArt, px(s.x + math.cos(a2) * s.rx, s.y + math.sin(a2) * s.ry))
   end
 end
-local function hot(s, g, method, title)
+local function hot(s, g, method, title, ground)
   local h = getHot()
   h:ClearAllPoints()
   h:SetSize(math.max(16, s.rx * 2 * MAP_W), math.max(16, s.ry * 2 * MAP_H))
   h:SetPoint("CENTER", pvArt, "TOPLEFT", px(s.x, s.y))
-  h.g, h.method, h.title = g, method, title
+  h.g, h.method, h.title, h.ground = g, method, title, ground
 end
 local function drawRoute(stops, states, cur)
   local n = #stops
@@ -849,6 +862,8 @@ W.sideTitle:SetWordWrap(true) -- long zone names take two lines rather than bein
 W.sideStats = {}
 for i = 1, 7 do
   local l = UI.Text(side, 10, S.dim)
+  l:SetWidth(SIDE_W)
+  l:SetWordWrap(true)
   local v = UI.Text(side, 13, S.text)
   v:SetWidth(SIDE_W)
   v:SetWordWrap(true)
@@ -861,6 +876,18 @@ W.skip.label:SetFont(UI.FONT, 11, "")
 W.skip:SetPoint("LEFT", W.next, "RIGHT", 4, 0)
 UI.Tip(W.next, "Next hunting ground", "Marks this one hunted and moves on.")
 UI.Tip(W.skip, "Skip", "Moves on without marking it hunted.")
+W.sideBtns = {}
+for _, k in ipairs({ "reverse", "restore", "startHere", "showAll" }) do
+  local label = ({ reverse = "Reverse", restore = "Restore", startHere = "Start here", showAll = "Show all" })[k]
+  local b = UI.Button(side, label, SIDE_W, function() if W.sideClick[k] then W.sideClick[k]() end end, 18)
+  b.label:SetFont(UI.FONT, 11, "")
+  W.sideBtns[k] = b
+end
+W.sideClick = {}
+UI.Tip(W.sideBtns.reverse, "Reverse", "Run the loop the other way, from this ground.")
+UI.Tip(W.sideBtns.restore, "Restore", "Back to the route Nodewalker suggests for this zone.")
+UI.Tip(W.sideBtns.startHere, "Start here", "Start the loop at the selected ground.")
+UI.Tip(W.sideBtns.showAll, "Show all", "Back to every hunting ground and creature in this zone.")
 local sideN, sideY
 local function sideReset(title)
   W.sideTitle:SetText(title or "")
@@ -868,13 +895,24 @@ local function sideReset(title)
   sideN, sideY = 0, -math.max(24, math.ceil(th) + 10)
   for _, s in ipairs(W.sideStats) do s[1]:SetText(""); s[2]:SetText("") end
   W.next:Hide(); W.skip:Hide()
+  for _, b in pairs(W.sideBtns) do b:Hide() end
+end
+local function sideButton(k, fn)
+  local b = W.sideBtns[k]
+  b:ClearAllPoints()
+  b:SetPoint("TOPLEFT", side, "TOPLEFT", 0, sideY + 4)
+  b:Show()
+  W.sideClick[k] = fn
+  sideY = sideY - 22
 end
 local function sideStat(label, value)
   if sideN >= #W.sideStats then return end
   sideN = sideN + 1
   local s = W.sideStats[sideN]
   s[1]:ClearAllPoints(); s[1]:SetPoint("TOPLEFT", 0, sideY); s[1]:SetText(label)
-  s[2]:ClearAllPoints(); s[2]:SetPoint("TOPLEFT", 0, sideY - 12); s[2]:SetText(value)
+  local lh = math.max(11, math.ceil(s[1]:GetStringHeight() or 11))
+  s[2]:ClearAllPoints(); s[2]:SetPoint("TOPLEFT", 0, sideY - lh - 1); s[2]:SetText(value)
+  sideY = sideY - (lh - 11)
   -- a value that wraps pushes the next one down
   local vh = math.max(15, math.ceil(s[2]:GetStringHeight() or 15))
   sideY = sideY - 12 - vh - 7
@@ -1292,6 +1330,12 @@ local function viewFishing(e)
       r.cells[3]:SetText(r.row.n > 0 and (TEAL .. r.row.n .. "|r") or dash())
       r:SetSelected(r.row == pick)
       r.onClick = function(self) sel.zone = self.row.name; refresh() end
+      r.onEnter = function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.row.name, 1, 1, 1)
+        if self.row.n > 0 then GameTooltip:AddDoubleLine("You caught here", self.row.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        GameTooltip:Show()
+      end
     end
   end
   mapTabs({ mine = true }, "mine")
@@ -1316,6 +1360,12 @@ local function huntOpts(method)
   if method == "skin" and st().huntSkill ~= false then o.skill = NW.ProfSkill and NW.ProfSkill("skinning") or nil end
   return o
 end
+local function lv(lo, hi)
+  if not lo then return "?" end
+  if not hi or lo == hi then return tostring(lo) end
+  return lo .. "-" .. hi
+end
+local function sameXY(a, b) return a and b and math.abs(a.x - b.x) < 1e-4 and math.abs(a.y - b.y) < 1e-4 end
 local function viewHunt(e, method)
   local g = H.Grounds(e.id, method, huntOpts(method))
   local zones = H.Sort(g.zones, st().huntSort or "density", e.id)
@@ -1325,10 +1375,11 @@ local function viewHunt(e, method)
     zones = f
   end
   local skill = NW.ProfSkill and NW.ProfSkill("skinning")
+  local GOT = method == "skin" and "Skinned" or "Looted"
   W.tblHead.text:SetText("Hunting grounds")
   W.huntSort:Show()
   W.colName:SetText("Zone")
-  setCols({ "Level", method == "skin" and "Skill" or "Spawns", "Mine" })
+  if method == "skin" then setCols({ "Spawns", "Skill", GOT }) else setCols({ "Level", "Spawns", GOT }) end
   local pick = zones[1]
   for _, z in ipairs(zones) do if sel.zone == z.name then pick = z end end
   local hunt = H.Route()
@@ -1339,77 +1390,103 @@ local function viewHunt(e, method)
       local active = hunt and hunt.item == e.id and hunt.method == method and hunt.zone == z.name
       r.name:SetText((active and "|cff5fd4e0›|r " or "") .. z.name)
       r.name:SetTextColor(unpack(z.mapID and S.text or S.dim))
-      r.cells[1]:SetText(z.minL and (z.minL == z.maxL and z.minL or (z.minL .. "-" .. z.maxL)) or DIM .. "?|r")
+      local mine = z.mapID and NW.GatherLog and NW.GatherLog.ZoneCount(z.mapID, e.id) or 0
       if method == "skin" then
         local req = H.SkinReq(z.maxL)
+        r.cells[1]:SetText(z.n)
         r.cells[2]:SetText(req and ((SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r") or dash())
       else
+        r.cells[1]:SetText(lv(z.minL, z.maxL))
         r.cells[2]:SetText(z.n)
       end
-      local mine = z.mapID and NW.GatherLog and NW.GatherLog.ZoneCount(z.mapID, e.id) or 0
       r.cells[3]:SetText(mine > 0 and (TEAL .. mine .. "|r") or dash())
       r:SetSelected(z == pick)
-      r.onClick = function(self) sel.zone = self.row.name; refresh() end
+      r.onClick = function(self) sel.zone = self.row.name; sel.ground, sel.npc, W.cOffset = nil, nil, 0; refresh() end
       r.onEnter = function(self)
         local zz = self.row
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(zz.name, 1, 1, 1)
+        GameTooltip:AddDoubleLine("Creature levels", lv(zz.minL, zz.maxL), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
         GameTooltip:AddDoubleLine("Known spawn points", zz.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        GameTooltip:AddDoubleLine("Expected per clear", ("~%d"):format(math.floor(zz.w + 0.5)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
         GameTooltip:AddDoubleLine("Hunting grounds", #zz.grounds, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        local m2 = zz.mapID and NW.GatherLog and NW.GatherLog.ZoneCount(zz.mapID, e.id) or 0
+        if m2 > 0 then GameTooltip:AddDoubleLine("You collected here", m2, 0.35, 0.75, 0.72, 1, 1, 1) end
         if method == "skin" then GameTooltip:AddLine("Skill: the most any creature here needs (Classic rule).", S.dim[1], S.dim[2], S.dim[3], true) end
+        GameTooltip:AddLine(GOT .. ": what you've collected here yourself.", S.dim[1], S.dim[2], S.dim[3], true)
         if not zz.mapID then GameTooltip:AddLine("Not on your client's map list", S.bad[1], S.bad[2], S.bad[3]) end
-        GameTooltip:AddLine("Classic data: creatures and chances may differ in WoW Forever.", S.dim[1], S.dim[2], S.dim[3], true)
+        GameTooltip:AddLine("Classic data (pfQuest, cMaNGOS): creatures and chances may differ in WoW Forever.", S.dim[1], S.dim[2], S.dim[3], true)
         GameTooltip:Show()
       end
     end
   end
-  -- the fold: creatures in the zone
-  local open = foldState()
-  W.fold:Show()
-  W.fold.sign:SetText(open and "–" or "+")
-  W.fold.text:SetText(method == "skin" and "Creatures to skin here" or "Creatures here")
+  -- what's selected inside the zone: a hunting ground, a creature
+  local ground
+  if pick and sel.ground then
+    for _, gr in ipairs(pick.grounds) do if sameXY(gr, sel.ground) then ground = gr end end
+    if not ground then sel.ground = nil end
+  end
+  local chance = {}
+  for _, sr in ipairs(H.Sources(e.id, method)) do chance[sr.npc] = sr end
   local list = {}
   if pick then
-    local chance = {}
-    for _, s in ipairs(H.Sources(e.id, method)) do chance[s.npc] = s end
-    for npc, n in pairs(pick.npcs) do if chance[npc] then list[#list + 1] = { u = H.Unit(npc), n = n, s = chance[npc] } end end
+    for npc, n in pairs((ground or pick).npcs) do if chance[npc] then list[#list + 1] = { u = H.Unit(npc), n = n, s = chance[npc] } end end
     table.sort(list, function(a, b) return a.n * a.s.chance > b.n * b.s.chance end)
   end
-  W.fold.n:SetText(#list)
+  local npcSel
+  if sel.npc then
+    for _, c in ipairs(list) do if c.u and c.u.npc == sel.npc then npcSel = c end end
+    if not npcSel then sel.npc = nil end
+  end
+  -- the fold: creatures in the zone, or in the selected ground
+  local open = foldState() or ground ~= nil or npcSel ~= nil
+  W.fold:Show()
+  W.fold.sign:SetText(open and "–" or "+")
+  W.fold.text:SetText(ground and "Creatures in this ground" or (method == "skin" and "Creatures to skin here" or "Creatures here"))
+  W.cN = #list
+  W.cOffset = math.max(0, math.min(W.cOffset or 0, #list - 3))
+  W.fold.n:SetText(#list > 3 and open and ("%d-%d of %d"):format(W.cOffset + 1, math.min(#list, W.cOffset + 3), #list) or #list)
   local shown = 0
   for i, r in ipairs(W.crows) do
-    local c = open and list[i]
+    local c = open and list[i + W.cOffset]
     r:SetShown(c and true or false)
-    if c then
+    r.npc = c and c.u and c.u.npc or nil
+    if c and c.u then
       shown = i
       local u = c.u
+      r:SetSelected(npcSel == c)
       r.name:SetText(u.name)
-      r.lvl:SetText(u.min == u.max and u.min or (u.min .. "-" .. u.max))
+      r.lvl:SetText(lv(u.min, u.max))
       r.ch:SetText(("%d%%"):format(math.floor(c.s.chance + 0.5)))
       if method == "skin" then
         local req = H.SkinReq(u.max)
         r.req:SetText((SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r")
       else
-        r.req:SetText("") -- the creature type is in the tooltip; the column is too narrow for it
+        r.req:SetText("")
       end
       r.onEnter = function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(u.name, 1, 1, 1)
-        GameTooltip:AddDoubleLine(method == "skin" and "Skinning gives it" or "Drops it", ("%.1f%%"):format(c.s.chance), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        local kind = (H.TYPE[u.type] or "") .. ((u.rank and u.rank > 0) and ("  ·  " .. (H.RANK[u.rank] or "")) or "")
+        if kind ~= "" then GameTooltip:AddLine(kind, S.dim[1], S.dim[2], S.dim[3]) end
+        GameTooltip:AddDoubleLine("Level", lv(u.min, u.max), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        GameTooltip:AddDoubleLine(method == "skin" and "Skinning gives it" or "Drops it (ordinary loot)", ("%.1f%%"):format(c.s.chance), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
         if c.s.max and c.s.max > 1 then GameTooltip:AddDoubleLine("Each time", c.s.min .. "-" .. c.s.max, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         if method == "skin" then GameTooltip:AddDoubleLine("Skinning needed", H.SkinReq(u.max) .. " (Classic rule)", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
-        GameTooltip:AddDoubleLine("Known spawns here", c.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-        if u.respawn and u.respawn > 0 then GameTooltip:AddDoubleLine("Respawn", ("~%d min"):format(math.ceil(u.respawn / 60)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        GameTooltip:AddDoubleLine(ground and "Known spawns in this ground" or "Known spawns here", c.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        if u.respawn and u.respawn > 0 then GameTooltip:AddDoubleLine("Respawn (Classic)", ("~%d min"):format(math.ceil(u.respawn / 60)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         local mine = NW.GatherLog and NW.GatherLog.Npc(u.npc)
         if mine and (mine.skin + mine.loot) > 0 then
           local got = mine.items[e.id] or 0
           local times = method == "skin" and mine.skin or mine.loot
           GameTooltip:AddLine(" ")
-          GameTooltip:AddDoubleLine(method == "skin" and "You skinned" or "You looted", times .. "x", 0.35, 0.75, 0.72, 1, 1, 1)
-          GameTooltip:AddDoubleLine("It gave you", got, 0.35, 0.75, 0.72, 1, 1, 1)
-          if times >= 10 then GameTooltip:AddDoubleLine("Each time", ("%.2f"):format(got / times), 0.35, 0.75, 0.72, 1, 1, 1) end
+          GameTooltip:AddLine("Your own log (not the server's drop rate)", 0.35, 0.75, 0.72)
+          GameTooltip:AddDoubleLine(method == "skin" and "You skinned" or "You looted", times .. "x", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+          GameTooltip:AddDoubleLine("It gave you", got, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+          if times >= 10 then GameTooltip:AddDoubleLine("Each time", ("%.2f"):format(got / times), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         end
-        GameTooltip:AddLine("Classic data", S.dim[1], S.dim[2], S.dim[3])
+        GameTooltip:AddLine("Classic data (pfQuest, cMaNGOS)", S.dim[1], S.dim[2], S.dim[3])
+        GameTooltip:AddLine(npcSel == c and "Click: show all creatures" or "Click: show only its spawns on the map", S.gold[1], S.gold[2], S.gold[3])
         GameTooltip:Show()
       end
     end
@@ -1417,31 +1494,61 @@ local function viewHunt(e, method)
   W.checkAnchor = shown > 0 and W.crows[shown] or W.fold
   if method == "skin" then
     setCheck(W.checkA, "Only what I can skin", function() return st().huntSkill ~= false end,
-      function(v) st().huntSkill = v end, "Leaves out creatures above your Skinning skill (Classic rule: level × 5 from level 20).")
+      function(v) st().huntSkill = v end, skill and "Leaves out creatures above your Skinning skill (Classic rule: level × 5 from level 20)."
+        or "Has no effect until you learn Skinning: every creature is shown.")
   end
   setCheck(method == "skin" and W.checkB or W.checkA, "Include elites and rares", function() return st().huntElites end, function(v) st().huntElites = v end)
+  -- clicks: a ground on the map, a creature in the list, the map's empty space
+  W.onHot = function(gr)
+    if not gr then return end
+    if sameXY(gr, sel.ground) then sel.ground = nil else sel.ground = { x = gr.x, y = gr.y } end
+    sel.npc, W.cOffset = nil, 0
+    refresh()
+  end
+  W.onCreature = function(npc)
+    sel.npc = sel.npc ~= npc and npc or nil
+    refresh()
+  end
+  W.onMapClick = function()
+    if sel.ground or sel.npc then sel.ground, sel.npc = nil, nil; refresh() end
+  end
   -- map
   local plan = pick and H.Plan(pick) or {}
   local active = hunt and hunt.item == e.id and hunt.method == method and pick and hunt.zone == pick.name
   local mode = mapTabs({ known = true, mine = true, route = true, heat = true }, active and "route" or "heat")
   drawArt(pick and pick.mapID, pick and pick.name)
   if pick and not pick.mapID then W.mapNone:SetText("Not on your client's map list") end
+  local function groundOf(st2)
+    for _, gr in ipairs(pick.grounds) do if sameXY(gr, st2) then return gr end end
+  end
   if pick and pick.mapID then
-    if mode == "known" then
-      for _, b in pairs(pick.bins) do
-        for _, c in ipairs(b.cells) do dotAt(c[1], c[2], 4, 0.85, 0.72, 0.45, 0.8) end
+    if npcSel and mode ~= "mine" and mode ~= "route" then
+      -- one creature: only its spawns, the grounds faint behind them
+      for _, gr in ipairs(pick.grounds) do ring(gr, "hunted") end
+      local pts = H.SpawnsIn(npcSel.u.npc, pick.name)
+      for _, c in ipairs(pts) do dotAt(c[1], c[2], 6, 0.95, 0.82, 0.50, 0.95) end
+      W.caption:SetText(("%s  ·  %d known spawn points  ·  Classic data"):format(npcSel.u.name, #pts))
+      W.capTip = "Where this creature spawned in WoW Classic. Not where one is now. Click it again in the list, or Show all, for every creature."
+    elseif mode == "known" or mode == "heat" then
+      if mode == "known" then
+        for _, b in pairs(pick.bins) do
+          for _, c in ipairs(b.cells) do dotAt(c[1], c[2], 4, 0.85, 0.72, 0.45, 0.8) end
+        end
+        W.caption:SetText("Known spawn points  ·  Classic data")
+      else
+        drawBins(pick.bins, 3)
+        W.caption:SetText("Expected per clear  ·  Classic data")
       end
-      for i, gr in ipairs(pick.grounds) do ring(gr, "plain"); hot(gr, gr, method, "Hunting ground " .. i) end
-      W.caption:SetText("Known spawn points  ·  Classic data")
-      W.capTip = "Where creatures that give it spawned in WoW Classic, weighted by its drop chance in the heatmap. Not creatures alive now, and WoW Forever may differ."
-    elseif mode == "heat" then
-      drawBins(pick.bins, 3)
-      for i, gr in ipairs(pick.grounds) do ring(gr, "plain"); hot(gr, gr, method, "Hunting ground " .. i) end
-      W.caption:SetText("Known spawns × drop chance  ·  Classic data")
-      W.capTip = "Where creatures that give it spawned in WoW Classic, weighted by its drop chance in the heatmap. Not creatures alive now, and WoW Forever may differ."
+      W.capTip = "Where creatures that give it spawned in WoW Classic; the heatmap weights each spawn by its drop chance and count. Not creatures alive now. Click a ring to select that hunting ground."
+      for i, gr in ipairs(pick.grounds) do
+        ring(gr, gr == ground and "selected" or "plain")
+        hot(gr, gr, method, "Hunting ground " .. i, gr)
+      end
     elseif mode == "mine" then
       local n = drawMine(pick.mapID, e.id)
+      if ground then ring(ground, "selected") end
       W.caption:SetText(n > 0 and (TEAL .. "Where you collected it|r") or "Nothing collected here yet")
+      W.capTip = n > 0 and "Your own gathering log: where you skinned or looted it. Purchases, mail and trades aren't counted." or nil
     else
       local stops, states, cur = plan, nil, 1
       if active then
@@ -1449,19 +1556,55 @@ local function viewHunt(e, method)
         for i in ipairs(hunt.stops) do states[i] = H.State(i) end
       end
       drawRoute(stops, states, cur)
-      for i, s in ipairs(stops) do
-        local src = plan[i] or s
-        hot(s, { npcs = (function() local t = {} for _, npc in ipairs(s.npcs or {}) do t[npc] = 1 end return next(t) and t or src.npcs end)(), n = s.n, respawn = s.respawn },
-          method, "Ground " .. i .. (states and states[i] and ("  ·  " .. states[i]) or ""))
+      for i, s2 in ipairs(stops) do
+        local gr = groundOf(s2)
+        if gr and gr == ground then ring(s2, "selected") end
+        hot(s2, gr or { npcs = {}, n = s2.n, respawn = s2.respawn }, method, "Ground " .. i .. (states and states[i] and ("  ·  " .. states[i]) or ""), gr)
       end
       local len = H.Length(pick.mapID, stops)
       W.caption:SetText(#stops == 1 and "One area: stay and hunt" or
         (("%d grounds  ·  ~%d yd loop, straight lines"):format(#stops, len and math.floor(len / 10 + 0.5) * 10 or 0)))
-      W.capTip = "Hunting grounds from Classic spawn data. Distances are straight lines, not paths."
+      W.capTip = "Hunting grounds from Classic spawn data. Distances are straight lines, not paths. Click a ring to select it."
     end
   end
-  -- side: the route when it's here, else the zone
-  if active then
+  -- side column: the creature, else the ground, else the route, else the zone
+  local inRoute = ground and active and H.StopFor(ground)
+  if npcSel then
+    local u = npcSel.u
+    sideReset(u.name)
+    sideStat("Level", lv(u.min, u.max) .. ((u.rank and u.rank > 0) and ("  " .. (H.RANK[u.rank] or "")) or ""))
+    sideStat(method == "skin" and "Skinning gives it" or "Drops it", ("%.1f%%"):format(npcSel.s.chance))
+    if method == "skin" then
+      local req = H.SkinReq(u.max)
+      sideStat("Skinning needed", (SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r")
+    end
+    sideStat("Known spawns here", tostring(#H.SpawnsIn(u.npc, pick.name)))
+    local mine = NW.GatherLog and NW.GatherLog.Npc(u.npc)
+    if mine and (mine.skin + mine.loot) > 0 then
+      sideStat(method == "skin" and "You skinned" or "You looted", TEAL .. ((method == "skin" and mine.skin or mine.loot) .. "x") .. "|r")
+    end
+    sideButton("showAll", function() sel.npc, sel.ground = nil, nil; refresh() end)
+  elseif ground then
+    local idx
+    for i, gr in ipairs(pick.grounds) do if gr == ground then idx = i end end
+    sideReset("Ground " .. (idx or ""))
+    sideStat("Creature levels", lv(ground.minL, ground.maxL))
+    sideStat("Spawn points", tostring(ground.n))
+    if method == "skin" and ground.maxL then
+      local req = H.SkinReq(ground.maxL)
+      sideStat("Skinning needed", (SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r")
+    end
+    if ground.respawn then sideStat("Respawn (Classic)", ("~%d min"):format(math.ceil(ground.respawn / 60))) end
+    -- your own collecting inside this ground
+    local mineHere = 0
+    for _, sp in ipairs(NW.GatherLog and NW.GatherLog.Spots(pick.mapID, e.id) or {}) do
+      local dx, dy = (sp.x - ground.x) / ground.rx, (sp.y - ground.y) / ground.ry
+      if dx * dx + dy * dy <= 1 then mineHere = mineHere + sp.n end
+    end
+    if mineHere > 0 then sideStat("You collected here", TEAL .. mineHere .. "|r") end
+    if inRoute and inRoute ~= hunt.cur then sideButton("startHere", function() H.SetStart(inRoute); refresh() end) end
+    sideButton("showAll", function() sel.npc, sel.ground = nil, nil; refresh() end)
+  elseif active then
     sideReset("Route")
     local here = H.Here()
     sideStat("Ground", ("%d of %d"):format(hunt.cur, #hunt.stops) .. (here == hunt.cur and "  |cff94ba78here|r" or ""))
@@ -1470,20 +1613,19 @@ local function viewHunt(e, method)
       local back = H.Revisit(i)
       if back and i ~= hunt.cur then sideStat("Ground " .. i, back > 0 and ("back ~%d min"):format(math.ceil(back / 60)) or "back now") break end
     end
-    sideStat("Creature levels", pick.minL and (pick.minL .. "-" .. pick.maxL) or "?")
-    if method == "skin" and skill then sideStat("Your Skinning", tostring(skill)) end
     local sess = NW.GatherLog and NW.GatherLog.Session(e.id) or 0
     if sess > 0 then sideStat("This session", TEAL .. sess .. "|r") end
+    if #hunt.stops > 2 then sideButton("reverse", function() H.Reverse(); refresh() end) end
+    if hunt.custom then sideButton("restore", function() H.Start(e.id, method, pick); refresh() end) end
   else
     sideReset(pick and pick.name or "")
     if pick then
-      sideStat("Creature levels", pick.minL and (pick.minL == pick.maxL and tostring(pick.minL) or (pick.minL .. "-" .. pick.maxL)) or "?")
+      sideStat("Creature levels", lv(pick.minL, pick.maxL))
       sideStat("Hunting grounds", tostring(#pick.grounds))
       sideStat("Spawn points", tostring(pick.n))
       if plan[1] and plan[1].respawn then sideStat("Respawn (Classic)", ("~%d min"):format(math.ceil(plan[1].respawn / 60))) end
       local mine = pick.mapID and NW.GatherLog and NW.GatherLog.ZoneCount(pick.mapID, e.id) or 0
       if mine > 0 then sideStat("You collected here", TEAL .. mine .. "|r") end
-      if method == "skin" and skill then sideStat("Your Skinning", tostring(skill)) end
     end
   end
   -- note: empty lists, filtered creatures
@@ -1495,19 +1637,35 @@ local function viewHunt(e, method)
   elseif g.out and g.out.skill then
     W.note:SetText(("%d creature%s need more Skinning"):format(g.out.skill, g.out.skill == 1 and "" or "s"))
   end
-  if active then
-    action(W.main, "Stop route", function() H.Stop(); refresh() end)
-    if W.note:GetText() == "" then W.note:SetText("Next and Skip are in the session panel too") end
+  -- actions: a selected ground first, then the route
+  local ok = pick ~= nil and pick.mapID ~= nil
+  if ground then
+    action(W.main, "Farm this area", function() H.StartSingle(e.id, method, pick, ground); st().huntMap = "route"; refresh() end,
+      "Farm this area", "A route of just this hunting ground: stay and hunt. On the overlay.", ok)
+    W.main:SetWidth(math.max(140, W.main.label:GetStringWidth() + 26))
+    if active then
+      if inRoute then
+        action(W.second, "Remove from route", function() H.RemoveStop(inRoute); refresh() end)
+      else
+        action(W.second, "Add to route", function() H.AddGround(ground); refresh() end, "Add to route", "Joins the loop where it adds the least distance.")
+      end
+    end
+    action(W.third, "Show on map", function() if NW.PinMap then NW.PinMap(pick.mapID, ground.x * 100, ground.y * 100, "Hunting ground") end end)
   else
-    action(W.main, #plan > 1 and "Build hunting route" or "Hunt here", function()
-      if pick then H.Start(e.id, method, pick); st().huntMap = "route"; refresh() end
-    end, "Hunting route", "Circles the densest hunting grounds, nearest first. On the overlay; Next in the session panel moves on. Straight-line distances, not paths.",
-      pick ~= nil and pick.mapID ~= nil and #plan > 0)
+    if active then
+      action(W.main, "Stop route", function() H.Stop(); refresh() end)
+      if W.note:GetText() == "" then W.note:SetText("Next and Skip are in the session panel too") end
+    else
+      action(W.main, #plan > 1 and "Build hunting route" or "Hunt here", function()
+        if pick then H.Start(e.id, method, pick); st().huntMap = "route"; refresh() end
+      end, "Hunting route", "Circles the densest hunting grounds, nearest first. On the overlay; Next in the session panel moves on. Straight-line distances, not paths. Click a ring on the map to farm one ground.",
+        ok and #plan > 0)
+    end
+    action(W.second, "Show on map", function()
+      local s2 = (active and hunt.stops[hunt.cur]) or plan[1]
+      if s2 and NW.PinMap then NW.PinMap(pick.mapID, s2.x * 100, s2.y * 100, "Hunting ground") end
+    end, nil, nil, ok and plan[1] ~= nil)
   end
-  action(W.second, "Show on map", function()
-    local s = (active and hunt.stops[hunt.cur]) or plan[1]
-    if s and NW.PinMap then NW.PinMap(pick.mapID, s.x * 100, s.y * 100, "Hunting ground") end
-  end, nil, nil, pick ~= nil and pick.mapID ~= nil and plan[1] ~= nil)
 end
 
 -- Vendors
@@ -1954,6 +2112,9 @@ refresh = function()
   local okSrc = false
   for _, k in ipairs(srcs) do if k == sel.src then okSrc = true end end
   if not okSrc then sel.src = srcs[1]; sel.zone = nil; W.zoneOffset = 0 end
+  local selKey = tostring(sel.id) .. ":" .. tostring(sel.src) .. ":" .. tostring(sel.zone)
+  if W.selKey ~= selKey then W.selKey = selKey; sel.ground, sel.npc, W.cOffset = nil, nil, 0 end
+  W.onHot, W.onCreature, W.onMapClick = nil, nil, nil
   -- the room the centre column has, split between the materials and the source table
   local pageH = page:GetHeight() or 0
   if pageH < 300 then pageH = UI.CONTENT_H end
@@ -1965,6 +2126,7 @@ refresh = function()
   else
     local open = st()["huntFold" .. sel.src]
     if open == nil then open = sel.src ~= "skin" end
+    if sel.ground or sel.npc then open = true end -- a selection opens the creature list
     foldH = 26 + (open and (3 * 18 + 2) or 0)
     checks = sel.src == "skin" and 2 or 1
   end
