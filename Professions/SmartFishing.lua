@@ -578,11 +578,16 @@ function SF.KeyButton(parent, w)
   local b = UI.Button(parent, "", w, nil, 24)
   local function label()
     local key = SF.key()
-    b:SetText(b.waiting and (b.confirm and ("Press %s again to use it"):format(b.confirm) or "Press a key...")
+    b:SetText(b.waiting and (b.confirm and ("Press %s again to use it"):format(GetBindingText and GetBindingText(b.confirm, "KEY_") or b.confirm) or "Press a key or button...")
       or (key and ("Smart Fishing: %s"):format(GetBindingText and GetBindingText(key, "KEY_") or key) or "Set Smart Fishing key"))
   end
   b.Refresh = label
-  local function stop(self) self.waiting, self.confirm = nil, nil; self:EnableKeyboard(false); label() end
+  -- while waiting, the button takes keyboard keys and controller buttons
+  local function listen(self, on)
+    self:EnableKeyboard(on)
+    if self.EnableGamePadButton then pcall(self.EnableGamePadButton, self, on) end
+  end
+  local function stop(self) self.waiting, self.confirm = nil, nil; listen(self, false); label() end
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   b:SetScript("OnClick", function(self, button)
     if combat() then return end -- the game blocks binding changes in combat
@@ -594,13 +599,13 @@ function SF.KeyButton(parent, w)
     end
     if self.waiting then stop(self) return end
     self.waiting, self.confirm = true, nil
-    self:EnableKeyboard(true)
+    listen(self, true)
     pcall(self.SetPropagateKeyboardInput, self, false)
     label()
   end)
-  b:SetScript("OnKeyDown", function(self, key)
+  local function take(self, key)
     if not self.waiting then return end
-    if key == "ESCAPE" then stop(self) return end
+    if key == "ESCAPE" or key == "PADBACK" then stop(self) return end
     if key:find("SHIFT$") or key:find("CTRL$") or key:find("ALT$") then return end
     local full = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "") .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
     local bound = GetBindingAction and GetBindingAction(full) or ""
@@ -616,15 +621,18 @@ function SF.KeyButton(parent, w)
     saveBindings()
     stop(self)
     SF.ApplyKey()
-  end)
-  b:SetScript("OnHide", function(self) self.waiting, self.confirm = nil, nil; self:EnableKeyboard(false) end)
+  end
+  b:SetScript("OnKeyDown", take)
+  -- a controller button (PAD1, PADLSHOULDER...); modifiers follow the game's gamepad settings
+  pcall(b.SetScript, b, "OnGamePadButtonDown", take)
+  b:SetScript("OnHide", function(self) self.waiting, self.confirm = nil, nil; listen(self, false) end)
   b:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText("Smart Fishing key", 1, 1, 1)
     if self.confirm and self.boundTo then
       GameTooltip:AddLine(("%s is bound to %s. Pressing it again moves it to Smart Fishing."):format(self.confirm, _G["BINDING_NAME_" .. self.boundTo] or self.boundTo), 1, 0.82, 0.2, true)
     end
-    GameTooltip:AddLine("Also in Key Bindings › AddOns. Right-click to clear.", S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:AddLine("A key or a controller button. Also in Key Bindings › AddOns. Right-click to clear.", S.dim[1], S.dim[2], S.dim[3], true)
     GameTooltip:Show()
   end)
   b:HookScript("OnLeave", GameTooltip_Hide)
