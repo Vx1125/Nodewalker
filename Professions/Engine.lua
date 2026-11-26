@@ -790,7 +790,9 @@ function NW.Price(id, depth)
     end
     if not unknown then
       cost = cost / (r.yield or 1)
-      if not best or cost < best * 0.75 then best, src = cost, "craft" end
+      -- your own profession's intermediates (bolts, bars): make them
+      -- whenever it's clearly cheaper, not only when it's a lot cheaper
+      if not best or cost < best * 0.95 then best, src = cost, "craft" end
     end
   end
   if not best then
@@ -915,12 +917,18 @@ end
 local function craftCost(r, sell)
   local cost, unknown = 0, 0
   local guess = 0
+  r.cooldownMat = nil
   for _, re in ipairs(r.reagents) do
     local p, src = NW.Price(re[1])
-    if p then
+    local maker = src == "est" and NW.RecipeFor(re[1])
+    if p and not (maker and onCooldown(maker)) then
       cost = cost + p * re[2]
       if src == "est" then guess = guess + p * re[2] * 0.5 end
     else
+      -- made only on a cooldown (Mooncloth, transmutes) and not on the
+      -- auction house: you can't get dozens, so don't plan on it
+      if p then cost = cost + p * re[2] end
+      if maker then r.cooldownMat = true end
       unknown = unknown + 1
     end
   end
@@ -1037,7 +1045,11 @@ function NW.BuildPlan(key, from, to)
     -- cast): without it, a near-grey recipe with dirt-cheap materials (Rough
     -- Stone) looks cheapest even at 20 crafts per point
     local effort = 20 + sk
-    for pass = 1, 2 do
+    -- passes: what you can learn now, then recipes to buy, both while they
+    -- still give a point at least a quarter of the time; only then anything.
+    -- Otherwise the plan rides the last trainer recipe nearly to grey.
+    for pass = 1, 3 do
+      local floor = pass < 3 and 0.25 or 0
       for i, r in ipairs(recipes) do
         local trainer = r.src == "rank" or r.src == "trainer"
         local notTaught = trainer and not isKnown(key, r) and NW.NotAtTrainer(key, r)
@@ -1045,7 +1057,7 @@ function NW.BuildPlan(key, from, to)
         -- Known recipes: what you know first, the trainer's only where nothing you know works; never a bought one
         if strategy == "known" then
           if isKnown(key, r) or r.src == "rank" then avail = true
-          elseif trainer and (pass == 2 or knownP < 0.5) then avail = true
+          elseif trainer and (pass >= 2 or knownP < 0.5) then avail = true
           else avail = nil end
         end
         if NW.NO_LEVEL[r.name] or notTaught then avail = nil end
@@ -1053,16 +1065,16 @@ function NW.BuildPlan(key, from, to)
         -- a Merchant's Favor recipe your reputation can't buy yet (unless you know it)
         if avail ~= nil and NW.FavorBlocked and NW.FavorBlocked(r) and not isKnown(key, r) then avail = nil end
         local needsRecipe = not avail
-        if avail ~= nil and (avail or pass == 2 or s.planRecipeItems) and required(key, r) <= sk then
+        if avail ~= nil and (avail or pass >= 2 or s.planRecipeItems) and required(key, r) <= sk then
           local p = NW.SkillUpChance(r, sk)
-          if p > 0 and onceOf[i] < 1e9 then -- (1e9: can't be learned yet)
+          if p > 0 and p >= floor and onceOf[i] < 1e9 and not (r.cooldownMat and pass < 3) then -- (1e9: can't be learned yet)
             -- unknown prices count as expensive so priced options win
             local c = (math.max(0, costOf[i] - ownedValue(i)) + (r.guessExtra or 0) + unknownOf[i] * 10000 + effort) / p
             -- Fewest crafts: the best skill-up chance wins; cost only breaks ties
             if strategy == "crafts" then c = 1 / p + c * 1e-7 end
             if needsRecipe then c = c * 1.15 end -- slight nudge toward what you can learn now
             if not owned[i] and onceOf[i] > 0 and strategy ~= "crafts" then
-              c = c + onceOf[i] / math.max(1, math.min(r.green, to) - sk)
+              c = c + onceOf[i] / math.max(1, math.min(r.green + (r.grey - r.green) / 2, to) - sk)
             end
             if not best or c < bestCost then best, bestCost, bestNeeds = i, c, needsRecipe end
             if stickyOn and r.name == sticky then stickyI, stickyC, stickyNeeds = i, c, needsRecipe end
@@ -1119,11 +1131,26 @@ function NW.BuildPlan(key, from, to)
   end
   local fees, paid, spend = 0, {}, 0
   local rankFee = NW.RANK_FEE[key] or {}
+  -- a few spare crafts, enough for about 4 runs in 5; none while it's orange.
+  -- Worked out over a whole run of one recipe (a rank split doesn't double
+  -- them) and never more than a fifth of the run.
+  local runVar, runCrafts = 0, 0
+  for n, st in ipairs(steps) do
+    st.spare = 0
+    if st.recipe then
+      runVar, runCrafts = runVar + st.var, runCrafts + st.crafts
+      local nx = steps[n + 1]
+      if not (nx and nx.idx == st.idx) then
+        if runVar > 0 then st.spare = math.min(math.ceil(0.85 * math.sqrt(runVar)), math.max(1, math.floor(runCrafts * 0.2))) end
+        runVar, runCrafts = 0, 0
+      end
+    else
+      runVar, runCrafts = 0, 0
+    end
+  end
   for _, st in ipairs(steps) do
     if st.recipe then
       st.crafts = math.ceil(st.crafts - 0.05)
-      -- a few spare crafts, enough for about 4 runs in 5; none while it's orange
-      st.spare = st.var > 0 and math.ceil(0.85 * math.sqrt(st.var)) or 0
       st.crafts = st.crafts + st.spare
       st.costEach, st.unknown = costOf[st.idx], unknownOf[st.idx]
       st.cost = st.costEach * st.crafts
@@ -1175,8 +1202,23 @@ function NW.ShoppingList(key, plan)
   end
   NW.BuildPlan(key, plan.from, plan.to) -- makes sure craftOf is this profession's
   local forQuest = {}
+  -- what earlier steps make (bolts from the first steps) feeds later ones,
+  -- unless you chose to sell what you craft
+  local keep = not NW.db.settings.planSellBack
+  local made = {}
   for _, st in ipairs(plan.steps) do
-    for _, m in ipairs(st.mats or {}) do add(m[1], m[2], 0) end
+    for _, m in ipairs(st.mats or {}) do
+      local n = m[2]
+      local have = keep and made[m[1]] or 0
+      if have > 0 then
+        local use = math.min(have, n)
+        made[m[1]] = have - use
+        n = n - use
+      end
+      if n > 0 then add(m[1], n, 0) end
+    end
+    local r = st.recipe
+    if keep and r and r.item and st.crafts then made[r.item] = (made[r.item] or 0) + st.crafts * (r.yield or 1) end
     -- what the next rank's quest asks for
     if st.rankUp then
       local _, _, _, _, _, needs = NW.RankWhere(key, st.rankUp.name)
