@@ -269,10 +269,10 @@ priceLine:SetWidth(MID_W - 92)
 priceLine:SetHeight(26)
 priceLine:SetJustifyV("TOP")
 -- lock the plan as a kit: what you buy for it carries you to its end
-MS.kitBtn = UI.Button(mid, "Lock plan", 86, function()
+MS.kitBtn = UI.Button(mid, "Re-plan", 86, function()
   local p = MS.kitKey and MS.kitPlan
   if not p then return end
-  if NW.Kit(MS.kitKey) then NW.ClearKit(MS.kitKey) else NW.LockKit(MS.kitKey, MS.kitPlan) end
+  NW.RebuildKit(MS.kitKey)
   refresh()
 end, 18)
 MS.kitBtn.label:SetFont(UI.FONT, 10, "")
@@ -280,13 +280,12 @@ MS.kitBtn:SetPoint("TOPRIGHT", optRow, "BOTTOMRIGHT", 0, -3)
 MS.kitBtn:SetScript("OnEnter", function(self)
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
   local kit = MS.kitKey and NW.Kit(MS.kitKey)
-  if kit then
-    GameTooltip:SetText("Plan locked to " .. kit.to)
-    GameTooltip:AddLine("Re-plan: choose recipes again at today's prices.", 1, 1, 1, true)
-  else
-    GameTooltip:SetText("Lock plan")
-    GameTooltip:AddLine("Keeps these recipes to your target, so what you buy now carries you there. Searching the list locks it too.", 1, 1, 1, true)
+  GameTooltip:SetText("Kit 1-300")
+  if kit and kit.made then
+    local t = tonumber(tostring(kit.made):match("^%d+"))
+    if t then GameTooltip:AddLine("Chosen " .. date("%b %d", t) .. ", from that day's prices.", 1, 1, 1, true) end
   end
+  GameTooltip:AddLine("Re-plan: choose the recipes again at today's prices.", 1, 1, 1, true)
   GameTooltip:Show()
 end)
 MS.kitBtn:SetScript("OnLeave", GameTooltip_Hide)
@@ -888,8 +887,6 @@ shopBox:SetScript("OnMouseWheel", function(_, d)
   drawShop()
 end)
 local searchBtn = UI.Button(right, "Search missing in Auctionator", RIGHT_W, function()
-  -- buying the list: keep the plan it was made for
-  if MS.kitKey and MS.kitPlan and not NW.Kit(MS.kitKey) then NW.LockKit(MS.kitKey, MS.kitPlan) end
   local items = {}
   for _, e in ipairs(MS.shopAll or shop) do
     if e.header then
@@ -1389,7 +1386,9 @@ local function drawCraft(p)
   -- what bought or found recipes would save
   if not st().planRecipeItems and st().planStrategy ~= "known" then
     st().planRecipeItems = true
+    NW.kitHold = true -- a what-if: neither follows nor replaces the kit
     local alt = NW.BuildPlan(p.key, from, to)
+    NW.kitHold = nil
     st().planRecipeItems = false
     NW.BuildPlan(p.key, from, to) -- back to this profession's prices
     if alt.total < plan.total * 0.85 then
@@ -1495,7 +1494,7 @@ local function drawCraft(p)
   priceLine:SetText(not ah and "|cffd17665Auctionator isn't loaded:|r vendor prices and rough estimates only."
     or nowLine or "")
   local kit = rank and NW.Kit(p.key)
-  MS.kitBtn:SetText(kit and "Re-plan" or "Lock plan")
+  MS.kitBtn:SetText("Re-plan")
   MS.kitBtn:SetShown(rank and true or false)
 end
 

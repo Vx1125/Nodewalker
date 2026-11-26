@@ -962,21 +962,46 @@ function NW.Kit(key)
   if sk and sk >= kit.to then kits[key] = nil; return nil end
   return kit
 end
-function NW.LockKit(key, plan)
-  if not plan or not plan.steps then return end
-  local kit = { to = plan.to, made = time(), steps = {} }
+local kitSeq = 0
+local function lockKit(key, plan, sig)
+  kitSeq = kitSeq + 1
+  local kit = { to = plan.to, made = time() .. "." .. kitSeq, sig = sig, steps = {} }
   for _, st in ipairs(plan.steps) do
     if st.recipe then kit.steps[#kit.steps + 1] = { st.from, st.to, st.recipe.name } end
   end
-  if #kit.steps == 0 then return end
   NW.charDB.planKit = NW.charDB.planKit or {}
   NW.charDB.planKit[key] = kit
-  NW.InvalidatePlans()
+  planCache = {}
+  return kit
 end
-function NW.ClearKit(key)
+-- what the kit was chosen under; changing any of these chooses a new one
+local function kitSig(key)
+  local s = NW.db.settings
+  local sell = key ~= "cooking" and s.planSellBack or false
+  return (s.planStrategy or "") .. "|" .. tostring(sell) .. "|" .. (s.planRecipeItems and "r" or "")
+    .. "|" .. (key == "cooking" and NW.CookAllow and NW.CookAllowKey() or "")
+end
+-- The baseline kit: one plan from 1 to 300 at today's prices, ignoring
+-- what's in your bags, kept until you reach 300, re-plan or change how
+-- plans are made. Every plan for the profession follows its recipes.
+local building
+local function buildKit(key)
+  building = true
+  planCache = {}
+  local ok, plan = pcall(NW.BuildPlan, key, 1, 300)
+  building = false
+  if not ok then return nil end
+  return lockKit(key, plan, kitSig(key))
+end
+function NW.RebuildKit(key)
   if NW.charDB.planKit then NW.charDB.planKit[key] = nil end
+  priceMemo = {}
+  buildKit(key)
   NW.InvalidatePlans()
 end
+-- (kept for callers that lock the plan on screen: the kit already covers it)
+function NW.LockKit() end
+function NW.ClearKit(key) NW.RebuildKit(key) end
 
 -- Build the plan from skill `from` to `to`.
 -- Returns { steps = {...}, total, unknown, gaps }
@@ -990,9 +1015,15 @@ function NW.BuildPlan(key, from, to)
   local sell = key ~= "cooking" and s.planSellBack or false
   local cacheKey = ("%s:%d:%d:%s%s:%s:%s"):format(key, from, to, s.planRecipeItems and "r" or "", sell == "de" and "d" or sell and "s" or "", strategy or "",
     allow and NW.CookAllowKey() or "") .. ":" .. (NW.FavorKey and NW.FavorKey() or "")
-  local kit = NW.Kit(key)
-  if kit then cacheKey = cacheKey .. ":kit" .. kit.made end
   local recipes = NW.RECIPES[key] or {}
+  local kit
+  if building then
+    cacheKey = cacheKey .. ":base"
+  elseif not NW.kitHold and #recipes > 0 and NW.ProfSkill(key) then
+    kit = NW.Kit(key)
+    if not kit or kit.sig ~= kitSig(key) then kit = buildKit(key) end
+  end
+  if kit then cacheKey = cacheKey .. ":kit" .. kit.made end
   -- this profession's "make it yourself" table, even when the plan comes from the cache
   if NW.craftKey ~= key then
     priceMemo = {}
@@ -1042,6 +1073,7 @@ function NW.BuildPlan(key, from, to)
     unit[i] = u
   end
   local function ownedValue(i)
+    if building then return 0 end -- the baseline doesn't bend to your bags
     local v = 0
     for _, u in ipairs(unit[i]) do
       local have = stock[u[1]] or 0
@@ -1052,7 +1084,7 @@ function NW.BuildPlan(key, from, to)
   -- The step you're on stays unless another recipe is clearly cheaper (15%):
   -- live prices move a little with every scan, and the plan shouldn't flip.
   local sticky = NW.charDB.planSticky and NW.charDB.planSticky[key]
-  local stickyOn = sticky ~= nil
+  local stickyOn = sticky ~= nil and not building
 
   -- pick the cheapest recipe for each skill point
   local pick = {}
@@ -1200,7 +1232,7 @@ function NW.BuildPlan(key, from, to)
   -- remember the step you're on, so the next plan keeps it while it's still good
   NW.charDB.planSticky = NW.charDB.planSticky or {}
   local first = pick[from]
-  NW.charDB.planSticky[key] = first and recipes[first.i] and recipes[first.i].name or nil
+  if not building then NW.charDB.planSticky[key] = first and recipes[first.i] and recipes[first.i].name or nil end
 
   -- group runs of the same recipe into steps
   local steps, total, unknownTotal = {}, 0, 0
