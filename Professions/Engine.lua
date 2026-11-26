@@ -507,6 +507,12 @@ NW.On("CRAFT_UPDATE", function() scanCraft(); NW.InvalidatePlans() end)
 NW.On("TRAINER_SHOW", function() C_Timer.After(0.5, scanTrainer) end)
 NW.On("MERCHANT_SHOW", function() C_Timer.After(0.5, scanMerchant) end)
 NW.On("SKILL_LINES_CHANGED", function() skillAt = -10; NW.InvalidatePlans() end)
+local bagsQueued
+NW.On("BAG_UPDATE_DELAYED", function()
+  if bagsQueued then return end
+  bagsQueued = true
+  C_Timer.After(2, function() bagsQueued = false; NW.InvalidatePlans() end)
+end)
 
 table.insert(NW.OnLoad, function()
   local db = NW.db
@@ -985,10 +991,36 @@ function NW.BuildPlan(key, from, to)
     end
   end
   local owned = {}
+  -- What's in your bags and bank is already paid for: a recipe that uses it
+  -- costs only what you'd still buy. Stock is used up step by step, in order.
+  local stock, unit = {}, {}
+  for i, r in ipairs(recipes) do
+    local u = {}
+    for _, re in ipairs(r.reagents) do
+      local id = re[1]
+      if stock[id] == nil then stock[id] = NW.ItemCount and NW.ItemCount(id) or 0 end
+      local pr = NW.Price(id)
+      u[#u + 1] = { id, re[2], pr or 0 }
+    end
+    unit[i] = u
+  end
+  local function ownedValue(i)
+    local v = 0
+    for _, u in ipairs(unit[i]) do
+      local have = stock[u[1]] or 0
+      if have > 0 then v = v + u[3] * math.min(u[2], have) end
+    end
+    return v
+  end
+  -- The step you're on stays unless another recipe is clearly cheaper (15%):
+  -- live prices move a little with every scan, and the plan shouldn't flip.
+  local sticky = NW.charDB.planSticky and NW.charDB.planSticky[key]
+  local stickyOn = sticky ~= nil
 
   -- pick the cheapest recipe for each skill point
   local pick = {}
   local gaps = 0
+  local stickyI, stickyC, stickyNeeds
   for sk = from, to - 1 do
     local best, bestCost, bestNeeds
     -- Known recipes: the trainer's are fair game once nothing you know is still
@@ -1025,7 +1057,7 @@ function NW.BuildPlan(key, from, to)
           local p = NW.SkillUpChance(r, sk)
           if p > 0 and onceOf[i] < 1e9 then -- (1e9: can't be learned yet)
             -- unknown prices count as expensive so priced options win
-            local c = (costOf[i] + (r.guessExtra or 0) + unknownOf[i] * 10000 + effort) / p
+            local c = (math.max(0, costOf[i] - ownedValue(i)) + (r.guessExtra or 0) + unknownOf[i] * 10000 + effort) / p
             -- Fewest crafts: the best skill-up chance wins; cost only breaks ties
             if strategy == "crafts" then c = 1 / p + c * 1e-7 end
             if needsRecipe then c = c * 1.15 end -- slight nudge toward what you can learn now
@@ -1033,15 +1065,37 @@ function NW.BuildPlan(key, from, to)
               c = c + onceOf[i] / math.max(1, math.min(r.green, to) - sk)
             end
             if not best or c < bestCost then best, bestCost, bestNeeds = i, c, needsRecipe end
+            if stickyOn and r.name == sticky then stickyI, stickyC, stickyNeeds = i, c, needsRecipe end
           end
         end
       end
       if best then break end
     end
-    if best then owned[best] = true end
+    -- keep the step you're on while it's still a good pick
+    if stickyOn then
+      if stickyI and NW.SkillUpChance(recipes[stickyI], sk) >= 0.5 and stickyC <= bestCost * 1.15 then
+        best, bestCost, bestNeeds = stickyI, stickyC, stickyNeeds
+      else
+        stickyOn = false
+      end
+    end
+    stickyI, stickyC, stickyNeeds = nil, nil, nil
+    if best then
+      owned[best] = true
+      -- use up the stock this skill point takes
+      local use = 1 / math.max(0.05, NW.SkillUpChance(recipes[best], sk))
+      for _, u in ipairs(unit[best]) do
+        if (stock[u[1]] or 0) > 0 then stock[u[1]] = math.max(0, stock[u[1]] - u[2] * use) end
+      end
+    end
     pick[sk] = best and { i = best, needs = bestNeeds } or false
     if not best then gaps = gaps + 1 end
   end
+
+  -- remember the step you're on, so the next plan keeps it while it's still good
+  NW.charDB.planSticky = NW.charDB.planSticky or {}
+  local first = pick[from]
+  NW.charDB.planSticky[key] = first and recipes[first.i] and recipes[first.i].name or nil
 
   -- group runs of the same recipe into steps
   local steps, total, unknownTotal = {}, 0, 0
