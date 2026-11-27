@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Material Finder: clearer wording for the ways to get a crafted item.
 - Leveling: step ranges stay as planned instead of moving up with your skill.
 - Shopping list: enough spare materials for bad luck, so one trip covers the plan.
 - Re-plan moved to Options: Re-plan at today's prices.

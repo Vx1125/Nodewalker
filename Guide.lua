@@ -2005,12 +2005,12 @@ local function viewCraft(e)
   end
   local ways = {}
   if #missingList == 0 then
-    ways[#ways + 1] = { "Craft from what you have", "Your bags and bank", S.HEX.good .. "0|r" }
+    ways[#ways + 1] = { "Craft it", "You have the reagents", S.HEX.good .. "0|r" }
   else
-    if farmable then ways[#ways + 1] = { "Craft, gather what's missing", "Collect: " .. table.concat(farmWhere, ", "), S.HEX.good .. "0|r" } end
-    ways[#ways + 1] = { "Craft, buy what's missing", "Auction house or vendor, today's price", "~" .. NW.Money(buyCost, true) .. (buyUnknown and " |cffd17665+?|r" or "") }
+    if farmable then ways[#ways + 1] = { "Craft it, gather reagents", "Gather: " .. table.concat(farmWhere, ", "), S.HEX.good .. "0|r" } end
+    ways[#ways + 1] = { "Craft it, buy reagents", "Missing reagents from the AH or a vendor", "~" .. NW.Money(buyCost, true) .. (buyUnknown and " |cffd17665+?|r" or "") }
   end
-  if ahP and ahSrc == "ah" then ways[#ways + 1] = { ("Buy %d"):format(n), "Auction house; no skill-ups from buying", "~" .. NW.Money(ahP * n, true) } end
+  if ahP and ahSrc == "ah" then ways[#ways + 1] = { ("Buy %d"):format(n), "Ready-made from the AH; no skill-ups", "~" .. NW.Money(ahP * n, true) } end
   for i, wr in ipairs(W.cWays) do
     local w = ways[i]
     wr:SetShown(w ~= nil)
