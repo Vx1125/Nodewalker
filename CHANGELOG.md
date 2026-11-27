@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Route tab merged into Material Finder: Routes button, saved routes picker, the same editor and Expand.
+- Material Finder: Expand on a zone's route opens the full-size route editor; Edit route opens its saved route.
+- GatherMate2 import moved to Settings › Routes.
 - Material Finder: clearer wording for the ways to get a crafted item.
 - Leveling: step ranges stay as planned instead of moving up with your skill.
 - Shopping list: enough spare materials for bad luck, so one trip covers the plan.

@@ -619,7 +619,7 @@ function NW.BuildRoute(mapID, callback, opts)
       route.seconds = len / MOUNT_YPS
       route.nodes = #points
       if opts.preview then
-        -- a proposal for the Route tab: the saved route stays as it is until started
+        -- a proposal for Routes: the saved route stays as it is until started
         NW.RouteAroundAvoid(mapID, route)
       else
         NW.db.routes[mapID] = route

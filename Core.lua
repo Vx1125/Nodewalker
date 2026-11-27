@@ -365,7 +365,7 @@ end)
 -- reading and writing NW.db.settings: these keys are passed through.
 local CHAR_KEYS = {
   consumeSpec = true, consumeList = true, consumeHidden = true, consumeBudget = true, consumeHours = true,
-  profSelected = true, planTarget = true, lastTab = true, fishCook = true, fishTab = true,
+  profSelected = true, planTarget = true, lastTab = true, routesOpen = true, fishCook = true, fishTab = true,
 }
 local function splitCharSettings(db)
   if not (UnitName and GetRealmName) then return end
@@ -435,8 +435,8 @@ SlashCmdList.NODEWALKER = function(msg)
     NW.ImportGatherMate2()
   elseif msg == "import help" then
     -- the GatherMate2 warning, whatever you already have
-    NW.ToggleWindow("route")
-    if NW.window:IsShown() and NW.TabPage then NW.MaybeImportPrompt(NW.TabPage("route"), true) end
+    if NW.ShowRoutes then NW.ShowRoutes() end
+    if NW.Routes and NW.Routes.page then NW.MaybeImportPrompt(NW.Routes.page, true) end
   elseif msg == "next" then
     NW.SkipNext()
   elseif msg == "harvest" or msg == "harvest all" then

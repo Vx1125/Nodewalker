@@ -3,7 +3,9 @@ local ADDON, NW = ...
 local C, S, UI = NW.COLORS, NW.STYLE, NW.UI
 
 ------------------------------------------------------------------------
--- Route tab: the zone's known nodes, its route and the controls to build it
+-- Routes: the zone's known nodes, its route and the controls to build it.
+-- A view of the Material Finder tab (no tab of its own): the Finder's Routes
+-- button, a proposed route and the old "route" tab key all open it here.
 ------------------------------------------------------------------------
 -- The map is the page: as big as the window allows, in the zone's own
 -- colours. "Expand" opens it near full screen for drawing avoid zones.
@@ -12,8 +14,13 @@ local MAP_W, MAP_H = SMALL_W, SMALL_H
 local SIDE_X, SIDE_W = 16 + SMALL_W + 2 + 18, 1020 - (16 + SMALL_W + 2 + 18) - 16
 
 local refresh
-local page
-page = UI.AddTab("route", "Route", function() refresh() if NW.MaybeImportPrompt then NW.MaybeImportPrompt(page) end end, nil, function() refresh() end)
+local finder -- the Material Finder's page and refresh, set by Guide.lua
+NW.Routes = NW.Routes or {}
+-- the page sits where a tab's page does and takes the Finder's place while open
+local page = CreateFrame("Frame", nil, NW.window)
+page:SetPoint("TOPLEFT", 0, -UI.CONTENT_TOP)
+page:SetPoint("BOTTOMRIGHT")
+page:Hide()
 
 local mapFrame = UI.Box(page, MAP_W + 2, MAP_H + 2)
 mapFrame:SetPoint("TOPLEFT", 16, -8)
@@ -52,10 +59,11 @@ local tiles = {}
 local drawMode, dragStart
 
 -- A proposed gathering route works on its own zone; otherwise the zone you're in
+-- NW.routeView: a saved route's zone picked to look at (session only); nil is where you are
 local function mapID()
   local d = NW.routeDraft
   if d and d.kind == "nodes" then return d.map end
-  return (NW.PlayerPos())
+  return NW.routeView or (NW.PlayerPos())
 end
 
 local getDot, resetDots = UI.Pool(function()
@@ -179,21 +187,20 @@ local btnClear = UI.Button(side, "Clear avoid zones", SIDE_W, clearAvoid)
 btnClear:SetPoint("TOPLEFT", btnAvoid, "BOTTOMLEFT", 0, -6)
 
 local half = (SIDE_W - 6) / 2
-local btnImport = UI.Button(side, "GatherMate2", half, function()
-  if NW.routeDraft then NW.routeDraft = nil; refresh() return end -- "Discard" while a route is proposed
-  NW.ImportGatherMate2(); refresh()
+-- (GatherMate2 import is in Settings › Routes)
+local btnImport = UI.Button(side, "Discard", half, function()
+  NW.routeDraft = nil
+  refresh()
 end)
 btnImport:SetPoint("TOPLEFT", btnClear, "BOTTOMLEFT", 0, -6)
-UI.Tip(btnImport, function() return NW.routeDraft and "Discard proposal" or "Import GatherMate2" end,
-  function() return NW.routeDraft and "Drops the proposed route. Your saved and active routes stay as they are."
-    or "Copies its herb and ore spots, and its data pack." end)
+UI.Tip(btnImport, "Discard proposal", "Drops the proposed route. Your saved and active routes stay as they are.")
 local btnGuide = UI.Button(side, "Materials", half, function()
-  -- back to the material the proposed route came from
+  -- back to the material the proposed route came from; the proposal stays
   local d = NW.routeDraft
   if d and d.item and NW.FindMaterialAt and NW.FindMaterialAt(d.item, d.src or d.method, d.zone) then return end
-  NW.ShowTab("guide")
+  NW.Routes.Close()
 end)
-btnGuide:SetPoint("LEFT", btnImport, "RIGHT", 6, 0)
+UI.Tip(btnGuide, "Materials", "Back to the Material Finder. Routes stay as they are.")
 
 -- Starting a proposal: the only place a proposal replaces the active hunt or the zone's saved route
 local function startDraft(d)
@@ -224,7 +231,7 @@ local btnStart = UI.Button(side, "Start route", SIDE_W, function()
   if NW.DrawOverlay then NW.DrawOverlay() end
   refresh()
 end, 28, "primary")
-btnStart:SetPoint("TOPLEFT", btnImport, "BOTTOMLEFT", 0, -8)
+btnStart:SetPoint("TOPLEFT", btnGuide, "BOTTOMLEFT", 0, -8)
 
 ------------------------------------------------------------------------
 -- Expanded map: near full screen, for seeing the ground and drawing zones
@@ -282,7 +289,8 @@ btnExpand:SetFrameLevel(mapFrame:GetFrameLevel() + 20)
 
 big:SetScript("OnHide", function()
   placeMap(false)
-  if page:IsShown() then refresh() end
+  if page:IsVisible() then refresh()
+  elseif finder and finder.page:IsVisible() then finder.refresh() end -- the Finder's map shows what changed
 end)
 
 ------------------------------------------------------------------------
@@ -297,7 +305,7 @@ function NW.ProposeRoute(d)
   if not d then return end
   NW.routeDraft = d
   setDrawMode(false)
-  if NW.window:IsShown() then NW.ShowTab("route") else NW.db.settings.lastTab = "route"; NW.window:Show() end
+  NW.ShowRoutes()
   if d.kind == "nodes" then optimize() end -- arrives with its preview building
 end
 
@@ -327,7 +335,18 @@ function DR.mode(d)
   bigOptimize:SetShown(not hunt)
   btnImport:ClearAllPoints()
   btnImport:SetPoint("TOPLEFT", d and btnOptimize or btnClear, "BOTTOMLEFT", 0, -6)
-  btnImport:SetText(d and "Discard" or "GatherMate2")
+  btnImport:SetShown(d ~= nil)
+  btnGuide:ClearAllPoints()
+  if d then
+    btnGuide:SetWidth(half)
+    btnGuide:SetPoint("LEFT", btnImport, "RIGHT", 6, 0)
+  else
+    btnGuide:SetWidth(SIDE_W)
+    btnGuide:SetPoint("TOPLEFT", btnClear, "BOTTOMLEFT", 0, -6)
+  end
+  btnStart:ClearAllPoints()
+  btnStart:SetPoint("TOPLEFT", d and btnImport or btnGuide, "BOTTOMLEFT", 0, -8)
+  if NW.Routes.picker then NW.Routes.picker:SetShown(not d) end
   if hunt then
     btnStart:SetText(NW.charDB and NW.charDB.hunt and "Replace active hunt" or "Start hunting route")
   elseif d then
@@ -430,18 +449,20 @@ end
 -- Drawing
 ------------------------------------------------------------------------
 refresh = function()
-  if not page:IsShown() and not big:IsShown() then return end
+  if not page:IsVisible() and not big:IsShown() then return end
   resetDots(); resetLines(); resetBoxes()
   local draft = NW.routeDraft
   DR.mode(draft)
+  if NW.Routes.pickerText then NW.Routes.pickerText() end
   local id, ppx, ppy = NW.PlayerPos()
   if draft and draft.kind == "hunt" then return DR.hunt(draft, id, ppx, ppy) end
   resetNums()
   if not drawMode then drawHint:SetText("") end
-  if draft then
-    -- a proposed gathering route: its zone, wherever you are
-    if id ~= draft.map then ppx, ppy = nil, nil end
-    id = draft.map
+  local viewMap = draft and draft.map or NW.routeView
+  if viewMap then
+    -- a proposed gathering route, or a saved route picked to look at: its zone, wherever you are
+    if id ~= viewMap then ppx, ppy = nil, nil end
+    id = viewMap
   end
   if not id then
     NW.SetWindowSubtitle("")
@@ -570,7 +591,7 @@ refresh = function()
     stats:SetText(dim .. "No route here yet.\nPress Optimize loop.|r")
   end
 end
-NW.RefreshPlanner = function() if page:IsShown() or big:IsShown() then refresh() end end
+NW.RefreshPlanner = function() if page:IsVisible() or big:IsShown() then refresh() end end
 
 -- Hover a stop: which one it is and what's there
 local hoverStop
@@ -617,9 +638,10 @@ mapFrame:SetScript("OnUpdate", function(self)
     return
   end
   local id, ppx, ppy = NW.PlayerPos()
-  if draft then
-    if id ~= draft.map then ppx = nil end
-    id = draft.map
+  local viewMap = draft and draft.map or NW.routeView
+  if viewMap then
+    if id ~= viewMap then ppx = nil end
+    id = viewMap
   end
   local route
   if draft then route = draft.route elseif id then route = NW.db.routes[id] end
@@ -704,5 +726,149 @@ page:SetScript("OnHide", function()
   if not big:IsShown() then setDrawMode(false) end
 end)
 
-function NW.TogglePlanner() NW.ToggleWindow("route") end
+------------------------------------------------------------------------
+-- Which route to look at: where you are, or any zone with a saved route
+-- (on the map's top left). The active hunt opens in the Material Finder.
+------------------------------------------------------------------------
+local picker = UI.Button(mapFrame, "", 170, nil, 22)
+picker:SetPoint("TOPLEFT", 6, -6)
+picker:SetFrameLevel(mapFrame:GetFrameLevel() + 20)
+picker.label:ClearAllPoints()
+picker.label:SetPoint("LEFT", 8, 0)
+picker.label:SetPoint("RIGHT", -20, 0)
+picker.label:SetJustifyH("LEFT")
+picker.label:SetWordWrap(false)
+do
+  local arrow = picker:CreateTexture(nil, "OVERLAY")
+  arrow:SetSize(10, 10)
+  arrow:SetPoint("RIGHT", -6, 0)
+  arrow:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+  arrow:SetRotation(-math.pi / 2)
+  arrow:SetVertexColor(unpack(S.gold))
+end
+local pickMenu = UI.Panel(nil, UIParent, 240, 10)
+pickMenu:SetFrameStrata("FULLSCREEN_DIALOG")
+pickMenu:SetClampedToScreen(true)
+pickMenu:Hide()
+local pickRows = {}
+local function zoneName(id)
+  local info = C_Map.GetMapInfo(id)
+  return info and info.name or ("map " .. id)
+end
+local function pickItems()
+  local items = { { label = "Where I am", fn = function() NW.routeView = nil end } }
+  local zones = {}
+  for id, r in pairs(NW.db.routes or {}) do
+    if type(r) == "table" and r.stops and #r.stops > 1 then zones[#zones + 1] = { id = id, name = zoneName(id), n = #r.stops } end
+  end
+  table.sort(zones, function(a, b) return a.name < b.name end)
+  for _, z in ipairs(zones) do
+    items[#items + 1] = { label = z.name, right = z.n .. " stops", fn = function() NW.routeView = z.id end }
+  end
+  local hunt = NW.charDB and NW.charDB.hunt
+  if hunt and hunt.item then
+    local e = NW.Mat and NW.Mat.Get(hunt.item)
+    items[#items + 1] = { label = "Hunt: " .. (e and e.name or "?"), right = hunt.zone, gold = true, fn = function()
+      if not (NW.FindMaterialAt and NW.FindMaterialAt(hunt.item, hunt.method, hunt.zone)) then NW.Routes.Close() end
+    end }
+  end
+  return items
+end
+picker:SetScript("OnClick", function()
+  if pickMenu:IsShown() then pickMenu:Hide() return end
+  local items = pickItems()
+  for i, it in ipairs(items) do
+    local r = pickRows[i]
+    if not r then
+      r = CreateFrame("Button", nil, pickMenu)
+      r:SetHeight(20)
+      r:SetPoint("TOPLEFT", 1, -1 - (i - 1) * 20)
+      r:SetPoint("RIGHT", -1, 0)
+      r.text = UI.Text(r, 12, S.text)
+      r.text:SetPoint("LEFT", 8, 0)
+      r.right = UI.Text(r, 11, S.dim, "RIGHT")
+      r.right:SetPoint("RIGHT", -8, 0)
+      local hl = r:CreateTexture(nil, "HIGHLIGHT")
+      hl:SetAllPoints()
+      hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.12)
+      pickRows[i] = r
+    end
+    r.text:SetText(it.label)
+    r.text:SetTextColor(unpack(it.gold and S.gold or S.text))
+    r.right:SetText(it.right or "")
+    r:SetScript("OnClick", function() pickMenu:Hide(); it.fn(); setDrawMode(false); refresh() end)
+    r:Show()
+  end
+  for i = #items + 1, #pickRows do pickRows[i]:Hide() end
+  pickMenu:SetSize(240, #items * 20 + 2)
+  pickMenu:SetScale(picker:GetEffectiveScale() / UIParent:GetEffectiveScale())
+  pickMenu:ClearAllPoints()
+  pickMenu:SetPoint("TOPLEFT", picker, "BOTTOMLEFT", 0, -2)
+  pickMenu:Show()
+end)
+picker:HookScript("OnHide", function() pickMenu:Hide() end)
+UI.Tip(picker, "Routes", "Where you are, or any zone with a saved route.")
+NW.Routes.picker = picker
+function NW.Routes.pickerText()
+  local v = NW.routeView
+  picker:SetText(v and zoneName(v) or "Where I am")
+end
+
+------------------------------------------------------------------------
+-- Opening and closing the view (NW.Routes): the Material Finder's tab calls
+-- these. Closing never touches a proposal, a saved route or the active one.
+------------------------------------------------------------------------
+NW.Routes.page = page
+function NW.Routes.Attach(fpage, frefresh) finder = { page = fpage, refresh = frefresh } end
+function NW.Routes.Wanted() return NW.db and NW.db.settings.routesOpen end
+function NW.Routes.IsOpen() return page:IsVisible() end
+-- show the view in place of the Finder (the Finder's tab is the current one)
+function NW.Routes.Open()
+  NW.db.settings.routesOpen = true
+  if finder then finder.page:Hide() end
+  page:Show()
+  refresh()
+  if NW.MaybeImportPrompt then NW.MaybeImportPrompt(page) end
+end
+-- back to the Finder
+function NW.Routes.Close()
+  if NW.db then NW.db.settings.routesOpen = nil end
+  local was = page:IsShown()
+  page:Hide()
+  if finder and was and NW.CurrentTab() == "guide" then
+    finder.page:Show()
+    finder.refresh()
+  end
+end
+-- leaving the Finder's tab: hide the view, remember it was open
+function NW.Routes.Leave() page:Hide() end
+function NW.Routes.Tick() if page:IsVisible() then refresh() end end
+-- map: a zone to look at (false: where you are; nil: as it was)
+function NW.ShowRoutes(map)
+  if map ~= nil then NW.routeView = map or nil end
+  NW.db.settings.routesOpen = true
+  if NW.window:IsShown() and NW.CurrentTab() == "guide" then NW.Routes.Open()
+  elseif NW.window:IsShown() then NW.ShowTab("guide")
+  else NW.db.settings.lastTab = "guide"; NW.window:Show() end
+end
+-- the full-size editor straight away, on a zone's route
+function NW.OpenRouteEditor(map)
+  -- a proposal elsewhere is open: show it in Routes, where it can be started or discarded
+  local d = NW.routeDraft
+  if d and map and d.map ~= map then NW.ShowRoutes() return end
+  if map and not (NW.routeDraft and NW.routeDraft.map == map) then NW.routeView = map end
+  setDrawMode(false)
+  placeMap(true)
+  big:Show()
+  refresh()
+end
+-- saved tabs and links to the old Route tab open this view
+NW.TAB_ALIAS = NW.TAB_ALIAS or {}
+NW.TAB_ALIAS.route = function()
+  if NW.db then NW.db.settings.routesOpen = true end
+  return "guide"
+end
+function NW.TogglePlanner()
+  if NW.window:IsShown() and page:IsVisible() then NW.window:Hide() else NW.ShowRoutes() end
+end
 

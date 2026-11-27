@@ -13,7 +13,13 @@ local C, S, UI = NW.COLORS, NW.STYLE, NW.UI
 local M, H = NW.Mat, NW.Hunt
 local refresh
 local page
-page = UI.AddTab("guide", "Material Finder", function() refresh() if NW.MaybeImportPrompt then NW.MaybeImportPrompt(page) end end)
+-- Routes (Planner.lua) is a view of this tab: it takes the page's place while open
+page = UI.AddTab("guide", "Material Finder", function()
+  if NW.Routes and NW.Routes.Wanted() then NW.Routes.Open() return end
+  refresh()
+  if NW.MaybeImportPrompt then NW.MaybeImportPrompt(page) end
+end, function() if NW.Routes then NW.Routes.Leave() end end,
+function() if NW.Routes then NW.Routes.Tick() end end)
 
 local function st() return NW.db.settings end
 local DIM = S.HEX.dim
@@ -248,8 +254,9 @@ end
 ------------------------------------------------------------------------
 -- Left: search, category, filters, the materials
 ------------------------------------------------------------------------
+local ROUTES_W = 72
 local search = CreateFrame("EditBox", nil, page, "BackdropTemplate")
-search:SetSize(L_W, 24)
+search:SetSize(L_W - ROUTES_W - 6, 24)
 search:SetPoint("TOPLEFT", 16, -8)
 UI.Flat(search, S.sunk, S.edge)
 search:SetFont(UI.FONT, 12, "")
@@ -257,6 +264,10 @@ search:SetTextColor(unpack(S.text))
 search:SetTextInsets(22, 8, 0, 0)
 search:SetAutoFocus(false)
 search:SetMaxLetters(40)
+-- Routes: your saved routes and the one you're on, no material needed
+W.routes = UI.Button(page, "Routes", ROUTES_W, function() if NW.ShowRoutes then NW.ShowRoutes() end end, 24)
+W.routes:SetPoint("LEFT", search, "RIGHT", 6, 0)
+UI.Tip(W.routes, "Routes", "Saved routes, the route where you are, and the editor.")
 local sIcon = search:CreateTexture(nil, "ARTWORK")
 sIcon:SetSize(13, 13)
 sIcon:SetPoint("LEFT", 6, 0)
@@ -738,11 +749,18 @@ W.plate:SetHeight(20)
 -- map modes and Expand, small, on the map's top right
 local MODES_MAP = { { "known", "Known" }, { "mine", "History" }, { "route", "Route" }, { "heat", "Heatmap" } }
 W.mapTabs = {}
-W.expand = UI.Button(preview, "Expand", 58, function() W.expanded = not W.expanded; refresh() end, 20)
+W.expand = UI.Button(preview, "Expand", 58, function()
+  -- on a zone's route, Expand opens the full-size route editor
+  if W.routeEdit and not W.expanded then W.routeEdit() return end
+  W.expanded = not W.expanded
+  refresh()
+end, 20)
 W.expand:SetFrameLevel(pvArt:GetFrameLevel() + 6)
 W.expand.label:SetFont(UI.FONT, 11, "")
 W.expand:SetPoint("TOPRIGHT", -8, -8)
-UI.Tip(W.expand, "Expand map", "The same map, larger. Click again to restore.")
+UI.Tip(W.expand, function() return W.routeEdit and not W.expanded and "Route editor" or "Expand map" end,
+  function() return W.routeEdit and not W.expanded and "This zone's route, full size: avoid zones, Optimize loop, Start."
+    or "The same map, larger. Click again to restore." end)
 local prevTab = W.expand
 for i = #MODES_MAP, 1, -1 do
   local m = MODES_MAP[i]
@@ -1405,12 +1423,20 @@ local function viewNodes(e)
     local mine = NW.GatherLog and row.mapID and NW.GatherLog.ZoneCount(row.mapID, not both and e.id or nil) or 0
     if mine > 0 then sideStat("You gathered here", TEAL .. mine .. "|r") end
   end
+  if row and row.mapID and mode == "route" then
+    local zid = row.mapID
+    W.routeEdit = function() NW.OpenRouteEditor(zid) end
+  end
+  if route and #route.stops > 1 then
+    action(W.second, "Edit route", function() NW.ShowRoutes(row.mapID) end, "Edit route",
+      "This zone's saved route in Routes: avoid zones, Optimize loop, Restart.")
+  end
   action(W.main, "Build route", function()
     if not (row and row.mapID and row.count > 0) then return end
-    -- the Route tab builds, reviews and starts it; the saved route stays until then
+    -- Routes builds, reviews and starts it; the saved route stays until then
     NW.ProposeRoute({ kind = "nodes", item = e.id, src = sel.src, zone = row.name, map = row.mapID,
       opts = both and {} or { focus = focusOf(entry), alsoOthers = st().guideAlsoOthers } })
-  end, "Build route", "Opens it in the Route tab to review. This zone's saved route changes only when you start the new one.",
+  end, "Build route", "Opens it in Routes to review. This zone's saved route changes only when you start the new one.",
     row ~= nil and row.mapID ~= nil and row.count > 0)
 end
 
@@ -1780,7 +1806,7 @@ local function viewHunt(e, method)
   local ok = pick ~= nil and pick.mapID ~= nil
   if ground then
     action(W.main, "Farm this area", function() NW.ProposeRoute(H.Propose(e.id, method, pick, huntOpts(method), ground)) end,
-      "Farm this area", "A route of just this hunting ground: stay and hunt. Opens in the Route tab to review and start.", ok)
+      "Farm this area", "A route of just this hunting ground: stay and hunt. Opens in Routes to review and start.", ok)
     if active then
       if inRoute then
         action(W.second, "Remove from route", function() H.RemoveStop(inRoute); refresh() end)
@@ -1796,7 +1822,7 @@ local function viewHunt(e, method)
     else
       action(W.main, #plan > 1 and "Build hunting route" or "Hunt here", function()
         if pick then NW.ProposeRoute(H.Propose(e.id, method, pick, huntOpts(method))) end
-      end, "Hunting route", "Circles the densest hunting grounds, nearest first. Opens in the Route tab to review; your current hunt stays until you start the new one. Straight-line distances, not paths. Click a ring on the map to farm one ground.",
+      end, "Hunting route", "Circles the densest hunting grounds, nearest first. Opens in Routes to review; your current hunt stays until you start the new one. Straight-line distances, not paths. Click a ring on the map to farm one ground.",
         ok and #plan > 0)
     end
     action(W.second, "Show on map", function()
@@ -2227,6 +2253,7 @@ end
 
 refresh = function()
   if not page:IsShown() then return end
+  W.routeEdit = nil
   local s = st()
   sel.cat = sel.cat or s.matCat or "herb"
   -- category menu
@@ -2461,7 +2488,7 @@ refresh = function()
   local mapView = ws:IsShown() and preview:IsShown()
   if not mapView then W.expanded = false end
   local big = W.expanded and mapView
-  local leftSide = { search, W.catBtn, W.filters, W.midHead, W.midCap, mid, W.midCount }
+  local leftSide = { search, W.routes, W.catBtn, W.filters, W.midHead, W.midCap, mid, W.midCount }
   local head = { W.iconBox, W.name, W.sub, W.nameHit, W.subHit }
   if big then
     for _, f in ipairs(leftSide) do f:Hide() end
@@ -2562,10 +2589,15 @@ H.OnChange(later)
 if NW.GatherLog then NW.GatherLog.OnChange(later) end
 NW.On("BAG_UPDATE_DELAYED", later)
 
-function NW.ToggleGuide() NW.ToggleWindow("guide") end
+function NW.ToggleGuide()
+  if NW.Routes and NW.Routes.IsOpen() then NW.Routes.Close() return end
+  NW.ToggleWindow("guide")
+end
+if NW.Routes then NW.Routes.Attach(page, function() refresh() end) end
 -- what's selected (read-only use: tests, debugging)
 function NW.MaterialSelection() return sel, W end
 local function open()
+  if NW.Routes then NW.Routes.Close() end
   if NW.window:IsShown() then NW.ShowTab("guide") else st().lastTab = "guide"; NW.window:Show() end
   refresh()
 end
@@ -2598,7 +2630,7 @@ W.goTo = function(id, need)
   clearSearch()
   refresh()
 end
--- Open on a material, source and zone (the Route tab's way back to where a route came from)
+-- Open on a material, source and zone (Routes' way back to where a route came from)
 function NW.FindMaterialAt(id, src, zone)
   local e = M.Get(id)
   if not e then return false end

@@ -481,7 +481,7 @@ end
 -- A proposed route (a draft): copies of the grounds only, never the cached zone or
 -- ground tables, so cache eviction can't touch it. Nothing is saved or shown on the
 -- overlay until H.Commit. `only`: one ground, stay and hunt. The zone's other
--- grounds come along as `spare`, so the Route tab can add them back.
+-- grounds come along as `spare`, so Routes can add them back.
 function H.Propose(id, method, z, opts, only)
   if not (z and z.mapID) then return nil end
   local plan = only and { only } or H.Plan(z)

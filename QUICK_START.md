@@ -12,11 +12,11 @@ Type `/nw prof` to open the window, or click the Nodewalker button on your minim
 1. Type `/nw guide` (Material Finder).
 2. Pick **Herbs** or **Ore** on the left, then an herb or ore.
 3. Click a zone in the list. The map shows its loop.
-4. Click **Build route**. The Route tab opens with the loop to review; press **Start**.
+4. Click **Build route**. Routes opens with the loop to review; press **Start**.
 5. Go to that zone and type `/nw` to show the overlay.
 6. Follow the cyan line. Your minimap's dots show what's up now; faded icons are spots seen before.
 
-When you enter a zone without a route, Nodewalker builds one by itself. To rebuild a route or steer it away from somewhere, open the Route tab (`/nw plan`), then use **Optimize loop** or **Draw avoid zone**.
+When you enter a zone without a route, Nodewalker builds one by itself. To rebuild a route or steer it away from somewhere, open Material Finder › **Routes** (`/nw plan`), then use **Optimize loop** or **Draw avoid zone**.
 
 ## Find any material
 

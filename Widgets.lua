@@ -543,7 +543,7 @@ tabLine:SetColorTexture(unpack(S.sep))
 local tabs, tabOrder, current = {}, {}, nil
 local ticker
 -- Left to right; tabs not listed go at the end
-local ORDER = { "profs", "guide", "route", "find", "consumes", "settings" }
+local ORDER = { "profs", "guide", "find", "consumes", "settings" }
 local rank = {}
 for i, k in ipairs(ORDER) do rank[k] = i end
 -- Pages grouped under one tab (Settings): small switches at the right of the tab row
@@ -622,6 +622,9 @@ local function layoutSubs(g)
 end
 
 function NW.ShowTab(key)
+  -- an old tab's key (saved, or from a link) opens where it lives now
+  local alias = NW.TAB_ALIAS and NW.TAB_ALIAS[key]
+  if alias then key = alias() end
   if groups[key] then key = groups[key].last or groups[key].keys[1] end
   local t = tabs[key] or tabs[tabOrder[1]] or (groups[tabOrder[1]] and tabs[groups[tabOrder[1]].keys[1]])
   if not t then return end
@@ -713,6 +716,8 @@ end)
 
 -- Open the window on a tab; if it's already open on that tab, close it.
 function NW.ToggleWindow(key)
+  local alias = NW.TAB_ALIAS and NW.TAB_ALIAS[key]
+  if alias then key = alias() end
   if win:IsShown() and (not key or NW.CurrentTab() == key) then
     win:Hide()
     return

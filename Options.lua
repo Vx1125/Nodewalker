@@ -117,7 +117,7 @@ helpBtn:SetScript("OnEnter", function(self)
   GameTooltip:AddDoubleLine("Ctrl + right-click a node", "hide that herb or ore", 0.84, 0.7, 0.4, d[1], d[2], d[3])
   GameTooltip:AddLine(" ")
   GameTooltip:AddLine("Commands", 1, 1, 1)
-  for _, c in ipairs({ { "/nw", "overlay" }, { "/nw window", "this window" }, { "/nw plan", "route" }, { "/nw guide", "Material Finder" },
+  for _, c in ipairs({ { "/nw", "overlay" }, { "/nw window", "this window" }, { "/nw plan", "routes" }, { "/nw guide", "Material Finder" },
     { "/nw prof", "professions" }, { "/nw consumes", "consumes" }, { "/nw options", "settings" }, { "/nw import", "GatherMate2 nodes" } }) do
     GameTooltip:AddDoubleLine(c[1], c[2], 0.84, 0.7, 0.4, d[1], d[2], d[3])
   end
@@ -256,9 +256,16 @@ slider(1, "Gathered node cooldown", 1, 20, 1, function(v) return ("%d min"):form
   nil, "How long a route skips a stop after you gather it.")
 check(1, "Auto-build routes", "autoRoute", "In a zone with known spots and no route, Nodewalker builds one.")
 heading(2, "Planning")
-local planBtn = UI.Button(page, "Open the route planner", 200, function() NW.ShowTab("route") end, 24)
+local planBtn = UI.Button(page, "Open Routes", 200, function() NW.ShowRoutes() end, 24)
 place(2, planBtn, 30, 2)
-UI.Tip(planBtn, "Route", "Sight range, avoid zones and the map are on the Route tab.")
+UI.Tip(planBtn, "Routes", "Sight range, avoid zones and the map: Material Finder › Routes.")
+heading(2, "GatherMate2")
+local gmBtn = UI.Button(page, "Import GatherMate2", 200, function()
+  NW.ImportGatherMate2()
+  if NW.RefreshPlanner then NW.RefreshPlanner() end
+end, 24)
+place(2, gmBtn, 30, 2)
+UI.Tip(gmBtn, "Import GatherMate2", "Copies its herb and ore spots, and its data pack.")
 
 ------------------------------------------------------------------------
 -- Fishing: Smart Fishing, gear, lures, the HUD, the Journal

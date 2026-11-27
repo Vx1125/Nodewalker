@@ -27,7 +27,7 @@ Client: WoW Forever (interface 16001).
 | Command | Opens |
 |---|---|
 | `/nw` | Overlay on or off |
-| `/nw plan` | Route tab |
+| `/nw plan` | Routes (in Material Finder) |
 | `/nw guide` | Material Finder |
 | `/nw prof` | Professions |
 | `/nw consumes` | Consumes |
