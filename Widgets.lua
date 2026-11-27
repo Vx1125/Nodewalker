@@ -869,3 +869,153 @@ function UI.DrawZoneArt(id, frame, tiles, W, H, full)
     end
   end
 end
+
+------------------------------------------------------------------------
+-- Reagent strip: a recipe's reagents as their item icons, with the count one
+-- craft takes on each (shown from 2, or when you're short). Short ones are
+-- greyed with a red count, so it never rests on colour alone. Icons are made
+-- once per strip and reused; a view passes one handler table for tooltips and
+-- clicks, so nothing is created per refresh.
+--   strip = UI.ReagentStrip(parent, handler)  handler.tip(icon), handler.click(icon, button)
+--   strip:Begin(prefix)  strip:Add(id, qty, short)  strip:AddStatus(tex, kind)  strip:Finish(width)
+-- Each icon carries id, qty, short, kind and whatever the view sets in icon.ctx.
+------------------------------------------------------------------------
+do
+  local SIZE, GAP = 16, 4
+  local QMARK = "Interface\\Icons\\INV_Misc_QuestionMark"
+  local function iconOnEnter(self)
+    local h = self.strip.handler
+    if h and h.tip then h.tip(self) end
+  end
+  local function iconOnClick(self, button)
+    local h = self.strip.handler
+    if h and h.click then h.click(self, button) end
+  end
+  local function moreOnEnter(self)
+    local strip = self.strip
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Also needs", 1, 1, 1)
+    for k = strip.shown + 1, strip.n do
+      local ic = strip.icons[k]
+      local name = ic.id and NW.ItemName(ic.id) or "?"
+      GameTooltip:AddDoubleLine(name, "×" .. (ic.qty or 1), 1, 1, 1, S.dim[1], S.dim[2], S.dim[3])
+    end
+    GameTooltip:Show()
+  end
+  local function newIcon(strip)
+    local b = CreateFrame("Button", nil, strip)
+    b:SetSize(SIZE, SIZE)
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b.edge = b:CreateTexture(nil, "BACKGROUND")
+    b.edge:SetPoint("TOPLEFT", -1, 1)
+    b.edge:SetPoint("BOTTOMRIGHT", 1, -1)
+    b.edge:SetColorTexture(0, 0, 0, 0.8)
+    b.tex = b:CreateTexture(nil, "ARTWORK")
+    b.tex:SetAllPoints()
+    b.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    b.count = b:CreateFontString(nil, "OVERLAY")
+    b.count:SetFont(FONT, 10, "OUTLINE")
+    b.count:SetPoint("BOTTOMRIGHT", 3, -2)
+    b.count:SetJustifyH("RIGHT")
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.15)
+    b.strip = strip
+    b.ctx = {} -- what the view needs for its tooltip and click (wiped on reuse)
+    b:SetScript("OnEnter", iconOnEnter)
+    b:SetScript("OnLeave", GameTooltip_Hide)
+    b:SetScript("OnClick", iconOnClick)
+    return b
+  end
+  local function nextIcon(strip)
+    strip.n = strip.n + 1
+    local b = strip.icons[strip.n]
+    if not b then b = newIcon(strip); strip.icons[strip.n] = b end
+    b.id, b.qty, b.short, b.kind = nil, nil, nil, nil
+    for k in pairs(b.ctx) do b.ctx[k] = nil end
+    return b
+  end
+  local Strip = {}
+  function Strip:Begin(prefix)
+    self.n = 0
+    self.prefix:SetText(prefix or "")
+    self.prefix:SetShown(prefix ~= nil and prefix ~= "")
+  end
+  function Strip:Add(id, qty, short)
+    local b = nextIcon(self)
+    b.id, b.qty, b.short, b.kind = id, qty or 1, short and true or false, "item"
+    b.tex:SetTexture(NW.ItemIcon(id) or QMARK)
+    b.tex:SetDesaturated(b.short)
+    b.tex:SetVertexColor(1, 1, 1, b.short and 0.55 or 1)
+    b.count:SetText((b.qty > 1 or b.short) and tostring(b.qty) or "")
+    b.count:SetTextColor(unpack(b.short and S.bad or S.text))
+    return b
+  end
+  -- a state that isn't a reagent (needs a recipe): its own icon, first in line
+  function Strip:AddStatus(tex, kind)
+    local b = nextIcon(self)
+    b.kind = kind
+    b.tex:SetTexture(tex or QMARK)
+    b.tex:SetDesaturated(false)
+    b.tex:SetVertexColor(1, 1, 1, 1)
+    b.count:SetText("")
+    return b
+  end
+  -- lay out what fits in width; the rest go under a "+N" with them on hover
+  function Strip:Finish(width)
+    local x = 0
+    if self.prefix:IsShown() then
+      self.prefix:SetWidth(0)
+      local pw = math.min(self.prefix:GetStringWidth() or 0, math.max(60, (width or 300) * 0.55))
+      self.prefix:SetWidth(pw)
+      x = pw + 6
+    end
+    local fit = math.floor(((width or 300) - x + GAP) / (SIZE + GAP))
+    if fit < self.n then fit = math.max(0, fit - 1) end -- room for the "+N"
+    self.shown = math.min(self.n, fit)
+    for k, b in ipairs(self.icons) do
+      if k <= self.shown then
+        b:ClearAllPoints()
+        b:SetPoint("LEFT", self, "LEFT", x + (k - 1) * (SIZE + GAP), 0)
+        b:Show()
+      else
+        b:Hide()
+      end
+    end
+    local over = self.n - self.shown
+    self.more:SetShown(over > 0)
+    if over > 0 then
+      self.more.text:SetText("+" .. over)
+      self.more:ClearAllPoints()
+      self.more:SetPoint("LEFT", self, "LEFT", x + self.shown * (SIZE + GAP), 0)
+    end
+  end
+  function Strip:Clear()
+    self.n, self.shown = 0, 0
+    for _, b in ipairs(self.icons) do b:Hide() end
+    self.more:Hide()
+    self.prefix:SetText("")
+    self.prefix:Hide()
+  end
+  function UI.ReagentStrip(parent, handler)
+    local strip = CreateFrame("Frame", nil, parent)
+    strip:SetSize(300, SIZE + 2)
+    for k, fn in pairs(Strip) do strip[k] = fn end
+    strip.handler = handler
+    strip.icons = {}
+    strip.n, strip.shown = 0, 0
+    strip.prefix = UI.Text(strip, 11, S.dim)
+    strip.prefix:SetPoint("LEFT", 0, 0)
+    strip.prefix:SetWordWrap(false)
+    strip.prefix:Hide()
+    strip.more = CreateFrame("Button", nil, strip)
+    strip.more:SetSize(26, SIZE)
+    strip.more.text = UI.Text(strip.more, 11, S.dim)
+    strip.more.text:SetPoint("LEFT", 2, 0)
+    strip.more.strip = strip
+    strip.more:SetScript("OnEnter", moreOnEnter)
+    strip.more:SetScript("OnLeave", GameTooltip_Hide)
+    strip.more:Hide()
+    return strip
+  end
+end

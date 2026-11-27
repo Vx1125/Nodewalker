@@ -14,6 +14,7 @@ local selected
 
 local function st() return NW.db.settings end
 local MS = {} -- list-layout and Missing recipes helpers (one table: the file is near Lua's local limit)
+MS.rh = {} -- reagent icons' tooltip and click (filled in by the shopping list code, which has the helpers)
 
 -- Item names arrive from the server a moment after we ask
 local function itemName(id)
@@ -468,6 +469,9 @@ for i = 1, STEP_FRAMES do
   row.mats:SetPoint("TOPLEFT", 96, -22)
   row.mats:SetWidth(MID_W - 116)
   row.mats:SetWordWrap(false)
+  -- the reagents as icons, in the line under the name (MS.rh: tooltips and clicks)
+  row.strip = UI.ReagentStrip(row, MS.rh)
+  row.strip:SetPoint("TOPLEFT", 96, -18)
   -- Craft what this row makes, as many as your bags allow
   row.craft = UI.Button(row, "", 70, function(self) craftClick(self) end, 17)
   row.craft.label:SetFont(UI.FONT, 11, "")
@@ -893,6 +897,107 @@ for i = 1, SHOP_ROWS do
   end)
   shopRows[i] = row
 end
+-- Reagent icons in the plan: the item's tooltip with what the step needs, and
+-- the shopping list's clicks (where to get it; Shift-click links or searches)
+function MS.rh.tip(icon)
+  local c = icon.ctx or {}
+  GameTooltip:SetOwner(icon, "ANCHOR_RIGHT")
+  if icon.kind == "recipe" then
+    local r = c.recipe
+    GameTooltip:SetText("Needs recipe", 1, 0.5, 0.25)
+    if r then GameTooltip:AddLine((sourceText(selected, r)), 1, 1, 1, true) end
+    GameTooltip:AddLine("On the shopping list under Recipes to buy.", S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:Show()
+    return
+  end
+  local id = icon.id
+  if not pcall(GameTooltip.SetItemByID, GameTooltip, id) then GameTooltip:SetText((itemName(id)), 1, 1, 1) end
+  GameTooltip:AddLine(" ")
+  local d = S.dim
+  GameTooltip:AddDoubleLine("Per craft", icon.qty, d[1], d[2], d[3], 1, 1, 1)
+  if c.total then GameTooltip:AddDoubleLine(("This step (×%d)"):format(c.crafts or 1), c.total, d[1], d[2], d[3], 1, 1, 1) end
+  local bags = NW.ItemCount(id) or 0
+  GameTooltip:AddDoubleLine("In your bags and bank", bags, d[1], d[2], d[3], 1, 1, 1)
+  if c.have and math.floor(c.have) ~= bags then
+    GameTooltip:AddDoubleLine("Left for this step", math.floor(c.have), d[1], d[2], d[3], 1, 1, 1)
+  end
+  local short = c.total and c.have and math.ceil(c.total - c.have) or 0
+  if short > 0 then GameTooltip:AddDoubleLine("Short", short, d[1], d[2], d[3], S.bad[1], S.bad[2], S.bad[3])
+  elseif c.total and c.have then GameTooltip:AddDoubleLine("Short", "none", d[1], d[2], d[3], S.good[1], S.good[2], S.good[3]) end
+  local price, src = NW.Price(id)
+  if price then
+    GameTooltip:AddDoubleLine(src == "vendor" and "Vendor price" or "Price each", NW.Money(price), d[1], d[2], d[3], 1, 1, 1)
+    if short > 0 then GameTooltip:AddDoubleLine(("The %d short"):format(short), NW.Money(price * short), d[1], d[2], d[3], 1, 1, 1) end
+  end
+  if ahOpen() then GameTooltip:AddDoubleLine("Click", "search the auction house", d[1], d[2], d[3], 1, 1, 1)
+  elseif NW.IsFish and NW.IsFish(id) then GameTooltip:AddDoubleLine("Click", "where to fish it", d[1], d[2], d[3], 1, 1, 1)
+  elseif NW.Mat and NW.Mat.Get(id) then GameTooltip:AddDoubleLine("Click", "where to get it", d[1], d[2], d[3], 1, 1, 1) end
+  GameTooltip:AddDoubleLine("Shift-click", "link in chat", d[1], d[2], d[3], 1, 1, 1)
+  GameTooltip:Show()
+end
+function MS.rh.click(icon)
+  if icon.kind == "recipe" then
+    local r = icon.ctx and icon.ctx.recipe
+    if IsShiftKeyDown() and r then chatLink(r.recipeItem, r.spell, true) end
+    return
+  end
+  local id = icon.id
+  if not id then return end
+  local c = icon.ctx or {}
+  local short = c.total and c.have and math.ceil(c.total - c.have) or 0
+  if ahOpen() then
+    local n, ok = itemName(id)
+    if ok then searchAH({ { n, math.max(1, short > 0 and short or (c.total or 1)) } }) end
+    return
+  end
+  if IsShiftKeyDown() then chatLink(id, nil, true) return end
+  if NW.IsFish and NW.IsFish(id) and NW.OpenFishFinder then NW.OpenFishFinder(id) return end
+  if NW.FindMaterial and NW.Mat and NW.Mat.Get(id) then NW.FindMaterial(id, selected, short > 0 and short or nil) end
+end
+-- One recipe's reagents in a row's strip. have: what's left of each before
+-- this step (bags and bank, less what earlier steps use, plus what they make)
+function MS.fillStrip(row, r, crafts, have, needsRecipe, prefix)
+  local strip = row.strip
+  strip:Begin(prefix)
+  if needsRecipe then
+    local b = strip:AddStatus("Interface\\Icons\\INV_Scroll_03", "recipe")
+    b.ctx.recipe = r
+  end
+  for _, re in ipairs(r.reagents) do
+    local total = re[2] * (crafts or 1)
+    local h = have and have[re[1]]
+    local b = strip:Add(re[1], re[2], h ~= nil and h < total)
+    b.ctx.total, b.ctx.have, b.ctx.crafts = total, h, crafts
+  end
+  strip:Finish(row.mats:GetWidth())
+  row.mats:SetText("")
+end
+-- What's left of each reagent before each step: bags and bank, less what the
+-- steps before use, plus what they make. seq: the plan in order, tools and
+-- parts first; each entry's .into gets .availHave = { [id] = left }. Steps
+-- already done don't use anything.
+function MS.simulate(seq, rank)
+  local stock = {}
+  local function left(id)
+    if stock[id] == nil then stock[id] = NW.ItemCount(id) or 0 end
+    return stock[id]
+  end
+  for _, e in ipairs(seq) do
+    local r, n = e.r, e.n or 0
+    local done = rank and e.to and rank >= e.to
+    if not done then
+      local have = {}
+      for _, re in ipairs(r.reagents) do
+        have[re[1]] = left(re[1])
+        stock[re[1]] = math.max(0, have[re[1]] - re[2] * n)
+      end
+      if r.item then stock[r.item] = left(r.item) + n * (r.yield or 1) end
+      e.into.availHave = have
+    else
+      e.into.availHave = nil
+    end
+  end
+end
 local drawShop
 local shopScroll = makeScroller(shopBox, 240, SHOP_ROWS, function() return #shop end,
   function() return shopOffset end, function(v) shopOffset = v; drawShop() end)
@@ -1079,13 +1184,6 @@ for _, b in ipairs(CW.cardButtons) do b:Hide() end
 ------------------------------------------------------------------------
 -- Drawing: crafting
 ------------------------------------------------------------------------
-local function matsText(r)
-  local parts = {}
-  for _, re in ipairs(r.reagents) do
-    parts[#parts + 1] = (itemName(re[1])) .. (re[2] > 1 and (" ×" .. re[2]) or "")
-  end
-  return table.concat(parts, "  ·  ")
-end
 
 -- The next rank you haven't trained: the rank, and whether you can train it now
 local function nextRank(key)
@@ -1133,6 +1231,7 @@ drawSteps = function()
     row.sectionRow = nil
     row.profitRow = nil
     row:SetCraft()
+    row.strip:Clear()
     if stp then
       row:ClearAllPoints()
       row:SetPoint("TOPLEFT", 1, -1 - y)
@@ -1205,7 +1304,7 @@ drawSteps = function()
         elseif t.recipe then
           row:SetCraft(selected, t.recipe, 1)
           row.cost:SetText("")
-          UI.FitText(row.mats, matsText(t.recipe), 11, 9)
+          MS.fillStrip(row, t.recipe, 1, t.availHave)
         else
           row.cost:SetText(price and NW.Money(price, true) or "")
           row.mats:SetText("needed from here  ·  Trade Supplies vendor")
@@ -1223,7 +1322,7 @@ drawSteps = function()
         row.crafts:SetText("×" .. stp.crafts)
         row:SetCraft(selected, r, stp.crafts)
         row.cost:SetText("")
-        UI.FitText(row.mats, ("for %s  ·  "):format(stp.forStep.recipe.name) .. matsText(r), 11, 9)
+        MS.fillStrip(row, r, stp.crafts, stp.pp and stp.pp.availHave, false, "for " .. stp.forStep.recipe.name)
       elseif stp.recipe then
         row.trainBg:Hide()
         local r = stp.recipe
@@ -1233,11 +1332,9 @@ drawSteps = function()
         row.crafts:SetText("×" .. stp.crafts)
         if not done then row:SetCraft(selected, r, stp.crafts) end
         row.cost:SetText(NW.Money(stp.spend or stp.cost, true) .. (stp.unknown > 0 and " |cffd17665?|r" or ""))
-        local tag = stp.needsRecipe and "|cffff8040needs recipe|r  ·  " or ""
-        if stp.rankUp and searchText ~= "" then
-          tag = ("|cffd6b266Train %s first|r  ·  "):format(stp.rankUp.name) .. tag
-        end
-        UI.FitText(row.mats, tag .. matsText(r), 11, 9)
+        -- the reagents as icons; needing a recipe is the scroll icon first in line
+        local pre = stp.rankUp and searchText ~= "" and ("|cffd6b266Train %s first|r"):format(stp.rankUp.name) or nil
+        MS.fillStrip(row, r, stp.crafts, (not done and searchText == "") and stp.availHave or nil, stp.needsRecipe, pre)
       else
         row.trainBg:Hide()
         row.icon:Hide()
@@ -1398,12 +1495,24 @@ local function drawCraft(p)
           list[#list + 1] = { tool = t, from = stp.from, to = stp.from }
         end
         for _, pp in ipairs(prep[stp] or {}) do
-          list[#list + 1] = { make = pp.recipe, crafts = pp.crafts, forStep = stp, from = stp.from, to = stp.from }
+          list[#list + 1] = { make = pp.recipe, crafts = pp.crafts, forStep = stp, from = stp.from, to = stp.from, pp = pp }
         end
         list[#list + 1] = stp
       end
     end
     steps = list
+    -- what's left of each reagent at each step, folded ranks included
+    local seq = {}
+    for _, stp in ipairs(plan.steps) do
+      if stp.recipe then
+        for _, t in ipairs(toolsAt[stp] or {}) do
+          if t.recipe and not t.have then seq[#seq + 1] = { r = t.recipe, n = 1, into = t } end
+        end
+        for _, pp in ipairs(prep[stp] or {}) do seq[#seq + 1] = { r = pp.recipe, n = pp.crafts, into = pp } end
+        seq[#seq + 1] = { r = stp.recipe, n = stp.crafts, to = stp.to, into = stp }
+      end
+    end
+    MS.simulate(seq, rank)
   end
   -- the furthest it scrolls and still fills the list
   do
@@ -2077,6 +2186,7 @@ local function drawMissingRows(key)
     row.sectionRow = r and r.header and r or nil
     row.profitRow = nil
     row:SetCraft()
+    row.strip:Clear()
     if r then
       row:ClearAllPoints()
       row:SetPoint("TOPLEFT", 1, -1 - y)
