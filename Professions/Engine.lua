@@ -165,11 +165,11 @@ NW.RANK_WHERE = {
     Artisan = { Horde = { "Daryl Stack", "Tarren Mill, Hillsbrad Foothills", 1424, 63.8, 20.8 }, Alliance = { "Timothy Worthington", "Theramore, Dustwallow Marsh", 1445, 66.2, 51.8 } },
   },
   cooking = {
-    Expert = { Horde = { "Expert Cookbook, sold by Wulan", "Shadowprey Village, Desolace", 1443, 26.2, 69.7 }, Alliance = { "Expert Cookbook, sold by Shandrina", "Mystral Lake, Ashenvale", 1440, 49.6, 67.0 } },
+    Expert = { Horde = { "Expert Cookbook: Wulan", "Shadowprey Village, Desolace", 1443, 26.2, 69.7 }, Alliance = { "Expert Cookbook: Shandrina", "Mystral Lake, Ashenvale", 1440, 49.6, 67.0 } },
     Artisan = { Horde = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris", 1446, 52.6, 28.1, CLAMLETTE }, Alliance = { "Quest from Dirge Quikcleave", "Gadgetzan, Tanaris", 1446, 52.6, 28.1, CLAMLETTE } },
   },
   firstaid = {
-    Expert = { Horde = { "Expert First Aid book, sold by Balai Lok'Wein", "Brackenwall Village, Dustwallow Marsh", 1445, 36.5, 30.4 }, Alliance = { "Expert First Aid book, sold by Deneb Walker", "Stromgarde, Arathi Highlands", 1417, 27.0, 58.8 } },
+    Expert = { Horde = { "First Aid book: Balai Lok'Wein", "Brackenwall Village, Dustwallow Marsh", 1445, 36.5, 30.4 }, Alliance = { "First Aid book: Deneb Walker", "Stromgarde, Arathi Highlands", 1417, 27.0, 58.8 } },
     Artisan = { Horde = { "Quest from Doctor Gregory Victor", "Hammerfall, Arathi Highlands", 1417, 73.4, 36.9, nil, "Triage: save 15 patients. Nothing to bring." }, Alliance = { "Quest from Doctor Gustaf VanHowzen", "Theramore, Dustwallow Marsh", 1445, 67.8, 49.0, nil, "Triage: save 15 patients. Nothing to bring." } },
   },
 }

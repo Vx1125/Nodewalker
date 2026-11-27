@@ -2039,7 +2039,7 @@ local function viewCraft(e)
     local u = used[i]
     ur:SetShown(u ~= nil)
     if u then
-      ur.name:SetText(u.r.name)
+      UI.FitText(ur.name, u.r.name, 11, 9)
       ur.n:SetText(u.n)
       ur.req:SetText((SKILL_HEX[u.col] or S.HEX.dim) .. (u.r.orange or u.r.yellow or "?") .. "|r")
     end

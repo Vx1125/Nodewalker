@@ -1173,7 +1173,9 @@ drawSteps = function()
           row.mats:SetText(("|cffe0dbd0%s|r  ·  bring %s"):format(place, table.concat(parts, ", ")))
         else
           -- eligible from its skill; needed by the point the banner sits at
-          UI.FitText(row.mats, ("|cffe0dbd0%s|r  ·  skill %d, level %d"):format(place, ru.skill, ru.level), 11, 9)
+          -- the level only while you're under it
+          local lvl = (UnitLevel("player") or 0) < ru.level and (", level " .. ru.level) or ""
+          UI.FitText(row.mats, ("|cffe0dbd0%s|r  ·  skill %d%s"):format(place, ru.skill, lvl), 11, 9)
         end
       elseif stp.tool then
         -- a tool the recipes from here need
@@ -1195,7 +1197,7 @@ drawSteps = function()
         elseif t.recipe then
           row:SetCraft(selected, t.recipe, 1)
           row.cost:SetText("")
-          UI.FitText(row.mats, "needed from here  ·  " .. matsText(t.recipe), 11, 9)
+          UI.FitText(row.mats, matsText(t.recipe), 11, 9)
         else
           row.cost:SetText(price and NW.Money(price, true) or "")
           row.mats:SetText("needed from here  ·  Trade Supplies vendor")
