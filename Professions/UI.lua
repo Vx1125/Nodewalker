@@ -495,6 +495,16 @@ UI.Tip(MS.matHead, function() return MS.matHeadGather and "Skill needed" or "Mat
   return "Each number is what one craft takes. Hover an icon for the whole step: "
     .. "what you have, what the steps before make and what's short.\nRed edge: short. Gold edge: made by the steps before."
 end)
+-- Profit: Recipe | Materials | Sells for | Net profit | Return, over the row's columns
+function MS.capsProfit()
+  local C2 = MS.PCOL
+  caps[1]:ClearAllPoints() caps[1]:SetPoint("BOTTOMLEFT", stepsBox, "TOPLEFT", 35, 3)
+  caps[2]:ClearAllPoints() caps[2]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", C2.mat - 11, 3)
+  caps[3]:ClearAllPoints() caps[3]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", C2.sell - 11, 3)
+  caps[4]:ClearAllPoints() caps[4]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", C2.net - 11, 3)
+  caps[5]:ClearAllPoints() caps[5]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", C2.roi - 11, 3)
+  caps[5]:SetText("Return")
+end
 -- gather: a gathering profession's list (its brackets, or Mining's smelting)
 function MS.capsFor(plan, gather)
   local cols = plan or gather
@@ -1318,7 +1328,7 @@ CW.bMax:SetPoint("LEFT", CW.bPlus, "RIGHT", 6, 0)
 UI.Tip(CW.bMax, "Bags", "As many as the materials in your bags make.")
 CW.bMakes = UI.Text(CW.batch, 11, S.dim, "RIGHT")
 CW.bMakes:SetPoint("RIGHT", 0, 0)
--- exact money (gold, silver, copper as needed): the opened recipe's figures reconcile to the copper
+-- exact money (gold, silver, copper as needed), so two figures never read the same while they differ
 function CW.exact(c)
   if not c then return "?" end
   c = math.floor(c + 0.5)
@@ -3191,13 +3201,14 @@ local function drawProfit(p)
   for _, e in ipairs(everything) do if e.profit and not e.unknown and e.profit >= math.max(floor, 1) then worth = worth + 1 end end
   if floor > 0 and not all then
     steps = {}
-    for _, e in ipairs(everything) do if e.profit and e.profit >= floor then steps[#steps + 1] = e end end
+    for _, e in ipairs(everything) do if e.profit and not e.unknown and e.profit >= floor then steps[#steps + 1] = e end end
   end
   if viewChanged then stepOffset = 0 end
   clampOffsets()
   local good, bad, none, partial = 0, 0, 0, 0
   for _, e in ipairs(everything) do
-    if not e.profit then none = none + 1 elseif e.unknown then partial = partial + 1 elseif e.profit > 0 then good = good + 1 else bad = bad + 1 end
+    -- (an unpriced material only adds cost: a loss without it is a loss)
+    if not e.profit then none = none + 1 elseif e.profit <= 0 then bad = bad + 1 elseif e.unknown then partial = partial + 1 else good = good + 1 end
   end
   local hasKnown = next(known) ~= nil or (scan and next(scan) ~= nil)
   stepsEmpty:SetText(#steps == 0 and (searchText ~= "" and "No recipe matches your search."
@@ -3229,7 +3240,7 @@ local function drawProfit(p)
   local stale, canNow, nowTotal = 0, 0, 0
   for _, e in ipairs(everything) do
     if e.age and e.age >= 3 then stale = stale + 1 end
-    if e.count > 0 and e.profit and e.profit > 0 then canNow = canNow + 1 nowTotal = nowTotal + e.total end
+    if e.count > 0 and e.profit and e.profit > 0 and not e.unknown then canNow = canNow + 1 nowTotal = nowTotal + e.total end
   end
   local lines = {
     ("|cffe0dbd0%d|r earn at least %s each (your \"At least\")"):format(worth, NW.Money(math.max(floor, 1), "mid")),
@@ -3358,9 +3369,17 @@ local function drawCard()
     CW.cells[3].tip = ("Sells for less material value.\nEach craft: %s%s.  Each item: %s%s.\nReturn: net profit over material value.")
       :format(profitN >= 0 and "+" or "-", CW.exact(math.abs(profitN / n)), profitN >= 0 and "+" or "-", CW.exact(math.abs(profitN / (n * yield))))
   else
-    CW.cells[3].value:SetText(net and ("~" .. CW.exact(math.abs(net - matValue))) or "|cff938c80Unknown|r")
-    CW.cells[3].value:SetTextColor(unpack(S.dim))
-    CW.cells[3].tip = net and "A material has no price, so the profit isn't known (~ is with that material at nothing)." or "No auction price for what it makes."
+    local d = net and (net - matValue)
+    if d and d < 0 then
+      -- the priced materials alone cost more: a loss of at least this much
+      CW.cells[3].value:SetText("-" .. CW.exact(-d) .. " |cffd17665+?|r")
+      CW.cells[3].value:SetTextColor(unpack(S.bad))
+      CW.cells[3].tip = "A material has no price, and the others already cost more than it sells for: a loss of at least this much."
+    else
+      CW.cells[3].value:SetText(d and ("~" .. CW.exact(d)) or "|cff938c80Unknown|r")
+      CW.cells[3].value:SetTextColor(unpack(S.dim))
+      CW.cells[3].tip = d and "A material has no price, so the profit isn't known: at most this much (~)." or "No auction price for what it makes."
+    end
   end
   CW.cells[4].label:SetText("To buy")
   if toBuy > 0 or missingUnpriced then
@@ -3995,16 +4014,7 @@ refresh = function()
   local capSet = CAPS[isProfit and "profit" or isMissing and "missing" or isCraft and "plan" or "gather"]
   for i = 1, 4 do caps[i]:SetText(capSet[i]) end
   MS.capsFor(capSet == CAPS.plan, not isCraft)
-  if isProfit then
-    -- Recipe | Materials | Sells for | Net profit | Return, over the row's columns
-    local C2 = MS.PCOL
-    caps[1]:ClearAllPoints() caps[1]:SetPoint("BOTTOMLEFT", stepsBox, "TOPLEFT", 35, 3)
-    caps[2]:ClearAllPoints() caps[2]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", C2.mat - 11, 3)
-    caps[3]:ClearAllPoints() caps[3]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", C2.sell - 11, 3)
-    caps[4]:ClearAllPoints() caps[4]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", C2.net - 11, 3)
-    caps[5]:ClearAllPoints() caps[5]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", C2.roi - 11, 3)
-    caps[5]:SetText("Return")
-  end
+  if isProfit then MS.capsProfit() end
   -- an opened recipe belongs to the Profit view of one profession
   local cardKey = selected .. ":" .. mode
   if not (isProfit or isMissing) or cardKey ~= lastCardKey then card = nil MS.profitClosed = nil MS.batch = 1 end
@@ -4070,11 +4080,12 @@ refresh = function()
     or (not isCraft and function() drawGatherRows(p.key) end) or nil
   if isProfit then drawProfit(p) elseif isMissing then drawMissing(p) elseif isCraft then drawCraft(p) else drawGather(p) end
   -- Profit opened its top recipe: lay the page out again with it
-  if MS.reopen then MS.reopen = nil return refresh() end
+  if MS.reopen then MS.reopen = nil return MS.refresh() end
   if showCard then drawCard() end
   if MS.sumHit and not isProfit then MS.sumHit:Hide() end
   if craftMsg and GetTime() - craftMsgAt < 4 then priceLine:SetText("|cffd6b266" .. craftMsg .. "|r") end
 end
+MS.refresh = refresh -- (refresh can't name itself: it's at Lua 5.1's limit of 60 upvalues)
 NW.RefreshProfessions = function() if page:IsShown() then refresh() end end
 
 function NW.ToggleProfessions() NW.ToggleWindow("profs") end
