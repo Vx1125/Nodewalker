@@ -7,6 +7,7 @@ CLAUDE.local.md
 research/
 tools/reports/*.md
 tools/reports/*.csv
+tools/reports/*.tsv
 tools/reports/*_legacy.*
 tools/*.md
 *.notes.md
