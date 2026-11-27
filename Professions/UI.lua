@@ -1176,6 +1176,11 @@ drawSteps = function()
           -- the level only while you're under it
           local lvl = (UnitLevel and UnitLevel("player") or 0) < ru.level and (", level " .. ru.level) or ""
           UI.FitText(row.mats, ("|cffe0dbd0%s|r  ·  skill %d%s"):format(place, ru.skill, lvl), 11, 9)
+          -- still too long: the zone without the town ("Dustwallow Marsh")
+          if who and (row.mats:GetStringWidth() or 0) > (row.mats:GetWidth() or 1e9) then
+            local short = who .. "  ·  " .. (where:match(",%s*(.+)$") or where)
+            UI.FitText(row.mats, ("|cffe0dbd0%s|r  ·  skill %d%s"):format(short, ru.skill, lvl), 11, 9)
+          end
         end
       elseif stp.tool then
         -- a tool the recipes from here need

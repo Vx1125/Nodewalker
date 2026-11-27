@@ -1276,7 +1276,7 @@ local dEffect = UI.Text(det, 11, S.dim)
 dEffect:SetPoint("TOPLEFT", dIcon, "BOTTOMLEFT", 0, -10)
 dEffect:SetWidth(DET_W - IN * 2)
 dEffect:SetJustifyV("TOP")
-if dEffect.SetMaxLines then dEffect:SetMaxLines(5) end
+if dEffect.SetMaxLines then dEffect:SetMaxLines(8) end
 dEffect:SetSpacing(2)
 local dStock = UI.Text(det, 12, S.text)
 dStock:SetPoint("TOPLEFT", dEffect, "BOTTOMLEFT", 0, -10)
