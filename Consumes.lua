@@ -636,6 +636,8 @@ local function minutesOf(id)
   if not text then return nil end
   -- the game writes plurals as "1 |4hour:hrs;"
   text = text:gsub("|4([^:;]*):[^;]*;", "%1"):lower()
+  -- a cooldown isn't how long it lasts: "(1 hour cooldown)", "1 hour shared cooldown"
+  text = text:gsub("%([^%)]*cooldown[^%)]*%)", ""):gsub("%d+ %a+ shared cooldown", ""):gsub("%d+ %a+ cooldown", "")
   local h = text:match("(%d+) ho?u?rs?")
   if h then return tonumber(h) * 60 end
   local m = tonumber(text:match("(%d+) min"))
@@ -1475,34 +1477,54 @@ hint:Hide()
 
 -- Everything you're short of, the cheap way: materials for what you'd make,
 -- the item itself for the rest
-local searchBtn = UI.Button(status, "Search what's short in Auctionator", 270, function()
-  local want, order = {}, {}
-  local function add(id, n)
+-- What you'd actually buy to restock: for what you'd craft, its materials less what's in your
+-- bags (a material that's also on your list only counts the bags beyond its own target); for
+-- the rest, the item itself. Shared materials add up once. Returns the list (with the auction
+-- house part), the known cost, and how many have no price (never counted as zero).
+function page.shopping()
+  local want, order, direct = {}, {}, {}
+  local function add(id, n, isDirect)
     if n <= 0 then return end
     if not want[id] then want[id] = 0 order[#order + 1] = id end
     want[id] = want[id] + n
+    if isDirect then direct[id] = (direct[id] or 0) + n end
   end
   for _, e in ipairs(shown) do
-    if e.id and not e.hidden and e.short > 0 then
+    if e.id and e.selected and not e.hidden and e.short > 0 then
       if makes(e) then
         local crafts = math.ceil(e.short / (e.m.r.yield or 1))
-        for _, re in ipairs(e.m.r.reagents) do
-          local _, src = NW.Price(re[1])
-          if src ~= "vendor" then add(re[1], re[2] * crafts) end
-        end
+        for _, re in ipairs(e.m.r.reagents) do add(re[1], re[2] * crafts) end
       else
-        add(e.id, e.short)
+        add(e.id, e.short, true)
       end
     end
   end
-  local items = {}
+  local out = { ah = {}, cost = 0, unknown = 0 }
   for _, id in ipairs(order) do
-    local n, ok = itemName(id)
-    local buy = want[id] - (shown.byId[id] and 0 or (NW.ItemCount(id) or 0)) -- bags already count for the consumables themselves
-    if ok and buy > 0 then items[#items + 1] = { n, buy } end
+    -- bags: a listed consumable's own shortage already counts them; for materials, what's spare
+    local e = shown.byId[id]
+    local bags = NW.ItemCount(id) or 0
+    local spare = (e and e.selected) and math.max(0, (e.setHave or e.have) - e.need) or bags
+    local asMat = want[id] - (direct[id] or 0)
+    local buy = (direct[id] or 0) + math.max(0, asMat - spare)
+    if buy > 0 then
+      local p, src = NW.Price(id)
+      if p and src ~= "est" then out.cost = out.cost + p * buy else out.unknown = out.unknown + 1 end
+      local n, ok = itemName(id)
+      if ok and src ~= "vendor" then out.ah[#out.ah + 1] = { n, buy } end
+    end
   end
-  NW.SearchAH(items)
+  return out
+end
+local searchBtn = UI.Button(status, "Search what's short in Auctionator", 270, function()
+  NW.SearchAH(page.shopping().ah)
 end, 24, "primary")
+if searchBtn.SetMotionScriptsWhileDisabled then searchBtn:SetMotionScriptsWhileDisabled(true) end
+UI.Tip(searchBtn, "Search what's short", function()
+  if not (NW.HasAuctionator and NW.HasAuctionator()) then return "Needs Auctionator." end
+  if not (NW.AHOpen and NW.AHOpen()) then return "Open the auction house first. Materials for what you'd craft (less your bags), the item for the rest." end
+  return "Materials for what you'd craft (less what's in your bags), the item itself for the rest."
+end)
 searchBtn:SetPoint("RIGHT", -4, 0)
 
 ------------------------------------------------------------------------
@@ -1679,14 +1701,21 @@ local matsBtn = UI.Button(det, "Materials", BTN_W, function()
   NW.SearchAH(items)
 end, 22)
 matsBtn:SetPoint("TOPLEFT", cmpCraft, "BOTTOMLEFT", 0, -6)
-UI.Tip(matsBtn, "Materials", "Searches the auction house for what you're short of to craft it (vendor materials left out).")
+UI.Tip(matsBtn, "Materials", function()
+  if not (selectedItem and NW.RecipeFor(selectedItem)) then return "No known recipe for it, so no materials to search." end
+  if not (NW.AHOpen and NW.AHOpen()) then return "Searches the auction house for the materials you're short of. Open the auction house first." end
+  return "Searches the auction house for the materials you're short of (vendor materials left out)."
+end)
 local ahBtn = UI.Button(det, "Search AH", BTN_W, function()
   local n, ok = selectedItem and itemName(selectedItem)
   local e = selectedItem and shown.byId[selectedItem]
   if ok then NW.SearchAH({ { n, (e and e.short > 0) and e.short or 1 } }) end
 end, 22)
 ahBtn:SetPoint("LEFT", matsBtn, "RIGHT", 6, 0)
-UI.Tip(ahBtn, "Search AH", "Searches the auction house for the item itself.")
+UI.Tip(ahBtn, "Search AH", function()
+  if not (NW.AHOpen and NW.AHOpen()) then return "Searches the auction house for the item itself. Open the auction house first." end
+  return "Searches the auction house for the item itself."
+end)
 -- other ways to get it (vendors, drops, gathering), in the Material Finder
 local findBtn
 findBtn = UI.Button(det, "Sources", BTN_W, function()
@@ -1696,7 +1725,10 @@ findBtn = UI.Button(det, "Sources", BTN_W, function()
   end
 end, 22)
 findBtn:SetPoint("LEFT", ahBtn, "RIGHT", 6, 0)
-UI.Tip(findBtn, "Sources", "Vendors, drops and other sources in the Material Finder. A missing recipe or price doesn't mean it can't be had.")
+UI.Tip(findBtn, "Sources", function()
+  if not findBtn.id then return "The Material Finder doesn't list this one. A missing recipe or price doesn't mean it can't be had." end
+  return "Vendors, drops and other sources in the Material Finder."
+end)
 for _, bb in ipairs({ matsBtn, ahBtn, findBtn }) do if bb.SetMotionScriptsWhileDisabled then bb:SetMotionScriptsWhileDisabled(true) end end
 -- when it has no price: the next one of its kind that does (a suggestion; the list keeps the stronger one)
 local dAlt = CreateFrame("Button", nil, det)
@@ -2015,7 +2047,7 @@ refresh = function()
         nPicked = nPicked + 1
         if e.short > 0 then
           local cheapest = makes(e) and e.make or e.price
-          if cheapest then sum = sum + cheapest * e.short else nUnpriced = nUnpriced + 1 end
+          if not cheapest then nUnpriced = nUnpriced + 1 end
           shortCount = shortCount + 1
           group.short = group.short + 1
         else
@@ -2150,6 +2182,9 @@ refresh = function()
 
   hiddenCheck:SetShown(nHidden > 0)
   hiddenCheck:Refresh()
+  -- the cost and unknown prices: what you'd actually buy (materials in your bags taken off)
+  local shop = page.shopping()
+  sum, nUnpriced = shop.cost, shop.unknown
   -- your loadout in a line: what you bring, what's ready, what's short and its known cost
   local parts = { ("%d selected"):format(nPicked) }
   if nStocked > 0 then parts[#parts + 1] = ("%s%d stocked|r"):format(H.good, nStocked) end
@@ -2158,10 +2193,11 @@ refresh = function()
   if nUnpriced > 0 then parts[#parts + 1] = ("%s%d unknown price%s|r"):format(H.dim, nUnpriced, nUnpriced == 1 and "" or "s") end
   if nPicked > 0 and shortCount == 0 then parts[#parts + 1] = H.good .. "all stocked|r" end
   UI.FitText(total, table.concat(parts, ("  %s·|r  "):format(H.dim)), 12, 10)
-  searchBtn:SetEnabled(shortCount > 0)
+  -- (Auctionator searches only while the auction house is open)
+  searchBtn:SetEnabled(shortCount > 0 and NW.AHOpen and NW.AHOpen() or false)
   drawDetail()
   if selectedItem then
-    matsBtn:SetEnabled(NW.RecipeFor(selectedItem) ~= nil)
+    matsBtn:SetEnabled(NW.RecipeFor(selectedItem) ~= nil and (NW.AHOpen and NW.AHOpen() or false))
     local _, ok = itemName(selectedItem)
     ahBtn:SetEnabled(ok and NW.AHOpen and NW.AHOpen() or false)
     findBtn:SetEnabled(findBtn.id ~= nil)

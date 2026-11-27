@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- Consumes: the restock cost is what you'd actually buy: materials for crafts less what's in your bags, shared materials once.
+- Consumes: the shopping search no longer over-buys a material that's also on your list.
+- Consumes: buttons that need the auction house say so when it's closed; durations ignore cooldown text.
 - Consumes: Craft and Buy show exact prices, so they never read the same while one is cheaper.
 - Consumes: Materials, Search AH and Sources buttons sit right under Craft and Buy.
 - Consumes: an item with no price suggests a priced one of the same kind (the list keeps the stronger one).
