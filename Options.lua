@@ -404,7 +404,7 @@ end)
 ------------------------------------------------------------------------
 local nodeChecks = {}
 local refreshNodes
-local nodesPage = newPage("nodes", "Herbs & ore", nil, true)
+local nodesPage = newPage("nodes", "Herbs & ore", "Interface\\Icons\\Trade_Mining", true)
 nodesPage:HookScript("OnShow", function() refreshNodes() end)
 
 local SKILL_HEX = { red = "ff4040", orange = "ff8040", yellow = "ffe633", green = "59cc59", grey = "8c8c8c", unknown = "d9d9d9" }
@@ -771,9 +771,10 @@ for i, c in ipairs(CATS) do
   UI.RowHighlight(b)
   b.name = UI.Text(b, c.child and 11 or 12, c.child and S.dim or S.text)
   if c.icon then
+    -- (a child row: a smaller icon, indented under its parent)
     b.icon = b:CreateTexture(nil, "ARTWORK")
-    b.icon:SetSize(20, 20)
-    b.icon:SetPoint("LEFT", 7, 0)
+    b.icon:SetSize(c.child and 16 or 20, c.child and 16 or 20)
+    b.icon:SetPoint("LEFT", c.child and 25 or 7, 0)
     b.icon:SetTexture(c.icon)
     b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     b.name:SetPoint("LEFT", b.icon, "RIGHT", 7, 0)
