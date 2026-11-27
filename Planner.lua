@@ -187,21 +187,13 @@ end
 local btnClear = UI.Button(side, "Clear avoid zones", SIDE_W, clearAvoid)
 btnClear:SetPoint("TOPLEFT", btnAvoid, "BOTTOMLEFT", 0, -6)
 
-local half = (SIDE_W - 6) / 2
 -- (GatherMate2 import is in Settings › Routes)
-local btnImport = UI.Button(side, "Discard", half, function()
+local btnImport = UI.Button(side, "Discard", SIDE_W, function()
   NW.routeDraft = nil
   refresh()
 end)
 btnImport:SetPoint("TOPLEFT", btnClear, "BOTTOMLEFT", 0, -6)
 UI.Tip(btnImport, "Discard proposal", "Drops the proposed route. Your saved and active routes stay as they are.")
-local btnGuide = UI.Button(side, "Materials", half, function()
-  -- back to the material the proposed route came from; the proposal stays
-  local d = NW.routeDraft
-  if d and d.item and NW.FindMaterialAt and NW.FindMaterialAt(d.item, d.src or d.method, d.zone) then return end
-  NW.Routes.Close()
-end)
-UI.Tip(btnGuide, "Materials", "Back to the Material Finder. Routes stay as they are.")
 
 -- Starting a proposal: the only place a proposal replaces the active hunt or the zone's saved route
 local function startDraft(d)
@@ -234,7 +226,7 @@ local btnStart = UI.Button(side, "Start route", SIDE_W, function()
   if NW.DrawOverlay then NW.DrawOverlay() end
   refresh()
 end, 28, "primary")
-btnStart:SetPoint("TOPLEFT", btnGuide, "BOTTOMLEFT", 0, -8)
+btnStart:SetPoint("TOPLEFT", btnImport, "BOTTOMLEFT", 0, -8)
 
 ------------------------------------------------------------------------
 -- Expanded map: near full screen, for seeing the ground and drawing zones
@@ -289,6 +281,21 @@ local btnExpand = UI.Button(page, "Expand", 70, function()
 end, 22)
 btnExpand:SetPoint("TOPRIGHT", mapFrame, "TOPRIGHT", -6, -6)
 btnExpand:SetFrameLevel(mapFrame:GetFrameLevel() + 20)
+-- back to where you came from: the material, the profession, or the Material Finder.
+-- The proposal stays (Discard drops it).
+local btnBack = UI.Button(page, "", 120, function()
+  local b = NW.routeBack
+  NW.routeBack = nil
+  if b and b.prof then
+    NW.Routes.Close()
+    NW.OpenProfession(b.prof)
+    return
+  end
+  if b and b.item and NW.FindMaterialAt and NW.FindMaterialAt(b.item, b.src, b.zone) then NW.Routes.Close() return end
+  NW.Routes.Close()
+end, 22)
+btnBack:SetPoint("TOPLEFT", mapFrame, "TOPLEFT", 6, -6)
+btnBack:SetFrameLevel(mapFrame:GetFrameLevel() + 20)
 
 big:SetScript("OnHide", function()
   placeMap(false)
@@ -308,6 +315,8 @@ end)
 function NW.ProposeRoute(d)
   if not d then return end
   NW.routeDraft = d
+  -- where Back goes: the profession that asked, or the material
+  NW.routeBack = d.back or (d.item and { item = d.item, src = d.src or d.method, zone = d.zone }) or nil
   setDrawMode(false)
   NW.ShowRoutes()
   if d.kind == "nodes" then optimize() end -- arrives with its preview building
@@ -340,16 +349,9 @@ function DR.mode(d)
   btnImport:ClearAllPoints()
   btnImport:SetPoint("TOPLEFT", d and btnOptimize or btnClear, "BOTTOMLEFT", 0, -6)
   btnImport:SetShown(d ~= nil)
-  btnGuide:ClearAllPoints()
-  if d then
-    btnGuide:SetWidth(half)
-    btnGuide:SetPoint("LEFT", btnImport, "RIGHT", 6, 0)
-  else
-    btnGuide:SetWidth(SIDE_W)
-    btnGuide:SetPoint("TOPLEFT", btnClear, "BOTTOMLEFT", 0, -6)
-  end
   btnStart:ClearAllPoints()
-  btnStart:SetPoint("TOPLEFT", d and btnImport or btnGuide, "BOTTOMLEFT", 0, -8)
+  btnStart:SetPoint("TOPLEFT", d and btnImport or btnClear, "BOTTOMLEFT", 0, -8)
+  DR.backText()
   if NW.Routes.picker then NW.Routes.picker:SetShown(not d) end
   if hunt then
     btnStart:SetText(NW.charDB and NW.charDB.hunt and "Replace active hunt" or "Start hunting route")
@@ -361,6 +363,17 @@ function DR.mode(d)
   btnStart:SetEnabled(not d or hunt or d.route ~= nil)
 end
 
+function DR.backText()
+  local b = NW.routeBack
+  local name = "Material Finder"
+  if b and b.name then name = b.name
+  elseif b and b.item then
+    local e = NW.Mat and NW.Mat.Get(b.item)
+    name = (e and NW.Mat.Name and NW.Mat.Name(e)) or (e and e.name) or name
+  end
+  btnBack:SetText("‹ " .. name)
+  btnBack:SetWidth(math.min(200, (btnBack.label and btnBack.label:GetStringWidth() or 90) + 24))
+end
 local RING_SEG = 28
 function DR.ring(g, r, gr, b, a, thick)
   local px0, py0 = px(g.x + g.rx, g.y)

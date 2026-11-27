@@ -189,6 +189,16 @@ do
       c[2]:SetText(d and d[2] or "")
       c[2]:SetTextColor(unpack(d and d[3] or S.text))
     end
+    -- each cell as wide as its text (gold, silver and "+?" can outgrow a fixed column), right to left
+    local x = 0
+    for i = #box.cells, 1, -1 do
+      local c = box.cells[i]
+      c[1]:ClearAllPoints()
+      c[1]:SetPoint("TOPRIGHT", -x, -2)
+      local w = math.max(c[1]:GetStringWidth() or 0, c[2]:GetStringWidth() or 0)
+      if w > 0 then x = x + math.ceil(w) + 18 end
+    end
+    box:SetWidth(math.max(SUM_W, x))
     box.lines = lines
   end
 end
@@ -2524,7 +2534,8 @@ function MS.drawGatherContext(key)
       or ("No known spots in %s yet. Import GatherMate2 in Settings, or gather a few first."):format(zname or "these zones")
     G.routeFn = function()
       if not ok then NW.Print(("No known spots in %s yet. Import GatherMate2 in Settings, or gather a few first."):format(zname or "these zones")) return end
-      NW.ProposeRoute({ kind = "nodes", src = "nodes", zone = zname, map = zsel.mapID, label = table.concat(names, ", "), opts = { focus = focus } })
+      NW.ProposeRoute({ kind = "nodes", src = "nodes", zone = zname, map = zsel.mapID, label = table.concat(names, ", "), opts = { focus = focus },
+        back = { name = p.name, prof = key } })
     end
   end
   local after = G.route
