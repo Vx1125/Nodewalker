@@ -914,7 +914,7 @@ end
 --   best:   the strongest you can use now (one in your bags first among equals, else the cheapest)
 --   budget: near your level (within NEAR levels, or First Aid skill for bandages): one you carry, else
 --           the cheapest priced one; none priced there: the highest priced one below; none at all: best
---   budgetlow ("Budget, any level"): one you carry, else the cheapest priced one you can use at any level
+--   budgetlow ("Budget (any)"): one you carry, else the cheapest priced one you can use at any level
 --   own:    the strongest one you carry and can use, else best
 -- "Can use": your level (First Aid skill for bandages), in the game, and its recipe reachable at your level.
 NW.ConsumeLevelOf = levelOf -- (/nw harvest and the tests check recommendations against it)
@@ -1182,9 +1182,9 @@ local actDrop = UI.Dropdown(page, 146, "Activity", { { "level", "Leveling" }, { 
   activity, function(v) st().consumeActivity = v listChanged() end, 90,
   "Leveling: the best of each kind you can use at your level, and it moves up as you level. Raiding: your spec's level-60 raid list.")
 actDrop:SetPoint("LEFT", stockDrop, "RIGHT", 16, 0)
-local budget = UI.Dropdown(page, 178, "Strategy", { { "best", "Best" }, { "budget", "Budget" }, { "budgetlow", "Budget, any level" }, { "own", "Use what I own" } },
+local budget = UI.Dropdown(page, 178, "Strategy", { { "best", "Best" }, { "budget", "Budget" }, { "budgetlow", "Budget (any)" }, { "own", "Use what I own" } },
   strategy, function(v) st().consumeStrategy = v listChanged() end, 116,
-  "Best: the strongest you can use. Budget: the raid budget list; leveling, the cheapest within 10 levels of yours. Budget, any level: the cheapest you can use, however low. Use what I own: what's in your bags first. Your own picks always stay.")
+  "Best: the strongest you can use. Budget: the raid budget list; leveling, the cheapest within 10 levels of yours (50 First Aid skill for bandages). Budget (any): the cheapest you can use, however low. Use what I own: what's in your bags first. Your own picks always stay.")
 budget:SetPoint("LEFT", actDrop, "RIGHT", 16, 0)
 
 -- Saved loadouts (per character): the spec, activity, strategy, stock, your choices and your targets.
@@ -1212,7 +1212,7 @@ end
 local function saveLoadout()
   local spec = currentList()
   local name = ("%s · %s · %s"):format(spec.label, activity() == "level" and "Leveling" or "Raiding",
-    ({ best = "Best", budget = "Budget", budgetlow = "Budget, any level", own = "My bags" })[strategy()] or "")
+    ({ best = "Best", budget = "Budget", budgetlow = "Budget (any)", own = "My bags" })[strategy()] or "")
   local key = listKeyNow()
   local l = loadouts()
   local entry = { name = name, spec = spec.key, activity = activity(), strategy = strategy(), hours = st().consumeHours or 0,

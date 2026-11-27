@@ -1,7 +1,7 @@
 # Changelog
 
 ## Unreleased
-- Consumes: leveling Budget stays within 10 levels of yours; "Budget, any level" looks all the way down.
+- Consumes: leveling Budget stays within 10 levels of yours; "Budget (any)" looks all the way down.
 - Consumes: auction-house searches need Auctionator; without it shift-click links instead.
 - Consumes: estimated prices are never shown as a price.
 - Consumes: the recipe source (vendors, reputation) is on hover, also before you open the profession.
