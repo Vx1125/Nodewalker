@@ -182,6 +182,7 @@ local function rebuildTracked(rebuildConsumes)
   wipe(bySpell)
   wipe(useSpell)
   if not st().buffHud then return end
+  local nPoison = 0
   for _, e in ipairs(NW.ConsumeSelection and NW.ConsumeSelection(rebuildConsumes) or {}) do
     local k = kindOf(e)
     if k and (k ~= "use" or st().buffCooldowns) then
@@ -190,6 +191,16 @@ local function rebuildTracked(rebuildConsumes)
       if old then x.state, x.prev, x.last, x.hadStock, x.exp, x.by = old.state, old.prev, old.last, old.hadStock, old.exp, old.by end
       tracked[#tracked + 1] = x
       carry[e.id] = nil
+      -- a poison's hand comes from its place in the loadout (first main hand, second off hand),
+      -- never from which ones happen to be on screen
+      if k == "weapon" then
+        if e.group == "Poisons" then
+          nPoison = nPoison + 1
+          x.hand = nPoison == 2 and 17 or 16
+        else
+          x.hand = 16
+        end
+      end
       if k ~= "use" then
         for _, a in ipairs(e.alts or { e.id }) do
           local sp = spellOf(a)
@@ -456,7 +467,7 @@ local function desired()
     if x.kind ~= "use" and x.state ~= "on" and x.state ~= "expiring" and not (st().buffHideEmpty and x.state == "out") then buffsOk = false end
   end
   for _, x in ipairs(tracked) do
-    if wanted(x) and not (x.kind ~= "use" and buffsOk and st().buffHideOk) then want[#want + 1] = x end
+    if wanted(x) and not (x.kind ~= "use" and buffsOk and st().buffHideOk and not T.combatAll) then want[#want + 1] = x end
   end
   return want
 end
@@ -477,7 +488,6 @@ local function layout()
   -- along: where the next icon goes in its group; across: where the group starts
   local along, across, groupDepth, maxAlong, total = 0, 0, 0, 0, 0
   local lastKind
-  local poisons = 0
   for i, x in ipairs(shownList) do
     local b = iconFor(i)
     local k = x.kind == "use" and "use" or "buff"
@@ -500,10 +510,7 @@ local function layout()
     b.x = x
     -- oils, stones and poisons: straight onto the weapon (the same macro Smart Fishing uses
     -- for lures), main hand; a second poison goes on the off hand
-    local slot
-    if x.kind == "weapon" then
-      if x.group == "Poisons" then poisons = poisons + 1 slot = poisons == 2 and 17 or 16 else slot = 16 end
-    end
+    local slot = x.kind == "weapon" and (x.hand or 16) or nil
     local click = st().buffClickUse ~= false
     b.slot = slot
     b:SetAttribute("type1", click and (slot and "macro" or "item") or nil)
