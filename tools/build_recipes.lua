@@ -52,6 +52,20 @@ for _, p in ipairs(PROFS) do load(OFA .. "/Data/Professions/" .. p[1] .. ".lua")
 load(OFA .. "/Data/ProfessionFees.lua")
 
 local function clean(s) return (tostring(s):gsub("[;|]", ",")) end
+-- Reviewed corrections: tools/recipe_overrides.json, one per recipe, each with its evidence; only
+-- entries marked "approved": true are applied (a user's in-game report waits for that review)
+OVERRIDES = {}
+do
+  local fh = io.open("tools/recipe_overrides.json")
+  local txt = fh and fh:read("*a") or ""
+  if fh then fh:close() end
+  for body in txt:gmatch("%b{}") do
+    local k = body:match('"recipe"%s*:%s*"([^"]+)"')
+    if k and body:match('"approved"%s*:%s*true') then
+      OVERRIDES[k] = { source = body:match('"source"%s*:%s*"([^"]+)"'), exclude = body:match('"exclude"%s*:%s*true') ~= nil }
+    end
+  end
+end
 -- recipes a trainer teaches (One For All's teach lists: CMaNGOS trainers, plus Forever's own)
 local function taughtSet(feesT)
   local set = {}
@@ -145,11 +159,15 @@ for _, p in ipairs(PROFS) do
     -- weighs trainer, vendor and drop recipes itself; "Include purchasable recipes" decides the rest)
     local s0 = r.src or {}
     local noOtherSource = not r.ri and not (s0.v or s0.d or s0.qs)
-    local trainerTaught = (fee and not fee[3]) or (not fee and taught[r.s])
+    -- trainer: a fee (not a specialization's), a teach list, or (One For All's own rule, as in its
+    -- Catalog codes) no recipe item and no other source: Forever's new trainer recipes have no fee data
+    local trainerTaught = (fee and not fee[3]) or (not fee and (taught[r.s] or noOtherSource))
     local kind = r.start and "rank" or trainerTaught and "trainer" or "recipe"
-    -- (no trainer, recipe item or source known: no way to learn it the data shows, so not planned)
-    local learnable = r.start or trainerTaught or not noOtherSource
-    if colours and not (fee and fee[3]) and learnable then
+    -- reviewed corrections (tools/recipe_overrides.json, approved ones only)
+    local ov = OVERRIDES[key .. "/" .. r.n]
+    if ov and ov.source then kind = ov.source end
+    if ov and ov.exclude then colours = false end
+    if colours and not (fee and fee[3]) then
       lev[#lev + 1] = { r = r, learn = learn, from = from, kind = kind, reagents = reagents, id = id }
     end
   end
