@@ -527,7 +527,8 @@ local offset = 0
 local PER_HOUR = { Flask = 0.5, Elixirs = 1, Food = 2, Drink = 2, ["Weapon oil"] = 2, Weapon = 2, Poisons = 2, Potions = 5,
   Protection = 1, Runes = 3, Other = 3 }
 -- Headings where you only ever use one of the rows
-local PICK_ONE = { Flask = true, Food = true, Drink = true, ["Weapon oil"] = true, Weapon = true, Runes = true }
+-- (runes share a cooldown with healthstones but aren't exclusive: you can use one, then another)
+local PICK_ONE = { Flask = true, Food = true, Drink = true, ["Weapon oil"] = true, Weapon = true }
 -- Sections that are there to browse, not to stock
 local OPTIONAL = { Situational = true, Camp = true }
 -- Raid lists: long buffs are core (ticked to start); items you use now and then are optional,
@@ -885,6 +886,7 @@ end
 --   budget: one you carry, else the cheapest priced one you can use (unpriced ones skipped; none priced: best)
 --   own:    the strongest one you carry and can use, else best
 -- "Can use": your level (First Aid skill for bandages), in the game, and its recipe reachable at your level.
+NW.ConsumeLevelOf = levelOf -- (/nw harvest and the tests check recommendations against it)
 local function eligible(id, level)
   return levelOf(id) <= level and not (NW.NOT_YET and NW.NOT_YET[id]) and reachable(id, level)
 end
@@ -911,6 +913,7 @@ local function playerLevel() return UnitLevel and UnitLevel("player") or 60 end
 
 -- The same shape as a raid list, built for your level
 local upgradeOf = {} -- [item shown] = { next item, level or skill, is a bandage }
+local altOf = {}     -- [item shown, no price] = a priced one of the same kind you can use
 -- The leveling list, in categories (Food, Elixirs, Weapon, ...) like the raid lists. Each row
 -- has a tier: core (the role's first list: ticked unless you untick it), optional (the role's
 -- second list), situational (the fight decides). Only core rows start ticked.
@@ -922,6 +925,7 @@ local CATEGORY_ORDER = { "Food", "Elixirs", "Weapon", "Poisons", "Potions", "Ban
 local function levelList(spec, strategy)
   local level = playerLevel()
   wipe(upgradeOf)
+  wipe(altOf)
   local roleKey = ROLE_OF[spec.key] or "str"
   local healer = roleKey == "heal"
   if healer then roleKey = spec.class == "PALADIN" and "str" or "caster" end
@@ -938,6 +942,17 @@ local function levelList(spec, strategy)
       local skill = sl[2] == "bandage"
       local id, nextId, nextAt = bestFor(sl[2], skill and (firstAid or 0) or level, strategy)
       if nextId and id then upgradeOf[id] = { nextId, nextAt, skill } end
+      -- no price for it: the strongest priced one of the kind you can use, as a suggestion
+      local p, src = id and NW.Price(id)
+      if id and not (p and src ~= "est") then
+        local lv = skill and (firstAid or 0) or level
+        for _, rung in ipairs(LADDER[sl[2]]) do
+          for _, x in ipairs(type(rung) == "table" and rung or { rung }) do
+            local px, sx = NW.Price(x)
+            if not altOf[id] and x ~= id and px and sx ~= "est" and eligible(x, lv) then altOf[id] = x end
+          end
+        end
+      end
       if id and not seen[id] then
         seen[id] = true
         local fx = ITEM[id] and ITEM[id][2] or ""
@@ -1131,6 +1146,115 @@ local budget = UI.Dropdown(page, 178, "Strategy", { { "best", "Best" }, { "budge
   strategy, function(v) st().consumeStrategy = v listChanged() end, 116,
   "Best: the strongest you can use. Budget: the raid budget list; leveling, one you carry or else the cheapest you can use. Use what I own: what's in your bags first. Your own picks always stay.")
 budget:SetPoint("LEFT", actDrop, "RIGHT", 16, 0)
+
+-- Saved loadouts (per character): the spec, activity, strategy, stock, your choices and your targets.
+-- On the leveling list choices follow the kind, so a saved loadout adapts as you level; on a raid
+-- list they're the exact items.
+local function loadouts()
+  local l = st().consumeLoadouts
+  if not l then l = {} st().consumeLoadouts = l end
+  return l
+end
+local function copy(src) local o = {} for k, v in pairs(src or {}) do o[k] = v end return o end
+local loadBtn = UI.Button(page, "Loadouts", 110, nil, 22)
+loadBtn:SetPoint("LEFT", budget, "RIGHT", 16, 0)
+page.loadBtn = loadBtn
+local loadMenu = UI.Panel(nil, UIParent, 230, 10)
+loadMenu:SetFrameStrata("FULLSCREEN_DIALOG")
+loadMenu:SetClampedToScreen(true)
+loadMenu:Hide()
+loadMenu.rows = {}
+local MAX_LOADOUTS = 10
+local function listKeyNow()
+  return currentList().key .. (listMode() == "level" and ":level" or (listMode() == "budget" and ":budget" or ""))
+end
+local function saveLoadout()
+  local spec = currentList()
+  local name = ("%s · %s · %s"):format(spec.label, activity() == "level" and "Leveling" or "Raiding",
+    ({ best = "Best", budget = "Budget", own = "My bags" })[strategy()] or "")
+  local key = listKeyNow()
+  local l = loadouts()
+  local entry = { name = name, spec = spec.key, activity = activity(), strategy = strategy(), hours = st().consumeHours or 0,
+    listKey = key, picks = copy(picksOf(key)), qty = copy(qtyOf(key)), level = playerLevel() }
+  for i, x in ipairs(l) do if x.name == name then l[i] = entry st().consumeLoadout = name return end end
+  if #l >= MAX_LOADOUTS then table.remove(l, 1) end
+  l[#l + 1] = entry
+  st().consumeLoadout = name
+end
+local function applyLoadout(x)
+  st().consumeSpec, st().consumeActivity, st().consumeStrategy, st().consumeHours = x.spec, x.activity, x.strategy, x.hours
+  local allP, allQ = st().consumePick or {}, st().consumeQty or {}
+  st().consumePick, st().consumeQty = allP, allQ
+  allP[x.listKey], allQ[x.listKey] = copy(x.picks), copy(x.qty)
+  st().consumeLoadout = x.name
+  selectedItem, offset = nil, 0
+  refresh()
+end
+local function loadRow(i)
+  local r = loadMenu.rows[i]
+  if r then return r end
+  r = CreateFrame("Button", nil, loadMenu)
+  r:SetHeight(20)
+  r:SetPoint("TOPLEFT", 1, -4 - (i - 1) * 20)
+  r:SetPoint("RIGHT", -1, 0)
+  r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  r.text = UI.Text(r, 12, S.text)
+  r.text:SetPoint("LEFT", 8, 0)
+  r.text:SetPoint("RIGHT", -8, 0)
+  r.text:SetWordWrap(false)
+  local hl = r:CreateTexture(nil, "HIGHLIGHT")
+  hl:SetAllPoints()
+  hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.12)
+  r:SetScript("OnEnter", function(self)
+    if not self.tip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT") GameTooltip:SetText(self.tipTitle or "", 1, 1, 1)
+    GameTooltip:AddLine(self.tip, S.dim[1], S.dim[2], S.dim[3], true) GameTooltip:Show()
+  end)
+  r:SetScript("OnLeave", GameTooltip_Hide)
+  loadMenu.rows[i] = r
+  return r
+end
+local function openLoadouts()
+  local l = loadouts()
+  local n = 0
+  for i, x in ipairs(l) do
+    n = i
+    local r = loadRow(i)
+    r.text:SetText(x.name)
+    r.text:SetTextColor(unpack(st().consumeLoadout == x.name and S.gold or S.text))
+    r.tipTitle = x.name
+    r.tip = (x.activity == "level" and "Adapts as you level: your choices follow each kind." or "The exact items you chose.")
+      .. ("\nSaved at level %d. Click: load. Right-click: delete."):format(x.level or 0)
+    r:SetScript("OnClick", function(_, button)
+      if button == "RightButton" then
+        table.remove(l, i)
+        if st().consumeLoadout == x.name then st().consumeLoadout = nil end
+        openLoadouts()
+        return
+      end
+      loadMenu:Hide()
+      applyLoadout(x)
+    end)
+    r:Show()
+  end
+  local r = loadRow(n + 1)
+  r.text:SetText("Save current")
+  r.text:SetTextColor(unpack(S.gold))
+  r.tipTitle, r.tip = "Save current", "Spec, activity, strategy, stock, your choices and targets. Saved under its spec, activity and strategy; saving again replaces it."
+  r:SetScript("OnClick", function() saveLoadout() loadMenu:Hide() refresh() end)
+  r:Show()
+  for k = n + 2, #loadMenu.rows do loadMenu.rows[k]:Hide() end
+  loadMenu:SetHeight(8 + (n + 1) * 20)
+  loadMenu:SetScale(loadBtn:GetEffectiveScale() / UIParent:GetEffectiveScale())
+  loadMenu:ClearAllPoints()
+  loadMenu:SetPoint("TOPLEFT", loadBtn, "BOTTOMLEFT", 0, -2)
+  loadMenu:Show()
+end
+loadBtn:SetScript("OnClick", function() if loadMenu:IsShown() then loadMenu:Hide() else openLoadouts() end end)
+loadBtn:HookScript("OnHide", function() loadMenu:Hide() end)
+UI.Tip(loadBtn, "Loadouts", function()
+  return (st().consumeLoadout and ("Loaded: " .. st().consumeLoadout .. "\n") or "") .. "Save and load your choices and targets."
+end)
 local title = UI.Text(page, 12, S.dim, "RIGHT")
 title:SetPoint("RIGHT", page, "TOPRIGHT", -PAD, -24)
 title:SetWidth(110)
@@ -1527,9 +1651,10 @@ dMats:SetPoint("TOPLEFT", matStrip, "BOTTOMLEFT", 0, -4)
 dMats:SetWidth(DET_W - IN * 2)
 dMats:SetWordWrap(false)
 
--- The selected consumable's materials, for making it yourself
-local BTN_W = DET_W - IN * 2
-local matsBtn = UI.Button(det, "Search its materials", BTN_W, function()
+-- Getting it, right under Craft and Buy: its materials at the auction house, the item itself
+-- at the auction house, and its other sources in the Material Finder
+local BTN_W = math.floor((DET_W - IN * 2 - 12) / 3)
+local matsBtn = UI.Button(det, "Materials", BTN_W, function()
   local r = selectedItem and NW.RecipeFor(selectedItem)
   if not r then return end
   local e = shown.byId[selectedItem]
@@ -1541,23 +1666,64 @@ local matsBtn = UI.Button(det, "Search its materials", BTN_W, function()
     if ok and src ~= "vendor" then items[#items + 1] = { n, math.max(1, re[2] * crafts - (NW.ItemCount(re[1]) or 0)) } end
   end
   NW.SearchAH(items)
-end, 24)
-matsBtn:SetPoint("BOTTOMLEFT", IN, IN)
+end, 22)
+matsBtn:SetPoint("TOPLEFT", cmpCraft, "BOTTOMLEFT", 0, -6)
+UI.Tip(matsBtn, "Materials", "Searches the auction house for what you're short of to craft it (vendor materials left out).")
+local ahBtn = UI.Button(det, "Search AH", BTN_W, function()
+  local n, ok = selectedItem and itemName(selectedItem)
+  local e = selectedItem and shown.byId[selectedItem]
+  if ok then NW.SearchAH({ { n, (e and e.short > 0) and e.short or 1 } }) end
+end, 22)
+ahBtn:SetPoint("LEFT", matsBtn, "RIGHT", 6, 0)
+UI.Tip(ahBtn, "Search AH", "Searches the auction house for the item itself.")
 -- other ways to get it (vendors, drops, gathering), in the Material Finder
 local findBtn
-findBtn = UI.Button(det, "Where to get it", BTN_W, function()
+findBtn = UI.Button(det, "Sources", BTN_W, function()
   if findBtn.id then
     local e = shown.byId[findBtn.id]
     NW.FindMaterial(findBtn.id, "consumes", e and e.short > 0 and e.short or nil)
   end
-end, 24)
-UI.Tip(findBtn, "Where to get it", "Vendors, drops and other sources in the Material Finder. A missing recipe or price doesn't mean it can't be had.")
+end, 22)
+findBtn:SetPoint("LEFT", ahBtn, "RIGHT", 6, 0)
+UI.Tip(findBtn, "Sources", "Vendors, drops and other sources in the Material Finder. A missing recipe or price doesn't mean it can't be had.")
+for _, bb in ipairs({ matsBtn, ahBtn, findBtn }) do if bb.SetMotionScriptsWhileDisabled then bb:SetMotionScriptsWhileDisabled(true) end end
+-- when it has no price: the next one of its kind that does (a suggestion; the list keeps the stronger one)
+local dAlt = CreateFrame("Button", nil, det)
+dAlt:SetSize(DET_W - IN * 2, 1)
+dAlt:SetPoint("TOPLEFT", matsBtn, "BOTTOMLEFT", 0, -6)
+dAlt.icon = dAlt:CreateTexture(nil, "ARTWORK")
+dAlt.icon:SetSize(16, 16)
+dAlt.icon:SetPoint("LEFT")
+dAlt.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+dAlt.text = UI.Text(dAlt, 11, S.dim)
+dAlt.text:SetPoint("LEFT", 22, 0)
+dAlt.text:SetPoint("RIGHT")
+dAlt.text:SetWordWrap(false)
+dAlt:SetScript("OnEnter", function(self)
+  if not self.id then return end
+  GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+  GameTooltip:SetItemByID(self.id)
+  GameTooltip:AddLine(" ")
+  GameTooltip:AddLine("A priced one of the same kind, if this one is hard to find. Click: where to get it.", S.dim[1], S.dim[2], S.dim[3], true)
+  GameTooltip:Show()
+end)
+dAlt:SetScript("OnLeave", GameTooltip_Hide)
+dAlt:SetScript("OnClick", function(self)
+  if not self.id then return end
+  if not (NW.FindMaterial and NW.FindMaterial(self.id, "consumes")) then
+    local n, ok = itemName(self.id)
+    if ok and NW.AHOpen() then NW.SearchAH({ { n, 1 } }) end
+  end
+end)
+dSave:ClearAllPoints()
+dSave:SetPoint("TOPLEFT", dAlt, "BOTTOMLEFT", 0, -6)
 
 local dEmpty = UI.Text(det, 12, S.dim, "CENTER")
 dEmpty:SetPoint("CENTER")
 dEmpty:SetWidth(DET_W - 40)
 
-local detailParts = { dIcon, dIconEdge, dIconHit, dName, dType, dEffect, dStock, qtyBtns, cmpCraft, cmpBuy, dSave, dRecipe, matStrip, dMats }
+local detailParts = { dIcon, dIconEdge, dIconHit, dName, dType, dEffect, dStock, qtyBtns, cmpCraft, cmpBuy, dSave, dRecipe, matStrip, dMats,
+  matsBtn, ahBtn, findBtn, dAlt }
 
 
 local function drawDetail()
@@ -1624,22 +1790,48 @@ local function drawDetail()
   local craftBest = craft and canMake and (not buy or craft < buy)
   -- only a real choice gets the outline: buying beats a craft you could do
   local buyBest = buy and craft and canMake and buy <= craft
+  -- exact (gold, silver, copper as needed) so the two never read the same while one is cheaper
+  local exact = function(c) return NW.Money(c) end
   if craft then
-    cmpCraft:Set(money(craft), craftBest, not canMake)
+    cmpCraft:Set(exact(craft), craftBest, not canMake)
   else
     cmpCraft:Set(m and "No price" or "No known recipe", false, true)
   end
   cmpBuy.src:SetText(buySrc == "Vendor" and "Vendor" or buySrc and "AH" or "")
   cmpCraft.src:SetText("")
   cmpCraft.pay = nil
-  if buy then cmpBuy:Set(money(buy), buyBest) else cmpBuy:Set("No AH price", false, true) end
+  if buy then cmpBuy:Set(exact(buy), buyBest) else cmpBuy:Set("No AH price", false, true) end
+  -- no price: a priced one of the same kind (the level list's ladder, or the raid list's own alternatives)
+  local alt
+  if not buy then
+    if listMode() == "level" then alt = altOf[id]
+    elseif e then
+      for _, g in ipairs(currentList().groups) do
+        if g[1] == e.groupName then
+          for _, c in ipairs(g[2]) do
+            local pc, sc = NW.Price(c[1])
+            if not alt and c[1] ~= id and pc and sc ~= "est" and not (NW.NOT_YET and NW.NOT_YET[c[1]]) and (not e.set or c[4] == e.set or PICK_ONE[g[1]]) then alt = c[1] end
+          end
+        end
+      end
+    end
+  end
+  dAlt.id = alt
+  dAlt:SetHeight(alt and 20 or 1)
+  dAlt.icon:SetShown(alt ~= nil)
+  if alt then
+    dAlt.icon:SetTexture(NW.ItemIcon(alt) or "Interface\\Icons\\INV_Misc_QuestionMark")
+    dAlt.text:SetText(("%sOr|r %s  %s"):format(H.dim, (itemName(alt)), exact((NW.Price(alt)))))
+  else
+    dAlt.text:SetText("")
+  end
   -- where else it comes from: the Material Finder, when it knows the item
   findBtn.id = (NW.Mat and NW.Mat.Get and NW.Mat.Get(id)) and id or nil
   if craft and buy and canMake then
     local diff = math.abs(buy - craft)
     local how = craft < buy and "Crafting" or "Buying"
-    dSave:SetText(diff > 0 and ("%s saves %s each%s"):format(how, money(diff),
-      shortN > 0 and ("  ·  %s for %d"):format(money(diff * shortN), shortN) or "") or "Same either way")
+    dSave:SetText(diff > 0 and ("%s saves %s each%s"):format(how, exact(diff),
+      shortN > 0 and ("  ·  %s for %d"):format(exact(diff * shortN), shortN) or "") or "Same either way")
   elseif craft and buy and m.skill and not m.known then
     dSave:SetText("Learn the recipe to craft it")
   elseif m and not m.skill then
@@ -1700,7 +1892,7 @@ refresh = function()
   local mode = listMode()
   local strat = strategy()
   if mode == "level" then list = levelList(list, strat) end
-  title:SetText(mode == "level" and ("Level %d"):format(playerLevel()) or "")
+  title:SetText(("Level %d"):format(playerLevel()))
   budget:Refresh()
   actDrop:Refresh()
   specDrop:Refresh()
@@ -1910,11 +2102,11 @@ refresh = function()
       local mk = ""
       if e.make then
         local col = (not e.m.known and H.dim) or (cheaperMake and H.good) or H.text
-        mk = col .. money(e.make):gsub("|r", "|r" .. col) .. "|r"
+        mk = col .. NW.Money(e.make, "gs"):gsub("|r", "|r" .. col) .. "|r"
       end
       row.make:SetText(mk)
       local buyCol = (e.price and e.make and e.m.known and not cheaperMake) and H.good or H.text
-      row.price:SetText(e.price and (buyCol .. money(e.price):gsub("|r", "|r" .. buyCol) .. "|r") or (H.dim .. "–|r"))
+      row.price:SetText(e.price and (buyCol .. NW.Money(e.price, "gs"):gsub("|r", "|r" .. buyCol) .. "|r") or (H.dim .. "–|r"))
       -- owned / target for what you bring (red below target); just what you own for the rest
       local have = e.selected and e.setHave or e.have
       if e.selected then
@@ -1948,9 +2140,10 @@ refresh = function()
   UI.FitText(total, table.concat(parts, ("  %s·|r  "):format(H.dim)), 12, 10)
   searchBtn:SetEnabled(shortCount > 0)
   drawDetail()
-  local hasRecipe = selectedItem ~= nil and NW.RecipeFor(selectedItem) ~= nil
-  matsBtn:SetShown(hasRecipe)
-  findBtn:SetShown(selectedItem ~= nil and findBtn.id ~= nil)
-  findBtn:ClearAllPoints()
-  if hasRecipe then findBtn:SetPoint("BOTTOMLEFT", matsBtn, "TOPLEFT", 0, 6) else findBtn:SetPoint("BOTTOMLEFT", det, "BOTTOMLEFT", IN, IN) end
+  if selectedItem then
+    matsBtn:SetEnabled(NW.RecipeFor(selectedItem) ~= nil)
+    local _, ok = itemName(selectedItem)
+    ahBtn:SetEnabled(ok and NW.AHOpen and NW.AHOpen() or false)
+    findBtn:SetEnabled(findBtn.id ~= nil)
+  end
 end

@@ -367,7 +367,7 @@ end)
 -- reading and writing NW.db.settings: these keys are passed through.
 local CHAR_KEYS = {
   consumeSpec = true, consumeList = true, consumeHidden = true, consumeBudget = true, consumeHours = true,
-  consumePick = true, consumeQty = true, consumeActivity = true, consumeStrategy = true,
+  consumePick = true, consumeQty = true, consumeActivity = true, consumeStrategy = true, consumeLoadouts = true, consumeLoadout = true,
   profSelected = true, planTarget = true, lastTab = true, routesOpen = true, fishCook = true, fishTab = true,
 }
 local function splitCharSettings(db)

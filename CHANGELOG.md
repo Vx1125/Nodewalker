@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- Consumes: Craft and Buy show exact prices, so they never read the same while one is cheaper.
+- Consumes: Materials, Search AH and Sources buttons sit right under Craft and Buy.
+- Consumes: an item with no price suggests a priced one of the same kind (the list keeps the stronger one).
+- Consumes: Loadouts: save and load your spec, activity, strategy, stock, choices and targets (per character).
+- Consumes: runes are no longer one-of-a-kind (they share a cooldown, not a slot); your level shows on every list.
 - Consumes: the leveling list is in categories again (Food, Elixirs, Weapon, Potions, ...), each row Core, Optional or Situational; only Core starts ticked.
 - Consumes: healers level with their class's solo list; healing items are optional.
 - Consumes: raid potions, runes and on-use items now start unticked (tick the ones you bring); long buffs stay ticked. Your own picks stay.

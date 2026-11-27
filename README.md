@@ -52,6 +52,8 @@ Client: WoW Forever (interface 16001).
 - Bandages follow your First Aid skill, not your level.
 - **Strategy: Best** takes the strongest; among equals, one in your bags, else the cheapest. **Budget** uses the raid budget list; when leveling, one you carry, else the cheapest priced one you can use. **Use what I own** puts what's in your bags first: on the leveling list it shows those items; on a raid list it picks and ticks them.
 - Your own picks and hand-set targets always stay. On the leveling list they follow the kind (your choice for "Elixir: agility" carries over to the next agility elixir).
+- **Loadouts** save your spec, activity, strategy, stock, choices and targets per character. A leveling loadout adapts as you level (choices follow each kind); a raid loadout keeps the exact items.
+- An item with no price suggests a priced one of the same kind; the list itself keeps the stronger one.
 - Stock is an estimate: buffs by the duration the game gives, other items at a rough rate an hour. Deaths aren't counted. No item stats or rankings are invented.
 
 ## Credits
