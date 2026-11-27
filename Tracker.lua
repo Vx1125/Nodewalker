@@ -139,13 +139,20 @@ end
 local pending -- { item, food, at, before = { aura set }, mh, oh }
 local function snapshotSet()
   local b = {}
-  for k in pairs(auras) do b[k] = true end
+  for k, exp in pairs(auras) do b[k] = exp end
   return b
 end
 local function learn()
   if not pending then return end
   local p = pending
   local age = now() - p.at
+  if not p.item then
+    for _, it in ipairs(p.items or {}) do if bagCount(it) < (p.had[it] or 0) then p.item = it end end
+    if not p.item then
+      if age > 5 then pending = nil end -- (none of them went down: something else shared the spell)
+      return
+    end
+  end
   if p.kind == "weapon" then
     local learned
     for _, h in ipairs({ "mh", "oh" }) do
@@ -157,15 +164,21 @@ local function learn()
   end
   -- the aura with the item's own spell ID (not while eating: that one is the eating itself)
   if not p.food and auras[p.spell] then seen()[p.item] = p.spell pending = nil return end
-  -- otherwise one new aura that started after the use (eating: Well Fed comes 10 s or more in)
-  -- (eating and drinking auras last 30 s: a buff lasts longer, or has no end)
+  -- otherwise one aura that started, or started again, after the use: new, or its end moved
+  -- a minute or more later (eating while already Well Fed refreshes the same buff).
+  -- Eating and drinking auras last 30 s; a buff lasts longer, or has no end.
+  -- (Forever's eating aura needn't carry the item's spell ID, so it isn't waited for.)
   local new, n = nil, 0
   local t = now()
+  -- (a buff already known as another item's doesn't count: re-flasking while you eat)
+  local taken = {}
+  for it, a in pairs(seen()) do if it ~= p.item then taken[a] = true end end
   for k, exp in pairs(fresh) do
-    if not p.before[k] and k ~= p.spell and (exp == 0 or exp - t > 60) then new, n = k, n + 1 end
+    local was = p.before[k]
+    local started = was == nil or (exp > 0 and was > 0 and exp > was + 60)
+    if started and not taken[k] and k ~= p.spell and (exp == 0 or exp - t > 60) then new, n = k, n + 1 end
   end
-  if n == 1 and (not p.food or p.ate) then seen()[p.item] = new pending = nil return end
-  if p.food and auras[p.spell] then p.ate = true end
+  if n == 1 then seen()[p.item] = new pending = nil return end
   if age > (p.food and 45 or 5) then pending = nil end
 end
 
@@ -204,7 +217,12 @@ local function rebuildTracked(rebuildConsumes)
       if k ~= "use" then
         for _, a in ipairs(e.alts or { e.id }) do
           local sp = spellOf(a)
-          if sp then bySpell[sp] = { item = a, kind = k, food = e.group == "Food" } end
+          -- (several foods can share one eating spell: all of them are candidates)
+          if sp then
+            local h = bySpell[sp] or { kind = k, food = e.group == "Food", items = {} }
+            bySpell[sp] = h
+            h.items[#h.items + 1] = a
+          end
         end
       end
     end
@@ -664,7 +682,11 @@ NW.On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
   if not on() or not (R(unit) and R(spellID)) or unit ~= "player" then return end
   local hit = bySpell[spellID]
   if not hit then return end
-  local p = { item = hit.item, kind = hit.kind, food = hit.food, spell = spellID, at = now(), before = snapshotSet() }
+  -- which one you used: the one your bags hold one fewer of (checked when it's learned)
+  local had = {}
+  for _, it in ipairs(hit.items) do had[it] = bagCount(it) end
+  local p = { items = hit.items, had = had, item = #hit.items == 1 and hit.items[1] or nil, kind = hit.kind, food = hit.food,
+    spell = spellID, at = now(), before = snapshotSet() }
   if hit.kind == "weapon" then p.mh, p.oh = weapon.mh.on and weapon.mh.id, weapon.oh.on and weapon.oh.id end
   pending = p
   dirty.auras, dirty.weapon = true, true
