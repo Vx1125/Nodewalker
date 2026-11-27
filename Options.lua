@@ -120,7 +120,10 @@ local function defaultsButton(after)
     if not rawget(b, "armed") then
       b.armed = true
       b:SetText("Click to confirm")
-      C_Timer.After(4, function() b.armed = nil; b:SetText("Defaults") end)
+      -- (only the latest arming times out: an older timer can't cut a new confirm short)
+      local id = (rawget(b, "armID") or 0) + 1
+      b.armID = id
+      C_Timer.After(4, function() if b.armID == id then b.armed = nil; b:SetText("Defaults") end end)
       return
     end
     b.armed = nil
@@ -135,7 +138,11 @@ local function defaultsButton(after)
     refreshAll()
   end, 22)
   b:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -24, 14)
-  UI.Tip(b, "Defaults", "Puts back this page's settings. Other pages, routes, journals and what you've recorded stay as they are.")
+  UI.Tip(b, "Defaults", function()
+    local names = {}
+    for _, k in ipairs(keys) do names[#names + 1] = LABELS[k] or k end
+    return "Puts back: " .. table.concat(names, ", ") .. ".\nOther pages, routes, journals and what you've recorded stay as they are."
+  end)
   return b
 end
 local GOLD_HEX = "|cffd6b266"
@@ -210,7 +217,7 @@ for _, c in ipairs({ { "/nw", "overlay" }, { "/nw window", "this window" }, { "/
   { "/nw import", "GatherMate2 nodes" }, { "/nw status", "known spots here" } }) do
   infoLine(2, GOLD_HEX .. c[1] .. "|r", c[2])
 end
-defaultsButton()
+defaultsButton(function() NW.SetWindowScale(s().winScale or 1) end)
 
 ------------------------------------------------------------------------
 -- Map & Overlay: when the overlay shows and how it looks
@@ -378,7 +385,7 @@ hiddenCount:SetPoint("LEFT", chooseBtn, "RIGHT", 10, 0)
 widgets[#widgets + 1] = { Refresh = function()
   local n = 0
   for _ in pairs(s().hiddenNodes or {}) do n = n + 1 end
-  hiddenCount:SetText(n > 0 and (n .. " hidden") or "all shown")
+  hiddenCount:SetText(n > 0 and (n .. " herbs and ore hidden") or "all shown")
 end }
 heading(2, "Routes")
 slider(2, "Gathered node cooldown", 1, 20, 1, function(v) return ("%d min"):format(v) end, "respawnMinutes",
@@ -387,7 +394,10 @@ check(2, "Auto-build routes", "autoRoute", "In a zone with known spots and no ro
 local planBtn = UI.Button(page, "Open Routes", 170, function() NW.ShowRoutes() end, 24)
 place(2, planBtn, 30, 2)
 UI.Tip(planBtn, "Routes", "Sight range, avoid zones and the map: Material Finder › Routes.")
-defaultsButton()
+defaultsButton(function()
+  if NW.ApplyQuestRing then NW.ApplyQuestRing() end
+  if NW.DrawOverlay then NW.DrawOverlay() end
+end)
 
 ------------------------------------------------------------------------
 -- Herbs & Ore: tick the herbs and ore you want to see (under Gathering)
@@ -588,7 +598,8 @@ if NW.SmartFish then
     b:SetScript("OnLeave", GameTooltip_Hide)
     -- head, hands, feet: whether Use what I'm wearing saves that slot
     if sl[1] ~= 16 then
-      local cb = UI.Check(slotRow, "", function() return (s().fishGearSlots or {})[sl[1]] end,
+      -- (named for its tooltip; no label under the icon)
+      local cb = UI.Check(slotRow, sl[3], function() return (s().fishGearSlots or {})[sl[1]] end,
         function(v) s().fishGearSlots = s().fishGearSlots or {}; s().fishGearSlots[sl[1]] = v or nil end,
         "Saved with your pole when you click Use what I'm wearing.")
       cb:SetPoint("TOP", b, "BOTTOM", -4, -6)
@@ -734,7 +745,9 @@ sessBtn = UI.Button(page, "Reset session", 130, function()
   if not rawget(sessBtn, "armed") then
     sessBtn.armed = true
     sessBtn:SetText("Click to confirm")
-    C_Timer.After(4, function() sessBtn.armed = nil; sessBtn:SetText("Reset session") end)
+    local id = (rawget(sessBtn, "armID") or 0) + 1
+    sessBtn.armID = id
+    C_Timer.After(4, function() if sessBtn.armID == id then sessBtn.armed = nil; sessBtn:SetText("Reset session") end end)
     return
   end
   sessBtn.armed = nil
@@ -787,7 +800,11 @@ syncNav = function()
   local on = false
   for _, c in ipairs(CATS) do if c.page:IsShown() then on = true end end
   nav:SetShown(on)
-  for _, b in ipairs(navRows) do b:SetSelected(b.key == key) end
+  for _, b in ipairs(navRows) do
+    b:SetSelected(b.key == key)
+    -- Gathering stays lit (gold name) while you're on its Herbs & ore
+    if b.key == "gather" then b.name:SetTextColor(unpack(key == "nodes" and S.gold or S.text)) end
+  end
 end
 -- old Settings tabs (a saved last tab, a link) open where their settings live now
 NW.TAB_ALIAS = NW.TAB_ALIAS or {}
