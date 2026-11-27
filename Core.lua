@@ -56,6 +56,11 @@ local DEFAULTS = {
     fishHudTarget = true, fishHudValue = true, fishLurePref = 6532,
     fishTrack = true, fishTrackSpots = true, fishSessions = true, fishAutoSession = true,
     fishNotifyNew = true, fishNotifyRare = true, fishNotifyLure = true, fishNotifyTarget = true,
+    -- the consumable buff tracker (off until you turn it on)
+    buffHud = false, buffHudLock = false, buffClickUse = true, buffHideOk = false, buffMode = "all",
+    buffLayout = "horizontal", buffIconSize = 32, buffHudScale = 1, buffHudAlpha = 1, buffShowCount = true,
+    buffShowTime = true, buffWarnMin = 5, buffCooldowns = true,
+    buffNotifyMissing = true, buffNotifyExpiring = true, buffNotifyStock = false, buffNotifyReady = true, buffSound = false,
   },
 }
 
@@ -431,6 +436,8 @@ SlashCmdList.NODEWALKER = function(msg)
     NW.ToggleProfessions()
   elseif msg == "journal" or msg == "fish" then
     if NW.OpenFishJournal then NW.OpenFishJournal() end
+  elseif msg == "buffs" then
+    if NW.BuffTracker then NW.BuffTracker.Toggle() end
   elseif msg == "fishhud" then
     if NW.ToggleFishHUD then NW.ToggleFishHUD() end
   elseif msg == "window" or msg == "open" then
@@ -517,7 +524,7 @@ SlashCmdList.NODEWALKER = function(msg)
       n, mapID and #(NW.db.nodes[mapID] or {}) or 0,
       (mapID and NW.db.routes[mapID]) and (#NW.db.routes[mapID].stops .. " stops") or "none"))
   else
-    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  farm guide · /nw prof  professions · /nw consumes · /nw journal · /nw fishhud · /nw options · /nw import  GatherMate2 nodes · /nw status")
+    NW.Print("/nw  toggle overlay · /nw plan  route · /nw guide  farm guide · /nw prof  professions · /nw consumes · /nw journal · /nw fishhud · /nw buffs · /nw options · /nw import  GatherMate2 nodes · /nw status")
   end
 end
 

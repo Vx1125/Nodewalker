@@ -33,6 +33,7 @@ Client: WoW Forever (interface 16001).
 | `/nw consumes` | Consumes |
 | `/nw journal` | Fishing Journal |
 | `/nw fishhud` | Fishing HUD on or off |
+| `/nw buffs` | Consumable tracker on or off |
 | `/nw options` | Settings |
 | `/nw import` | Import GatherMate2 spots |
 | `/nw import help` | The GatherMate2 import steps |
@@ -55,6 +56,12 @@ Client: WoW Forever (interface 16001).
 - **Loadouts** save your spec, activity, strategy, stock, choices and targets per character. A leveling loadout adapts as you level (choices follow each kind); a raid loadout keeps the exact items.
 - An item with no price suggests a priced one of the same kind; the list itself keeps the stronger one.
 - Stock is an estimate: buffs by the duration the game gives, other items at a rough rate an hour. Deaths aren't counted. No item stats or rankings are invented.
+
+## Consumable tracker
+
+Settings › Consumes (or `/nw buffs`) turns on a small HUD of the consumables in your Consumes loadout: it follows your spec, level, activity, strategy, loadout and your own picks. Each icon shows what's on you and for how long, how many you carry, and a coloured edge when it's expiring (gold) or missing while you carry one (red); one you've run out of is faded. Potions, runes and bandages get their own optional row with their cooldowns; they're never "missing". Click an icon to use the item; right-click opens it in Consumes.
+
+Buffs are recognised by spell ID: the item's own use spell from the game, or the buff Nodewalker saw you get when you used it (food's Well Fed, weapon enchants). One it hasn't confirmed yet shows as unknown, never as missing. In combat the game hides your buffs from addons, so the tracker counts down what it saw before the pull.
 
 ## Credits
 

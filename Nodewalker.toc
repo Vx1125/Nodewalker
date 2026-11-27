@@ -44,4 +44,5 @@ Professions\Fishing.lua
 Professions\FishJournal.lua
 Professions\SmartFishing.lua
 Consumes.lua
+Tracker.lua
 Options.lua

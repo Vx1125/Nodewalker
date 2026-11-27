@@ -864,6 +864,46 @@ if NW.SmartFish then
 end
 
 ------------------------------------------------------------------------
+-- Consumes: the buff tracker (what it tracks is your Consumes loadout)
+------------------------------------------------------------------------
+if NW.BuffTracker then
+  local BT = NW.BuffTracker
+  local function apply() BT.Apply() end
+  newPage("buffs", "Consumes", "Interface\\Icons\\INV_Potion_62")
+  heading(1, "Tracker")
+  check(1, "Show the tracker", "buffHud", "The consumables you picked in Consumes: what's on you, what's missing, how many you carry. Follows your loadout, level and spec.",
+    function(v) BT.Toggle(v) end)
+  dependsOn(checkBeside(1, "Lock position", "buffHudLock", "Needs Show the tracker.", apply), "buffHud")
+  dependsOn(check(1, "Click to use", "buffClickUse", "Click an icon to use the item. Right-click opens it in Consumes.", apply), "buffHud")
+  dependsOn(checkBeside(1, "Hide when all are on", "buffHideOk", "Buffs only; potions and the like stay.", apply), "buffHud")
+  heading(1, "Display")
+  track("buffMode", "Show")
+  dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Show", { { "all", "All my buffs" }, { "missing", "Missing only" }, { "soon", "Missing and expiring" } },
+    function() return s().buffMode or "all" end, function(v) s().buffMode = v; apply() end, 200), 30, 2), "buffHud")
+  track("buffLayout", "Layout")
+  dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Layout", { { "horizontal", "In a row" }, { "vertical", "In a column" } },
+    function() return s().buffLayout or "horizontal" end, function(v) s().buffLayout = v; apply() end, 200), 30, 2), "buffHud")
+  dependsOn(slider(1, "Icon size", 20, 48, 2, function(v) return ("%d"):format(v) end, "buffIconSize", apply), "buffHud")
+  dependsOn(slider(1, "Scale", 0.6, 1.5, 0.05, pct, "buffHudScale", apply), "buffHud")
+  dependsOn(slider(1, "Opacity", 0.3, 1, 0.05, pct, "buffHudAlpha", apply), "buffHud")
+  dependsOn(check(1, "Counts", "buffShowCount", "How many are in your bags.", apply), "buffHud")
+  dependsOn(checkBeside(1, "Time left", "buffShowTime", "Under each icon.", apply), "buffHud")
+  heading(2, "Duration warnings")
+  dependsOn(slider(2, "Expiring at", 1, 15, 1, function(v) return ("%d min"):format(v) end, "buffWarnMin", apply,
+    "A buff with less time left than this gets a gold edge."), "buffHud")
+  heading(2, "Cooldowns")
+  dependsOn(check(2, "Potions, runes and bandages", "buffCooldowns",
+    "Their own row: how many you carry and their cooldown. Never counted as missing.", function() BT.Refresh(true) end), "buffHud")
+  heading(2, "Notices")
+  dependsOn(check(2, "Expired", "buffNotifyMissing", "A tracked buff ran out."), "buffHud")
+  dependsOn(checkBeside(2, "Expiring", "buffNotifyExpiring", "Once, at your Expiring at time."), "buffHud")
+  dependsOn(check(2, "None left", "buffNotifyStock", "You used your last one."), "buffHud")
+  dependsOn(checkBeside(2, "Ready check", "buffNotifyReady", "Names the tracked buffs you're missing."), "buffHud")
+  dependsOn(check(2, "Sound", "buffSound"), "buffHud")
+  defaultsButton(function() BT.Toggle(s().buffHud) end)
+end
+
+------------------------------------------------------------------------
 -- Data & Integrations: other add-ons, where the data comes from, upkeep
 ------------------------------------------------------------------------
 newPage("data", "Data & Integrations", "Interface\\Icons\\INV_Misc_Book_09")

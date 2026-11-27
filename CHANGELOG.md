@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Consumable tracker (Settings › Consumes, /nw buffs): your loadout's buffs, time left, counts and cooldowns; click to use, right-click for Consumes.
 - Consumes: leveling Budget stays within 10 levels of yours.
 - Consumes: auction-house searches need Auctionator; without it shift-click links instead.
 - Consumes: estimated prices are never shown as a price.

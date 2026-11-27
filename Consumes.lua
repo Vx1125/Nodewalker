@@ -1999,7 +1999,7 @@ local function drawDetail()
 end
 
 refresh = function()
-  if not page:IsShown() then return end
+  if not page:IsShown() and not page.headless then return end
   local list = currentList()
   local mode = listMode()
   local strat = strategy()
@@ -2262,4 +2262,46 @@ refresh = function()
     ahBtn:SetEnabled(ok and ahReady() or false)
     findBtn:SetEnabled(findBtn.id ~= nil)
   end
+  page.snapshot()
+end
+
+------------------------------------------------------------------------
+-- For the buff tracker: what's in your loadout now, as plain data (built at the end of
+-- every refresh; without the tab open, a refresh runs on its hidden page to make it)
+------------------------------------------------------------------------
+local snap, snapListeners = nil, {}
+function page.snapshot()
+  local out, bySet = {}, {}
+  for _, e in ipairs(shown) do
+    if e.id and e.set then
+      local k = e.groupName .. "/" .. e.set
+      bySet[k] = bySet[k] or {}
+      table.insert(bySet[k], e.id)
+    end
+  end
+  for _, e in ipairs(shown) do
+    if e.id and e.selected then
+      out[#out + 1] = { id = e.id, key = e.key, group = e.groupName, need = e.need, tier = e.tier,
+        alts = e.set and bySet[e.groupName .. "/" .. e.set] or nil }
+    end
+  end
+  snap = out
+  for _, fn in ipairs(snapListeners) do pcall(fn) end
+end
+-- rebuild = true: work it out again now (level, loadout or bags changed with the tab closed)
+function NW.ConsumeSelection(rebuild)
+  if (rebuild or not snap) and not page:IsShown() then
+    page.headless = true
+    local ok, err = pcall(refresh)
+    page.headless = nil
+    if not ok then NW.Print("Consumes: " .. tostring(err)) end
+  end
+  return snap or {}
+end
+function NW.OnConsumeSelection(fn) snapListeners[#snapListeners + 1] = fn end
+-- Open the tab on one item (the tracker's way back to where you get it)
+function NW.ShowConsume(id)
+  selectedItem, offset = id, 0
+  if NW.window:IsShown() then NW.ShowTab("consumes") else st().lastTab = "consumes"; NW.window:Show() end
+  refresh()
 end
