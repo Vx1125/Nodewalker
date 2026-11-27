@@ -21,6 +21,8 @@ local F = {}
 NW.FISHING = F
 F.BLUE = { 0.478, 0.627, 0.757, 1 } -- Fishing's accent
 local BLUE_HEX = "|cff7aa0c1"
+-- the game font has no arrow glyph: the chat frame's arrow texture instead
+local ARROW = "|TInterface\\ChatFrame\\ChatFrameExpandArrow:12:12:0:0|t"
 
 -- Ranks in WoW Forever
 F.RANKS = {
@@ -1030,7 +1032,7 @@ W.btn1:Hide() W.btn2:Hide()
 -- icon groups in the panel: the professions' reagent strip (pooled), a short label at the left
 W.rstrips = {}
 local ICON_LABEL_W = 46
-local ITEM2_X = 150 -- an item row's second icon (after the arrow)
+local ITEM2_INFO = 62 -- an item row's info right of its second icon
 local function panelStrip(k)
   local s = W.rstrips[k]
   if not s then
@@ -1119,18 +1121,24 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
         ln.l:SetText(row.text or "")
         ln.v:SetFont(UI.FONT, 11, "")
         if row.item2 then
-          -- the second icon after an arrow, its info after it
+          -- the second icon at the right, after an arrow; its info right of it
+          local x2 = RIGHT_W - ITEM2_INFO - 30
           local i2 = s.icons[2]
           i2:ClearAllPoints()
-          i2:SetPoint("TOPLEFT", s, "TOPLEFT", ITEM2_X + 1, -1)
-          ln.l:SetWidth(ITEM2_X - 32 - 18)
-          if not ln.arrow then ln.arrow = UI.Text(W.right, 12, S.dim) ln.arrow:SetText("→") end
+          i2:SetPoint("TOPLEFT", s, "TOPLEFT", x2 + 1, -1)
+          ln.l:SetWidth(x2 - 32 - 18)
+          if not ln.arrow then
+            ln.arrow = W.right:CreateTexture(nil, "ARTWORK")
+            ln.arrow:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+            ln.arrow:SetSize(12, 12)
+            ln.arrow:SetVertexColor(S.dim[1], S.dim[2], S.dim[3])
+          end
           ln.arrow:ClearAllPoints()
-          ln.arrow:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", ITEM2_X - 15, y - 8)
+          ln.arrow:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x2 - 15, y - 8)
           ln.arrow:Show()
           ln.v:SetJustifyH("LEFT")
-          ln.v:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", ITEM2_X + 32, y - 9)
-          ln.v:SetWidth(RIGHT_W - ITEM2_X - 32)
+          ln.v:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x2 + 32, y - 9)
+          ln.v:SetWidth(ITEM2_INFO - 4)
         else
           local bw = row.btn and 76 or 0
           ln.v:SetJustifyH("RIGHT")
@@ -1152,7 +1160,7 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
         ln.v:SetText(row.info or "")
         ln.l:Show() ln.v:Show()
         lineTip(ln, row.tip, 26)
-        if ln.hit and row.tip then ln.hit:SetPoint("TOPLEFT", ln.l, "TOPLEFT", 0, 9) ln.hit:SetWidth(ITEM2_X - 50) end
+        if ln.hit and row.tip then ln.hit:SetPoint("TOPLEFT", ln.l, "TOPLEFT", 0, 9) ln.hit:SetWidth(RIGHT_W - ITEM2_INFO - 80) end
         y = y - 28
       end
     elseif row.stats then
@@ -1412,10 +1420,8 @@ local function catchRow(id, cook)
   if r and r.item then
     local rname = r.name or ""
     row.item2 = { r.item, false, F.cookState(r, cook) or "ok", { recipe = r } }
-    row.info = ("%d-%d"):format(r.orange or r.yellow, r.grey)
-      .. ((rname ~= name and rname ~= "") and ("  " .. H.dim .. rname .. "|r") or "")
-      .. (#list > 1 and (H.dim .. "  +" .. (#list - 1) .. "|r") or "")
-    if #list > 1 then
+    row.info = ("%d-%d"):format(r.orange or r.yellow, r.grey) .. (#list > 1 and (H.dim .. " +" .. (#list - 1) .. "|r") or "")
+    if #list > 1 or rname ~= name then
       row.tip = function(tt)
         tt:SetText(name, 1, 1, 1)
         for _, x in ipairs(list) do tt:AddDoubleLine(x.name, ("%d-%d"):format(x.orange or x.yellow, x.grey), 1, 1, 1, S.dim[1], S.dim[2], S.dim[3]) end
@@ -1460,10 +1466,16 @@ function F.zoneDetail(zone, bi, later)
   if F.hostile(zone) then rows[#rows + 1] = { H.bad .. "The other faction's city|r" } end
   -- the zone, and where you've caught fish in it (the journal's spots; none are shipped)
   local mapID = NW.ZoneID and NW.ZoneID(zone)
+  local MAXR = 4 -- (fish rows; the map takes what they leave)
   if mapID then
     local J = NW.FishJournal
     local spots = J and J.Spots and J.Spots(mapID, "all") or {}
-    rows[#rows + 1] = { map = mapID, spots = spots, w = 198, h = 132,
+    -- the panel's height less everything under the map: as big as fits, in the game's 3:2 map shape
+    local nFish = math.min(MAXR, #here + #range)
+    local labels = (#here > 0 and 1 or 0) + ((#range > 0 and #here < MAXR) and 1 or 0)
+    local below = 62 + 8 + labels * 15 + nFish * 28 + 6 + (b.lure and 28 or 0) + 34 + 34 + (F.hostile(zone) and 15 or 0)
+    local mh = math.max(96, math.min(math.floor(RIGHT_W * 2 / 3), (530 - TOP) - below - 6))
+    rows[#rows + 1] = { map = mapID, spots = spots, w = math.floor(mh * 3 / 2), h = mh,
       cap = #spots > 0 and "Your catches" or "", tip = function(tt)
         tt:SetText(zone, 1, 1, 1)
         if #spots > 0 then tt:AddLine("Dots: where you've caught fish (your journal).", d[1], d[2], d[3], true)
@@ -1471,7 +1483,6 @@ function F.zoneDetail(zone, bi, later)
       end }
   end
   -- what you may catch: this zone's fish, then other fish for this skill (not every water has every fish)
-  local MAXR = 4 -- (what fits above the lure, your skill and the buttons)
   local shown = 0
   local function list(ids, label, tip)
     if #ids == 0 then return end
@@ -1697,9 +1708,9 @@ local function actionRight(a)
   if a.kind == "catch" then
     return ("%s%d|r%s/~%d|r"):format(a.have >= a.need and H.good or H.text, a.have, H.dim, a.need)
   elseif a.kind == "cook" then
-    return ("×%d  %s→|r %d"):format(a.step.crafts, H.dim, a.step.to)
+    return ("×%d %s %d"):format(a.step.crafts, ARROW, a.step.to)
   elseif a.kind == "fishto" then
-    return ("%s→|r %d"):format(H.dim, a.to)
+    return ("%s %d"):format(ARROW, a.to)
   elseif a.kind == "train" then
     local r = a.rank or a.crank
     return a.blocked and (H.bad .. a.blocked .. "|r") or (r.skill and ("%d+"):format(r.skill) or "")
@@ -1927,7 +1938,7 @@ function F.actionDetail(a, plan)
     lureFor(b, rows)
     F.equipLines(rows)
     local now = plan.fishNow or a.from
-    F.detail("Fishing", "Interface\\Icons\\Trade_Fishing", ("Fishing %d → %d"):format(math.max(now, a.from), a.to), "", rows,
+    F.detail("Fishing", "Interface\\Icons\\Trade_Fishing", ("Fishing %d %s %d"):format(math.max(now, a.from), ARROW, a.to), "", rows,
       { "Show on map", F.showZone(b.best or F.sortZones(b.zones)[1]) })
   elseif k == "vendor" or k == "other" then
     local icons, search = {}, {}
