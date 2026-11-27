@@ -1447,6 +1447,36 @@ NW.TOOLS = {
 }
 -- The tools the plan reaches: { item, recipe, step, have } where step is the first step
 -- that needs it and have says one is already in your bags or bank
+-- What's there for each step's reagents, in the order you craft: seq is a
+-- list of { r = recipe, n = crafts, to = skill it ends at, keep = its product
+-- counts for later steps, into = table to write into }. Each into gets
+-- stockOwned (yours, from bags and bank, less what earlier steps use) and
+-- stockMade (made by earlier steps and not used yet) per reagent id. Steps
+-- already done (rank >= to) use nothing. What a step needs comes out of
+-- yours first, then what was made.
+function NW.StepStock(seq, rank)
+  local owned, made = {}, {}
+  for _, e in ipairs(seq) do
+    local r, n = e.r, e.n or 0
+    if rank and e.to and rank >= e.to then
+      e.into.stockOwned, e.into.stockMade = nil, nil
+    else
+      local o, m = {}, {}
+      for _, re in ipairs(r.reagents) do
+        local id = re[1]
+        if owned[id] == nil then owned[id] = NW.ItemCount(id) or 0 end
+        o[id], m[id] = owned[id], made[id] or 0
+        local use = re[2] * n
+        local fromOwned = math.min(owned[id], use)
+        owned[id] = owned[id] - fromOwned
+        made[id] = math.max(0, (made[id] or 0) - (use - fromOwned))
+      end
+      if r.item and e.keep then made[r.item] = (made[r.item] or 0) + n * (r.yield or 1) end
+      e.into.stockOwned, e.into.stockMade = o, m
+    end
+  end
+end
+
 function NW.PlanTools(key, plan)
   local out = {}
   for _, t in ipairs(NW.TOOLS[key] or {}) do

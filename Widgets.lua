@@ -871,18 +871,22 @@ function UI.DrawZoneArt(id, frame, tiles, W, H, full)
 end
 
 ------------------------------------------------------------------------
--- Reagent strip: a recipe's reagents as their item icons, with the count one
--- craft takes on each (shown from 2, or when you're short). Short ones are
--- greyed with a red count, so it never rests on colour alone. Icons are made
--- once per strip and reused; a view passes one handler table for tooltips and
--- clicks, so nothing is created per refresh.
---   strip = UI.ReagentStrip(parent, handler)  handler.tip(icon), handler.click(icon, button)
---   strip:Begin(prefix)  strip:Add(id, qty, short)  strip:AddStatus(tex, kind)  strip:Finish(width)
--- Each icon carries id, qty, short, kind and whatever the view sets in icon.ctx.
+-- Reagent strip: a recipe's reagents as their item icons in full colour, the
+-- count one craft takes in the corner (from 2), and beside each a label such
+-- as "4/20" (have / the step needs). The state colours the label and the
+-- icon's edge: "ok" plain, "made" gold (earlier steps make the rest), "short"
+-- red; the numbers say it too, so it never rests on colour alone. Icons are
+-- made once per strip and reused; a view passes one handler table for
+-- tooltips and clicks, so nothing is created per refresh.
+--   strip = UI.ReagentStrip(parent, handler, size)  handler.tip(icon), handler.click(icon, button)
+--   strip:Begin()  strip:Add(id, qty, state, label)  strip:AddStatus(tex, kind)  strip:Finish(width)
+-- Each icon carries id, qty, state, kind and whatever the view sets in icon.ctx.
 ------------------------------------------------------------------------
 do
-  local SIZE, GAP = 16, 4
+  local GAP = 10
   local QMARK = "Interface\\Icons\\INV_Misc_QuestionMark"
+  local EDGE = { ok = { 0, 0, 0, 0.85 }, made = { 0.839, 0.698, 0.400, 0.9 }, short = { 0.820, 0.463, 0.396, 1 } }
+  local LABEL = { ok = S.text, made = S.gold, short = S.bad }
   local function iconOnEnter(self)
     local h = self.strip.handler
     if h and h.tip then h.tip(self) end
@@ -899,27 +903,31 @@ do
       local ic = strip.icons[k]
       local name = ic.id and NW.ItemName(ic.id)
       if not name and ic.id and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, ic.id) end
-      local r, g, b = 1, 1, 1
-      if ic.short then r, g, b = S.bad[1], S.bad[2], S.bad[3] end
-      GameTooltip:AddDoubleLine(name or ("item " .. tostring(ic.id)), "×" .. (ic.qty or 1), r, g, b, S.dim[1], S.dim[2], S.dim[3])
+      local c = LABEL[ic.state or "ok"] or S.text
+      GameTooltip:AddDoubleLine(name or ("item " .. tostring(ic.id)), ic.label:GetText() or ("×" .. (ic.qty or 1)), 1, 1, 1, c[1], c[2], c[3])
     end
     GameTooltip:Show()
   end
   local function newIcon(strip)
+    local size = strip.size
     local b = CreateFrame("Button", nil, strip)
-    b:SetSize(SIZE, SIZE)
+    b:SetSize(size, size)
     b:RegisterForClicks("LeftButtonUp")
     b.edge = b:CreateTexture(nil, "BACKGROUND")
     b.edge:SetPoint("TOPLEFT", -1, 1)
     b.edge:SetPoint("BOTTOMRIGHT", 1, -1)
-    b.edge:SetColorTexture(0, 0, 0, 0.8)
     b.tex = b:CreateTexture(nil, "ARTWORK")
     b.tex:SetAllPoints()
     b.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    -- one craft's count, where the game puts a stack's
     b.count = b:CreateFontString(nil, "OVERLAY")
-    b.count:SetFont(FONT, 10, "OUTLINE")
-    b.count:SetPoint("BOTTOMRIGHT", 3, -2)
+    b.count:SetFont(FONT, size >= 24 and 12 or 10, "OUTLINE")
+    b.count:SetPoint("BOTTOMRIGHT", -1, 1)
     b.count:SetJustifyH("RIGHT")
+    -- have / the step needs, beside the icon
+    b.label = UI.Text(strip, 11, S.text)
+    b.label:SetPoint("LEFT", b, "RIGHT", 4, 0)
+    b.label:SetWordWrap(false)
     local hl = b:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
     hl:SetColorTexture(1, 1, 1, 0.15)
@@ -934,91 +942,98 @@ do
     strip.n = strip.n + 1
     local b = strip.icons[strip.n]
     if not b then b = newIcon(strip); strip.icons[strip.n] = b end
-    b.id, b.qty, b.short, b.kind = nil, nil, nil, nil
+    b.id, b.qty, b.state, b.kind = nil, nil, nil, nil
     for k in pairs(b.ctx) do b.ctx[k] = nil end
     return b
   end
   local Strip = {}
-  function Strip:Begin(prefix)
+  function Strip:Begin()
     self.n = 0
-    self.prefix:SetText(prefix or "")
-    self.prefix:SetShown(prefix ~= nil and prefix ~= "")
   end
-  function Strip:Add(id, qty, short)
+  function Strip:Add(id, qty, state, label)
     local b = nextIcon(self)
-    b.id, b.qty, b.short, b.kind = id, qty or 1, short and true or false, "item"
+    state = state or "ok"
+    b.id, b.qty, b.state, b.kind = id, qty or 1, state, "item"
     b.tex:SetTexture(NW.ItemIcon(id) or QMARK)
-    b.tex:SetDesaturated(b.short)
-    b.tex:SetVertexColor(1, 1, 1, b.short and 0.55 or 1)
-    b.edge:SetColorTexture(0, 0, 0, 0.8)
-    b.count:SetText((b.qty > 1 or b.short) and tostring(b.qty) or "")
-    b.count:SetTextColor(unpack(b.short and S.bad or S.text))
+    b.edge:SetColorTexture(unpack(EDGE[state] or EDGE.ok))
+    b.count:SetText(b.qty > 1 and tostring(b.qty) or "")
+    b.label:SetText(label or "")
+    b.label:SetTextColor(unpack(LABEL[state] or S.text))
     return b
   end
   -- a state that isn't a reagent (needs a recipe): its own icon, first in line
-  function Strip:AddStatus(tex, kind)
+  function Strip:AddStatus(tex, kind, label)
     local b = nextIcon(self)
-    b.kind = kind
+    b.kind, b.state = kind, "short"
     b.tex:SetTexture(tex or QMARK)
-    b.tex:SetDesaturated(false)
-    b.tex:SetVertexColor(1, 1, 1, 1)
     b.edge:SetColorTexture(1, 0.5, 0.25, 0.9) -- a blocker: orange-edged, like the "needs recipe" it stands for
     b.count:SetText("")
+    b.label:SetText(label or "")
+    b.label:SetTextColor(1, 0.5, 0.25)
     return b
   end
-  -- lay out what fits in width; the rest go under a "+N" with them on hover
+  -- lay out what fits in width. Too many for their labels: labels only where
+  -- you're short or it's made earlier, then none (they're in the tooltip),
+  -- and only then a "+N" with the rest on hover. Nothing is left out.
+  local function labelW(b, mode)
+    local text = b.label:GetText() or ""
+    if text == "" or mode == 3 or (mode == 2 and b.state == "ok") then return 0 end
+    return math.ceil((b.label:GetStringWidth() or 0) + 4)
+  end
   function Strip:Finish(width)
+    width = width or 300
+    local size = self.size
+    local mode = 1
+    for m = 1, 3 do
+      mode = m
+      local need = 0
+      for k = 1, self.n do need = need + size + labelW(self.icons[k], m) + (k < self.n and GAP or 0) end
+      if need <= width then break end
+    end
     local x = 0
-    if self.prefix:IsShown() then
-      self.prefix:SetWidth(0)
-      local pw = math.min(self.prefix:GetStringWidth() or 0, math.max(60, (width or 300) * 0.55))
-      self.prefix:SetWidth(pw)
-      x = pw + 6
+    self.shown = 0
+    for k = 1, self.n do
+      local b = self.icons[k]
+      local lw = labelW(b, mode)
+      local w = size + lw
+      local last = k == self.n
+      -- keep room for the "+N" unless this is the last one
+      if x + w > width - (last and 0 or 28) then break end
+      b:ClearAllPoints()
+      b:SetPoint("LEFT", self, "LEFT", x + 1, 0)
+      b:Show()
+      b.label:SetShown(lw > 0)
+      x = x + w + GAP
+      self.shown = k
     end
-    local fit = math.floor(((width or 300) - x + GAP) / (SIZE + GAP))
-    if fit < self.n then fit = math.max(0, fit - 1) end -- room for the "+N"
-    self.shown = math.min(self.n, fit)
-    for k, b in ipairs(self.icons) do
-      if k <= self.shown then
-        b:ClearAllPoints()
-        b:SetPoint("LEFT", self, "LEFT", x + (k - 1) * (SIZE + GAP), 0)
-        b:Show()
-      else
-        b:Hide()
-      end
-    end
+    for k = self.shown + 1, #self.icons do self.icons[k]:Hide(); self.icons[k].label:Hide() end
     local over = self.n - self.shown
     self.more:SetShown(over > 0)
     if over > 0 then
       local short = false
-      for k = self.shown + 1, self.n do if self.icons[k].short then short = true end end
+      for k = self.shown + 1, self.n do if self.icons[k].state == "short" then short = true end end
       self.more.text:SetText("+" .. over)
       self.more.text:SetTextColor(unpack(short and S.bad or S.dim))
       self.more:ClearAllPoints()
-      self.more:SetPoint("LEFT", self, "LEFT", x + self.shown * (SIZE + GAP), 0)
+      self.more:SetPoint("LEFT", self, "LEFT", x, 0)
     end
   end
   function Strip:Clear()
     self.n, self.shown = 0, 0
-    for _, b in ipairs(self.icons) do b:Hide() end
+    for _, b in ipairs(self.icons) do b:Hide(); b.label:Hide() end
     self.more:Hide()
-    self.prefix:SetText("")
-    self.prefix:Hide()
   end
-  function UI.ReagentStrip(parent, handler)
+  function UI.ReagentStrip(parent, handler, size)
     local strip = CreateFrame("Frame", nil, parent)
-    strip:SetSize(300, SIZE + 2)
+    strip.size = size or 16
+    strip:SetSize(300, strip.size + 2)
     for k, fn in pairs(Strip) do strip[k] = fn end
     strip.handler = handler
     strip.icons = {}
     strip.n, strip.shown = 0, 0
-    strip.prefix = UI.Text(strip, 11, S.dim)
-    strip.prefix:SetPoint("LEFT", 0, 0)
-    strip.prefix:SetWordWrap(false)
-    strip.prefix:Hide()
     strip.more = CreateFrame("Button", nil, strip)
-    strip.more:SetSize(26, SIZE)
-    strip.more.text = UI.Text(strip.more, 11, S.dim)
+    strip.more:SetSize(26, strip.size)
+    strip.more.text = UI.Text(strip.more, 12, S.dim)
     strip.more.text:SetPoint("LEFT", 2, 0)
     strip.more.strip = strip
     strip.more:SetScript("OnEnter", moreOnEnter)
