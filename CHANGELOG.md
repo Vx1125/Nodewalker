@@ -1,8 +1,8 @@
 # Changelog
 
 ## Unreleased
-- Fishing: zone panel shows fish, recipes and the lure as icons; notes moved to tooltips.
-- Fishing: skill on one line (Base, Bonus, Effective); equipment and lure in its tooltip.
+- Fishing: zone panel is a location guide: zone map with your catch spots, fish with what they cook into, the lure (Prefer sets it for Smart Fishing), Base, Bonus and Effective.
+- Fishing: equipment and lure bonuses in the skill tooltip.
 - Fishing + Cooking: shorter rows (icons say the action), vendor items as icons, catches hang off their dish.
 - Fishing + Cooking: each step's panel shows only what that step needs.
 - Gathering: your current bracket keeps a gold edge on the right while another is selected.

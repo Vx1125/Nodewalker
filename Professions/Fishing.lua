@@ -661,11 +661,12 @@ function W.fh.tip(icon)
   local d = S.dim
   local f = F.FISH[id]
   if c.perCraft then GameTooltip:AddDoubleLine("Per craft", c.perCraft, d[1], d[2], d[3], 1, 1, 1) end
-  if c.need then GameTooltip:AddDoubleLine("Have", ("%d / %s%d"):format(math.min(NW.ItemCount(id) or 0, c.need), c.est and "~" or "", c.need), d[1], d[2], d[3], 1, 1, 1) end
+  if c.need then GameTooltip:AddDoubleLine("Have", ("%d / %s%d"):format(math.min(c.have or NW.ItemCount(id) or 0, c.need), c.est and "~" or "", c.need), d[1], d[2], d[3], 1, 1, 1) end
   if c.cookedInto then GameTooltip:AddLine("What this fish is cooked into", d[1], d[2], d[3], true) end
   if c.recipe then
     local r = c.recipe
     GameTooltip:AddDoubleLine("Cooking", ("%d-%d"):format(r.orange or r.yellow, r.grey), d[1], d[2], d[3], 1, 1, 1)
+    if c.stepFrom then GameTooltip:AddDoubleLine("In this plan", ("%d-%d"):format(c.stepFrom, c.stepTo), d[1], d[2], d[3], 1, 1, 1) end
     local cook = NW.ProfSkill("cooking")
     local st = F.cookState(r, cook)
     if cook and st then GameTooltip:AddDoubleLine(("At your %d"):format(cook), F.COOK_WORDS[st], d[1], d[2], d[3], 1, 1, 1) end
@@ -976,8 +977,12 @@ W.mapArt = CreateFrame("Frame", nil, W.map)
 W.mapArt:SetPoint("TOPLEFT", 1, -1)
 W.mapArt:SetSize(MAP_W - 2, MAP_H - 2)
 W.mapTiles, W.dots = {}, {}
-function F.drawMap(mapID, spots)
-  UI.DrawZoneArt(mapID, W.mapArt, W.mapTiles, MAP_W - 2, MAP_H - 2, true)
+-- (w, h: a smaller map, the same 3:2 shape the game's zone maps have)
+function F.drawMap(mapID, spots, w, h)
+  w, h = w or MAP_W, h or MAP_H
+  W.map:SetSize(w, h)
+  W.mapArt:SetSize(w - 2, h - 2)
+  UI.DrawZoneArt(mapID, W.mapArt, W.mapTiles, w - 2, h - 2, true)
   local most = 1
   for _, sp in ipairs(spots) do if sp.n > most then most = sp.n end end
   table.sort(spots, function(a, b) return a.n > b.n end)
@@ -993,13 +998,31 @@ function F.drawMap(mapID, spots)
       local size = 3 + math.floor(5 * math.sqrt(sp.n / most))
       d:SetSize(size, size)
       d:ClearAllPoints()
-      d:SetPoint("CENTER", W.mapArt, "TOPLEFT", sp.x * (MAP_W - 2), -sp.y * (MAP_H - 2))
+      d:SetPoint("CENTER", W.mapArt, "TOPLEFT", sp.x * (w - 2), -sp.y * (h - 2))
       d:Show()
     elseif d then
       d:Hide()
     end
   end
 end
+-- what the map shows, on its bottom edge; hover for more
+W.mapCap = UI.Text(W.map, 10, S.dim)
+W.mapCap:SetPoint("BOTTOMLEFT", 5, 4)
+W.mapCap:SetShadowOffset(1, -1)
+W.mapHit = CreateFrame("Frame", nil, W.map)
+W.mapHit:SetAllPoints()
+W.mapHit:EnableMouse(true)
+W.mapHit:SetScript("OnEnter", function(self) if self.fn then GameTooltip:SetOwner(self, "ANCHOR_LEFT") self.fn(GameTooltip) GameTooltip:Show() end end)
+W.mapHit:SetScript("OnLeave", GameTooltip_Hide)
+-- one small button on a row (the lure's Smart Fishing choice)
+W.rowBtn = UI.Button(W.right, "", 70, nil, 20)
+W.rowBtn:Hide()
+W.rowBtn:HookScript("OnEnter", function(self)
+  if not self.tip then return end
+  GameTooltip:SetOwner(self, "ANCHOR_LEFT") GameTooltip:SetText(self:GetText() or "", 1, 1, 1)
+  GameTooltip:AddLine(self.tip, S.dim[1], S.dim[2], S.dim[3], true) GameTooltip:Show()
+end)
+W.rowBtn:HookScript("OnLeave", GameTooltip_Hide)
 W.btn1 = UI.Button(W.right, "Show on map", math.floor((RIGHT_W - 6) / 2), nil, 24)
 W.btn2 = UI.Button(W.right, "", math.floor((RIGHT_W - 6) / 2), nil, 24)
 W.btn1:Hide() W.btn2:Hide()
@@ -1007,6 +1030,7 @@ W.btn1:Hide() W.btn2:Hide()
 -- icon groups in the panel: the professions' reagent strip (pooled), a short label at the left
 W.rstrips = {}
 local ICON_LABEL_W = 46
+local ITEM2_X = 150 -- an item row's second icon (after the arrow)
 local function panelStrip(k)
   local s = W.rstrips[k]
   if not s then
@@ -1043,11 +1067,13 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
   for _, b in ipairs(W.bars) do b:Hide() end
   W.map:Hide()
   local n, nb, ns = 0, 0, 0
+  local usedBtn = false
+  for _, ln in ipairs(W.lines) do if ln.arrow then ln.arrow:Hide() end end
   for _, row in ipairs(rows or {}) do
     if row == "gap" then
       y = y - 6
     elseif row.icons then
-      if #row.icons > 0 and ns < 6 and n < #W.lines then
+      if #row.icons > 0 and ns < 12 and n < #W.lines then
         ns, n = ns + 1, n + 1
         local s = panelStrip(ns)
         s:Begin()
@@ -1071,6 +1097,87 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
         lineTip(ln, row.tip, 26)
         y = y - lines * 31 - 3
       end
+    elseif row.item then
+      -- an item row: [icon] name, then [→ icon] info, or info on the right (and a button)
+      if ns < 12 and n < #W.lines then
+        ns, n = ns + 1, n + 1
+        local s = panelStrip(ns)
+        s:Begin()
+        for _, e in ipairs({ row.item, row.item2 }) do
+          local ic = s:Add(e[1], e[2], e[3])
+          if e[4] then for k, v in pairs(e[4]) do ic.ctx[k] = v end end
+        end
+        s:Finish(80)
+        s:ClearAllPoints()
+        s:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, y)
+        s:Show()
+        local ln = W.lines[n]
+        ln.l:ClearAllPoints() ln.v:ClearAllPoints()
+        ln.l:SetFont(UI.FONT, 11, "")
+        ln.l:SetTextColor(unpack(row.color or S.text))
+        ln.l:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 32, y - 9)
+        ln.l:SetText(row.text or "")
+        ln.v:SetFont(UI.FONT, 11, "")
+        if row.item2 then
+          -- the second icon after an arrow, its info after it
+          local i2 = s.icons[2]
+          i2:ClearAllPoints()
+          i2:SetPoint("TOPLEFT", s, "TOPLEFT", ITEM2_X + 1, -1)
+          ln.l:SetWidth(ITEM2_X - 32 - 18)
+          if not ln.arrow then ln.arrow = UI.Text(W.right, 12, S.dim) ln.arrow:SetText("→") end
+          ln.arrow:ClearAllPoints()
+          ln.arrow:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", ITEM2_X - 15, y - 8)
+          ln.arrow:Show()
+          ln.v:SetJustifyH("LEFT")
+          ln.v:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", ITEM2_X + 32, y - 9)
+          ln.v:SetWidth(RIGHT_W - ITEM2_X - 32)
+        else
+          local bw = row.btn and 76 or 0
+          ln.v:SetJustifyH("RIGHT")
+          ln.v:SetPoint("TOPRIGHT", anchor, "BOTTOMLEFT", RIGHT_W - bw, y - 9)
+          ln.v:SetWidth(70)
+          ln.l:SetWidth(RIGHT_W - 32 - 74 - bw)
+          if row.btn then
+            local b = W.rowBtn
+            b:ClearAllPoints()
+            b:SetPoint("TOPRIGHT", anchor, "BOTTOMLEFT", RIGHT_W, y - 3)
+            b:SetText(row.btn[1])
+            b:SetScript("OnClick", row.btn[2])
+            b:SetEnabled(row.btn[2] ~= nil)
+            b.tip = row.btn.tip
+            b:Show()
+            usedBtn = true
+          end
+        end
+        ln.v:SetText(row.info or "")
+        ln.l:Show() ln.v:Show()
+        lineTip(ln, row.tip, 26)
+        if ln.hit and row.tip then ln.hit:SetPoint("TOPLEFT", ln.l, "TOPLEFT", 0, 9) ln.hit:SetWidth(ITEM2_X - 50) end
+        y = y - 28
+      end
+    elseif row.stats then
+      -- values side by side, each under its small label
+      local cw = math.floor(RIGHT_W / #row.stats)
+      for k, c in ipairs(row.stats) do
+        if n < #W.lines then
+          n = n + 1
+          local ln = W.lines[n]
+          ln.l:ClearAllPoints() ln.v:ClearAllPoints()
+          ln.l:SetFont(UI.FONT, 10, "")
+          ln.l:SetTextColor(unpack(S.dim))
+          ln.l:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", (k - 1) * cw, y)
+          ln.l:SetWidth(cw - 6)
+          ln.l:SetText(c[1])
+          ln.v:SetFont(UI.FONT, 14, "")
+          ln.v:SetJustifyH("LEFT")
+          ln.v:SetPoint("TOPLEFT", ln.l, "BOTTOMLEFT", 0, -2)
+          ln.v:SetWidth(cw - 6)
+          ln.v:SetText(c[2])
+          ln.l:Show() ln.v:Show()
+          lineTip(ln, k == 1 and row.tip or nil, 30)
+        end
+      end
+      y = y - 34
     elseif row.bar then
       if nb < #W.bars then
         nb = nb + 1
@@ -1085,8 +1192,11 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
       W.map:ClearAllPoints()
       W.map:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, y - 4)
       W.map:Show()
-      F.drawMap(row.map, row.spots or {})
-      y = y - MAP_H - 8
+      F.drawMap(row.map, row.spots or {}, row.w, row.h)
+      W.mapCap:SetText(row.cap or "")
+      W.mapHit.fn = row.tip
+      W.mapHit:SetShown(row.tip ~= nil)
+      y = y - (row.h or MAP_H) - 8
     elseif n < #W.lines then
       n = n + 1
       local ln = W.lines[n]
@@ -1105,6 +1215,8 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
         ln.l:SetTextColor(unpack(S.dim))
         ln.l:SetText(row[1])
         -- the value on the same line as its label, and the label gets whatever the value leaves
+        ln.v:SetFont(UI.FONT, 11, "")
+        ln.v:SetJustifyH("RIGHT")
         ln.v:SetPoint("TOPRIGHT", anchor, "BOTTOMLEFT", RIGHT_W, y)
         ln.v:SetWidth(0)
         ln.v:SetText(row[2])
@@ -1126,6 +1238,7 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
   end
   for i = n + 1, #W.lines do W.lines[i].l:Hide() W.lines[i].v:Hide() lineTip(W.lines[i], nil) end
   for k = ns + 1, #W.rstrips do W.rstrips[k]:Clear() W.rstrips[k]:Hide() end
+  if not usedBtn then W.rowBtn:Hide() end
   local function place(b, spec, x)
     if not spec then b:Hide() return end
     b:ClearAllPoints()
@@ -1179,7 +1292,7 @@ function F.leveling()
       if bi > 1 then
         local trained = max and max >= r.cap
         items[#items + 1] = { icon = r.item and NW.ItemIcon(r.item) or "Interface\\Icons\\INV_Misc_Book_09",
-          mark = trained and mark("done") or mark(), text = H.gold .. "Train|r",
+          mark = trained and mark("done") or mark(), text = H.gold .. "Train|r  " .. H.dim .. r.name .. "|r",
           right = ("%d+"):format(r.skill), selKey = "rank" .. bi, tip = rankTip(r), dim = trained }
       end
       for _, z in ipairs(F.sortZones(b.zones)) do
@@ -1259,7 +1372,7 @@ local function lureFor(b, rows)
   for _, l in ipairs(F.LURES) do if l[1] == b.lure then want = l end end
   if not want then return end
   local ok = bonus >= want[2]
-  rows[#rows + 1] = { icons = { { want[1], "+" .. want[2], "ok", { lure = want[2], covered = ok } } }, label = "Lure" }
+  rows[#rows + 1] = { icons = { { want[1], "+" .. want[2], ok and "made" or "ok", { lure = want[2], covered = ok } } }, label = "Lure" }
 end
 
 -- fish as icons (what you have in the corner), each with its facts in the tooltip
@@ -1289,33 +1402,110 @@ local function cookFrom(fish)
   return uses
 end
 
+-- one fish and what it cooks into: [fish] name → [dish] Cooking range (recipe, if it isn't the fish's name)
+local function catchRow(id, cook)
+  local n = NW.ItemCount(id) or 0
+  local name = (F.itemName(id)):gsub("^Raw ", "")
+  local row = { item = { id, n > 0 and n or false }, text = name }
+  local list = NW.CookFish(id)
+  local r = list[1]
+  if r and r.item then
+    local rname = r.name or ""
+    row.item2 = { r.item, false, F.cookState(r, cook) or "ok", { recipe = r } }
+    row.info = ("%d-%d"):format(r.orange or r.yellow, r.grey)
+      .. ((rname ~= name and rname ~= "") and ("  " .. H.dim .. rname .. "|r") or "")
+      .. (#list > 1 and (H.dim .. "  +" .. (#list - 1) .. "|r") or "")
+    if #list > 1 then
+      row.tip = function(tt)
+        tt:SetText(name, 1, 1, 1)
+        for _, x in ipairs(list) do tt:AddDoubleLine(x.name, ("%d-%d"):format(x.orange or x.yellow, x.grey), 1, 1, 1, S.dim[1], S.dim[2], S.dim[3]) end
+      end
+    end
+  end
+  return row
+end
+-- the lure for this range: icon, name and bonus; Smart Fishing can put it on with its key
+local function lureRow(b)
+  if not b.lure then return nil end
+  local _, _, bonus = F.skill()
+  local want
+  for _, l in ipairs(F.LURES) do if l[1] == b.lure then want = l end end
+  if not want then return nil end
+  local SF = NW.SmartFish
+  local covered = bonus >= want[2]
+  local have = NW.ItemCount(want[1]) or 0
+  local row = { item = { want[1], have > 0 and have or false, covered and "made" or "ok", { lure = want[2], covered = covered } },
+    text = F.itemName(want[1], SF and SF.LURE_NAME and SF.LURE_NAME[want[1]]), info = ("+%d"):format(want[2]) }
+  if SF then
+    local s = NW.db.settings
+    if s.fishLure == "pref" and s.fishLurePref == want[1] then
+      row.btn = { "Preferred", nil, tip = "Smart Fishing puts this lure on with its key." }
+    else
+      row.btn = { "Prefer", function()
+        s.fishLure, s.fishLurePref = "pref", want[1]
+        if SF.Update then SF.Update() end
+        F.Redraw()
+      end, tip = "Smart Fishing puts this lure on with its key." }
+    end
+  end
+  return row
+end
+
 function F.zoneDetail(zone, bi, later)
   local b = F.BRACKETS[bi]
   local here, range = F.fishIn(zone, bi)
   local d = S.dim
-  local rng = later and ("from %d with a lure"):format(later) or ("%d-%d"):format(b[1], b[2])
-  local rows = {
-    { "Skill", rng .. ((b.best == zone and not later) and ("  " .. H.gold .. "best|r") or ""), tip = function(tt)
-      tt:SetText("Recommended skill", 1, 1, 1)
-      tt:AddLine("From leveling guides. The zone's minimum isn't published.", d[1], d[2], d[3], true)
-    end },
-  }
+  local cook = NW.ProfSkill("cooking")
+  local rows = {}
   if F.hostile(zone) then rows[#rows + 1] = { H.bad .. "The other faction's city|r" } end
-  rows[#rows + 1] = { icons = fishIcons(here), label = "Here", tip = function(tt)
+  -- the zone, and where you've caught fish in it (the journal's spots; none are shipped)
+  local mapID = NW.ZoneID and NW.ZoneID(zone)
+  if mapID then
+    local J = NW.FishJournal
+    local spots = J and J.Spots and J.Spots(mapID, "all") or {}
+    rows[#rows + 1] = { map = mapID, spots = spots, w = 198, h = 132,
+      cap = #spots > 0 and "Your catches" or "", tip = function(tt)
+        tt:SetText(zone, 1, 1, 1)
+        if #spots > 0 then tt:AddLine("Dots: where you've caught fish (your journal).", d[1], d[2], d[3], true)
+        else tt:AddLine("No catches logged here yet. Fishing spots aren't in the data, so none are shown.", d[1], d[2], d[3], true) end
+      end }
+  end
+  -- what you may catch: this zone's fish, then other fish for this skill (not every water has every fish)
+  local MAXR = 4 -- (what fits above the lure, your skill and the buttons)
+  local shown = 0
+  local function list(ids, label, tip)
+    if #ids == 0 then return end
+    local room = math.max(1, MAXR - shown)
+    rows[#rows + 1] = { label .. (#ids > room and (H.dim .. "  +" .. (#ids - room) .. "|r") or ""), color = S.dim, tip = tip }
+    for k = 1, math.min(room, #ids) do rows[#rows + 1] = catchRow(ids[k], cook) shown = shown + 1 end
+  end
+  list(here, "In this zone", function(tt)
     tt:SetText("May be caught in this zone", 1, 1, 1)
     tt:AddLine("Not at every body of water.", d[1], d[2], d[3], true)
-  end }
-  rows[#rows + 1] = { icons = fishIcons(range), label = #here > 0 and "Also" or "Fish", tip = function(tt)
+    tt:AddLine("Skill range from leveling guides; the zone's minimum isn't published.", d[1], d[2], d[3], true)
+  end)
+  list(range, #here > 0 and "Also at this skill" or "At this skill", function(tt)
     tt:SetText("Other fish at this skill", 1, 1, 1)
     tt:AddLine("Caught in other waters at this skill range.", d[1], d[2], d[3], true)
-  end }
-  local all = {}
-  for _, id in ipairs(here) do all[#all + 1] = id end
-  for _, id in ipairs(range) do all[#all + 1] = id end
-  rows[#rows + 1] = { icons = recipeIcons(cookFrom(all), 12), label = "Cook" }
-  lureFor(b, rows)
-  F.equipLines(rows)
-  F.detail("Location", "Interface\\Icons\\Trade_Fishing", zone, "", rows, { "Show on map", F.showZone(zone) })
+    for k = 1, #range do tt:AddLine((F.itemName(range[k])):gsub("^Raw ", ""), 1, 1, 1) end
+  end)
+  rows[#rows + 1] = "gap"
+  local lr = lureRow(b)
+  if lr then rows[#rows + 1] = lr end
+  -- your skill: three values; equipment and lure in the tooltip
+  local rank, _, bonus = F.skill()
+  if rank then
+    local eq = {}
+    F.equipLines(eq)
+    rows[#rows + 1] = { stats = { { "Base", tostring(rank) }, { "Bonus", bonus > 0 and ("+" .. bonus) or "0" },
+      { "Effective", BLUE_HEX .. (rank + bonus) .. "|r" } }, tip = eq[1] and eq[1].tip }
+  end
+  local first = here[1] or range[1]
+  F.detail("Location", "Interface\\Icons\\Trade_Fishing", zone, "", rows,
+    { "Show on map", F.showZone(zone) },
+    { "Material Finder", function()
+      if not (first and NW.FindMaterialAt and NW.FindMaterialAt(first, "fishing", zone)) then NW.OpenFishFinder(first) end
+    end })
 end
 
 function F.rankDetail(r, prof)
@@ -1489,14 +1679,15 @@ function F.shortLabel(a)
   local k = a.kind
   if k == "catch" then return (a.buy and "Buy " or "") .. (F.itemName(a.fish)):gsub("^Raw ", "") end
   if k == "cook" then return a.recipe.name end
-  if k == "recipe" then return a.recipe.name end
+  if k == "recipe" then return "Recipe: " .. a.recipe.name end
   if k == "train" then
     local r = a.rank or a.crank
     return ("%s  %s%s|r"):format(r.name, H.dim, a.prof == "fishing" and "Fishing" or "Cooking")
   end
   if k == "fishto" then
     local b = a.b
-    return (b and (b.best or F.sortZones(b.zones)[1])) or a.label
+    local z = b and (b.best or F.sortZones(b.zones)[1])
+    return z and ("Fish: " .. z) or a.label
   end
   if k == "vendor" then return "Vendor" end
   if k == "other" then return "Ingredients" end
@@ -1604,15 +1795,18 @@ function F.actionDetail(a, plan)
   if k == "catch" then
     local f = F.FISH[a.fish]
     local zones, named = F.zonesFor(a.fish)
-    local rows = { { bar = a.need > 0 and math.min(1, a.have / a.need) or 1 } }
+    local rows = { { bar = a.need > 0 and math.min(1, a.have / a.need) or 1 },
+      { "To go", ("~%d"):format(math.max(0, a.need - a.have)), tip = function(tt)
+        tt:SetText("Fish to collect", 1, 1, 1)
+        tt:AddLine("An estimate in fish, not casts: skill-ups are random.", d[1], d[2], d[3], true)
+      end } }
     -- what stops it, up front
     if a.blocked then rows[#rows + 1] = { H.bad .. a.blocked .. "|r" } end
     if f.season then rows[#rows + 1] = { H.gold .. f.season .. " only|r", tip = function(tt)
       tt:SetText("Seasonal", 1, 1, 1) tt:AddLine("By Classic data.", d[1], d[2], d[3], true) end } end
-    rows[#rows + 1] = { "Skill", f.skill and (f.skill .. "+") or (H.dim .. "?|r"), tip = function(tt)
+    rows[#rows + 1] = { "Guides", f.skill and ("from %d"):format(f.skill) or (H.dim .. "not known|r"), tip = function(tt)
       tt:SetText("Fishing skill", 1, 1, 1)
       tt:AddLine(f.skill and "From leveling guides, not a confirmed minimum." or "Not known.", d[1], d[2], d[3], true)
-      if f.note then tt:AddDoubleLine("Where", f.note, d[1], d[2], d[3], 1, 1, 1) end
     end }
     if f.note then rows[#rows + 1] = { "Where", f.note } end
     -- catching it waits for Fishing; buying it would let Cooking go on now
@@ -1625,7 +1819,7 @@ function F.actionDetail(a, plan)
     -- where (zones), what it's cooked into, and other fish that do the same job
     if #zones > 0 then
       local z3 = {}
-      for z = 1, math.min(3, #zones) do z3[z] = zones[z] end
+      for z = 1, math.min(3, #zones) do z3[z] = F.hostile(zones[z]) and (H.dim .. zones[z] .. "|r") or zones[z] end
       rows[#rows + 1] = { (named and "" or (H.dim .. "At this skill: |r")) .. table.concat(z3, ", ") .. (#zones > 3 and (H.dim .. " +" .. (#zones - 3) .. "|r") or ""),
         tip = function(tt)
           tt:SetText(named and "Found in" or "Waters at this skill", 1, 1, 1)
@@ -1636,7 +1830,8 @@ function F.actionDetail(a, plan)
     for _, b in ipairs(a.phase and a.phase.actions or {}) do
       if b.kind == "cook" and b.recipe.item then
         for _, re in ipairs(b.recipe.reagents) do
-          if re[1] == a.fish then dishes[#dishes + 1] = { b.recipe.item, false, F.cookState(b.recipe, NW.ProfSkill("cooking")) or "ok", { recipe = b.recipe } } break end
+          if re[1] == a.fish then dishes[#dishes + 1] = { b.recipe.item, false, F.cookState(b.recipe, NW.ProfSkill("cooking")) or "ok",
+            { recipe = b.recipe, perCraft = re[2], stepFrom = b.step.from, stepTo = b.step.to } } break end
         end
       end
     end
@@ -1667,15 +1862,17 @@ function F.actionDetail(a, plan)
   elseif k == "cook" then
     local r, stp = a.recipe, a.step
     local known = (NW.charDB.known.cooking or {})[r.name]
-    local mats, missing = {}, {}
+    local mats, missing, per = {}, {}, {}
+    for _, re in ipairs(r.reagents or {}) do per[re[1]] = re[2] end
     for _, m in ipairs(stp.mats or {}) do
       local n = NW.ItemCount(m[1]) or 0
-      mats[#mats + 1] = { m[1], m[2], n >= m[2] and "ok" or "short", { need = m[2], est = F.FISH[m[1]] and true or nil } }
+      -- one craft's count in the corner, as everywhere; the total in the tooltip
+      mats[#mats + 1] = { m[1], per[m[1]] or m[2], n >= m[2] and "ok" or "short", { need = m[2], perCraft = per[m[1]], est = F.FISH[m[1]] and true or nil } }
       local nm, ok = F.itemName(m[1])
       if n < m[2] and ok and not F.FISH[m[1]] then missing[#missing + 1] = { nm, m[2] - n } end
     end
     local rows = { { icons = mats, label = "Uses", tip = function(tt)
-      tt:SetText("For all crafts", 1, 1, 1) tt:AddLine("Red edge: not enough yet.", d[1], d[2], d[3], true) end } }
+      tt:SetText("Per craft", 1, 1, 1) tt:AddLine("Hover an icon for the total. Red edge: not enough yet.", d[1], d[2], d[3], true) end } }
     if not known then
       rows[#rows + 1] = { "Recipe", (r.src == "trainer" or r.src == "rank") and "trainer" or (H.bad .. "to get|r") }
     end
@@ -1700,9 +1897,13 @@ function F.actionDetail(a, plan)
     -- one source a line, so none is cut off
     local src = NW.RecipeSourceText and NW.RecipeSourceText("cooking", r) or ""
     src = src:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-    for part in (src .. "  ·  "):gmatch("(.-)  ·  ") do
-      if part ~= "" and #rows < 6 then rows[#rows + 1] = { part } end
-    end
+    local parts = {}
+    for part in (src .. "  ·  "):gmatch("(.-)  ·  ") do if part ~= "" then parts[#parts + 1] = part end end
+    for p = 1, math.min(6, #parts) do rows[#rows + 1] = { parts[p] } end
+    if #parts > 6 then rows[#rows + 1] = { ("+%d more"):format(#parts - 6), color = S.dim, tip = function(tt)
+      tt:SetText("Also", 1, 1, 1)
+      for p = 7, #parts do tt:AddLine(parts[p], 1, 1, 1, true) end
+    end } end
     rows[#rows + 1] = "gap"
     rows[#rows + 1] = { "Cost", money(a.cost) }
     rows[#rows + 1] = { icons = r.item and recipeIcons({ r }) or {}, label = "Makes" }
@@ -1732,7 +1933,7 @@ function F.actionDetail(a, plan)
     local icons, search = {}, {}
     for _, e in ipairs(a.items) do
       local nm, ok = F.itemName(e.id)
-      icons[#icons + 1] = { e.id, e.need, e.have >= e.need and "ok" or "short", { need = e.need } }
+      icons[#icons + 1] = { e.id, e.need, e.have >= e.need and "ok" or "short", { need = e.need, have = e.have } }
       if e.have < e.need and ok then search[#search + 1] = { nm, e.need - e.have } end
     end
     F.detail(k == "vendor" and "Vendor" or "Ingredients", actionIcon(a), k == "vendor" and "Vendor supplies" or "Other ingredients",
