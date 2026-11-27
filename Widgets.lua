@@ -884,9 +884,9 @@ end
 -- Each icon carries id, qty, state, kind and whatever the view sets in icon.ctx.
 ------------------------------------------------------------------------
 do
-  local GAP = 6
+  local GAP = 5
   local QMARK = "Interface\\Icons\\INV_Misc_QuestionMark"
-  local EDGE = { ok = { 0, 0, 0, 0.85 }, made = { 0.839, 0.698, 0.400, 1 }, short = { 0.820, 0.463, 0.396, 1 } }
+  local EDGE = { ok = { 0, 0, 0, 0.85 }, made = { 0.839, 0.698, 0.400, 0.9 }, short = { 0.760, 0.440, 0.390, 0.7 } }
   local COUNT = { ok = { 1, 1, 1, 1 }, made = { 1, 1, 1, 1 }, short = { 1, 0.55, 0.45, 1 } }
   local function iconOnEnter(self)
     local h = self.strip.handler
@@ -909,7 +909,7 @@ do
     b.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     -- one craft's count, where the game puts a stack's
     b.count = b:CreateFontString(nil, "OVERLAY")
-    b.count:SetFont(FONT, size >= 26 and 13 or 10, "OUTLINE")
+    b.count:SetFont(FONT, size >= 24 and 12 or 10, "OUTLINE")
     b.count:SetPoint("BOTTOMRIGHT", -1, 2)
     b.count:SetJustifyH("RIGHT")
     local hl = b:CreateTexture(nil, "HIGHLIGHT")

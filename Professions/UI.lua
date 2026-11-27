@@ -405,7 +405,7 @@ local STEP_H, STEP_ROWS, STEP_FRAMES, HEAD_ROW_H = 38, 10, 15, 24
 -- The materials are 30px icons, four across; a recipe with more takes a
 -- second row of icons, and only that row is taller.
 MS.COL = { range = 8, icon = 62, name = 88, nameW = 150, mat = 244, matW = 150, crafts = -70 }
-MS.ICON, MS.INDENT = 30, 18
+MS.ICON, MS.INDENT = 26, 18
 local function reagentCount(stp)
   local r = stp.recipe or stp.make or (stp.tool and not stp.tool.have and stp.tool.recipe)
   if not r then return 0 end
@@ -431,6 +431,13 @@ end
 -- Leveling's Materials heading, and its Crafts heading sits further right
 caps[5] = UI.Text(mid, 10, S.dim, "LEFT")
 caps[5]:SetPoint("BOTTOMLEFT", stepsBox, "TOPLEFT", MS.COL.mat + 2, 3)
+-- what the numbers on the icons are, on the heading
+MS.matHead = CreateFrame("Frame", nil, mid)
+MS.matHead:SetPoint("BOTTOMLEFT", stepsBox, "TOPLEFT", MS.COL.mat, 0)
+MS.matHead:SetSize(MS.COL.matW, 16)
+MS.matHead:EnableMouse(true)
+UI.Tip(MS.matHead, "Materials", "Each number is what one craft takes. Hover an icon for the whole step: "
+  .. "what you have, what the steps before make and what's short.\nRed edge: short. Gold edge: made by the steps before.")
 function MS.capsFor(plan)
   caps[1]:ClearAllPoints()
   caps[1]:SetPoint("BOTTOMLEFT", stepsBox, "TOPLEFT", 9, 3)
@@ -439,6 +446,7 @@ function MS.capsFor(plan)
   caps[3]:ClearAllPoints()
   caps[3]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", plan and (MS.COL.crafts - 11) or -107, 3)
   caps[5]:SetText(plan and "Materials" or "")
+  MS.matHead:SetShown(plan)
 end
 local CAPS = {
   plan = { "Skill", "Recipe", "Crafts", "Cost" },
@@ -982,7 +990,9 @@ function MS.rh.tip(icon)
   if short > 0 then GameTooltip:AddDoubleLine("Short", short, d[1], d[2], d[3], S.bad[1], S.bad[2], S.bad[3])
   elseif c.total and c.owned then GameTooltip:AddDoubleLine("Short", "none", d[1], d[2], d[3], S.good[1], S.good[2], S.good[3]) end
   local price, src = NW.Price(id)
-  if price then
+  if not price then
+    GameTooltip:AddDoubleLine("Price", "none yet (not in the total)", d[1], d[2], d[3], S.bad[1], S.bad[2], S.bad[3])
+  else
     GameTooltip:AddDoubleLine("Price each", NW.Money(price), d[1], d[2], d[3], 1, 1, 1)
     local from = ({ ah = "Auction house (Auctionator)", vendor = "Vendor", craft = "Cheaper to make", est = "Estimate (no price yet)" })[src or ""]
     if from then GameTooltip:AddDoubleLine("From", from, d[1], d[2], d[3], 1, 1, 1) end
@@ -1044,6 +1054,15 @@ function MS.fillStrip(row, r, crafts, stp, needsRecipe, width)
   end
   strip:Finish(MS.COL.matW)
   row.mats:SetText("")
+end
+-- a step that needs a recipe nobody has priced (its cost leaves the recipe out)
+function MS.recipeUnpriced(stp)
+  if not stp.needsRecipe then return false end
+  local r = stp.recipe
+  if r.src == "trainer" or r.src == "rank" then return false end
+  local price, src = nil, nil
+  if r.recipeItem then price, src = NW.Price(r.recipeItem) end
+  return not (price and (src == "ah" or src == "vendor"))
 end
 -- a tool you buy or have: what it is and where, in the Materials column
 function MS.toolText(row, text)
@@ -1439,7 +1458,7 @@ drawSteps = function()
         row.name:SetText(("|cff%s%s|r"):format(colorFor(r, stp.from), r.name))
         row.crafts:SetText("×" .. stp.crafts)
         if not done then row:SetCraft(selected, r, stp.crafts) end
-        row.cost:SetText(NW.Money(stp.spend or stp.cost, true) .. (stp.unknown > 0 and " |cffd17665?|r" or ""))
+        row.cost:SetText(NW.Money(stp.spend or stp.cost, true) .. ((stp.unknown > 0 or MS.recipeUnpriced(stp)) and " |cffd17665?|r" or ""))
         -- the reagents as icons; needing a recipe is the scroll icon first in line
         -- (searching: "Train X first" stays as words, in the name's line)
         if stp.rankUp and searchText ~= "" then
@@ -1735,6 +1754,14 @@ local function drawCraft(p)
     end
   end
   for i, e in ipairs(recipes) do table.insert(list, i, e) end
+  -- a recipe with no price isn't in any total: say so beside them
+  local noPrice = 0
+  for _, e in ipairs(recipes) do if e.buy > 0 and not e.cost then noPrice = noPrice + 1 end end
+  if noPrice > 0 then
+    MS.planPartial = " |cffd17665+?|r"
+    MS.planLines[#MS.planLines + 1] = { " " }
+    MS.planLines[#MS.planLines + 1] = { ("%d recipe%s to buy %s no price: not in the totals."):format(noPrice, noPrice == 1 and "" or "s", noPrice == 1 and "has" or "have") }
+  end
   -- in groups: recipes to buy, materials, vendor supplies, and what you already have (folded)
   MS.shopCount = #list
   local groups = { recipes = {}, fish = {}, mats = {}, vendor = {}, owned = {} }
@@ -1771,7 +1798,7 @@ local function drawCraft(p)
   for _, e in ipairs(list) do if e.live then live = live + 1 end end
   local bagsOff = not st().planUseBags
   rTotal:SetText(("%d items  ·  %s %s%s%s%s"):format(MS.shopCount or #list, NW.Money(total), bagsOff and "in all" or "to buy",
-    plan.unknown > 0 and ("  ·  |cffd17665%d no price|r"):format(plan.unknown) or "",
+    (plan.unknown > 0 or noPrice > 0) and ("  ·  |cffd17665%d no price|r"):format(plan.unknown + noPrice) or "",
     live > 0 and ("  ·  |cff94ba78%d live|r"):format(live) or "",
     odd > 0 and ("  ·  |cffffd133%d price%s to verify|r"):format(odd, odd == 1 and "" or "s") or ""))
   -- three values up top: cost, then resale and net, or training and what's left to buy

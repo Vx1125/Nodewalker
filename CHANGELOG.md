@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Leveling: a recipe to buy with no price marks the step, Estimated cost and the shopping list with "?" instead of counting as free.
 - Action bar button: right-click toggles the overlay (left-click still opens the window); existing buttons update themselves.
 - Leveling: a Materials column with each reagent's item icon and the count per craft (red edge: short, gold edge: made by the steps before). Hover for totals, what you have and price; click for where to get it.
 - Leveling: parts made first and tools sit indented under a line to the step that needs them; a scroll icon replaces "needs recipe".
