@@ -1,7 +1,7 @@
 local _, NW = ...
 
 -- Every recipe in WoW Forever, with where it comes from, the item that teaches it and
--- the trainer's fee. Derived from One For All's recipe data by Smoergi (GPL-3.0-or-later),
+-- the trainer's fee. Derived from One For All 6.2.12's recipe data by Smoergi (GPL-3.0-or-later),
 -- which is built from the game client's data, QuestieDB and CMaNGOS classic-db.
 -- Source codes: T trainer, S specialization trainer, B known from the start, F Merchant's Favor,
 -- V<A|H|*>vendor, zone   D mob, zone   +n more mobs   Q quest. Generated; do not edit by hand.

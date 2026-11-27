@@ -1164,6 +1164,26 @@ drawSteps = function()
           -- eligible from its skill; needed by the point the banner sits at
           row.mats:SetText(("|cffe0dbd0%s|r  ·  from skill %d, level %d"):format(place, ru.skill, ru.level))
         end
+      elseif stp.tool then
+        -- a tool the recipes from here need
+        row.trainBg:Hide()
+        row:SetAlpha(1)
+        row:SetSelected(false)
+        local t = stp.tool
+        row.range:SetText("|cff938c80tool|r")
+        row.icon:SetTexture(itemIcon(t.item))
+        row.icon:Show()
+        row.name:SetText("|cffd6b266" .. (itemName(t.item) or ("item " .. t.item)) .. "|r")
+        row.crafts:SetText("×1")
+        local price, psrc = NW.Price(t.item)
+        if t.recipe then
+          row:SetCraft(selected, t.recipe, 1)
+          row.cost:SetText("")
+          row.mats:SetText("needed from here  ·  " .. matsText(t.recipe))
+        else
+          row.cost:SetText(price and NW.Money(price, true) or "")
+          row.mats:SetText("needed from here  ·  Trade Supplies vendor")
+        end
       elseif stp.make then
         -- a part to make first, for the step under it
         row.trainBg:Hide()
@@ -1322,6 +1342,11 @@ local function drawCraft(p)
     st().planFolds[p.key] = folds
     local list, head, lo = {}, nil, 1
     local prep = NW.PlanPrep(p.key, plan)
+    local toolsAt = {}
+    for _, t in ipairs(NW.PlanTools(p.key, plan)) do
+      toolsAt[t.step] = toolsAt[t.step] or {}
+      table.insert(toolsAt[t.step], t)
+    end
     for _, stp in ipairs(steps) do
       if stp.rankUp then
         list[#list + 1] = { banner = true, rankUp = stp.rankUp, rankFee = stp.rankFee, from = stp.from, to = stp.from }
@@ -1342,7 +1367,10 @@ local function drawCraft(p)
         list[#list + 1] = head
       end
       if not head.folded then
-        -- the parts this step needs that you make first
+        -- tools it's the first to need, then the parts you make first
+        for _, t in ipairs(toolsAt[stp] or {}) do
+          list[#list + 1] = { tool = t, from = stp.from, to = stp.from }
+        end
         for _, pp in ipairs(prep[stp] or {}) do
           list[#list + 1] = { make = pp.recipe, crafts = pp.crafts, forStep = stp, from = stp.from, to = stp.from }
         end

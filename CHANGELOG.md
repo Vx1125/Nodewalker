@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Leveling: tools get their own row when first needed (Blacksmith Hammer, Arclight Spanner, Gyromatic Micro-Adjustor, enchanting rods) and go on the shopping list.
+- Leveling: a recipe that comes back after other steps does the points between when it costs about the same; plans are chosen again once.
 - Leveling: parts you make first (Handful of Copper Bolts, blasting powder) get their own row before the step.
 - Routes are reviewed in the Route tab: Material Finder route buttons open a proposal; nothing is replaced until Start.
 - Hunting grounds list every creature with spawn points (Heavy Leather: 204 skinnable, was 80).

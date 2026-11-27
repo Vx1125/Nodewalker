@@ -3,29 +3,41 @@ corrections in Professions/*.lua, are derived from the recipe data of One For Al
 by Smoergi, licensed GPL-3.0-or-later.
 
   CurseForge: https://www.curseforge.com/wow/addons/oneforall-forever  (project ID 1714201)
-  Source:     https://github.com/smoergi/OneForAll_Forever
+  Version used: One For All 6.2.12 (Interface 16001), its Data/Professions/*.lua and
+  Data/ProfessionFees.lua. Regenerating Catalog.lua from 6.2.12 matches the shipped file
+  except for 24 records Nodewalker corrected by hand (learn levels, sources, recipe items),
+  checked 2026-11-26.
 
-That data is in turn built from the WoW Forever client data (wago.tools), QuestieDB (GPL-3.0)
-and CMaNGOS classic-db (GPL-3.0). World of Warcraft game data remains Blizzard's and is not
-covered by the GPL.
+One For All states that this data comes from:
+  - the WoW Forever client database (build 1.60.1.70205), via wago.tools DB2 exports;
+  - QuestieDB and Questie (GPL-3.0): recipe sources such as vendors, drops and quests;
+  - CMaNGOS classic-db (GPL-3.0): trainer fees and ranks (npc_trainer);
+  - ProfessionDB / LibProfessionDB (MIT, below): which recipes are Merchant's Favor recipes.
+World of Warcraft game data remains Blizzard's and is not covered by the GPL.
 
-The full text of the GNU General Public License version 3 is at
+The full text of the GNU General Public License version 3 is in LICENSE, and at
 https://www.gnu.org/licenses/gpl-3.0.txt
 
-Provenance status, 2026-11-26: corrected, but NOT CLOSED.
-  - Corrected: the earlier URL (curseforge.com/wow/addons/oneforall) pointed to an unrelated
-    zlib-licensed minimap addon by Thoreex. The project above is the right one. The author,
-    project ID and licence were supplied by the maintainer from the CurseForge page.
-  - Not yet verified: on 2026-11-26 the GitHub repository above returned 404 to both the API
-    and the web page, and the account lists no public repositories, so it is private, renamed
-    or removed. That means none of these could be inspected:
-      - which upstream version Professions/Catalog.lua was generated from;
-      - the upstream recipe data files and their copyright headers;
-      - any third-party licence notices upstream ships, such as for QuestieDB or cMaNGOS.
-    No Nodewalker record names the version. Catalog.lua carries no version stamp, and the
-    generator lives outside this folder.
-  - To close it: get the One For All (Forever) release that Catalog.lua was built from (the
-    CurseForge file list keeps old versions). Check its licence file, its copyright headers
-    and any notices for the data it inherits, and copy the ones that apply into this folder.
-    Then record the version and date here, and add a version line to the generator's
-    Catalog.lua header.
+--- ProfessionDB / LibProfessionDB (Merchant's Favor recipes, via One For All) ---
+
+MIT License
+
+Copyright (c) 2026 Pimptasty
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

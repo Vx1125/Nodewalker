@@ -978,7 +978,7 @@ end
 local function kitSig(key)
   local s = NW.db.settings
   local sell = key ~= "cooking" and s.planSellBack or false
-  return (s.planStrategy or "") .. "|" .. tostring(sell) .. "|" .. (s.planRecipeItems and "r" or "")
+  return "k3|" .. (s.planStrategy or "") .. "|" .. tostring(sell) .. "|" .. (s.planRecipeItems and "r" or "")
     .. "|" .. (key == "cooking" and NW.CookAllow and NW.CookAllowKey() or "")
 end
 -- The baseline kit: one plan from 1 to 300 at today's prices, ignoring
@@ -1185,11 +1185,14 @@ function NW.BuildPlan(key, from, to)
       local pk = pick[sk]
       local e = sk
       while e + 1 < to and pick[e + 1] and pk and pick[e + 1].i == pk.i do e = e + 1 end
-      if pk and e - sk < 3 then
+      local before, after = sk > from and pick[sk - 1], e + 1 < to and pick[e + 1]
+      local sandwich = before and after and before.i == after.i and pk and before.i ~= pk.i
+      if pk and (e - sk < 3 or sandwich) then
         local own = 0
         for k = sk, e do own = own + (costAt[k][pk.i] and costAt[k][pk.i][1] or 0) end
         local bestN, bestSum
-        for _, nb in ipairs({ sk > from and pick[sk - 1], e + 1 < to and pick[e + 1] }) do
+        -- short: either neighbour; longer: only the recipe on both sides (Goggles, Powder, Goggles)
+        for _, nb in ipairs(e - sk < 3 and { before, after } or { before }) do
           if nb and nb.i ~= pk.i then
             local sum = 0
             for k = sk, e do
@@ -1208,6 +1211,64 @@ function NW.BuildPlan(key, from, to)
       sk = e + 1
     end
     if not changed then break end
+  end
+
+  -- a recipe that comes back after others (Copper Modulator, powder, dynamite,
+  -- Copper Modulator) does the points between too, when it can and it costs
+  -- about the same: one run instead of two
+  do
+    local lastAt = {}
+    local sk = from
+    while sk < to do
+      local pk = pick[sk]
+      if pk then
+        local prevEnd = lastAt[pk.i]
+        if prevEnd and prevEnd < sk - 1 and sk - prevEnd <= 30 then
+          local own, alt = 0, 0
+          for k = prevEnd + 1, sk - 1 do
+            local c = costAt[k][pick[k] and pick[k].i or 0]
+            own = own + (c and c[1] or 0)
+            local a = costAt[k][pk.i]
+            if not a or a[3] < 0.25 then alt = nil break end
+            alt = alt + a[1]
+          end
+          if alt and (alt <= own * 1.6 or alt - own <= 3000) then
+            for k = prevEnd + 1, sk - 1 do pick[k] = { i = pk.i, needs = costAt[k][pk.i][2] } end
+          else
+            -- or the recipe before it carries on through this second run instead
+            local b = pick[sk - 1] and pick[sk - 1].i
+            local e2 = sk
+            while e2 + 1 < to and pick[e2 + 1] and pick[e2 + 1].i == pk.i do e2 = e2 + 1 end
+            local own2, alt2 = 0, 0
+            for k = sk, e2 do
+              own2 = own2 + (costAt[k][pk.i] and costAt[k][pk.i][1] or 0)
+              local c = b and costAt[k][b]
+              if not c or c[3] < 0.25 then alt2 = nil break end
+              alt2 = alt2 + c[1]
+            end
+            if alt2 and (alt2 <= own2 * 1.6 or alt2 - own2 <= 3000) then
+              for k = sk, e2 do pick[k] = { i = b, needs = costAt[k][b][2] } end
+              pk = pick[sk]
+            else
+              -- or the recipe after it starts earlier
+              local n = e2 + 1 < to and pick[e2 + 1] and pick[e2 + 1].i
+              local alt3 = 0
+              for k = sk, e2 do
+                local c = n and costAt[k][n]
+                if not c or c[3] < 0.25 then alt3 = nil break end
+                alt3 = alt3 + c[1]
+              end
+              if alt3 and (alt3 <= own2 * 1.6 or alt3 - own2 <= 3000) then
+                for k = sk, e2 do pick[k] = { i = n, needs = costAt[k][n][2] } end
+                pk = pick[sk]
+              end
+            end
+          end
+        end
+        lastAt[pk.i] = sk
+      end
+      sk = sk + 1
+    end
   end
 
   -- a locked plan keeps its recipes wherever they can still be made
@@ -1348,11 +1409,43 @@ function NW.PlanPrep(key, plan)
   return out
 end
 
+-- Tools a profession's recipes need, from the skill they're first needed:
+-- { item, skill, recipe that makes it here (nil: bought) }
+NW.TOOLS = {
+  blacksmithing = { { 5956, 1 } },
+  engineering = { { 5956, 1 }, { 6219, 30, "Arclight Spanner" }, { 10498, 175, "Gyromatic Micro-Adjustor" } },
+  enchanting = { { 6218, 1, "Runed Copper Rod" }, { 6339, 130, "Runed Silver Rod" }, { 11130, 175, "Runed Golden Rod" }, { 11145, 220, "Runed Truesilver Rod" } },
+}
+-- The tools the plan reaches that aren't in your bags: { item, recipe, step } where step
+-- is the first step that needs it
+function NW.PlanTools(key, plan)
+  local out = {}
+  for _, t in ipairs(NW.TOOLS[key] or {}) do
+    if (NW.ItemCount(t[1]) or 0) == 0 and plan.to > t[2] then
+      local at
+      for _, st in ipairs(plan.steps) do
+        if st.recipe and st.to > t[2] then at = st break end
+      end
+      if at then
+        local r
+        if t[3] then for _, rr in ipairs(NW.RECIPES[key] or {}) do if rr.name == t[3] then r = rr break end end end
+        out[#out + 1] = { item = t[1], recipe = r, step = at }
+      end
+    end
+  end
+  return out
+end
+
 -- Everything to buy for a plan. Things you can make cheaper than buy are
 -- broken down into what they're made from. Counts what's in your bags.
 function NW.ShoppingList(key, plan)
   local need = {}
   local useBags = NW.db.settings.planUseBags
+  local toolsAt = {}
+  for _, t in ipairs(NW.PlanTools(key, plan)) do
+    toolsAt[t.step] = toolsAt[t.step] or {}
+    table.insert(toolsAt[t.step], t)
+  end
   local function add(id, n, depth, leaf)
     local r = craftOf and craftOf[id]
     local price, src = NW.Price(id)
@@ -1390,6 +1483,7 @@ function NW.ShoppingList(key, plan)
     end
     local r = st.recipe
     if keep and r and r.item and st.crafts then made[r.item] = (made[r.item] or 0) + st.crafts * (r.yield or 1) end
+    for _, t in ipairs(toolsAt[st] or {}) do add(t.item, 1, 0) end
     -- what the next rank's quest asks for
     if st.rankUp then
       local _, _, _, _, _, needs = NW.RankWhere(key, st.rankUp.name)
