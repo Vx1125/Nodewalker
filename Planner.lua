@@ -212,7 +212,8 @@ local function startDraft(d)
   NW.routeDraft = nil
   return true
 end
-local btnStart = UI.Button(side, "Start route on overlay", SIDE_W, function()
+-- Start makes the route the zone's (or the hunt); the overlay stays as you have it
+local btnStart = UI.Button(side, "Start route", SIDE_W, function()
   local d = NW.routeDraft
   if d then
     if not startDraft(d) then return end
@@ -220,9 +221,8 @@ local btnStart = UI.Button(side, "Start route on overlay", SIDE_W, function()
     local id = mapID()
     if id then NW.ResetProgress(id) end
   end
-  NW.db.settings.overlayShown = true
-  NW.UpdateVisibility()
-  NW.window:Hide()
+  if NW.DrawOverlay then NW.DrawOverlay() end
+  refresh()
 end, 28, "primary")
 btnStart:SetPoint("TOPLEFT", btnImport, "BOTTOMLEFT", 0, -8)
 
@@ -333,7 +333,7 @@ function DR.mode(d)
   elseif d then
     btnStart:SetText("Save and start route")
   else
-    btnStart:SetText("Start route on overlay")
+    btnStart:SetText("Restart route")
   end
   btnStart:SetEnabled(not d or hunt or d.route ~= nil)
 end

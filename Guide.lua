@@ -414,7 +414,10 @@ end
 mid:SetScript("OnMouseWheel", function(_, d)
   local max = math.max(0, (W.listN or 0) - (W.listShown or 5))
   local o = math.max(0, math.min(max, W.listOffset - d * 3))
-  if o ~= W.listOffset then W.listOffset = o; refresh() end
+  if o ~= W.listOffset then
+    W.listOffset = o
+    if W.listCache and W.drawRows then W.drawRows() else refresh() end
+  end
 end)
 -- (the old Tracked list: tracked materials are a category now)
 W.trackHead = CreateFrame("Frame", nil, page)
@@ -1033,7 +1036,7 @@ end
 local craft = CreateFrame("Frame", nil, right)
 craft:SetPoint("TOPLEFT", 0, WS_Y)
 craft:SetSize(R_W, 384)
-local CL_W = 318
+local CL_W = 400
 W.cRecipeHead = heading(craft, "Recipe", CL_W)
 W.cRecipeHead:SetPoint("TOPLEFT")
 local cIconBox = UI.Box(craft, 24, 24)
@@ -1089,7 +1092,7 @@ for i = 1, 4 do
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   r.name = UI.Text(r, 12, S.text)
   r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
-  r.name:SetWidth(120)
+  r.name:SetWidth(CL_W - 220) -- ends before the Need column
   r.name:SetWordWrap(false)
   r.cells = {}
   for k, c in ipairs(MATCOL) do
@@ -1927,7 +1930,8 @@ local function viewCraft(e)
   W.cName:SetText(r.name)
   local parts = {}
   for _, re in ipairs(r.reagents) do parts[#parts + 1] = re[2] .. " " .. (NW.ItemName(re[1]) or ("item " .. re[1])) end
-  W.cDesc:SetText((p and p.name or key) .. "  ·  makes " .. (r.yield or 1) .. "  ·  " .. table.concat(parts, ", "))
+  -- (the materials are in the table under it)
+  W.cDesc:SetText((p and p.name or key) .. ((r.yield or 1) > 1 and ("  ·  makes " .. r.yield) or ""))
   -- skill bar: orange, yellow, green, grey
   local o, y, g, gr = r.orange or r.yellow or 1, r.yellow or r.orange or 1, r.green or r.yellow or 1, r.grey or r.green or 1
   local lo, hi = o, gr + math.max(10, math.floor((gr - o) * 0.25))
@@ -2058,11 +2062,7 @@ local function viewCraft(e)
   if first and M.Get(first.id) then
     action(W.third, "Open " .. (p and p.name or "profession"), function() if NW.OpenProfession then NW.OpenProfession(key) end end)
   end
-  W.note:SetText(("Craft %d: %s"):format(crafts, table.concat((function()
-    local t = {}
-    for _, re in ipairs(r.reagents) do t[#t + 1] = (re[2] * crafts) .. " " .. (NW.ItemName(re[1]) or "?") end
-    return t
-  end)(), ", ")))
+  -- (what one round of crafts takes is the materials table)
 end
 
 ------------------------------------------------------------------------
@@ -2194,6 +2194,34 @@ local function canGather(e)
   return false
 end
 
+-- the material rows alone: scrolling redraws these, not the whole page
+function W.drawRows()
+  local list, e, shownN = W.listCache or {}, W.listSel, W.listShown or 5
+  W.midCount:SetText(#list > shownN and ("%d-%d of %d"):format(W.listOffset + 1, math.min(#list, W.listOffset + shownN), #list) or (#list > 0 and (#list .. (#list == 1 and " material" or " materials")) or ""))
+  W.midEmpty:SetText(#list == 0 and (searchText ~= "" and "No materials match." or "Nothing here with these filters.") or "")
+  for i, r in ipairs(W.rows) do
+    local x = i <= shownN and list[i + W.listOffset] or nil
+    r.e = x or false
+    r:SetShown(x ~= nil)
+    if x then
+      r.icon:SetTexture(iconOf(x))
+      r.name:SetText((M.ACCENT[x.cat] or "") .. M.Name(x) .. "|r")
+      local g = type(x.id) == "number" and M.Goal(x.id)
+      local txt
+      if g then
+        txt = ownedText(x)
+      else
+        local sk = skillOf(x)
+        local p = type(x.id) == "number" and NW.Price and NW.Price(x.id)
+        txt = (sk and tostring(sk) or "") .. ((sk and p) and "  ·  " or "") .. (p and NW.Money(p, true) or "")
+        if x.id == "both" then txt = "" end
+      end
+      r.right:SetText(txt)
+      r:SetSelected(x == e)
+    end
+  end
+end
+
 refresh = function()
   if not page:IsShown() then return end
   local s = st()
@@ -2299,29 +2327,8 @@ refresh = function()
   end
   mid:SetHeight(shownN * LROW_H + 4)
   W.midCap:SetText(sel.cat == "tracked" and searchText == "" and "Target" or "Skill  ·  Price")
-  W.midCount:SetText(#list > shownN and ("%d-%d of %d"):format(W.listOffset + 1, math.min(#list, W.listOffset + shownN), #list) or (#list > 0 and (#list .. (#list == 1 and " material" or " materials")) or ""))
-  W.midEmpty:SetText(#list == 0 and (searchText ~= "" and "No materials match." or "Nothing here with these filters.") or "")
-  for i, r in ipairs(W.rows) do
-    local x = i <= shownN and list[i + W.listOffset] or nil
-    r.e = x or false
-    r:SetShown(x ~= nil)
-    if x then
-      r.icon:SetTexture(iconOf(x))
-      r.name:SetText((M.ACCENT[x.cat] or "") .. M.Name(x) .. "|r")
-      local g = type(x.id) == "number" and M.Goal(x.id)
-      local txt
-      if g then
-        txt = ownedText(x)
-      else
-        local sk = skillOf(x)
-        local p = type(x.id) == "number" and NW.Price and NW.Price(x.id)
-        txt = (sk and tostring(sk) or "") .. ((sk and p) and "  ·  " or "") .. (p and NW.Money(p, true) or "")
-        if x.id == "both" then txt = "" end
-      end
-      r.right:SetText(txt)
-      r:SetSelected(x == e)
-    end
-  end
+  W.listCache, W.listSel = list, e
+  W.drawRows()
   -- right
   right:SetShown(e ~= nil)
   tbl:SetShown(e ~= nil)

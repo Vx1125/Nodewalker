@@ -469,6 +469,8 @@ SlashCmdList.NODEWALKER = function(msg)
     end
   elseif msg == "frame" then
     if NW.FrameUnderMouse then NW.FrameUnderMouse() end
+  elseif msg == "cut all" then
+    if NW.CutSweep then NW.CutSweep() end
   elseif msg == "cut" then
     -- debug: every word cut short on the open Nodewalker page
     local found, seen = {}, {}
@@ -520,3 +522,59 @@ BINDING_NAME_NODEWALKER_PLANNER = "Toggle route planner"
 BINDING_NAME_NODEWALKER_NEXT = "Skip to next stop"
 BINDING_NAME_NODEWALKER_FISHHUD = "Toggle fishing HUD"
 BINDING_NAME_NODEWALKER_JOURNAL = "Fishing Journal"
+
+-- Debug: every page, profession and Material Finder view in turn, noting the words cut
+-- short on each. The result goes to NodewalkerDB (cutReport) for review after a /reload.
+function NW.CutSweep()
+  if NW.cutSweeping or not NW.window then return end
+  NW.cutSweeping = true
+  local steps = {}
+  local function add(label, fn) steps[#steps + 1] = { label, fn } end
+  for _, k in ipairs({ "profs", "guide", "route", "find", "consumes", "overlay", "look", "gather", "routes", "fishing" }) do
+    add("tab " .. k, function() NW.ShowTab(k) end)
+  end
+  for _, p in ipairs(NW.PROFS or {}) do add("profession " .. p.key, function() NW.OpenProfession(p.key) end) end
+  local M = NW.Mat
+  if M and NW.FindMaterials then
+    for _, e in ipairs(M.Search("", "all")) do
+      for _, src in ipairs(M.Sources(e)) do
+        add("material " .. M.Name(e) .. " / " .. src, function() NW.FindMaterials(e.cat, e.id, src) end)
+      end
+    end
+  end
+  local found, uniq = {}, {}
+  local function collect(ctx)
+    local seen = {}
+    local function walk(f)
+      if not f or seen[f] or not f:IsVisible() then return end
+      seen[f] = true
+      for _, r in ipairs({ f:GetRegions() }) do
+        if r.IsTruncated and r:IsVisible() and r:IsTruncated() then
+          local t = (r:GetText() or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
+          if t ~= "" and not uniq[t] then
+            uniq[t] = true
+            found[#found + 1] = { ctx, t, math.floor((r:GetWidth() or 0) + 0.5) }
+          end
+        end
+      end
+      for _, c in ipairs({ f:GetChildren() }) do walk(c) end
+    end
+    walk(NW.window)
+  end
+  NW.window:Show()
+  local i = 0
+  local ticker
+  ticker = C_Timer.NewTicker(0.05, function()
+    if i > 0 then pcall(collect, steps[i][1]) end
+    i = i + 1
+    if i > #steps then
+      ticker:Cancel()
+      NW.cutSweeping = nil
+      NW.db.cutReport = { at = time(), views = #steps, items = found }
+      NW.Print(("Cut sweep: %d cut off across %d views. /reload to save the report."):format(#found, #steps))
+      return
+    end
+    pcall(steps[i][2])
+  end)
+end
+
