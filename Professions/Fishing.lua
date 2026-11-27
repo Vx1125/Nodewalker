@@ -277,7 +277,8 @@ function F.Build()
   -- professions needn't level together: Cooking 299 with Fishing 7 cooks its
   -- last point once that fish is in reach (or bought), not after Fishing 300.
   -- early: the fish can be had when the phase starts (cooked before fishing on)
-  local stepPhase, stepEarly, prevPhase = {}, {}, 1
+  -- (steps start in the phase you're in: Fishing's, while it still levels here, else Cooking's)
+  local stepPhase, stepEarly, prevPhase = {}, {}, (base < fishTo) and tierOf(base) or tierOf(cookFrom)
   for _, st in ipairs(cp and cp.steps or {}) do
     local ct = tierOf(st.from)
     local ready = (cookMax or 75) >= TIERS[ct][2] and 1 or ct -- that Cooking rank: trained already, or trained in its phase
@@ -312,11 +313,11 @@ function F.Build()
     end
     local cookHere = #cookSteps > 0
     if fishHere or cookHere then
-      if ti == 1 and not fishNow and fishTo > 0 then
-        add({ kind = "learn", prof = "fishing", label = "Learn Fishing", done = false })
-      end
-      if ti == 1 and not cookNow and cookTo > 1 then
-        add({ kind = "learn", prof = "cooking", label = "Learn Cooking", done = false })
+      -- learning comes first, in whichever phase the plan starts
+      if not plan.learnAdded then
+        plan.learnAdded = true
+        if not fishNow and fishTo > 0 then add({ kind = "learn", prof = "fishing", label = "Learn Fishing", done = false }) end
+        if not cookNow and cookTo > 1 then add({ kind = "learn", prof = "cooking", label = "Learn Cooking", done = false }) end
       end
       if ti >= 2 and fishTo > lo then
         local r = F.RANKS[ti]
@@ -402,7 +403,7 @@ function F.Build()
       -- the fish for a group of steps, then the cooking: what can be had now
       -- comes before fishing on, what needs more skill after it
       local function catchAndCook(group, reachSkill)
-        local fishNeed, fishOrder = {}, {}
+        local fishNeed, fishOrder, noFish = {}, {}, {}
         for _, st in ipairs(group) do
           for _, m in ipairs(st.mats or {}) do
             local id, n = m[1], m[2]
@@ -422,13 +423,14 @@ function F.Build()
           local a = add({ kind = "catch", fish = id, need = n, have = h, buy = buy,
             label = (buy and "Buy " or "Catch ") .. (F.itemName(id)), done = h >= n })
           if not reach and not c.buyFish then
-            a.blocked = f.skill and ("Needs Fishing %d"):format(f.skill) or "No fishing data for it"
+            a.blocked = f.skill and ("Guides: Fishing %d"):format(f.skill) or "No fishing data for it"
           elseif not a.done and not buy and fishBlock and f.skill and f.skill > fishCap then
             a.blocked = fishBlock
           end
           local pr = NW.Price(id)
           a.value = pr and pr * n or nil
           plan.fish[#plan.fish + 1] = a
+          if a.blocked and not a.done then noFish[id] = true end
         end
         for _, st in ipairs(group) do
           trainCooking(tierOf(st.from))
@@ -438,6 +440,12 @@ function F.Build()
             if not ca.done then
               if gapBlock then ca.blocked = gapBlock
               elseif cookBlock and st.to > cookCap then ca.blocked = cookBlock end
+              -- its fish can't be had yet: the cooking waits too
+              if not ca.blocked then
+                for _, re in ipairs(st.recipe.reagents) do
+                  if noFish[re[1]] then ca.blocked = "Needs " .. (F.itemName(re[1])):gsub("^Raw ", "") break end
+                end
+              end
             end
           else
             local a = add({ kind = "gap", step = st, label = ("No recipe for %d-%d"):format(st.from, st.to), done = false })
@@ -458,6 +466,20 @@ function F.Build()
         if not fa.done and fishBlock and fishAtEnd > fishCap then fa.blocked = fishBlock end
       end
       catchAndCook(late, math.max(fishAtEnd, base))
+      -- a Cooking rank blocked in this phase blocks what it's needed for, even
+      -- the recipes and supplies listed before it
+      if cookBlock then
+        local anyCook, allBlocked = false, true
+        for _, a in ipairs(ph.actions) do
+          if a.kind == "cook" and not a.done then anyCook = true; if not a.blocked then allBlocked = false end end
+        end
+        for _, a in ipairs(ph.actions) do
+          if not a.done and not a.blocked then
+            if a.kind == "recipe" and (a.recipe.orange or a.recipe.yellow) >= cookCap then a.blocked = cookBlock
+            elseif (a.kind == "vendor" or a.kind == "other") and anyCook and allBlocked then a.blocked = cookBlock end
+          end
+        end
+      end
       -- the phase is finished when everything in it is
       local all = true
       for _, a in ipairs(ph.actions) do if not a.done then all = false end end
@@ -1146,7 +1168,7 @@ function F.fishDetail(id)
   local f = F.FISH[id]
   local zones, named = F.zonesFor(id)
   local rows = { { head = "Fishing" } }
-  rows[#rows + 1] = { "Fished from", f.skill and tostring(f.skill) or (H.dim .. "not known|r") }
+  rows[#rows + 1] = { "Guides fish it from", f.skill and tostring(f.skill) or (H.dim .. "not known|r") }
   if f.note then rows[#rows + 1] = { "Where", f.note } end
   rows[#rows + 1] = { "In your bags", tostring(NW.ItemCount(id) or 0) }
   local p, src = NW.Price(id)
@@ -1266,7 +1288,17 @@ function F.combinedItems(plan)
     local folded = folds[key]
     if folded == nil then folded = ph.done end
     local tag = ph.done and ("   " .. H.good .. "done|r") or (plan.current == ph and ("   " .. H.gold .. "now|r") or "")
-    items[#items + 1] = { head = true, text = ("Phase %d  %s  %d-%d%s"):format(ph.ti, ph.name, ph.lo, ph.hi, tag), foldKey = key, folded = folded }
+    -- the heading says what the phase holds: Fishing and Cooking can be at different skills
+    local fLo, fHi, cLo, cHi
+    for _, a in ipairs(ph.actions) do
+      if a.kind == "fishto" then fLo, fHi = math.min(fLo or a.from, a.from), math.max(fHi or a.to, a.to) end
+      if a.kind == "cook" then cLo, cHi = math.min(cLo or a.step.from, a.step.from), math.max(cHi or a.step.to, a.step.to) end
+    end
+    local parts = {}
+    if fLo then parts[#parts + 1] = ("Fishing %d-%d"):format(fLo, fHi) end
+    if cLo then parts[#parts + 1] = ("Cooking %d-%d"):format(cLo, cHi) end
+    local what = #parts > 0 and table.concat(parts, "  ·  ") or ("%s  %d-%d"):format(ph.name, ph.lo, ph.hi)
+    items[#items + 1] = { head = true, text = ("Phase %d  %s%s"):format(ph.ti, what, tag), foldKey = key, folded = folded }
     if not folded then
       for ai, a in ipairs(ph.actions) do
         local state = a.done and "done" or a.blocked and "blocked" or (plan.next == a and "next") or nil
@@ -1316,7 +1348,7 @@ function F.actionDetail(a, plan)
       { "Need", ("~%d"):format(a.need) },
       { "Left", tostring(math.max(0, a.need - a.have)) },
       { bar = a.need > 0 and math.min(1, a.have / a.need) or 1 },
-      { "Fished from", f.skill and tostring(f.skill) or (H.dim .. "not known|r") },
+      { "Guides fish it from", f.skill and tostring(f.skill) or (H.dim .. "not known|r") },
     }
     if a.blocked then rows[#rows + 1] = { H.bad .. a.blocked .. "|r" } end
     if a.value then rows[#rows + 1] = { "Worth", "~" .. NW.Money(a.value, "mid") } end

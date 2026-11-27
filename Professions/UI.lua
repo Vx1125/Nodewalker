@@ -1886,8 +1886,8 @@ end
 ------------------------------------------------------------------------
 -- Drawing: gathering
 ------------------------------------------------------------------------
--- Skinning's leather by bracket: what the creatures at those levels drop
--- (the same tiers the Material Finder's hunting grounds use)
+-- Skinning's leather and hide by bracket: what creatures at those levels
+-- drop (the leather the old Skinning click opened, and its hide)
 MS.SKIN_TIERS = {
   { 75, { 2318, 783 } }, { 150, { 2319, 4232 } }, { 205, { 4234, 4235 } }, { 260, { 4304, 8169 } }, { 300, { 8170, 8171 } },
 }
@@ -2016,12 +2016,13 @@ function MS.drawSmelt(key)
       local learn = r.orange or r.yellow
       local canLearn = rank and rank >= learn
       row:SetSelected(rank ~= nil and rank >= learn and rank < r.grey)
-      row:SetAlpha(rank and rank >= r.grey and 0.55 or 1)
+      local noRange = r.grey <= learn -- (no skill-up range in the data: not shown as grey)
+      row:SetAlpha((rank and rank >= r.grey and not noRange) and 0.55 or 1)
       -- (bars with no skill-up range in the data show the skill they're learned at)
       UI.FitText(row.range, r.grey > learn and ("%d-%d"):format(learn, r.grey) or tostring(learn), 12, 10)
       row.icon:SetTexture(itemIcon(r.item))
       row.icon:Show()
-      local col = (rank and not canLearn) and "d17665" or colorFor(r, rank or learn)
+      local col = (rank and not canLearn) and "d17665" or (noRange and "e0dbd0") or colorFor(r, rank or learn)
       row.name:SetText(("|cff%s%s|r"):format(col, r.name))
       -- the ore, one bar's worth, against your bags
       local strip = row.strip
@@ -2133,6 +2134,10 @@ function MS.buildGatherContext()
   local G = {}
   MS.gctx = G
   local W = RIGHT_W
+  -- one container, so Profit (which shares `info`) never shows any of it
+  local info = CreateFrame("Frame", nil, info)
+  info:SetAllPoints()
+  G.frame = info
   G.title = UI.Text(info, 14, S.gold)
   G.title:SetPoint("TOPLEFT", 0, -2)
   G.skill = UI.Text(info, 11, S.text)
@@ -2186,7 +2191,7 @@ local function bestResource(key, b)
   local items = MS.bracketItems(key, b)
   local best = items[1]
   for _, it in ipairs(items) do
-    if not it.req or it.req <= skill then best = it end
+    if it.req and it.req <= skill then best = it end -- (Skinning has none: its leather, first)
   end
   return best
 end
@@ -2254,7 +2259,7 @@ function MS.drawGatherContext(key)
     end
   end
   if #list > #G.zones then
-    G.zones[#G.zones].right:SetText(("+%d more"):format(#list - #G.zones + 1))
+    G.zones[#G.zones].right:SetText(("%s  ·  +%d more"):format(G.zones[#G.zones].right:GetText() or "", #list - #G.zones))
   end
   G.route:ClearAllPoints()
   G.route:SetPoint("TOPLEFT", G.zoneHead, "BOTTOMLEFT", 0, -10 - y * 22)
@@ -3553,6 +3558,7 @@ refresh = function()
   local isMissing = isCraft and (mode == "missing" or isProfit) -- both use the list-and-notes layout
   viewRow.Layout(selected == "cooking")
   MS.showGatherTabs(not isCraft and selected == "mining")
+  if MS.gctx then MS.gctx.frame:SetShown(not isCraft) end
   for k, b in pairs(modeBtns) do
     if type(k) == "string" then
       b:SetShown(isCraft and not b.hide)
