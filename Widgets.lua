@@ -741,8 +741,12 @@ end)
 -- Shared helpers for the map pages
 ------------------------------------------------------------------------
 -- Object pool: get() returns a shown object, reset() hides them all.
-function UI.Pool(make)
+-- One pool per marker kind, shared by every material and zone: it grows to the most
+-- shown at once and its frames are reused, never destroyed. A name lists it in /nw perf.
+function UI.Pool(make, name)
   local list, n = {}, 0
+  local function stats() return #list, n end
+  if name and NW.Perf then NW.Perf.pools[#NW.Perf.pools + 1] = { name = name, stats = stats } end
   return function()
     n = n + 1
     local o = list[n] or make()
@@ -752,7 +756,7 @@ function UI.Pool(make)
   end, function()
     for i = 1, #list do list[i]:Hide() end
     n = 0
-  end
+  end, stats
 end
 
 -- The zone's world map art, drawn into frame at W x H, muted gold.

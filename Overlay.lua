@@ -347,6 +347,8 @@ end
 ------------------------------------------------------------------------
 local markers, markerCount = {}, 0
 local lines, lineCount = {}, 0
+NW.Perf.pools[#NW.Perf.pools + 1] = { name = "Overlay node markers", stats = function() return #markers, markerCount end }
+NW.Perf.pools[#NW.Perf.pools + 1] = { name = "Overlay route lines", stats = function() return #lines, lineCount end }
 
 local nodeShowKind = {}
 -- Tooltip lines for a known spot, built when you hover it

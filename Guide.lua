@@ -183,6 +183,20 @@ local function nodeEntry(e)
   entryCache[e.id] = entry
   return entry
 end
+-- For /nw perf: zone rankings kept (materials, node points) and node entries
+function NW.GuideCacheStats()
+  local n, pts, e = 0, 0, 0
+  for _, c in pairs(cache) do
+    n = n + 1
+    for _, row in ipairs(c.rows) do pts = pts + #row.pts end
+  end
+  for _ in pairs(entryCache) do e = e + 1 end
+  return n, pts, e
+end
+function NW.GuideClearCaches()
+  for k in pairs(cache) do cache[k] = nil end
+  for k in pairs(entryCache) do entryCache[k] = nil end
+end
 local function focusOf(entry)
   local f = {}
   for _, n in ipairs(entry[4]) do f[n] = true end
@@ -787,18 +801,18 @@ local getDot, resetDots = UI.Pool(function()
   t:AddMaskTexture(mask)
   t:SetSize(5, 5)
   return t
-end)
-local getCell, resetCells = UI.Pool(function() return pvArt:CreateTexture(nil, "ARTWORK") end)
+end, "Finder map dots")
+local getCell, resetCells = UI.Pool(function() return pvArt:CreateTexture(nil, "ARTWORK") end, "Finder heatmap cells")
 local getLine, resetLines = UI.Pool(function()
   local l = pvArt:CreateLine(nil, "OVERLAY")
   l:SetThickness(2)
   return l
-end)
+end, "Finder map lines")
 local getNum, resetNums = UI.Pool(function()
   local f = pvArt:CreateFontString(nil, "OVERLAY")
   f:SetFont(UI.FONT, 13, "OUTLINE")
   return f
-end)
+end, "Finder map numbers")
 -- invisible hover areas over hunting grounds: who lives there
 local getHot, resetHots = UI.Pool(function()
   local b = CreateFrame("Frame", nil, pvArt)
@@ -830,7 +844,7 @@ local getHot, resetHots = UI.Pool(function()
   end)
   b:SetScript("OnLeave", GameTooltip_Hide)
   return b
-end)
+end, "Finder ground hover areas")
 local function px(x, y) return x * MAP_W, -y * MAP_H end
 local function clearMap()
   resetDots(); resetCells(); resetLines(); resetNums(); resetHots()
@@ -1390,9 +1404,11 @@ local function viewNodes(e)
   end
   action(W.main, "Build route", function()
     if not (row and row.mapID and row.count > 0) then return end
-    NW.BuildRoute(row.mapID, function() if page:IsShown() then refresh() end end,
-      both and {} or { focus = focusOf(entry), alsoOthers = st().guideAlsoOthers })
-  end, "Build route", "Replaces this zone's saved route.", row ~= nil and row.mapID ~= nil and row.count > 0)
+    -- the Route tab builds, reviews and starts it; the saved route stays until then
+    NW.ProposeRoute({ kind = "nodes", item = e.id, src = sel.src, zone = row.name, map = row.mapID,
+      opts = both and {} or { focus = focusOf(entry), alsoOthers = st().guideAlsoOthers } })
+  end, "Build route", "Opens it in the Route tab to review. This zone's saved route changes only when you start the new one.",
+    row ~= nil and row.mapID ~= nil and row.count > 0)
 end
 
 -- Fishing
@@ -1577,7 +1593,7 @@ local function viewHunt(e, method)
       r:SetSelected(npcSel == c)
       r.name:SetText(u.name)
       r.lvl:SetText(lv(u.min, u.max))
-      r.ch:SetText(("%d%%"):format(math.floor(c.s.chance + 0.5)))
+      r.ch:SetText(H.ChanceText(c.s.chance))
       r.extra:SetText(c.n)
       if method == "skin" then
         local req = H.SkinReq(u.max)
@@ -1591,7 +1607,7 @@ local function viewHunt(e, method)
         local kind = (H.TYPE[u.type] or "") .. ((u.rank and u.rank > 0) and ("  ·  " .. (H.RANK[u.rank] or "")) or "")
         if kind ~= "" then GameTooltip:AddLine(kind, S.dim[1], S.dim[2], S.dim[3]) end
         GameTooltip:AddDoubleLine("Level", lv(u.min, u.max), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-        GameTooltip:AddDoubleLine(method == "skin" and "Skinning gives it" or "Drops it (ordinary loot)", ("%.1f%%"):format(c.s.chance), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        GameTooltip:AddDoubleLine(method == "skin" and "Skinning gives it" or "Drops it (ordinary loot)", H.ChanceText(c.s.chance, true) .. (c.s.calc and " (calculated)" or ""), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
         if c.s.max and c.s.max > 1 then GameTooltip:AddDoubleLine("Each time", c.s.min .. "-" .. c.s.max, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         if method == "skin" then GameTooltip:AddDoubleLine("Skinning needed", H.SkinReq(u.max) .. " (Classic rule)", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         GameTooltip:AddDoubleLine(ground and "Known spawns in this ground" or "Known spawns here", c.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
@@ -1693,7 +1709,7 @@ local function viewHunt(e, method)
     local u = npcSel.u
     sideReset(u.name)
     sideStat("Level", lv(u.min, u.max) .. ((u.rank and u.rank > 0) and ("  " .. (H.RANK[u.rank] or "")) or ""))
-    sideStat(method == "skin" and "Skinning gives it" or "Drops it", ("%.1f%%"):format(npcSel.s.chance))
+    sideStat(method == "skin" and "Skinning gives it" or "Drops it", H.ChanceText(npcSel.s.chance, true) .. (npcSel.s.calc and " (calculated)" or ""))
     if method == "skin" then
       local req = H.SkinReq(u.max)
       sideStat("Skinning needed", (SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r")
@@ -1760,8 +1776,8 @@ local function viewHunt(e, method)
   -- actions: a selected ground first, then the route
   local ok = pick ~= nil and pick.mapID ~= nil
   if ground then
-    action(W.main, "Farm this area", function() H.StartSingle(e.id, method, pick, ground); st().huntMap = "route"; refresh() end,
-      "Farm this area", "A route of just this hunting ground: stay and hunt. On the overlay.", ok)
+    action(W.main, "Farm this area", function() NW.ProposeRoute(H.Propose(e.id, method, pick, huntOpts(method), ground)) end,
+      "Farm this area", "A route of just this hunting ground: stay and hunt. Opens in the Route tab to review and start.", ok)
     if active then
       if inRoute then
         action(W.second, "Remove from route", function() H.RemoveStop(inRoute); refresh() end)
@@ -1776,14 +1792,22 @@ local function viewHunt(e, method)
       if W.note:GetText() == "" then W.note:SetText("Next and Skip are in the session panel too") end
     else
       action(W.main, #plan > 1 and "Build hunting route" or "Hunt here", function()
-        if pick then H.Start(e.id, method, pick); st().huntMap = "route"; refresh() end
-      end, "Hunting route", "Circles the densest hunting grounds, nearest first. On the overlay; Next in the session panel moves on. Straight-line distances, not paths. Click a ring on the map to farm one ground.",
+        if pick then NW.ProposeRoute(H.Propose(e.id, method, pick, huntOpts(method))) end
+      end, "Hunting route", "Circles the densest hunting grounds, nearest first. Opens in the Route tab to review; your current hunt stays until you start the new one. Straight-line distances, not paths. Click a ring on the map to farm one ground.",
         ok and #plan > 0)
     end
     action(W.second, "Show on map", function()
       local s2 = (active and hunt.stops[hunt.cur]) or plan[1]
       if s2 and NW.PinMap then NW.PinMap(pick.mapID, s2.x * 100, s2.y * 100, "Hunting ground") end
     end, nil, nil, ok and plan[1] ~= nil)
+  end
+end
+do -- time it for /nw perf (a no-op unless timings are on)
+  local inner = viewHunt
+  viewHunt = function(e, method)
+    local t0 = NW.PerfStart()
+    inner(e, method)
+    NW.PerfStop("Finder hunt view (grounds, list and map)", t0)
   end
 end
 
@@ -2507,6 +2531,14 @@ refresh = function()
   local lv = sk and NW.ProfSkill and NW.ProfSkill(sk)
   NW.SetWindowSubtitle(pr and (pr.name .. "  " .. (lv or "·  Not learned")) or "")
 end
+do -- time a whole Finder refresh for /nw perf (a no-op unless timings are on)
+  local inner = refresh
+  refresh = function()
+    local t0 = NW.PerfStart()
+    inner()
+    NW.PerfStop("Finder refresh (material selection)", t0)
+  end
+end
 
 -- live: bags, objectives, routes, your log
 local queued
@@ -2555,6 +2587,18 @@ W.goTo = function(id, need)
   sel.cat = e.cat
   clearSearch()
   refresh()
+end
+-- Open on a material, source and zone (the Route tab's way back to where a route came from)
+function NW.FindMaterialAt(id, src, zone)
+  local e = M.Get(id)
+  if not e then return false end
+  if sel.id ~= id then sel.from, sel.need, sel.needFor, sel.hist = nil, nil, id, nil end -- same material: keep its shopping target and trail
+  sel.id, sel.src, sel.zone = id, src, zone
+  sel.cat = e.cat
+  W.zoneOffset = 0
+  clearSearch()
+  open()
+  return true
 end
 -- Open on a herb or ore node (old Farm Guide entry point)
 function NW.GuideSelectHerb(name)

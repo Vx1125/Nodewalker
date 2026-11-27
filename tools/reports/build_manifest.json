@@ -1,0 +1,47 @@
+{
+ "generated": "2026-11-27T01:24:39Z",
+ "legacy": false,
+ "cmangos": {
+  "path": "Full_DB/ClassicDB_1_12_1_z2815.sql.gz",
+  "sha256": "4f92db520868ab4e566726f68b5b2e380ae781209beaf22237b4f7f04600d0c0",
+  "commit": "13e933726f386399d9820138fbd1123e7cda86c8"
+ },
+ "pfquest": {
+  "commit": "104f35678ca39ab1fb78b655f815cc7016f5e0c8",
+  "files": {
+   "items.lua": "b173e338ff04fdece3b4bfcbb1b66aff4bb9d23fa7a13890311ea2cbc447d808",
+   "units.lua": "b8de09aa33fd4b16edb2287b8c4224c86e6ee420e717a4d428e2935c22c4a922",
+   "refloot.lua": "5e4bd7d8480a45c1d450ab1090693b532d9ac8bc3e524d63046a34d6b0f796cf",
+   "enUS/zones.lua": "e22652ad92ebbf33c99f5e0b51ea08a0a3526d7e23813799f36aa68226782add",
+   "enUS/units.lua": "f2ae827b04668c0236919f702485038a4d56330be00652d7c2970dc7e27e2922",
+   "enUS/items.lua": "98bbd02ed910f528f744162c9e0b993f04a0215e48afa88c78711b6f634f137d"
+  }
+ },
+ "config_sha256": "4136bb58502f53ada4ee0c92e8ce983a168b3c756a59ed4208896733245a6bd8",
+ "output": {
+  "path": "SourceData.lua",
+  "bytes": 691610
+ },
+ "counts": {
+  "items": 145,
+  "units": 3188,
+  "vendors": 3701,
+  "skin_kept": 2446,
+  "loot_kept": 6838,
+  "rejected": 3053,
+  "config_items_unknown_upstream": [],
+  "rejected_by_reason": {
+   "loot/battleground": 145,
+   "loot/city-only": 7,
+   "loot/no-spawns": 2089,
+   "loot/reference-no-chance": 25,
+   "loot/training-dummy": 7,
+   "skin/city-only": 16,
+   "skin/gathered-or-critter": 25,
+   "skin/no-spawns": 618,
+   "vendor/unplaceable": 121
+  },
+  "spawn_records_open_world": 55324,
+  "spawn_points_written": 55263
+ }
+}

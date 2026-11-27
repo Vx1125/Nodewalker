@@ -51,7 +51,12 @@ drawHint:SetPoint("TOPRIGHT", mapFrame, "BOTTOMRIGHT", 0, -10)
 local tiles = {}
 local drawMode, dragStart
 
-local function mapID() return (NW.PlayerPos()) end
+-- A proposed gathering route works on its own zone; otherwise the zone you're in
+local function mapID()
+  local d = NW.routeDraft
+  if d and d.kind == "nodes" then return d.map end
+  return (NW.PlayerPos())
+end
 
 local getDot, resetDots = UI.Pool(function()
   local t = mapArt:CreateTexture(nil, "OVERLAY")
@@ -145,6 +150,17 @@ stats:SetSpacing(4)
 stats:SetHeight(76)
 
 local function optimize()
+  local d = NW.routeDraft
+  if d and d.kind == "hunt" then NW.Hunt.DraftReverse(d); refresh() return end -- "Reverse loop"
+  if d then
+    -- a proposal: built with the Material Finder's choice of nodes, not saved until started
+    NW.BuildRoute(d.map, function(route)
+      if NW.routeDraft == d then d.route = route end
+      refresh()
+    end, { focus = d.opts.focus, alsoOthers = d.opts.alsoOthers, preview = true })
+    refresh()
+    return
+  end
   local id = mapID()
   if not id then return end
   NW.BuildRoute(id, function() refresh() end)
@@ -163,16 +179,48 @@ local btnClear = UI.Button(side, "Clear avoid zones", SIDE_W, clearAvoid)
 btnClear:SetPoint("TOPLEFT", btnAvoid, "BOTTOMLEFT", 0, -6)
 
 local half = (SIDE_W - 6) / 2
-local btnImport = UI.Button(side, "GatherMate2", half, function() NW.ImportGatherMate2(); refresh() end)
+local btnImport = UI.Button(side, "GatherMate2", half, function()
+  if NW.routeDraft then NW.routeDraft = nil; refresh() return end -- "Discard" while a route is proposed
+  NW.ImportGatherMate2(); refresh()
+end)
 btnImport:SetPoint("TOPLEFT", btnClear, "BOTTOMLEFT", 0, -6)
-UI.Tip(btnImport, "Import GatherMate2", "Copies its herb and ore spots, and its data pack.")
-local btnGuide = UI.Button(side, "Materials", half, function() NW.ShowTab("guide") end)
+UI.Tip(btnImport, function() return NW.routeDraft and "Discard proposal" or "Import GatherMate2" end,
+  function() return NW.routeDraft and "Drops the proposed route. Your saved and active routes stay as they are."
+    or "Copies its herb and ore spots, and its data pack." end)
+local btnGuide = UI.Button(side, "Materials", half, function()
+  -- back to the material the proposed route came from
+  local d = NW.routeDraft
+  if d and d.item and NW.FindMaterialAt and NW.FindMaterialAt(d.item, d.src or d.method, d.zone) then return end
+  NW.ShowTab("guide")
+end)
 btnGuide:SetPoint("LEFT", btnImport, "RIGHT", 6, 0)
 
+-- Starting a proposal: the only place a proposal replaces the active hunt or the zone's saved route
+local function startDraft(d)
+  if d.kind == "hunt" then
+    if not NW.Hunt.Commit(d) then return false end
+    NW.db.settings.huntMap = "route" -- the Material Finder opens on the route, as before
+  else
+    local route = d.route
+    if not route then return false end
+    local saved = NW.db.routes[d.map]
+    if saved and saved.avoid then route.avoid = saved.avoid end -- keep the zone's avoid zones with it
+    NW.db.routes[d.map] = route
+    NW.RouteAroundAvoid(d.map)
+    NW.ResetProgress(d.map)
+  end
+  NW.routeDraft = nil
+  return true
+end
 local btnStart = UI.Button(side, "Start route on overlay", SIDE_W, function()
+  local d = NW.routeDraft
+  if d then
+    if not startDraft(d) then return end
+  else
+    local id = mapID()
+    if id then NW.ResetProgress(id) end
+  end
   NW.db.settings.overlayShown = true
-  local id = mapID()
-  if id then NW.ResetProgress(id) end
   NW.UpdateVisibility()
   NW.window:Hide()
 end, 28, "primary")
@@ -238,12 +286,163 @@ big:SetScript("OnHide", function()
 end)
 
 ------------------------------------------------------------------------
+-- Proposed routes (drafts). The Material Finder's Build buttons send one here
+-- (NW.ProposeRoute). It lives for the session only and is never saved, and it
+-- holds copies, never the Finder's cached tables. Nothing on the overlay changes
+-- until Start.
+--   hunt:  { kind = "hunt", item, method, zone, map, stops, spare, opts, custom } (Hunt.lua H.Propose)
+--   nodes: { kind = "nodes", item, src, zone, map, opts = { focus, alsoOthers }, route = preview }
+------------------------------------------------------------------------
+function NW.ProposeRoute(d)
+  if not d then return end
+  NW.routeDraft = d
+  setDrawMode(false)
+  if NW.window:IsShown() then NW.ShowTab("route") else NW.db.settings.lastTab = "route"; NW.window:Show() end
+  if d.kind == "nodes" then optimize() end -- arrives with its preview building
+end
+
+local getNum, resetNums = UI.Pool(function()
+  local fs = mapArt:CreateFontString(nil, "OVERLAY")
+  fs:SetFont(UI.FONT, 13, "OUTLINE")
+  return fs
+end, "Route tab ground numbers")
+local DR = {} -- draft helpers, in one table to keep refresh's upvalues down
+
+-- which controls show: the node controls, or the few a hunting route needs
+function DR.mode(d)
+  local hunt = d and d.kind == "hunt"
+  hFilters:SetShown(not hunt)
+  for _, cb in ipairs(checks) do cb:SetShown(not hunt) end
+  merge:SetShown(not hunt)
+  hRoute:ClearAllPoints()
+  if hunt then hRoute:SetPoint("TOPLEFT") else hRoute:SetPoint("TOPLEFT", merge, "BOTTOMLEFT", 0, -12) end
+  btnOptimize:SetText(hunt and "Reverse loop" or "Optimize loop")
+  -- avoid zones belong to the zone's saved route, so they're edited without a proposal open
+  -- (a proposal is built around the ones already there)
+  if d and drawMode then setDrawMode(false) end
+  btnAvoid:SetShown(not d)
+  btnClear:SetShown(not d)
+  bigAvoid:SetShown(not d)
+  bigClear:SetShown(not d)
+  bigOptimize:SetShown(not hunt)
+  btnImport:ClearAllPoints()
+  btnImport:SetPoint("TOPLEFT", d and btnOptimize or btnClear, "BOTTOMLEFT", 0, -6)
+  btnImport:SetText(d and "Discard" or "GatherMate2")
+  if hunt then
+    btnStart:SetText(NW.charDB and NW.charDB.hunt and "Replace active hunt" or "Start hunting route")
+  elseif d then
+    btnStart:SetText("Save and start route")
+  else
+    btnStart:SetText("Start route on overlay")
+  end
+  btnStart:SetEnabled(not d or hunt or d.route ~= nil)
+end
+
+local RING_SEG = 28
+function DR.ring(g, r, gr, b, a, thick)
+  local px0, py0 = px(g.x + g.rx, g.y)
+  for k = 1, RING_SEG do
+    local ang = k / RING_SEG * 2 * math.pi
+    local x2, y2 = px(g.x + math.cos(ang) * g.rx, g.y + math.sin(ang) * g.ry)
+    local l = getLine()
+    l:SetThickness(thick)
+    l:SetColorTexture(r, gr, b, a)
+    l:SetStartPoint("TOPLEFT", mapArt, px0, py0)
+    l:SetEndPoint("TOPLEFT", mapArt, x2, y2)
+    px0, py0 = x2, y2
+  end
+end
+
+-- the ground under the cursor: list "stops" or "spare", and its index
+local LISTS = { "stops", "spare" }
+function DR.hit(d, x, y)
+  local best, bestList, bestD
+  for _, list in ipairs(LISTS) do
+    for i, g in ipairs(d[list]) do
+      local rx, ry = math.max(g.rx or 0, 10 / MAP_W), math.max(g.ry or 0, 10 / MAP_H)
+      local dx, dy = (x - g.x) / rx, (y - g.y) / ry
+      local q = dx * dx + dy * dy
+      if q <= 1 and (not bestD or q < bestD) then best, bestList, bestD = i, list, q end
+    end
+  end
+  return bestList, best
+end
+
+function DR.hunt(d, here, ppx, ppy)
+  local id = d.map
+  resetNums()
+  local info = C_Map.GetMapInfo(id)
+  local zoneName = info and info.name or d.zone or "?"
+  NW.SetWindowSubtitle(zoneName .. "  ·  proposed hunting route")
+  UI.DrawZoneArt(id, mapArt, tiles, MAP_W, MAP_H, true)
+  bigTitle:SetText(zoneName)
+  empty:SetText("")
+  -- grounds left out: faint, click to add
+  for _, g in ipairs(d.spare) do DR.ring(g, 0.6, 0.6, 0.6, 0.55, 1.5) end
+  local n = #d.stops
+  if n > 1 then
+    local Cr = C.route
+    for i = 1, n do
+      local a, b = d.stops[i], d.stops[(i % n) + 1]
+      local l = getLine()
+      l:SetThickness(2)
+      l:SetColorTexture(Cr[1], Cr[2], Cr[3], 0.8)
+      l:SetStartPoint("TOPLEFT", mapArt, px(a.x, a.y))
+      l:SetEndPoint("TOPLEFT", mapArt, px(b.x, b.y))
+    end
+  end
+  for i, g in ipairs(d.stops) do
+    DR.ring(g, 0.84, 0.70, 0.40, 0.9, i == 1 and 2.5 or 1.8)
+    local fs = getNum()
+    fs:ClearAllPoints()
+    fs:SetPoint("CENTER", mapArt, "TOPLEFT", px(g.x, g.y))
+    fs:SetText(i)
+    fs:SetTextColor(0.91, 0.77, 0.42)
+  end
+  playerDot:SetShown(here == id)
+  if here == id then
+    playerDot:ClearAllPoints()
+    playerDot:SetPoint("CENTER", mapArt, "TOPLEFT", px(ppx, ppy))
+    playerDot:SetRotation(NW.Facing())
+  end
+  local gold, dim, bad = "|cffd6b266", "|cff938c80", "|cffd17665"
+  local e = NW.Mat and NW.Mat.Get(d.item)
+  local lines = {}
+  lines[#lines + 1] = gold .. "Proposed: " .. (e and e.name or ("item " .. tostring(d.item))) .. "|r"
+    .. dim .. (d.method == "skin" and ", skinning" or ", creature loot") .. "|r"
+  local len = NW.Hunt.DraftLength(d)
+  lines[#lines + 1] = ("%d ground%s"):format(n, n == 1 and "" or "s") .. (len and len > 0 and ("  ·  %d yd loop"):format(math.floor(len)) or "")
+  local active = NW.charDB and NW.charDB.hunt
+  if active then
+    local ae = NW.Mat and NW.Mat.Get(active.item)
+    lines[#lines + 1] = bad .. "Replaces your hunt: " .. (ae and ae.name or "?") .. ", " .. (active.zone or "?") .. "|r"
+  else
+    lines[#lines + 1] = dim .. "Not active until you start it.|r"
+  end
+  lines[#lines + 1] = dim .. (d.opts.elites and "Elites and rares in" or "Elites and rares left out")
+    .. (d.method == "skin" and d.opts.skill and (", Skinning " .. d.opts.skill) or "") .. "|r"
+  stats:SetText(table.concat(lines, "\n"))
+  btnOptimize:SetEnabled(n > 2)
+  if not drawMode then drawHint:SetText("Click a grey ring to add it; right-click a gold one to leave it out.") end
+end
+
+------------------------------------------------------------------------
 -- Drawing
 ------------------------------------------------------------------------
 refresh = function()
   if not page:IsShown() and not big:IsShown() then return end
   resetDots(); resetLines(); resetBoxes()
+  local draft = NW.routeDraft
+  DR.mode(draft)
   local id, ppx, ppy = NW.PlayerPos()
+  if draft and draft.kind == "hunt" then return DR.hunt(draft, id, ppx, ppy) end
+  resetNums()
+  if not drawMode then drawHint:SetText("") end
+  if draft then
+    -- a proposed gathering route: its zone, wherever you are
+    if id ~= draft.map then ppx, ppy = nil, nil end
+    id = draft.map
+  end
   if not id then
     NW.SetWindowSubtitle("")
     empty:SetText("Can't read your position here.")
@@ -259,7 +458,10 @@ refresh = function()
   bigTitle:SetText(info and info.name or "")
   local st = s()
   local wantedCount = 0
-  local routed = NW.db.routes[id] and #NW.db.routes[id].stops > 1
+  local saved = NW.db.routes[id]
+  local route = saved
+  if draft then route = draft.route end -- a proposal shows its preview (none yet while it builds), never the saved route
+  local routed = route and #route.stops > 1
   for _, n in ipairs(nodes) do
     if not NW.IsHidden(n.name) then
       local wanted = NW.NodeWanted(n, st)
@@ -280,12 +482,12 @@ refresh = function()
   btnOptimize:SetEnabled(wantedCount > 0)
   bigOptimize:SetEnabled(wantedCount > 0)
 
-  local route = NW.db.routes[id]
   if route then
     local stops = route.stops
     if #stops > 1 then
       local n = #stops
-      local _, first = NW.NextStop(id, ppx, ppy)
+      local first
+      if route == saved and ppx then _, first = NW.NextStop(id, ppx, ppy) end
       first = first or 1
       -- busy routes get finer lines and smaller dots
       local roomy = MAP_W / SMALL_W -- the expanded map draws everything a little larger
@@ -314,7 +516,9 @@ refresh = function()
         d:SetPoint("CENTER", mapArt, "TOPLEFT", px(a.x, a.y))
       end
     end
-    for _, r in ipairs(route.avoid or {}) do
+  end
+  if saved then
+    for _, r in ipairs(saved.avoid or {}) do
       local b = getBox()
       local x1, x2 = math.min(r[1], r[3]), math.max(r[1], r[3])
       local y1, y2 = math.min(r[2], r[4]), math.max(r[2], r[4])
@@ -323,16 +527,24 @@ refresh = function()
       b:SetSize((x2 - x1) * MAP_W, (y2 - y1) * MAP_H)
     end
   end
-  local anyAvoid = route and route.avoid and #route.avoid > 0 or false
+  local anyAvoid = saved and saved.avoid and #saved.avoid > 0 or false
   btnClear:SetEnabled(anyAvoid)
   bigClear:SetEnabled(anyAvoid)
-  playerDot:ClearAllPoints()
-  playerDot:SetPoint("CENTER", mapArt, "TOPLEFT", px(ppx, ppy))
-  playerDot:SetRotation(NW.Facing())
+  playerDot:SetShown(ppx ~= nil)
+  if ppx then
+    playerDot:ClearAllPoints()
+    playerDot:SetPoint("CENTER", mapArt, "TOPLEFT", px(ppx, ppy))
+    playerDot:SetRotation(NW.Facing())
+  end
 
   local gold, dim = "|cffd6b266", "|cff938c80"
   if NW.routeStatus then
     stats:SetText(gold .. NW.routeStatus .. "|r")
+  elseif draft and not draft.route then
+    local names = {}
+    for nm in pairs(draft.opts.focus or {}) do names[#names + 1] = nm end
+    stats:SetText(gold .. "Proposed: " .. (#names > 0 and table.concat(names, ", ") or "herbs and ore") .. "|r\n"
+      .. dim .. "Press Optimize loop to build the preview." .. (saved and #saved.stops > 1 and " Your saved route here stays until you start the new one." or "") .. "|r")
   elseif route and route.length then
     local herbs, ores = 0, 0
     for _, a in ipairs(route.stops) do herbs = herbs + (a.herbs or 0); ores = ores + (a.ores or 0) end
@@ -340,7 +552,7 @@ refresh = function()
     if route.focus then
       local names = {}
       for n in pairs(route.focus) do names[#names + 1] = n end
-      lines[#lines + 1] = gold .. "Route: " .. table.concat(names, ", ") .. "|r" .. (route.alsoOthers and (dim .. " + others|r") or "")
+      lines[#lines + 1] = gold .. (draft and "Proposed: " or "Route: ") .. table.concat(names, ", ") .. "|r" .. (route.alsoOthers and (dim .. " + others|r") or "")
     end
     lines[#lines + 1] = route.open and ("%d stops  ·  %d yd, there and back"):format(#route.stops, math.floor(route.length))
       or ("%d stops  ·  %d yd loop"):format(#route.stops, math.floor(route.length))
@@ -350,6 +562,9 @@ refresh = function()
       lines[#lines + 1] = dim .. ("%d%% shorter than a quick route"):format(math.floor(100 * (1 - route.length / route.quick) + 0.5)) .. "|r"
     end
     lines[#lines + 1] = dim .. ("%d herb, %d ore spots"):format(herbs, ores) .. "|r"
+    if draft and saved and #saved.stops > 1 then
+      lines[#lines] = "|cffd17665Starting replaces this zone's saved route.|r"
+    end
     stats:SetText(table.concat(lines, "\n"))
   else
     stats:SetText(dim .. "No route here yet.\nPress Optimize loop.|r")
@@ -380,8 +595,34 @@ mapFrame:SetScript("OnUpdate", function(self)
     if hoverStop then hoverStop = nil; GameTooltip:Hide() end
     return
   end
+  local draft = NW.routeDraft
+  if draft and draft.kind == "hunt" then
+    local list, i = DR.hit(draft, cursorOnMap())
+    local key = list and (list == "stops" and i or -i) or nil
+    if key == hoverStop then return end
+    hoverStop = key
+    if not list then GameTooltip:Hide() return end
+    local g = draft[list][i]
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+    if list == "stops" then
+      GameTooltip:SetText(("Ground %d of %d"):format(i, #draft.stops), 1, 0.9, 0.66)
+    else
+      GameTooltip:SetText("Not on the route", 0.8, 0.8, 0.8)
+    end
+    local lv = g.minL and (", level " .. g.minL .. ((g.maxL and g.maxL ~= g.minL) and ("-" .. g.maxL) or "")) or ""
+    GameTooltip:AddLine(("%d spawn points%s"):format(g.n or 0, lv), 0.85, 0.81, 0.73)
+    GameTooltip:AddLine(list == "spare" and "Click: add it"
+      or (#draft.stops > 1 and "Right-click: leave it out" or "The only ground on the route"), 0.6, 0.6, 0.6)
+    GameTooltip:Show()
+    return
+  end
   local id, ppx, ppy = NW.PlayerPos()
-  local route = id and NW.db.routes[id]
+  if draft then
+    if id ~= draft.map then ppx = nil end
+    id = draft.map
+  end
+  local route
+  if draft then route = draft.route elseif id then route = NW.db.routes[id] end
   if not (route and #route.stops > 1) then return end
   local cx, cy = GetCursorPosition()
   local scale = mapArt:GetEffectiveScale()
@@ -397,7 +638,8 @@ mapFrame:SetScript("OnUpdate", function(self)
   if not best then GameTooltip:Hide() return end
   local a = route.stops[best]
   local n = #route.stops
-  local _, first = NW.NextStop(id, ppx, ppy)
+  local first
+  if not draft and ppx then _, first = NW.NextStop(id, ppx, ppy) end
   local away = first and ((best - first) % n) or nil
   GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
   GameTooltip:SetText(("Stop %d of %d"):format(best, n), 1, 0.9, 0.66)
@@ -419,9 +661,19 @@ cursorOnMap = function()
 end
 
 mapFrame:SetScript("OnMouseDown", function(_, button)
+  local draft = NW.routeDraft
+  if draft and draft.kind == "hunt" then
+    -- grey ring: add it; right-click a gold one: leave it out
+    local list, i = DR.hit(draft, cursorOnMap())
+    if list == "spare" and button == "LeftButton" then NW.Hunt.DraftAdd(draft, i)
+    elseif list == "stops" and button == "RightButton" then NW.Hunt.DraftRemove(draft, i) end
+    hoverStop = nil
+    refresh()
+    return
+  end
   if drawMode and button == "LeftButton" then dragStart = { cursorOnMap() } end
-  -- right-click inside an avoid zone removes it
-  if button == "RightButton" then
+  -- right-click inside an avoid zone removes it (not while a proposal is open: they're the saved route's)
+  if button == "RightButton" and not draft then
     local id = mapID()
     local route = id and NW.db.routes[id]
     if not (route and route.avoid) then return end

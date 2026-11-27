@@ -1,8 +1,31 @@
 Professions/Catalog.lua, and the learn levels, recipe items, reagent and yield
-corrections in Professions/*.lua, are derived from the recipe data of One For All
-by Smoergi (https://www.curseforge.com/wow/addons/oneforall), which is licensed
-GPL-3.0-or-later. That data is in turn built from the WoW Forever client data
-(wago.tools), QuestieDB and CMaNGOS classic-db (both GPL).
+corrections in Professions/*.lua, are derived from the recipe data of One For All (Forever)
+by Smoergi, licensed GPL-3.0-or-later.
+
+  CurseForge: https://www.curseforge.com/wow/addons/oneforall-forever  (project ID 1714201)
+  Source:     https://github.com/smoergi/OneForAll_Forever
+
+That data is in turn built from the WoW Forever client data (wago.tools), QuestieDB (GPL-3.0)
+and CMaNGOS classic-db (GPL-3.0). World of Warcraft game data remains Blizzard's and is not
+covered by the GPL.
 
 The full text of the GNU General Public License version 3 is at
 https://www.gnu.org/licenses/gpl-3.0.txt
+
+Provenance status, 2026-11-26: corrected, but NOT CLOSED.
+  - Corrected: the earlier URL (curseforge.com/wow/addons/oneforall) pointed to an unrelated
+    zlib-licensed minimap addon by Thoreex. The project above is the right one. The author,
+    project ID and licence were supplied by the maintainer from the CurseForge page.
+  - Not yet verified: on 2026-11-26 the GitHub repository above returned 404 to both the API
+    and the web page, and the account lists no public repositories, so it is private, renamed
+    or removed. That means none of these could be inspected:
+      - which upstream version Professions/Catalog.lua was generated from;
+      - the upstream recipe data files and their copyright headers;
+      - any third-party licence notices upstream ships, such as for QuestieDB or cMaNGOS.
+    No Nodewalker record names the version. Catalog.lua carries no version stamp, and the
+    generator lives outside this folder.
+  - To close it: get the One For All (Forever) release that Catalog.lua was built from (the
+    CurseForge file list keeps old versions). Check its licence file, its copyright headers
+    and any notices for the data it inherits, and copy the ones that apply into this folder.
+    Then record the version and date here, and add a version line to the generator's
+    Catalog.lua header.

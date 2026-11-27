@@ -77,6 +77,10 @@ F.FISH = {
   [13755] = { skill = 225, bracket = 4, src = "guide" },
   [13758] = { skill = 300, zones = { "Western Plaguelands", "The Hinterlands", "Moonglade", "Felwood", "Un'Goro Crater" }, note = "Lakes and rivers", src = "forever" },
   [4603] = { skill = 300, zones = { "Tanaris", "The Hinterlands" }, note = "Coast", src = "forever" },
+  -- Stonescale Eel: cMaNGOS classic-db fishing loot (Tanaris and Azshara coastal areas, reference
+  -- tables 11009 and 11105) and the Stonescale Eel Swarm pool (gameobject 180712). Classic data.
+  -- No skill: no guide value is cited for it, and a zone's base level isn't the same thing.
+  [13422] = { zones = { "Tanaris", "Azshara" }, note = "Coast; Stonescale Eel Swarm pools", src = "classic" },
   [21071] = {}, [21153] = {}, [6522] = {}, [13890] = {}, [8959] = {},
 }
 F.ORDER = {}

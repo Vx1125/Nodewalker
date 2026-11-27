@@ -48,18 +48,43 @@ function H.Unit(npc)
   return { npc = npc, name = u[1], min = u[2], max = u[3], type = u[4], rank = u[5], fac = u[6], respawn = u[7], skin = u[8] }
 end
 
--- Creatures that give an item: { npc, chance (%), min, max, method }
+-- Chance as text: whole percent from 1%, otherwise enough digits not to show 0%
+function H.ChanceText(c, fine)
+  c = c or 0
+  if c >= 1 then return fine and ("%.1f%%"):format(c) or ("%d%%"):format(math.floor(c + 0.5)) end
+  if c >= 0.1 then return ("%.1f%%"):format(c) end
+  if c >= 0.01 then return ("%.2f%%"):format(c) end
+  return "<0.01%"
+end
+
+-- Is this creature's chance for the item calculated (cMaNGOS loot groups or reference tables)
+-- rather than listed upstream?
+local calcSet = {}
+local function isCalc(id, npc)
+  local S = src()
+  local list = S and S.calc and S.calc[id]
+  if not list then return false end
+  local set = calcSet[id]
+  if not set then
+    set = {}
+    for _, n in ipairs(list) do set[n] = true end
+    calcSet[id] = set
+  end
+  return set[npc] or false
+end
+
+-- Creatures that give an item: { npc, chance (%), min, max, method, calc }
 function H.Sources(id, method)
   local d = src() and src().items[id]
   local out = {}
   if not d then return out end
   if method ~= "loot" then
     local t = d.skin
-    for i = 1, #t, 4 do out[#out + 1] = { npc = t[i], chance = t[i + 1], min = t[i + 2], max = t[i + 3], method = "skin" } end
+    for i = 1, #t, 4 do out[#out + 1] = { npc = t[i], chance = t[i + 1], min = t[i + 2], max = t[i + 3], method = "skin", calc = isCalc(id, t[i]) } end
   end
   if method ~= "skin" then
     local t = d.loot
-    for i = 1, #t, 2 do out[#out + 1] = { npc = t[i], chance = t[i + 1], method = "loot" } end
+    for i = 1, #t, 2 do out[#out + 1] = { npc = t[i], chance = t[i + 1], method = "loot", calc = isCalc(id, t[i]) } end
   end
   return out
 end
@@ -93,7 +118,22 @@ function H.Why(u, method, opts)
   return nil
 end
 
--- Known spawn points of one creature in one zone: { { x, y } } (cell centres)
+-- Spawn strings: per point, x then y, each with `digits` digits; value v covers v..v+1 of
+-- S.coordScale parts of the map (100: 1% cells; 1000: 0.1%). decode gives centres in percent.
+local function scaleOf(S)
+  local scale = S.coordScale or 100
+  return scale, #tostring(scale - 1)
+end
+
+local function decode(S, str, fn)
+  local scale, d = scaleOf(S)
+  local f = 100 / scale
+  for i = 1, #str, 2 * d do
+    fn((tonumber(str:sub(i, i + d - 1)) + 0.5) * f, (tonumber(str:sub(i + d, i + 2 * d - 1)) + 0.5) * f)
+  end
+end
+
+-- Known spawn points of one creature in one zone: { { x, y } } (map fractions, point centres)
 local zoneIndex
 function H.SpawnsIn(npc, zoneName)
   local S = src()
@@ -103,10 +143,7 @@ function H.SpawnsIn(npc, zoneName)
   if not (zi and sp) then return out end
   for i = 1, #sp, 2 do
     if sp[i] == zi then
-      local str = sp[i + 1]
-      for k = 1, #str, 4 do
-        out[#out + 1] = { (tonumber(str:sub(k, k + 1)) + 0.5) / 100, (tonumber(str:sub(k + 2, k + 3)) + 0.5) / 100 }
-      end
+      decode(S, sp[i + 1], function(x, y) out[#out + 1] = { x / 100, y / 100 } end)
     end
   end
   return out
@@ -115,16 +152,34 @@ end
 ------------------------------------------------------------------------
 -- Grounds for one material: zones, each with density bins and clusters
 ------------------------------------------------------------------------
-local cache = {}
+-- Recently viewed grounds, most recent last. Each result keeps every spawn point of the
+-- material (the Known map draws them), so an unbounded cache grew with every material
+-- browsed. The Finder shows one at a time and rebuilds on every click, so it keeps a few:
+-- enough to switch back and forth between materials or between skinning and loot. An
+-- evicted result is rebuilt exactly from SourceData on its next view. The data itself is
+-- never limited. CACHE_KEEP is provisional: an offline estimate, not a client measurement
+-- (tools/LIVE_CLIENT_VALIDATION.md, section 5). Active hunts keep their own copy of
+-- their stops (H.Start), so eviction never touches a route.
+local CACHE_KEEP = 4
+local cache, cacheOrder = {}, {}
+local cacheStat = { hits = 0, misses = 0 }
+local function cacheGet(key)
+  local r = cache[key]
+  if not r then return nil end
+  for i = #cacheOrder, 1, -1 do
+    if cacheOrder[i] == key then table.remove(cacheOrder, i) break end
+  end
+  cacheOrder[#cacheOrder + 1] = key
+  return r
+end
+local function cachePut(key, r)
+  if not cache[key] then cacheOrder[#cacheOrder + 1] = key end
+  cache[key] = r
+  while #cacheOrder > CACHE_KEEP do cache[table.remove(cacheOrder, 1)] = nil end
+end
 local function optsKey(o)
   o = o or {}
   return ("%s:%s:%s:%s"):format(tostring(o.skill), tostring(o.elites), tostring(o.level), tostring(o.levelOver))
-end
-
-local function decode(str, fn)
-  for i = 1, #str, 4 do
-    fn(tonumber(str:sub(i, i + 1)), tonumber(str:sub(i + 2, i + 3)))
-  end
 end
 
 local function clusterZone(z, mapID)
@@ -188,8 +243,11 @@ function H.Grounds(id, method, opts)
   local S = src()
   if not S then return { zones = {} } end
   local key = id .. ":" .. (method or "any") .. ":" .. optsKey(opts)
-  if cache[key] then return cache[key] end
-  local zones, out = {}, {}
+  local hit = cacheGet(key)
+  if hit then cacheStat.hits = cacheStat.hits + 1; return hit end
+  cacheStat.misses = cacheStat.misses + 1
+  local t0 = NW.PerfStart and NW.PerfStart()
+  local zones, out, unplaced = {}, {}, 0
   for _, s in ipairs(H.Sources(id, method)) do
     local u = H.Unit(s.npc)
     local why = "nodata"
@@ -207,7 +265,7 @@ function H.Grounds(id, method, opts)
           zones[zname] = z
         end
         z.lo, z.hi = math.min(z.lo, u.min or 999), math.max(z.hi, u.max or 0)
-        decode(sp[i + 1], function(x, y)
+        decode(S, sp[i + 1], function(x, y)
           local bk = math.floor(x / BIN) * 100 + math.floor(y / BIN)
           local b = z.bins[bk]
           if not b then
@@ -215,13 +273,15 @@ function H.Grounds(id, method, opts)
             z.bins[bk] = b
           end
           b.w, b.n = b.w + p, b.n + 1
-          b.sx, b.sy = b.sx + (x + 0.5) * p, b.sy + (y + 0.5) * p
+          b.sx, b.sy = b.sx + x * p, b.sy + y * p
           b.npcs[s.npc] = (b.npcs[s.npc] or 0) + 1
-          b.cells[#b.cells + 1] = { (x + 0.5) / 100, (y + 0.5) / 100 }
+          b.cells[#b.cells + 1] = { x / 100, y / 100 }
           z.w, z.n = z.w + p, z.n + 1
           z.npcs[s.npc] = (z.npcs[s.npc] or 0) + 1
         end)
       end
+    else
+      unplaced = unplaced + 1   -- a source with no spawn points (the generator should not ship these)
     end
   end
   local list = {}
@@ -232,11 +292,24 @@ function H.Grounds(id, method, opts)
     list[#list + 1] = z
   end
   table.sort(list, function(a, b) return a.w > b.w end)
-  local r = { zones = list, out = out }
-  cache[key] = r
+  local r = { zones = list, out = out, unplaced = unplaced }
+  cachePut(key, r)
+  if t0 then NW.PerfStop("Hunting grounds build (cache miss)", t0) end
   return r
 end
-function H.ClearCache() cache = {} end
+function H.ClearCache() cache, cacheOrder = {}, {} end
+-- For /nw perf: what the cache holds now
+function H.CacheStats()
+  local c = { entries = #cacheOrder, keep = CACHE_KEEP, zones = 0, bins = 0, points = 0, grounds = 0,
+    hits = cacheStat.hits, misses = cacheStat.misses }
+  for _, r in pairs(cache) do
+    for _, z in ipairs(r.zones) do
+      c.zones, c.points, c.grounds = c.zones + 1, c.points + z.n, c.grounds + #(z.grounds or {})
+      for _ in pairs(z.bins) do c.bins = c.bins + 1 end
+    end
+  end
+  return c
+end
 
 -- Sorting zones; each says what it's based on
 H.SORTS = {
@@ -362,6 +435,15 @@ function H.Plan(z)
   for _, i in ipairs(order) do out[#out + 1] = pick[i] end
   return out
 end
+do -- time the plan for /nw perf (a no-op unless timings are on)
+  local plan = H.Plan
+  H.Plan = function(z)
+    local t0 = NW.PerfStart()
+    local out = plan(z)
+    NW.PerfStop("Hunt route plan", t0)
+    return out
+  end
+end
 -- loop length in yards (straight lines), nil without the map's size
 function H.Length(mapID, stops)
   if #stops < 2 or not NW.MapSize(mapID or 0) then return #stops == 1 and 0 or nil end
@@ -370,20 +452,6 @@ function H.Length(mapID, stops)
   return len
 end
 
-function H.Start(id, method, z, opts)
-  local stops = H.Plan(z)
-  if #stops == 0 or not NW.charDB then return end
-  local saved = {}
-  for _, g in ipairs(stops) do
-    local npcs = {}
-    for npc in pairs(g.npcs) do npcs[#npcs + 1] = npc end
-    saved[#saved + 1] = { x = g.x, y = g.y, rx = g.rx, ry = g.ry, w = g.w, n = g.n, npcs = npcs, respawn = g.respawn, minL = g.minL, maxL = g.maxL }
-  end
-  NW.charDB.hunt = { item = id, method = method, zone = z.name, map = z.mapID, stops = saved, cur = 1, state = {}, at = {}, made = time() }
-  H.Changed()
-  if NW.DrawOverlay then NW.DrawOverlay() end
-  return NW.charDB.hunt
-end
 local function toStop(g)
   local npcs = {}
   for npc in pairs(g.npcs or {}) do npcs[#npcs + 1] = npc end
@@ -396,27 +464,83 @@ function H.StopFor(g)
   if not r then return nil end
   for i, st in ipairs(r.stops) do if same(st, g) then return i end end
 end
--- one ground only: stay and hunt
-function H.StartSingle(id, method, z, g)
-  if not (NW.charDB and g) then return end
-  NW.charDB.hunt = { item = id, method = method, zone = z.name, map = z.mapID, stops = { toStop(g) }, cur = 1, state = {}, at = {}, made = time(), custom = true }
+-- where a stop lengthens a loop least
+local function slotFor(stops, st, mapID)
+  local n = #stops
+  local at, best = n + 1, math.huge
+  if n >= 2 then
+    for i = 1, n do
+      local a, b = stops[i], stops[(i % n) + 1]
+      local add = yards(mapID, a, st) + yards(mapID, st, b) - yards(mapID, a, b)
+      if add < best then at, best = i + 1, add end
+    end
+  end
+  return at
+end
+
+-- A proposed route (a draft): copies of the grounds only, never the cached zone or
+-- ground tables, so cache eviction can't touch it. Nothing is saved or shown on the
+-- overlay until H.Commit. `only`: one ground, stay and hunt. The zone's other
+-- grounds come along as `spare`, so the Route tab can add them back.
+function H.Propose(id, method, z, opts, only)
+  if not (z and z.mapID) then return nil end
+  local plan = only and { only } or H.Plan(z)
+  if #plan == 0 then return nil end
+  local stops, spare = {}, {}
+  for _, g in ipairs(plan) do stops[#stops + 1] = toStop(g) end
+  for _, g in ipairs(z.grounds or {}) do
+    local used = false
+    for _, s in ipairs(stops) do if same(s, g) then used = true break end end
+    if not used then spare[#spare + 1] = toStop(g) end
+  end
+  opts = opts or {}
+  return { kind = "hunt", item = id, method = method, zone = z.name, map = z.mapID, stops = stops, spare = spare,
+    opts = { elites = opts.elites or false, skill = opts.skill }, custom = only and true or nil }
+end
+-- the draft becomes the hunt (replacing any active one); same saved shape as before
+function H.Commit(d)
+  if not (d and d.kind == "hunt" and #d.stops > 0 and NW.charDB) then return end
+  local stops = {}
+  for i, s in ipairs(d.stops) do stops[i] = s end
+  NW.charDB.hunt = { item = d.item, method = d.method, zone = d.zone, map = d.map, stops = stops, cur = 1, state = {}, at = {}, made = time(), custom = d.custom }
   H.Changed()
   if NW.DrawOverlay then NW.DrawOverlay() end
+  return NW.charDB.hunt
 end
+function H.Start(id, method, z, opts) return H.Commit(H.Propose(id, method, z, opts)) end
+-- one ground only: stay and hunt
+function H.StartSingle(id, method, z, g)
+  if g then H.Commit(H.Propose(id, method, z, nil, g)) end
+end
+-- editing a draft: a spare ground joins where it adds least, a stop goes back to
+-- the spares, or the loop runs the other way from its first stop
+function H.DraftAdd(d, i)
+  local st = d and d.spare[i]
+  if not st then return end
+  table.remove(d.spare, i)
+  table.insert(d.stops, slotFor(d.stops, st, d.map), st)
+  d.custom = true
+end
+function H.DraftRemove(d, i)
+  if not (d and d.stops[i]) or #d.stops < 2 then return end
+  d.spare[#d.spare + 1] = table.remove(d.stops, i)
+  d.custom = true
+end
+function H.DraftReverse(d)
+  if not d or #d.stops < 3 then return end
+  local n, out = #d.stops, { d.stops[1] }
+  for k = n, 2, -1 do out[#out + 1] = d.stops[k] end
+  d.stops = out
+  d.custom = true
+end
+function H.DraftLength(d) return H.Length(d.map, d.stops) end
 -- add a ground where it lengthens the loop least
 function H.AddGround(g)
   local r = charHunt()
   if not (r and g) or H.StopFor(g) then return end
   local st = toStop(g)
   local n = #r.stops
-  local at, best = n + 1, math.huge
-  if n >= 2 then
-    for i = 1, n do
-      local a, b = r.stops[i], r.stops[(i % n) + 1]
-      local add = yards(r.map, a, st) + yards(r.map, st, b) - yards(r.map, a, b)
-      if add < best then at, best = i + 1, add end
-    end
-  end
+  local at = slotFor(r.stops, st, r.map)
   table.insert(r.stops, at, st)
   -- keep states and times with their stops
   local state, ats = {}, {}

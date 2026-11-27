@@ -185,8 +185,8 @@ end
 -- The corners each leg of a route has to go round, worked out again from
 -- its avoid zones. Called after building, and whenever the zones change,
 -- so a new zone reroutes the loop at once.
-function NW.RouteAroundAvoid(mapID)
-  local route = NW.db.routes[mapID]
+function NW.RouteAroundAvoid(mapID, route)
+  route = route or NW.db.routes[mapID] -- or a proposed route not saved yet
   if not route or #route.stops < 2 then return end
   local w, h = NW.MapSize(mapID)
   if not w then return end
@@ -556,6 +556,7 @@ function NW.BuildRoute(mapID, callback, opts)
   local s = NW.db.settings
   opts = opts or {}
   local focus = opts.focus
+  local t0 = NW.PerfStart()
   local w, h = NW.MapSize(mapID)
   if not w then
     NW.Print("This map has no size the game can measure, so a route can't be built here.")
@@ -617,10 +618,16 @@ function NW.BuildRoute(mapID, callback, opts)
       route.quick = quick
       route.seconds = len / MOUNT_YPS
       route.nodes = #points
-      NW.db.routes[mapID] = route
-      NW.RouteAroundAvoid(mapID)
-      NW.ResetProgress(mapID)
+      if opts.preview then
+        -- a proposal for the Route tab: the saved route stays as it is until started
+        NW.RouteAroundAvoid(mapID, route)
+      else
+        NW.db.routes[mapID] = route
+        NW.RouteAroundAvoid(mapID)
+        NW.ResetProgress(mapID)
+      end
       NW.routeStatus = nil
+      NW.PerfStop("Gathering route build (wall time, spread over frames)", t0)
       if callback then callback(route) end
     end,
   }

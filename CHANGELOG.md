@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Leveling: parts you make first (Handful of Copper Bolts, blasting powder) get their own row before the step.
+- Routes are reviewed in the Route tab: Material Finder route buttons open a proposal; nothing is replaced until Start.
+- Hunting grounds list every creature with spawn points (Heavy Leather: 204 skinnable, was 80).
+- Spawn points 10× more precise; dense camps no longer merged.
+- Drop chances under 1% shown (e.g. 0.2%); calculated chances say so.
+- Material Finder reads the full recipe catalog: more vendor and crafted materials.
+- Light Leather and Rugged Leather show Crafting as a source.
+- Stonescale Eel added to the fishing data.
+- Memory: hunting grounds kept for the 4 most recent views.
+- `/nw perf`: memory, caches and timings (developer).
+
 ## 1.2.0
 
 - Material Finder: one search for every material (herbs, ore, leather, fish, cloth, meat, reagents, vendor goods, crafted parts).

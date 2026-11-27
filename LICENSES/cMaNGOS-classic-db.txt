@@ -1,0 +1,29 @@
+Materials/SourceData.lua contains data derived from CMaNGOS Classic-DB
+(https://github.com/cmangos/classic-db), released under the GNU General Public License
+version 3. Pinned commit: 13e933726f386399d9820138fbd1123e7cda86c8 (2026-11-21).
+
+Classic-DB's README requires its LICENSE.md to be part of any redistributable package
+made from it. It is included unchanged as LICENSES/cMaNGOS-classic-db-LICENSE.md, and
+its copyright notice as LICENSES/cMaNGOS-classic-db-COPYRIGHT.md. As that notice says,
+World of Warcraft content and materials remain Blizzard's and are not covered by the GPL.
+
+What was used, and how it was changed (tools/build_sources.py):
+  - creature_template: level range, creature type, rank, and the skinning loot id
+    (also used as the skinnable flag), and CreatureTypeFlags: creatures flagged for
+    Herbalism, Mining or Engineering (0x100, 0x200, 0x8000) and critters (type 8) are not
+    counted as skinning sources. Names come from pfQuest where it has one.
+    Faction and respawn time come from pfQuest.
+  - skinning_loot_template: skinning chances and quantities. Group entries with chance 0
+    are given their calculated share of the group, and are listed in S.calc.
+  - reference_loot_template: chances for loot that pfQuest lists as reference loot,
+    multiplied through the reference. These are also listed in S.calc.
+  - fishing_loot_template (reference tables 11009 and 11105) and the Stonescale Eel Swarm
+    gameobject (180712): looked up by hand to add Stonescale Eel's zones (Tanaris, Azshara) to
+    Professions/Fishing.lua. Only the zone names were used; no chance was copied.
+  - Changes: records were filtered to the configured materials and to open-world creatures
+    with spawn points. Every dropped record is listed with a reason in
+    tools/reports/rejected_sources.csv. Values were rounded for size: chances of 1% or more
+    to 0.01, smaller ones to 2 significant figures. Spawn points come from pfQuest (below).
+
+Creature spawn points, ordinary loot chances and vendors come from pfQuest (MIT, Shagu);
+see LICENSES/pfQuest-MIT.txt.

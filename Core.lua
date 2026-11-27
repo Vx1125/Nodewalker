@@ -138,6 +138,66 @@ function NW.Print(msg)
 end
 
 ------------------------------------------------------------------------
+-- Developer diagnostics (/nw perf). Timings are recorded only after
+-- /nw perf on, and not saved. Nothing here collects garbage on its own;
+-- /nw perf gc does it once, when asked.
+------------------------------------------------------------------------
+NW.Perf = { on = false, stats = {}, pools = {} }
+function NW.PerfStart()
+  return NW.Perf.on and debugprofilestop and debugprofilestop() or nil
+end
+function NW.PerfStop(name, t0)
+  if not t0 then return end
+  local ms = debugprofilestop() - t0
+  local s = NW.Perf.stats[name]
+  if not s then s = { n = 0, total = 0, max = 0 }; NW.Perf.stats[name] = s end
+  s.n, s.total, s.last = s.n + 1, s.total + ms, ms
+  if ms > s.max then s.max = ms end
+end
+-- KB the client charges to Nodewalker, garbage included (nil if the client can't say)
+function NW.PerfMem()
+  if not (UpdateAddOnMemoryUsage and GetAddOnMemoryUsage) then return nil end
+  UpdateAddOnMemoryUsage()
+  return GetAddOnMemoryUsage(ADDON)
+end
+function NW.PerfReport()
+  local P = NW.Perf
+  local kb = NW.PerfMem()
+  NW.Print(("Memory: %s KB charged to Nodewalker (includes garbage not yet collected); %.0f KB Lua heap, all addons")
+    :format(kb and ("%.0f"):format(kb) or "?", collectgarbage("count")))
+  if NW.Hunt and NW.Hunt.CacheStats then
+    local c = NW.Hunt.CacheStats()
+    NW.Print(("Hunting grounds cache: %d of %d kept (one per material, method and filter), %d zones, %d density bins, %d spawn points, %d grounds; %d hits, %d builds")
+      :format(c.entries, c.keep, c.zones, c.bins, c.points, c.grounds, c.hits, c.misses))
+  end
+  if NW.GuideCacheStats then
+    local n, pts, e = NW.GuideCacheStats()
+    NW.Print(("Zone rankings cache (herbs, ore): %d materials, %d node points; node entries: %d"):format(n, pts, e))
+  end
+  NW.Print("Heatmap and hunt route preview: not cached, rebuilt from the grounds on each view")
+  local routes = 0
+  for _ in pairs(NW.db and NW.db.routes or {}) do routes = routes + 1 end
+  local hunt = NW.charDB and NW.charDB.hunt
+  NW.Print(("Saved routes: %d; active hunt: %s (saved data, never cleared here)"):format(routes, hunt and (#(hunt.stops or {}) .. " stops") or "none"))
+  for _, p in ipairs(P.pools) do
+    local made, active = p.stats()
+    NW.Print(("Pool %s: %d made, %d shown, %d hidden for reuse"):format(p.name, made, active, made - active))
+  end
+  if not P.on then
+    NW.Print("Timings are off. /nw perf on to record them, /nw perf off to stop.")
+    return
+  end
+  local names = {}
+  for k in pairs(P.stats) do names[#names + 1] = k end
+  table.sort(names)
+  if #names == 0 then NW.Print("No timings yet.") end
+  for _, k in ipairs(names) do
+    local s = P.stats[k]
+    NW.Print(("%s: last %.1f ms, mean %.1f ms, max %.1f ms (%d runs)"):format(k, s.last, s.total / s.n, s.max, s.n))
+  end
+end
+
+------------------------------------------------------------------------
 -- Positions and distances
 ------------------------------------------------------------------------
 local mapSizeCache = {}
@@ -425,6 +485,22 @@ SlashCmdList.NODEWALKER = function(msg)
     end
     walk(NW.window)
     NW.Print(#found == 0 and "Nothing cut off." or (#found .. " cut off: " .. table.concat(found, " | ", 1, math.min(#found, 25))))
+  elseif msg == "perf" then
+    NW.PerfReport()
+  elseif msg == "perf on" or msg == "perf off" then
+    NW.Perf.on = msg == "perf on"
+    if NW.Perf.on then NW.Perf.stats = {} end
+    NW.Print(NW.Perf.on and "Timings on (cleared). /nw perf to see them." or "Timings off.")
+  elseif msg == "perf clear" then
+    if NW.Hunt and NW.Hunt.ClearCache then NW.Hunt.ClearCache() end
+    if NW.GuideClearCaches then NW.GuideClearCaches() end
+    NW.Print("Cleared the hunting grounds and zone ranking caches. They rebuild when viewed. Routes, hunts, goals, journals and settings are untouched. Memory drops only after the next garbage collection.")
+  elseif msg == "perf gc" then
+    local before = NW.PerfMem()
+    collectgarbage("collect")
+    local after = NW.PerfMem()
+    NW.Print(("One full garbage collection: %s KB -> %s KB. For measuring only; don't run it during normal play.")
+      :format(before and ("%.0f"):format(before) or "?", after and ("%.0f"):format(after) or "?"))
   elseif msg == "status" then
     local mapID = NW.PlayerPos()
     local n = 0

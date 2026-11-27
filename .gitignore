@@ -5,7 +5,9 @@ CLAUDE.md
 CLAUDE.local.md
 .claude/
 research/
-tools/reports/
+tools/reports/*.md
+tools/reports/*.csv
+tools/reports/*_legacy.*
 tools/*.md
 *.notes.md
 DEVELOPMENT.md

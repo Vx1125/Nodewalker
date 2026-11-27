@@ -1,0 +1,1162 @@
+{
+ "723": {
+  "name": "Goretusk Liver",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 4,
+  "loot_kept": 4,
+  "vendor_kept": 0
+ },
+ "729": {
+  "name": "Stringy Vulture Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 7,
+  "loot_kept": 7,
+  "vendor_kept": 0
+ },
+ "730": {
+  "name": "Murloc Eye",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 57,
+  "loot_kept": 50,
+  "vendor_kept": 0
+ },
+ "731": {
+  "name": "Goretusk Snout",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 2,
+  "loot_kept": 2,
+  "vendor_kept": 0
+ },
+ "769": {
+  "name": "Chunk of Boar Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 21,
+  "loot_kept": 21,
+  "vendor_kept": 0
+ },
+ "783": {
+  "name": "Light Hide",
+  "skin_candidates": 205,
+  "skin_kept": 165,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "814": {
+  "name": "Flask of Oil",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 16,
+  "loot_kept": 15,
+  "vendor_kept": 0
+ },
+ "1015": {
+  "name": "Lean Wolf Flank",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 14,
+  "loot_kept": 10,
+  "vendor_kept": 0
+ },
+ "1080": {
+  "name": "Tough Condor Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 1,
+  "loot_kept": 1,
+  "vendor_kept": 0
+ },
+ "1081": {
+  "name": "Crisp Spider Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 33,
+  "loot_kept": 31,
+  "vendor_kept": 0
+ },
+ "1288": {
+  "name": "Large Venom Sac",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 19,
+  "loot_kept": 19,
+  "vendor_kept": 0
+ },
+ "1468": {
+  "name": "Murloc Fin",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 37,
+  "loot_kept": 32,
+  "vendor_kept": 0
+ },
+ "1475": {
+  "name": "Small Venom Sac",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 21,
+  "loot_kept": 18,
+  "vendor_kept": 0
+ },
+ "2251": {
+  "name": "Gooey Spider Leg",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 19,
+  "loot_kept": 19,
+  "vendor_kept": 0
+ },
+ "2318": {
+  "name": "Light Leather",
+  "skin_candidates": 289,
+  "skin_kept": 236,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "2319": {
+  "name": "Medium Leather",
+  "skin_candidates": 246,
+  "skin_kept": 201,
+  "loot_candidates": 3,
+  "loot_kept": 0,
+  "vendor_kept": 1
+ },
+ "2452": {
+  "name": "Swiftthistle",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 558,
+  "loot_kept": 472,
+  "vendor_kept": 0
+ },
+ "2589": {
+  "name": "Linen Cloth",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 730,
+  "loot_kept": 610,
+  "vendor_kept": 0
+ },
+ "2592": {
+  "name": "Wool Cloth",
+  "skin_candidates": 1,
+  "skin_kept": 0,
+  "loot_candidates": 779,
+  "loot_kept": 617,
+  "vendor_kept": 0
+ },
+ "2672": {
+  "name": "Stringy Wolf Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 19,
+  "loot_kept": 19,
+  "vendor_kept": 0
+ },
+ "2673": {
+  "name": "Coyote Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 2,
+  "loot_kept": 2,
+  "vendor_kept": 0
+ },
+ "2674": {
+  "name": "Crawler Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 15,
+  "loot_kept": 12,
+  "vendor_kept": 0
+ },
+ "2675": {
+  "name": "Crawler Claw",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 15,
+  "loot_kept": 12,
+  "vendor_kept": 0
+ },
+ "2677": {
+  "name": "Boar Ribs",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 13,
+  "loot_kept": 7,
+  "vendor_kept": 0
+ },
+ "2886": {
+  "name": "Crag Boar Rib",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 5,
+  "loot_kept": 5,
+  "vendor_kept": 0
+ },
+ "2924": {
+  "name": "Crocolisk Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 10,
+  "loot_kept": 9,
+  "vendor_kept": 0
+ },
+ "2934": {
+  "name": "Ruined Leather Scraps",
+  "skin_candidates": 158,
+  "skin_kept": 140,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "3172": {
+  "name": "Boar Intestines",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 13,
+  "loot_kept": 7,
+  "vendor_kept": 0
+ },
+ "3173": {
+  "name": "Bear Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 21,
+  "loot_kept": 21,
+  "vendor_kept": 0
+ },
+ "3174": {
+  "name": "Spider Ichor",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 29,
+  "loot_kept": 26,
+  "vendor_kept": 0
+ },
+ "3182": {
+  "name": "Spider's Silk",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 25,
+  "loot_kept": 24,
+  "vendor_kept": 0
+ },
+ "3404": {
+  "name": "Buzzard Wing",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 21,
+  "loot_kept": 20,
+  "vendor_kept": 0
+ },
+ "3667": {
+  "name": "Tender Crocolisk Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 16,
+  "loot_kept": 16,
+  "vendor_kept": 0
+ },
+ "3685": {
+  "name": "Raptor Egg",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 20,
+  "loot_kept": 20,
+  "vendor_kept": 0
+ },
+ "3712": {
+  "name": "Turtle Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 23,
+  "loot_kept": 19,
+  "vendor_kept": 0
+ },
+ "3730": {
+  "name": "Big Bear Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 9,
+  "loot_kept": 9,
+  "vendor_kept": 0
+ },
+ "3731": {
+  "name": "Lion Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 7,
+  "loot_kept": 7,
+  "vendor_kept": 0
+ },
+ "4096": {
+  "name": "Coarse Gorilla Hair",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 9,
+  "loot_kept": 9,
+  "vendor_kept": 0
+ },
+ "4232": {
+  "name": "Medium Hide",
+  "skin_candidates": 242,
+  "skin_kept": 198,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "4234": {
+  "name": "Heavy Leather",
+  "skin_candidates": 229,
+  "skin_kept": 204,
+  "loot_candidates": 6,
+  "loot_kept": 1,
+  "vendor_kept": 1
+ },
+ "4235": {
+  "name": "Heavy Hide",
+  "skin_candidates": 219,
+  "skin_kept": 195,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "4304": {
+  "name": "Thick Leather",
+  "skin_candidates": 360,
+  "skin_kept": 295,
+  "loot_candidates": 4,
+  "loot_kept": 3,
+  "vendor_kept": 1
+ },
+ "4306": {
+  "name": "Silk Cloth",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 1052,
+  "loot_kept": 785,
+  "vendor_kept": 0
+ },
+ "4337": {
+  "name": "Thick Spider's Silk",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 45,
+  "loot_kept": 31,
+  "vendor_kept": 0
+ },
+ "4338": {
+  "name": "Mageweave Cloth",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 758,
+  "loot_kept": 559,
+  "vendor_kept": 0
+ },
+ "4402": {
+  "name": "Small Flame Sac",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 22,
+  "loot_kept": 21,
+  "vendor_kept": 0
+ },
+ "4461": {
+  "name": "Raptor Hide",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 18,
+  "loot_kept": 18,
+  "vendor_kept": 0
+ },
+ "4589": {
+  "name": "Long Elegant Feather",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 9,
+  "loot_kept": 9,
+  "vendor_kept": 0
+ },
+ "5082": {
+  "name": "Thin Kodo Leather",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 10,
+  "loot_kept": 10,
+  "vendor_kept": 0
+ },
+ "5116": {
+  "name": "Long Tail Feather",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 34,
+  "loot_kept": 30,
+  "vendor_kept": 0
+ },
+ "5465": {
+  "name": "Small Spider Leg",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 18,
+  "loot_kept": 16,
+  "vendor_kept": 0
+ },
+ "5466": {
+  "name": "Scorpid Stinger",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 5,
+  "loot_kept": 5,
+  "vendor_kept": 0
+ },
+ "5467": {
+  "name": "Kodo Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 10,
+  "loot_kept": 10,
+  "vendor_kept": 0
+ },
+ "5468": {
+  "name": "Soft Frenzy Flesh",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 4,
+  "loot_kept": 4,
+  "vendor_kept": 0
+ },
+ "5469": {
+  "name": "Strider Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 7,
+  "loot_kept": 7,
+  "vendor_kept": 0
+ },
+ "5470": {
+  "name": "Thunder Lizard Tail",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 8,
+  "loot_kept": 7,
+  "vendor_kept": 0
+ },
+ "5471": {
+  "name": "Stag Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 8,
+  "loot_kept": 8,
+  "vendor_kept": 0
+ },
+ "5498": {
+  "name": "Small Lustrous Pearl",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 367,
+  "loot_kept": 319,
+  "vendor_kept": 0
+ },
+ "5500": {
+  "name": "Iridescent Pearl",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 202,
+  "loot_kept": 163,
+  "vendor_kept": 0
+ },
+ "5503": {
+  "name": "Clam Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 435,
+  "loot_kept": 386,
+  "vendor_kept": 0
+ },
+ "5504": {
+  "name": "Tangy Clam Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 252,
+  "loot_kept": 213,
+  "vendor_kept": 0
+ },
+ "5635": {
+  "name": "Sharp Claw",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 173,
+  "loot_kept": 148,
+  "vendor_kept": 0
+ },
+ "5637": {
+  "name": "Large Fang",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 154,
+  "loot_kept": 141,
+  "vendor_kept": 0
+ },
+ "5784": {
+  "name": "Slimy Murloc Scale",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 41,
+  "loot_kept": 34,
+  "vendor_kept": 0
+ },
+ "5785": {
+  "name": "Thick Murloc Scale",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 23,
+  "loot_kept": 23,
+  "vendor_kept": 0
+ },
+ "6470": {
+  "name": "Deviate Scale",
+  "skin_candidates": 14,
+  "skin_kept": 6,
+  "loot_candidates": 21,
+  "loot_kept": 6,
+  "vendor_kept": 0
+ },
+ "6471": {
+  "name": "Perfect Deviate Scale",
+  "skin_candidates": 14,
+  "skin_kept": 6,
+  "loot_candidates": 21,
+  "loot_kept": 6,
+  "vendor_kept": 0
+ },
+ "6889": {
+  "name": "Small Egg",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 17,
+  "loot_kept": 17,
+  "vendor_kept": 0
+ },
+ "7067": {
+  "name": "Elemental Earth",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 44,
+  "loot_kept": 30,
+  "vendor_kept": 0
+ },
+ "7068": {
+  "name": "Elemental Fire",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 42,
+  "loot_kept": 21,
+  "vendor_kept": 0
+ },
+ "7069": {
+  "name": "Elemental Air",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 18,
+  "loot_kept": 14,
+  "vendor_kept": 0
+ },
+ "7070": {
+  "name": "Elemental Water",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 32,
+  "loot_kept": 21,
+  "vendor_kept": 0
+ },
+ "7072": {
+  "name": "Naga Scale",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 18,
+  "loot_kept": 17,
+  "vendor_kept": 0
+ },
+ "7075": {
+  "name": "Core of Earth",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 36,
+  "loot_kept": 20,
+  "vendor_kept": 0
+ },
+ "7076": {
+  "name": "Essence of Earth",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 33,
+  "loot_kept": 12,
+  "vendor_kept": 0
+ },
+ "7077": {
+  "name": "Heart of Fire",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 38,
+  "loot_kept": 15,
+  "vendor_kept": 0
+ },
+ "7078": {
+  "name": "Essence of Fire",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 33,
+  "loot_kept": 9,
+  "vendor_kept": 0
+ },
+ "7079": {
+  "name": "Globe of Water",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 18,
+  "loot_kept": 11,
+  "vendor_kept": 0
+ },
+ "7080": {
+  "name": "Essence of Water",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 12,
+  "loot_kept": 7,
+  "vendor_kept": 0
+ },
+ "7081": {
+  "name": "Breath of Wind",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 13,
+  "loot_kept": 9,
+  "vendor_kept": 0
+ },
+ "7082": {
+  "name": "Essence of Air",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 8,
+  "loot_kept": 5,
+  "vendor_kept": 0
+ },
+ "7191": {
+  "name": "Fused Wiring",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 13,
+  "loot_kept": 4,
+  "vendor_kept": 0
+ },
+ "7286": {
+  "name": "Black Whelp Scale",
+  "skin_candidates": 2,
+  "skin_kept": 2,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "7287": {
+  "name": "Red Whelp Scale",
+  "skin_candidates": 4,
+  "skin_kept": 4,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "7392": {
+  "name": "Green Whelp Scale",
+  "skin_candidates": 2,
+  "skin_kept": 2,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "7428": {
+  "name": "Shadowcat Hide",
+  "skin_candidates": 3,
+  "skin_kept": 3,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "7971": {
+  "name": "Black Pearl",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 122,
+  "loot_kept": 112,
+  "vendor_kept": 0
+ },
+ "7972": {
+  "name": "Ichor of Undeath",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 120,
+  "loot_kept": 62,
+  "vendor_kept": 0
+ },
+ "8146": {
+  "name": "Wicked Claw",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 261,
+  "loot_kept": 225,
+  "vendor_kept": 0
+ },
+ "8150": {
+  "name": "Deeprock Salt",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 80,
+  "loot_kept": 47,
+  "vendor_kept": 0
+ },
+ "8151": {
+  "name": "Flask of Mojo",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 55,
+  "loot_kept": 34,
+  "vendor_kept": 0
+ },
+ "8152": {
+  "name": "Flask of Big Mojo",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 40,
+  "loot_kept": 24,
+  "vendor_kept": 0
+ },
+ "8153": {
+  "name": "Wildvine",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 104,
+  "loot_kept": 97,
+  "vendor_kept": 0
+ },
+ "8154": {
+  "name": "Scorpid Scale",
+  "skin_candidates": 8,
+  "skin_kept": 7,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "8165": {
+  "name": "Worn Dragonscale",
+  "skin_candidates": 113,
+  "skin_kept": 73,
+  "loot_candidates": 4,
+  "loot_kept": 4,
+  "vendor_kept": 0
+ },
+ "8167": {
+  "name": "Turtle Scale",
+  "skin_candidates": 11,
+  "skin_kept": 10,
+  "loot_candidates": 11,
+  "loot_kept": 10,
+  "vendor_kept": 0
+ },
+ "8168": {
+  "name": "Jet Black Feather",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 3,
+  "loot_kept": 2,
+  "vendor_kept": 0
+ },
+ "8169": {
+  "name": "Thick Hide",
+  "skin_candidates": 230,
+  "skin_kept": 195,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "8170": {
+  "name": "Rugged Leather",
+  "skin_candidates": 311,
+  "skin_kept": 217,
+  "loot_candidates": 1,
+  "loot_kept": 0,
+  "vendor_kept": 1
+ },
+ "8171": {
+  "name": "Rugged Hide",
+  "skin_candidates": 220,
+  "skin_kept": 150,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "8368": {
+  "name": "Thick Wolfhide",
+  "skin_candidates": 27,
+  "skin_kept": 20,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "9060": {
+  "name": "Inlaid Mithril Cylinder",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 2,
+  "loot_kept": 2,
+  "vendor_kept": 0
+ },
+ "10285": {
+  "name": "Shadow Silk",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 46,
+  "loot_kept": 30,
+  "vendor_kept": 0
+ },
+ "10286": {
+  "name": "Heart of the Wild",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 50,
+  "loot_kept": 29,
+  "vendor_kept": 0
+ },
+ "12037": {
+  "name": "Mystery Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 66,
+  "loot_kept": 58,
+  "vendor_kept": 0
+ },
+ "12184": {
+  "name": "Raptor Flesh",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 24,
+  "loot_kept": 24,
+  "vendor_kept": 0
+ },
+ "12202": {
+  "name": "Tiger Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 20,
+  "loot_kept": 18,
+  "vendor_kept": 0
+ },
+ "12203": {
+  "name": "Red Wolf Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 60,
+  "loot_kept": 45,
+  "vendor_kept": 0
+ },
+ "12204": {
+  "name": "Heavy Kodo Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 3,
+  "loot_kept": 3,
+  "vendor_kept": 0
+ },
+ "12205": {
+  "name": "White Spider Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 31,
+  "loot_kept": 25,
+  "vendor_kept": 0
+ },
+ "12206": {
+  "name": "Tender Crab Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 3,
+  "loot_kept": 3,
+  "vendor_kept": 0
+ },
+ "12207": {
+  "name": "Giant Egg",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 27,
+  "loot_kept": 24,
+  "vendor_kept": 0
+ },
+ "12208": {
+  "name": "Tender Wolf Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 48,
+  "loot_kept": 35,
+  "vendor_kept": 0
+ },
+ "12223": {
+  "name": "Meaty Bat Wing",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 5,
+  "loot_kept": 3,
+  "vendor_kept": 0
+ },
+ "12662": {
+  "name": "Demonic Rune",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 47,
+  "loot_kept": 32,
+  "vendor_kept": 0
+ },
+ "12803": {
+  "name": "Living Essence",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 26,
+  "loot_kept": 13,
+  "vendor_kept": 0
+ },
+ "12804": {
+  "name": "Powerful Mojo",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 50,
+  "loot_kept": 11,
+  "vendor_kept": 0
+ },
+ "12808": {
+  "name": "Essence of Undeath",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 63,
+  "loot_kept": 7,
+  "vendor_kept": 0
+ },
+ "12809": {
+  "name": "Guardian Stone",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 1,
+  "loot_kept": 1,
+  "vendor_kept": 0
+ },
+ "12811": {
+  "name": "Righteous Orb",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 15,
+  "loot_kept": 1,
+  "vendor_kept": 0
+ },
+ "14047": {
+  "name": "Runecloth",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 680,
+  "loot_kept": 258,
+  "vendor_kept": 0
+ },
+ "14227": {
+  "name": "Ironweb Spider Silk",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 31,
+  "loot_kept": 11,
+  "vendor_kept": 0
+ },
+ "14256": {
+  "name": "Felcloth",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 43,
+  "loot_kept": 29,
+  "vendor_kept": 1
+ },
+ "15408": {
+  "name": "Heavy Scorpid Scale",
+  "skin_candidates": 8,
+  "skin_kept": 8,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "15412": {
+  "name": "Green Dragonscale",
+  "skin_candidates": 66,
+  "skin_kept": 33,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "15414": {
+  "name": "Red Dragonscale",
+  "skin_candidates": 12,
+  "skin_kept": 7,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "15415": {
+  "name": "Blue Dragonscale",
+  "skin_candidates": 21,
+  "skin_kept": 16,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "15416": {
+  "name": "Black Dragonscale",
+  "skin_candidates": 35,
+  "skin_kept": 12,
+  "loot_candidates": 21,
+  "loot_kept": 6,
+  "vendor_kept": 0
+ },
+ "15417": {
+  "name": "Devilsaur Leather",
+  "skin_candidates": 4,
+  "skin_kept": 4,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "15419": {
+  "name": "Warbear Leather",
+  "skin_candidates": 8,
+  "skin_kept": 8,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "15420": {
+  "name": "Ironfeather",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 19,
+  "loot_kept": 18,
+  "vendor_kept": 0
+ },
+ "15422": {
+  "name": "Frostsaber Leather",
+  "skin_candidates": 5,
+  "skin_kept": 5,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "15423": {
+  "name": "Chimera Leather",
+  "skin_candidates": 6,
+  "skin_kept": 6,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "17056": {
+  "name": "Light Feather",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 54,
+  "loot_kept": 52,
+  "vendor_kept": 0
+ },
+ "17057": {
+  "name": "Shiny Fish Scales",
+  "skin_candidates": 6,
+  "skin_kept": 6,
+  "loot_candidates": 101,
+  "loot_kept": 83,
+  "vendor_kept": 0
+ },
+ "18512": {
+  "name": "Larval Acid",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 3,
+  "loot_kept": 2,
+  "vendor_kept": 0
+ },
+ "19441": {
+  "name": "Huge Venom Sac",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 38,
+  "loot_kept": 18,
+  "vendor_kept": 0
+ },
+ "19726": {
+  "name": "Bloodvine",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 24,
+  "loot_kept": 1,
+  "vendor_kept": 0
+ },
+ "20381": {
+  "name": "Dreamscale",
+  "skin_candidates": 4,
+  "skin_kept": 4,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "20424": {
+  "name": "Sandworm Meat",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 2,
+  "loot_kept": 2,
+  "vendor_kept": 0
+ },
+ "20498": {
+  "name": "Silithid Chitin",
+  "skin_candidates": 7,
+  "skin_kept": 3,
+  "loot_candidates": 3,
+  "loot_kept": 3,
+  "vendor_kept": 0
+ },
+ "20499": {
+  "name": "Broken Silithid Chitin",
+  "skin_candidates": 9,
+  "skin_kept": 3,
+  "loot_candidates": 23,
+  "loot_kept": 21,
+  "vendor_kept": 0
+ },
+ "20500": {
+  "name": "Light Silithid Carapace",
+  "skin_candidates": 3,
+  "skin_kept": 1,
+  "loot_candidates": 2,
+  "loot_kept": 2,
+  "vendor_kept": 0
+ },
+ "20501": {
+  "name": "Heavy Silithid Carapace",
+  "skin_candidates": 3,
+  "skin_kept": 1,
+  "loot_candidates": 0,
+  "loot_kept": 0,
+  "vendor_kept": 0
+ },
+ "21024": {
+  "name": "Chimaerok Tenderloin",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 4,
+  "loot_kept": 4,
+  "vendor_kept": 0
+ }
+}

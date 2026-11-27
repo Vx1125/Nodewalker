@@ -102,10 +102,14 @@ function M.Build()
   end
   -- reagents: how many recipes use each; what a recipe makes that others use
   local made = {}
-  for _, list in pairs(NW.RECIPES or {}) do
-    for _, r in ipairs(list) do
-      for _, re in ipairs(r.reagents) do uses[re[1]] = (uses[re[1]] or 0) + 1 end
-      if r.item then made[r.item] = r end
+  -- both recipe sources: the profession lists and the catalog rows they don't already hold
+  -- (NW.CatalogAdder merges a catalog row into a matching list recipe instead of adding it)
+  for _, book in ipairs({ NW.RECIPES or {}, NW.CATALOG or {} }) do
+    for _, list in pairs(book) do
+      for _, r in ipairs(list) do
+        for _, re in ipairs(r.reagents or {}) do uses[re[1]] = (uses[re[1]] or 0) + 1 end
+        if r.item and not made[r.item] then made[r.item] = r end
+      end
     end
   end
   -- vendor supplies: the vendor price table and vendor NPCs from the source data

@@ -1,0 +1,739 @@
+{
+ "_comment": "Inputs for tools/build_sources.py. zones: open-world zone list (index order is stable; Alterac Valley kept at index 2 for compatibility but excluded). items: [category, display name] per item id. vendor_items: items whose vendors are listed. city_zones: creature points in capitals are not used as hunting grounds (vendors there are still listed).",
+ "pins": {
+  "cmangos": "13e933726f386399d9820138fbd1123e7cda86c8",
+  "pfquest": "104f35678ca39ab1fb78b655f815cc7016f5e0c8"
+ },
+ "zones": [
+  "Alterac Mountains",
+  "Alterac Valley",
+  "Arathi Highlands",
+  "Ashenvale",
+  "Azshara",
+  "Badlands",
+  "Blasted Lands",
+  "Burning Steppes",
+  "Darkshore",
+  "Deadwind Pass",
+  "Desolace",
+  "Dun Morogh",
+  "Durotar",
+  "Duskwood",
+  "Dustwallow Marsh",
+  "Eastern Plaguelands",
+  "Elwynn Forest",
+  "Felwood",
+  "Feralas",
+  "Hillsbrad Foothills",
+  "Ironforge",
+  "Loch Modan",
+  "Moonglade",
+  "Mulgore",
+  "Orgrimmar",
+  "Redridge Mountains",
+  "Searing Gorge",
+  "Silithus",
+  "Silverpine Forest",
+  "Stonetalon Mountains",
+  "Stormwind City",
+  "Stranglethorn Vale",
+  "Swamp of Sorrows",
+  "Tanaris",
+  "Teldrassil",
+  "The Barrens",
+  "The Hinterlands",
+  "Thousand Needles",
+  "Tirisfal Glades",
+  "Un'Goro Crater",
+  "Undercity",
+  "Western Plaguelands",
+  "Westfall",
+  "Wetlands",
+  "Winterspring"
+ ],
+ "excluded_zones": {
+  "Alterac Valley": "battleground",
+  "Arathi Basin": "battleground",
+  "Warsong Gulch": "battleground"
+ },
+ "items": {
+  "723": [
+   "meat",
+   "Goretusk Liver"
+  ],
+  "729": [
+   "meat",
+   "Stringy Vulture Meat"
+  ],
+  "730": [
+   "meat",
+   "Murloc Eye"
+  ],
+  "731": [
+   "meat",
+   "Goretusk Snout"
+  ],
+  "769": [
+   "meat",
+   "Chunk of Boar Meat"
+  ],
+  "783": [
+   "leather",
+   "Light Hide"
+  ],
+  "814": [
+   "reagent",
+   "Flask of Oil"
+  ],
+  "1015": [
+   "meat",
+   "Lean Wolf Flank"
+  ],
+  "1080": [
+   "meat",
+   "Tough Condor Meat"
+  ],
+  "1081": [
+   "meat",
+   "Crisp Spider Meat"
+  ],
+  "1288": [
+   "reagent",
+   "Large Venom Sac"
+  ],
+  "1468": [
+   "meat",
+   "Murloc Fin"
+  ],
+  "1475": [
+   "meat",
+   "Small Venom Sac"
+  ],
+  "2251": [
+   "meat",
+   "Gooey Spider Leg"
+  ],
+  "2318": [
+   "leather",
+   "Light Leather"
+  ],
+  "2319": [
+   "leather",
+   "Medium Leather"
+  ],
+  "2452": [
+   "meat",
+   "Swiftthistle"
+  ],
+  "2589": [
+   "cloth",
+   "Linen Cloth"
+  ],
+  "2592": [
+   "cloth",
+   "Wool Cloth"
+  ],
+  "2672": [
+   "meat",
+   "Stringy Wolf Meat"
+  ],
+  "2673": [
+   "meat",
+   "Coyote Meat"
+  ],
+  "2674": [
+   "meat",
+   "Crawler Meat"
+  ],
+  "2675": [
+   "meat",
+   "Crawler Claw"
+  ],
+  "2677": [
+   "meat",
+   "Boar Ribs"
+  ],
+  "2886": [
+   "meat",
+   "Crag Boar Rib"
+  ],
+  "2924": [
+   "meat",
+   "Crocolisk Meat"
+  ],
+  "2934": [
+   "leather",
+   "Ruined Leather Scraps"
+  ],
+  "3172": [
+   "meat",
+   "Boar Intestines"
+  ],
+  "3173": [
+   "meat",
+   "Bear Meat"
+  ],
+  "3174": [
+   "meat",
+   "Spider Ichor"
+  ],
+  "3182": [
+   "reagent",
+   "Spider's Silk"
+  ],
+  "3404": [
+   "meat",
+   "Buzzard Wing"
+  ],
+  "3667": [
+   "meat",
+   "Tender Crocolisk Meat"
+  ],
+  "3685": [
+   "meat",
+   "Raptor Egg"
+  ],
+  "3712": [
+   "meat",
+   "Turtle Meat"
+  ],
+  "3730": [
+   "meat",
+   "Big Bear Meat"
+  ],
+  "3731": [
+   "meat",
+   "Lion Meat"
+  ],
+  "4096": [
+   "reagent",
+   "Coarse Gorilla Hair"
+  ],
+  "4232": [
+   "leather",
+   "Medium Hide"
+  ],
+  "4234": [
+   "leather",
+   "Heavy Leather"
+  ],
+  "4235": [
+   "leather",
+   "Heavy Hide"
+  ],
+  "4304": [
+   "leather",
+   "Thick Leather"
+  ],
+  "4306": [
+   "cloth",
+   "Silk Cloth"
+  ],
+  "4337": [
+   "reagent",
+   "Thick Spider's Silk"
+  ],
+  "4338": [
+   "cloth",
+   "Mageweave Cloth"
+  ],
+  "4402": [
+   "meat",
+   "Small Flame Sac"
+  ],
+  "4461": [
+   "leather",
+   "Raptor Hide"
+  ],
+  "4589": [
+   "reagent",
+   "Long Elegant Feather"
+  ],
+  "5082": [
+   "leather",
+   "Thin Kodo Leather"
+  ],
+  "5116": [
+   "reagent",
+   "Long Tail Feather"
+  ],
+  "5465": [
+   "meat",
+   "Small Spider Leg"
+  ],
+  "5466": [
+   "meat",
+   "Scorpid Stinger"
+  ],
+  "5467": [
+   "meat",
+   "Kodo Meat"
+  ],
+  "5468": [
+   "meat",
+   "Soft Frenzy Flesh"
+  ],
+  "5469": [
+   "meat",
+   "Strider Meat"
+  ],
+  "5470": [
+   "meat",
+   "Thunder Lizard Tail"
+  ],
+  "5471": [
+   "meat",
+   "Stag Meat"
+  ],
+  "5498": [
+   "reagent",
+   "Small Lustrous Pearl"
+  ],
+  "5500": [
+   "reagent",
+   "Iridescent Pearl"
+  ],
+  "5503": [
+   "meat",
+   "Clam Meat"
+  ],
+  "5504": [
+   "meat",
+   "Tangy Clam Meat"
+  ],
+  "5635": [
+   "reagent",
+   "Sharp Claw"
+  ],
+  "5637": [
+   "reagent",
+   "Large Fang"
+  ],
+  "5784": [
+   "leather",
+   "Slimy Murloc Scale"
+  ],
+  "5785": [
+   "leather",
+   "Thick Murloc Scale"
+  ],
+  "6470": [
+   "leather",
+   "Deviate Scale"
+  ],
+  "6471": [
+   "leather",
+   "Perfect Deviate Scale"
+  ],
+  "6889": [
+   "meat",
+   "Small Egg"
+  ],
+  "7067": [
+   "elemental",
+   "Elemental Earth"
+  ],
+  "7068": [
+   "elemental",
+   "Elemental Fire"
+  ],
+  "7069": [
+   "elemental",
+   "Elemental Air"
+  ],
+  "7070": [
+   "elemental",
+   "Elemental Water"
+  ],
+  "7072": [
+   "leather",
+   "Naga Scale"
+  ],
+  "7075": [
+   "elemental",
+   "Core of Earth"
+  ],
+  "7076": [
+   "elemental",
+   "Essence of Earth"
+  ],
+  "7077": [
+   "elemental",
+   "Heart of Fire"
+  ],
+  "7078": [
+   "elemental",
+   "Essence of Fire"
+  ],
+  "7079": [
+   "elemental",
+   "Globe of Water"
+  ],
+  "7080": [
+   "elemental",
+   "Essence of Water"
+  ],
+  "7081": [
+   "elemental",
+   "Breath of Wind"
+  ],
+  "7082": [
+   "elemental",
+   "Essence of Air"
+  ],
+  "7191": [
+   "reagent",
+   "Fused Wiring"
+  ],
+  "7286": [
+   "leather",
+   "Black Whelp Scale"
+  ],
+  "7287": [
+   "leather",
+   "Red Whelp Scale"
+  ],
+  "7392": [
+   "leather",
+   "Green Whelp Scale"
+  ],
+  "7428": [
+   "leather",
+   "Shadowcat Hide"
+  ],
+  "7971": [
+   "reagent",
+   "Black Pearl"
+  ],
+  "7972": [
+   "elemental",
+   "Ichor of Undeath"
+  ],
+  "8146": [
+   "reagent",
+   "Wicked Claw"
+  ],
+  "8150": [
+   "reagent",
+   "Deeprock Salt"
+  ],
+  "8151": [
+   "reagent",
+   "Flask of Mojo"
+  ],
+  "8152": [
+   "reagent",
+   "Flask of Big Mojo"
+  ],
+  "8153": [
+   "reagent",
+   "Wildvine"
+  ],
+  "8154": [
+   "leather",
+   "Scorpid Scale"
+  ],
+  "8165": [
+   "leather",
+   "Worn Dragonscale"
+  ],
+  "8167": [
+   "leather",
+   "Turtle Scale"
+  ],
+  "8168": [
+   "reagent",
+   "Jet Black Feather"
+  ],
+  "8169": [
+   "leather",
+   "Thick Hide"
+  ],
+  "8170": [
+   "leather",
+   "Rugged Leather"
+  ],
+  "8171": [
+   "leather",
+   "Rugged Hide"
+  ],
+  "8368": [
+   "leather",
+   "Thick Wolfhide"
+  ],
+  "9060": [
+   "reagent",
+   "Inlaid Mithril Cylinder"
+  ],
+  "10285": [
+   "reagent",
+   "Shadow Silk"
+  ],
+  "10286": [
+   "reagent",
+   "Heart of the Wild"
+  ],
+  "12037": [
+   "meat",
+   "Mystery Meat"
+  ],
+  "12184": [
+   "meat",
+   "Raptor Flesh"
+  ],
+  "12202": [
+   "meat",
+   "Tiger Meat"
+  ],
+  "12203": [
+   "meat",
+   "Red Wolf Meat"
+  ],
+  "12204": [
+   "meat",
+   "Heavy Kodo Meat"
+  ],
+  "12205": [
+   "meat",
+   "White Spider Meat"
+  ],
+  "12206": [
+   "meat",
+   "Tender Crab Meat"
+  ],
+  "12207": [
+   "meat",
+   "Giant Egg"
+  ],
+  "12208": [
+   "meat",
+   "Tender Wolf Meat"
+  ],
+  "12223": [
+   "meat",
+   "Meaty Bat Wing"
+  ],
+  "12662": [
+   "reagent",
+   "Demonic Rune"
+  ],
+  "12803": [
+   "elemental",
+   "Living Essence"
+  ],
+  "12804": [
+   "reagent",
+   "Powerful Mojo"
+  ],
+  "12808": [
+   "elemental",
+   "Essence of Undeath"
+  ],
+  "12809": [
+   "reagent",
+   "Guardian Stone"
+  ],
+  "12811": [
+   "reagent",
+   "Righteous Orb"
+  ],
+  "14047": [
+   "cloth",
+   "Runecloth"
+  ],
+  "14227": [
+   "reagent",
+   "Ironweb Spider Silk"
+  ],
+  "14256": [
+   "cloth",
+   "Felcloth"
+  ],
+  "15408": [
+   "leather",
+   "Heavy Scorpid Scale"
+  ],
+  "15412": [
+   "leather",
+   "Green Dragonscale"
+  ],
+  "15414": [
+   "leather",
+   "Red Dragonscale"
+  ],
+  "15415": [
+   "leather",
+   "Blue Dragonscale"
+  ],
+  "15416": [
+   "leather",
+   "Black Dragonscale"
+  ],
+  "15417": [
+   "leather",
+   "Devilsaur Leather"
+  ],
+  "15419": [
+   "leather",
+   "Warbear Leather"
+  ],
+  "15420": [
+   "reagent",
+   "Ironfeather"
+  ],
+  "15422": [
+   "leather",
+   "Frostsaber Leather"
+  ],
+  "15423": [
+   "leather",
+   "Chimera Leather"
+  ],
+  "17056": [
+   "reagent",
+   "Light Feather"
+  ],
+  "17057": [
+   "leather",
+   "Shiny Fish Scales"
+  ],
+  "18512": [
+   "reagent",
+   "Larval Acid"
+  ],
+  "19441": [
+   "reagent",
+   "Huge Venom Sac"
+  ],
+  "19726": [
+   "reagent",
+   "Bloodvine"
+  ],
+  "20381": [
+   "leather",
+   "Dreamscale"
+  ],
+  "20424": [
+   "reagent",
+   "Sandworm Meat"
+  ],
+  "20498": [
+   "leather",
+   "Silithid Chitin"
+  ],
+  "20499": [
+   "leather",
+   "Broken Silithid Chitin"
+  ],
+  "20500": [
+   "leather",
+   "Light Silithid Carapace"
+  ],
+  "20501": [
+   "leather",
+   "Heavy Silithid Carapace"
+  ],
+  "21024": [
+   "reagent",
+   "Chimaerok Tenderloin"
+  ]
+ },
+ "vendor_items": [
+  159,
+  765,
+  785,
+  929,
+  1179,
+  1205,
+  1645,
+  1708,
+  2289,
+  2319,
+  2320,
+  2321,
+  2324,
+  2325,
+  2447,
+  2449,
+  2453,
+  2455,
+  2594,
+  2596,
+  2604,
+  2605,
+  2678,
+  2686,
+  2692,
+  2723,
+  2880,
+  2894,
+  3013,
+  3030,
+  3355,
+  3356,
+  3357,
+  3358,
+  3371,
+  3372,
+  3385,
+  3466,
+  3713,
+  3827,
+  3857,
+  4234,
+  4289,
+  4291,
+  4304,
+  4340,
+  4341,
+  4342,
+  4357,
+  4361,
+  4363,
+  4364,
+  4371,
+  4382,
+  4389,
+  4399,
+  4400,
+  4404,
+  4470,
+  4536,
+  4605,
+  6217,
+  6260,
+  6261,
+  6530,
+  8170,
+  8343,
+  8766,
+  8845,
+  8846,
+  8925,
+  10290,
+  10308,
+  10647,
+  10648,
+  10938,
+  10940,
+  11291,
+  12810,
+  13463,
+  13464,
+  14256,
+  14341,
+  17034,
+  17035,
+  17194,
+  17196,
+  17202,
+  18256,
+  18567
+ ],
+ "city_zones": [
+  "Ironforge",
+  "Orgrimmar",
+  "Stormwind City",
+  "Undercity"
+ ]
+}
