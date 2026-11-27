@@ -1,85 +1,19 @@
 # Changelog
 
 ## Unreleased
-- Tracker: a reminder now: shows what's missing or expiring (default), or everything with active buffs dimmed; buffs keep their place through a fight.
-- Tracker: clicking a weapon oil, stone or poison puts it straight on your weapon.
-- Tracker: a thin bar to drag it by while unlocked; /nw buffs debug and /nw buffs auras show what it reads.
-- Profit: columns for materials, sells for, net profit and return; the top recipe opens on the right, with a batch size, exact figures and why Craft can't run.
-- Profit: a recipe with an unpriced material no longer counts as profitable; cooldown recipes count one at a time.
-- Consumable tracker (Settings › Consumes, /nw buffs): your loadout's buffs, time left, counts and cooldowns; click to use, right-click for Consumes.
-- Consumes: leveling Budget stays within 10 levels of yours.
-- Consumes: auction-house searches need Auctionator; without it shift-click links instead.
-- Consumes: estimated prices are never shown as a price.
-- Consumes: the recipe source (vendors, reputation) is on hover, also before you open the profession.
-- Consumes: the tick's tooltip says whether it's your choice or the list's.
-- Consumes: mana potions are core on raid healer lists.
-- Consumes: the restock cost is what you'd actually buy: materials for crafts less what's in your bags, shared materials once.
-- Consumes: the shopping search no longer over-buys a material that's also on your list.
-- Consumes: buttons that need the auction house say so when it's closed; durations ignore cooldown text.
-- Consumes: Craft and Buy show exact prices, so they never read the same while one is cheaper.
-- Consumes: Materials, Search AH and Sources buttons sit right under Craft and Buy.
-- Consumes: an item with no price suggests a priced one of the same kind (the list keeps the stronger one).
-- Consumes: Loadouts: save and load your spec, activity, strategy, stock, choices and targets (per character).
-- Consumes: runes are no longer one-of-a-kind (they share a cooldown, not a slot); your level shows on every list.
-- Consumes: the leveling list is in categories again (Food, Elixirs, Weapon, Potions, ...), each row Core, Optional or Situational; only Core starts ticked.
-- Consumes: healers level with their class's solo list; healing items are optional.
-- Consumes: raid potions, runes and on-use items now start unticked (tick the ones you bring); long buffs stay ticked. Your own picks stay.
-- Consumes: "Where to get it" opens the Material Finder; "No known recipe" and "No AH price" say what's missing.
-- Consumes: choose what you bring: a round button where you bring one of a slot, a tick box for the rest; only those count toward stock and the shopping list.
-- Consumes: Owned / Target column; a target you set by hand (+ / -) stays until Auto.
-- Consumes: Stock in 1- to 4-hour sessions, labelled as estimates.
-- Consumes: Activity (Leveling, Raiding) and Strategy (Best, Budget, Use what I own) replace the List dropdown; leveling still follows your level, and your choices follow each kind as items upgrade.
-- Consumes: the next upgrade and the level it unlocks at are in each leveling row's tooltip.
-- Consumes: the details panel shows duration, owned/target/short, and the recipe's materials as icons, each into the Material Finder (with a way back).
-- Consumes: crafting shows what you'd still pay after the materials in your bags.
-- Consumes: the bottom bar lists selected, stocked, below target, the known restocking cost and unknown prices.
-- Settings: key bindings set right on General (click, press a key; right-click clears), "Not bound" when unassigned.
-- Settings: "Reset this page" (was Defaults); its tooltip lists what it puts back.
-- Settings: Preview overlay on Map & Overlay shows the real overlay for 20 seconds; your Show overlay setting is untouched.
-- Settings: Herbs & ore gets Gatherable and Skill-ups picks (once, by your skill now; whole section).
-- Settings: fishing gear slots labelled, a tick on what you're wearing, empty slots faint, tooltips say why.
-- Settings: add-ons show loaded, installed but not loaded, or not installed; GatherMate2 import is off until it's loaded.
-- Settings: data sources give the full source and licence on hover.
-- Settings: a sidebar with General, Map & Overlay, Gathering (with Herbs & ore), Fishing, and Data & Integrations.
-- Settings: key bindings, mouse controls and slash commands shown under General.
-- Settings: Herbs & ore has search, one section open at a time, and "x of y shown" counts.
-- Settings: fishing gear as equipment slots with item tooltips.
-- Settings: Data & Integrations shows which add-ons are loaded, where the data comes from, memory and timings.
-- Settings: Defaults on each page puts back only that page's settings, after a confirming click.
-- Settings: presets marked * when you've changed them; Shift-click for the preset's own values.
-- Appearance presets keep your changes: switching Farming, Questing and Minimal no longer resets what you adjusted.
-- Presets no longer turn on "Zoom out when mounted".
-- Routes: a Back button on the map returns to the profession or material that proposed the route (the proposal stays).
-- Leveling cost: the three totals size to their text, so long gold and silver amounts don't overlap.
-- Fishing: zone panel is a location guide: zone map with your catch spots, fish with what they cook into, the lure (Prefer sets it for Smart Fishing), Base, Bonus and Effective.
-- Fishing: equipment and lure bonuses in the skill tooltip.
-- Fishing + Cooking: shorter rows (icons say the action), vendor items as icons, catches hang off their dish.
-- Fishing + Cooking: each step's panel shows only what that step needs.
-- Gathering: your current bracket keeps a gold edge on the right while another is selected.
-- Gathering: trainer rows show learn-at skill and the new cap; brackets past your cap say "train first".
-- Gathering: at your cap, resource icons and the panel say "train to go on"; "best" only marks one that still gives skill-ups.
-- Gathering: zone counts read as known spots (where nodes were seen, not what's up now).
-- Fishing Leveling: Location, Fish and Skill range columns, headings fixed on top; fish icons at gathering size in their own column; no map icons.
-- Fishing: zone panel lists fish as "May be caught in this zone", shows Cooking recipe icons and the lure's name and bonus.
-- Fishing: Base, Equipment, Lure and Effective skill (the lure split read from the pole when the client shows it).
-
-- Gathering: training rows between ranges; finished ranges ticked; the numbers on herb and ore icons are the skill needed (heading hover says so).
-- Gathering plan (right): each resource by name with its skill and what it does for you (skill-ups, few, none, too low; best marked); zones ranked by spots that still give skill-ups; pick a zone for the route and Material Finder.
-- Mining: bars that give skill-ups at your skill, a click from the Smelting view.
-- Fishing + Cooking: each catch sits indented right above the dish it's for, with a line to it; catch counts say fish (not casts).
-- Winter Squid planned only when buying (winter-only by Classic data); Summer Bass and Winter Squid zones added.
-- Fishing: fish shown as larger icons with the guide's skill (not a confirmed minimum), source and zones on hover; click for where to fish it.
-- Fishing + Cooking: catch steps show the dish they're cooked into, cook steps their fish; "Or buy it" when a catch waits for Fishing.
-- Fishing + Cooking: Cooking no longer waits for Fishing to finish: a step goes where its fish can be caught (or bought), and a Cooking rank already trained gets no step.
-- Herbalism, Mining, Skinning: each range shows its herbs, ore or leather as icons, edged in the colour they are at your skill, with the skill they need.
-- Gathering: click a range for its zones (known spots), what to gather, a route or hunting grounds, on the right; icons and zones open Material Finder.
-- Mining: a Smelting view: every bar, its ore against your bags, what you can make and the cost per bar.
-- Leveling: a recipe to buy with no price marks the step, Estimated cost and the shopping list with "?" instead of counting as free.
-- Action bar button: right-click toggles the overlay (left-click still opens the window); existing buttons update themselves.
-- Leveling: a Materials column with each reagent's item icon and the count per craft (red edge: short, gold edge: made by the steps before). Hover for totals, what you have and price; click for where to get it.
-- Leveling: parts made first and tools sit indented under a line to the step that needs them; a scroll icon replaces "needs recipe".
-- Leveling: a recipe is kept until green only while it costs within a tenth of the cheapest; plans 2-10% cheaper (Engineering to 150: 5.11g to 4.49g at the same prices).
-- Cooking opens on Fishing + Cooking, the same plan as Fishing; Leveling, Missing recipes and Profit sit beside it.
+- New consumable tracker (Settings › Consumes, /nw buffs): reminds you what's missing or expiring from your loadout; click to use.
+- Consumes: pick Activity and Strategy, save Loadouts, choose exactly what you bring, set targets and stock sessions.
+- Consumes: Core, Optional and Situational rows; healers level with their solo list; Budget stays near your level.
+- Consumes: true restock cost, exact Craft and Buy prices, and searches only when they can run.
+- Profit: clear columns, the top recipe opened with a batch calculator, and Craft with reasons.
+- Profit: unpriced materials and cooldown recipes no longer overstate profit.
+- Settings: a sidebar with pages, key bindings, Reset this page, Preview overlay and add-on status.
+- Presets keep your changes and no longer zoom out when mounted.
+- Fishing: zone guide with map, catches, dishes, lure and Base, Bonus and Effective skill.
+- Fishing + Cooking: compact steps, catches under their dish, Cooking no longer waits for Fishing.
+- Gathering: ranges with resource icons, trainer rows, zones and routes; Mining Smelting view.
+- Leveling: material icons, parts and tools under their step, unpriced recipes marked, cheaper plans.
+- Routes: a Back button to where the route came from.
 
 ## 1.3.0
 
