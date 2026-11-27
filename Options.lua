@@ -892,7 +892,8 @@ if NW.BuffTracker then
   dependsOn(slider(1, "Scale", 0.6, 1.5, 0.05, pct, "buffHudScale", apply, "Everything, text included."), "buffHud")
   dependsOn(slider(1, "Opacity", 0.3, 1, 0.05, pct, "buffHudAlpha", apply), "buffHud")
   dependsOn(check(1, "Inventory counts", "buffShowCount", "How many are in your bags, bottom right.", apply), "buffHud")
-  dependsOn(checkBeside(1, "Buff duration", "buffShowTime", "Time left, under each icon.", apply), "buffHud")
+  dependsOn(checkBeside(1, "Buff duration", "buffShowTime", "Time left, above each icon.", apply), "buffHud")
+  dependsOn(check(1, "Hide out of stock", "buffHideEmpty", "None in your bags and not on you. A buff that's on stays.", apply), "buffHud")
   heading(2, "Duration warnings")
   dependsOn(slider(2, "Expiring at", 1, 15, 1, function(v) return ("%d min"):format(v) end, "buffWarnMin", apply,
     "A buff with less time left than this gets a gold edge."), "buffHud")

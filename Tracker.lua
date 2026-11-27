@@ -406,12 +406,13 @@ local function iconFor(i)
   b.count:SetPoint("BOTTOMRIGHT", -1, 2)
   if b.count.SetShadowOffset then b.count:SetShadowOffset(1, -1) end
   -- unknown: a small neutral square in the corner (not a red edge: it isn't missing)
-  b.unk = b:CreateTexture(nil, "OVERLAY")
-  b.unk:SetSize(6, 6)
-  b.unk:SetPoint("TOPRIGHT", -2, -2)
-  b.unk:SetColorTexture(0.576, 0.549, 0.502, 0.9)
+  b.unk = UI.Text(b, 12, S.text, "CENTER")
+  b.unk:SetPoint("TOPLEFT", 3, -2)
+  b.unk:SetText("?")
+  if b.unk.SetShadowOffset then b.unk:SetShadowOffset(1, -1) end
+  -- time left above the icon; the count stays in the corner, so the two never meet
   b.time = UI.Text(b, 10, S.text, "CENTER")
-  b.time:SetPoint("TOP", b, "BOTTOM", 0, -2)
+  b.time:SetPoint("BOTTOM", b, "TOP", 0, 2)
   b:SetScript("OnEnter", iconTip)
   b:SetScript("OnLeave", GameTooltip_Hide)
   b:SetScript("PostClick", function(self, button, down)
@@ -424,6 +425,7 @@ end
 
 -- which to show: by display mode
 local function wanted(x)
+  if st().buffHideEmpty and (x.state == "out" or x.state == "none") then return false end
   if x.kind == "use" then return true end
   local m = st().buffMode or "all"
   if m == "all" then return true end
@@ -459,8 +461,7 @@ local function layout()
   wipe(shownList)
   for i, x in ipairs(want) do shownList[i] = x end
   local size = st().buffIconSize or 32
-  local usize = math.max(18, math.floor(size * 0.8 + 0.5)) -- (potions and the like: a step smaller)
-  local gap, sep = 3, 6
+  local gap, sep = 3, 4
   local tH = st().buffShowTime ~= false and 12 or 0
   local vertical = st().buffLayout == "vertical"
   -- along: where the next icon goes in its group; across: where the group starts
@@ -471,17 +472,17 @@ local function layout()
     local k = x.kind == "use" and "use" or "buff"
     if lastKind and k ~= lastKind then across, along, groupDepth = across + groupDepth + sep, 0, 0 end -- things you use: their own group
     lastKind = k
-    local s = k == "use" and usize or size
+    local s = size
     b:ClearAllPoints()
     b:SetSize(s, s)
     if vertical then
-      b:SetPoint("TOPLEFT", hud, "TOPLEFT", across, -along)
-      along = along + s + tH + gap
+      b:SetPoint("TOPLEFT", hud, "TOPLEFT", across, -(along + tH))
+      along = along + tH + s + gap
       groupDepth = math.max(groupDepth, s)
     else
-      b:SetPoint("TOPLEFT", hud, "TOPLEFT", along, -across)
+      b:SetPoint("TOPLEFT", hud, "TOPLEFT", along, -(across + tH))
       along = along + s + gap
-      groupDepth = math.max(groupDepth, s + tH)
+      groupDepth = math.max(groupDepth, tH + s)
     end
     maxAlong = math.max(maxAlong, along - gap)
     total = across + groupDepth
