@@ -59,6 +59,21 @@ function UI.Box(parent, w, h)
 end
 
 UI.FONT = FONT
+-- Set a line's text at its size; if it doesn't fit its width, a point or two
+-- smaller (never under min). Lines that still don't fit stay cut, with the
+-- whole text on hover where the row has a tooltip.
+function UI.FitText(fs, text, size, min)
+  local font, _, flags = fs:GetFont()
+  fs:SetFont(font or FONT, size, flags or "")
+  fs:SetText(text or "")
+  local w = fs:GetWidth() or 0
+  if w <= 0 then return end
+  for s = size - 1, min or (size - 2), -1 do
+    if (fs:GetStringWidth() or 0) <= w then return end
+    fs:SetFont(font or FONT, s, flags or "")
+  end
+end
+
 function UI.Text(parent, size, color, justify, flags)
   local fs = parent:CreateFontString(nil, "OVERLAY")
   fs:SetFont(FONT, size or 12, flags or "")

@@ -1501,7 +1501,7 @@ local function drawDetail()
     local p = NW.Price(re[1])
     mr.item = re[1]
     mr.icon:SetTexture(NW.ItemIcon(re[1]) or "Interface\\Icons\\INV_Misc_QuestionMark")
-    mr.name:SetText(("%d  %s"):format(re[2], (itemName(re[1]))))
+    UI.FitText(mr.name, ("%d  %s"):format(re[2], (itemName(re[1]))), 11, 9)
     mr.have:SetText(("%s%d|r%s/%d|r"):format(have >= need and H.good or H.bad, have, H.dim, need))
     mr.price:SetText(p and money(p * re[2]) or (H.dim .. "?|r"))
     mr:Show()
@@ -1665,7 +1665,11 @@ refresh = function()
       row:SetSelected(e.id == selectedItem)
       row.icon:SetTexture(NW.ItemIcon(e.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
       row.name:SetText((e.alt and (H.dim .. "or|r  ") or "") .. (itemName(e.id)))
-      row.effect:SetText(e.effect and e.effect:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or "")
+      -- the first sentence; the whole effect is in the item's tooltip
+      local eff = e.effect and e.effect:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
+      eff = eff:match("^[^\n]*") or eff
+      eff = eff:match("^(.-%.)%s") or eff
+      UI.FitText(row.effect, eff, 11, 10)
       -- green only where it's the cheaper way; grey where you don't know the recipe
       local cheaperMake = e.make and e.m.known and (not e.price or e.make < e.price)
       local mk = ""

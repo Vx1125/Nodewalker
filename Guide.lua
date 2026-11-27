@@ -392,7 +392,6 @@ for i = 1, LROW_MAX do
   r.right:SetPoint("RIGHT", -8, 0)
   r.name = UI.Text(r, 12, S.text)
   r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
-  r.name:SetPoint("RIGHT", r.right, "LEFT", -8, 0)
   r.name:SetWordWrap(false)
   r:SetScript("OnClick", function(self)
     if not self.e then return end
@@ -636,7 +635,8 @@ local function setCols(names, show)
       r.cells[k]:SetShown(on)
     end
   end
-  for _, r in ipairs(W.zrows) do r.name:SetWidth(k0 and (C_W - 66) or (C_W - 16)) end
+  local oneCol = k0 and k0 > 0
+  for _, r in ipairs(W.zrows) do r.name:SetWidth(oneCol and (C_W - 66) or (C_W - 16)) end
 end
 
 -- the table under the map: creatures in the selected zone (or what a fish is used in)
@@ -2205,7 +2205,7 @@ function W.drawRows()
     r:SetShown(x ~= nil)
     if x then
       r.icon:SetTexture(iconOf(x))
-      r.name:SetText((M.ACCENT[x.cat] or "") .. M.Name(x) .. "|r")
+
       local g = type(x.id) == "number" and M.Goal(x.id)
       local txt
       if g then
@@ -2217,6 +2217,9 @@ function W.drawRows()
         if x.id == "both" then txt = "" end
       end
       r.right:SetText(txt)
+      -- the name gets what the number leaves, a point smaller if that's not enough
+      r.name:SetWidth(math.max(60, L_W - 2 - 28 - 16 - (r.right:GetStringWidth() or 0)))
+      UI.FitText(r.name, (M.ACCENT[x.cat] or "") .. M.Name(x) .. "|r", 12, 10)
       r:SetSelected(x == e)
     end
   end

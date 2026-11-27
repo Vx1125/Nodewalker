@@ -245,7 +245,7 @@ local opts = {
     function() return st().planSellBack or false end,
     function(v) st().planSellBack = v; NW.InvalidatePlans(); refresh() end, 160,
     "Resell and Disenchant plan for the lowest cost after what comes back. Resell counts half the auction price."),
-  UI.CheckMenu(optRow, "Options", 92, {
+  UI.CheckMenu(optRow, "Options", 104, {
     { "Include purchasable recipes", function() return st().planRecipeItems end,
       function(v) st().planRecipeItems = v; NW.InvalidatePlans() end, "Plans with vendor and drop recipes too, and adds them to the shopping list." },
     { "Start from skill 1", function() return st().planFromStart end, function(v) st().planFromStart = v end,
@@ -478,6 +478,12 @@ for i = 1, STEP_FRAMES do
   end)
   row.craft:HookScript("OnLeave", GameTooltip_Hide)
   function row:SetCraft(key, r, want)
+    if not key then
+      -- a row being reused: back to its normal sizes (FitText may have shrunk them)
+      self.name:SetWidth(270)
+      self.name:SetFont(UI.FONT, 12, "")
+      self.mats:SetFont(UI.FONT, 11, "")
+    end
     local can = r and NW.CanCraft(key, r)
     local n = can and math.min(can, want or can) or 0
     local b = self.craft
@@ -488,6 +494,8 @@ for i = 1, STEP_FRAMES do
     -- what your bags make now, against what the step needs: "Craft 6/8"
     local short = want and n > 0 and n < want
     b:SetText(short and ("Craft %d/%d"):format(n, want) or (n > 1 and ("Craft " .. n) or "Craft"))
+    b:SetWidth(math.max(70, (b.label:GetStringWidth() or 50) + 18))
+    if b:IsShown() then self.mats:SetWidth(MID_W - 116 - b:GetWidth() - 6) end
     b:SetAlpha(n > 0 and 1 or 0.45)
     -- why it can't (or can't do them all), for the tooltip
     b.why = nil
@@ -547,6 +555,9 @@ for i = 1, STEP_FRAMES do
     GameTooltip:AddDoubleLine("Skill-up colours", ("|cffff8040%s|r |cffffff00%d|r |cff40bf40%d|r |cff808080%d|r"):format(
       r.orange or "-", r.yellow, r.green, r.grey), S.dim[1], S.dim[2], S.dim[3])
     GameTooltip:AddDoubleLine("Cost per craft", NW.Money(stp.recipe and stp.recipe.matCost or stp.costEach), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    for _, re in ipairs(r.reagents) do
+      GameTooltip:AddDoubleLine("  " .. (itemName(re[1])), ("%d each  ·  %d in all"):format(re[2], re[2] * stp.crafts), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+    end
     local de = stp.recipe and stp.recipe.item and NW.DisenchantValue(stp.recipe.item)
     if de then GameTooltip:AddDoubleLine("Disenchants for about", NW.Money(de), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     GameTooltip:AddDoubleLine("Crafts", stp.spare and stp.spare > 0 and ("%d (%d spare)"):format(stp.crafts, stp.spare) or stp.crafts, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
@@ -1068,7 +1079,7 @@ for _, b in ipairs(CW.cardButtons) do b:Hide() end
 local function matsText(r)
   local parts = {}
   for _, re in ipairs(r.reagents) do
-    parts[#parts + 1] = (itemName(re[1])) .. " ×" .. re[2]
+    parts[#parts + 1] = (itemName(re[1])) .. (re[2] > 1 and (" ×" .. re[2]) or "")
   end
   return table.concat(parts, "  ·  ")
 end
@@ -1162,7 +1173,7 @@ drawSteps = function()
           row.mats:SetText(("|cffe0dbd0%s|r  ·  bring %s"):format(place, table.concat(parts, ", ")))
         else
           -- eligible from its skill; needed by the point the banner sits at
-          row.mats:SetText(("|cffe0dbd0%s|r  ·  from skill %d, level %d"):format(place, ru.skill, ru.level))
+          UI.FitText(row.mats, ("|cffe0dbd0%s|r  ·  skill %d, level %d"):format(place, ru.skill, ru.level), 11, 9)
         end
       elseif stp.tool then
         -- a tool the recipes from here need
@@ -1184,7 +1195,7 @@ drawSteps = function()
         elseif t.recipe then
           row:SetCraft(selected, t.recipe, 1)
           row.cost:SetText("")
-          row.mats:SetText("needed from here  ·  " .. matsText(t.recipe))
+          UI.FitText(row.mats, "needed from here  ·  " .. matsText(t.recipe), 11, 9)
         else
           row.cost:SetText(price and NW.Money(price, true) or "")
           row.mats:SetText("needed from here  ·  Trade Supplies vendor")
@@ -1202,7 +1213,7 @@ drawSteps = function()
         row.crafts:SetText("×" .. stp.crafts)
         row:SetCraft(selected, r, stp.crafts)
         row.cost:SetText("")
-        row.mats:SetText(("for %s  ·  "):format(stp.forStep.recipe.name) .. matsText(r))
+        UI.FitText(row.mats, ("for %s  ·  "):format(stp.forStep.recipe.name) .. matsText(r), 11, 9)
       elseif stp.recipe then
         row.trainBg:Hide()
         local r = stp.recipe
@@ -1216,7 +1227,7 @@ drawSteps = function()
         if stp.rankUp and searchText ~= "" then
           tag = ("|cffd6b266Train %s first|r  ·  "):format(stp.rankUp.name) .. tag
         end
-        row.mats:SetText(tag .. matsText(r))
+        UI.FitText(row.mats, tag .. matsText(r), 11, 9)
       else
         row.trainBg:Hide()
         row.icon:Hide()
@@ -1588,12 +1599,13 @@ local function drawGatherRows(key)
         for _, id in ipairs(b.fish) do names[#names + 1] = (itemName(id)):gsub("^Raw ", "") end
         what = table.concat(names, ", ")
       end
-      row.name:SetText(what)
+      row.name:SetWidth(MID_W - 116)
+      UI.FitText(row.name, what, 12, 10)
       row.crafts:SetText("")
       row.cost:SetText("")
       local zones = {}
-      for j = 1, math.min(4, #b.zones) do zones[j] = b.zones[j] end
-      row.mats:SetText(table.concat(zones, ", ") .. (#b.zones > 4 and ", ..." or "") .. (b.fish and b.note and ("  ·  " .. b.note) or ""))
+      for j = 1, math.min(3, #b.zones) do zones[j] = b.zones[j] end
+      UI.FitText(row.mats, table.concat(zones, ", ") .. (#b.zones > 3 and ("  +" .. (#b.zones - 3)) or "") .. (b.fish and b.note and ("  ·  " .. b.note) or ""), 11, 9)
       row.bracket = b
     else
       row:Hide()
