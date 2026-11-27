@@ -1,12 +1,14 @@
 # Changelog
 
 ## Unreleased
-- Consumes: pick your loadout: a round button where you bring one of a slot, a tick box for the rest; only picks count toward stock and the shopping list.
+- Consumes: choose what you bring: a round button where you bring one of a slot, a tick box for the rest; only those count toward stock and the shopping list.
 - Consumes: Owned / Target column; a target you set by hand (+ / -) stays until Auto.
-- Consumes: Stock adds a 5-hour raid; stock figures are labelled as estimates.
+- Consumes: Stock in 1- to 4-hour sessions, labelled as estimates.
+- Consumes: Activity (Leveling, Raiding) and Strategy (Best, Budget, Use what I own) replace the List dropdown; leveling still follows your level, and your choices follow each kind as items upgrade.
+- Consumes: the next upgrade and the level it unlocks at are in each leveling row's tooltip.
 - Consumes: the details panel shows duration, owned/target/short, and the recipe's materials as icons, each into the Material Finder (with a way back).
 - Consumes: crafting shows what you'd still pay after the materials in your bags.
-- Consumes: the bottom bar lists picked, stocked, below target, known cost and items with no price.
+- Consumes: the bottom bar lists selected, stocked, below target, the known restocking cost and unknown prices.
 - Settings: key bindings set right on General (click, press a key; right-click clears), "Not bound" when unassigned.
 - Settings: "Reset this page" (was Defaults); its tooltip lists what it puts back.
 - Settings: Preview overlay on Map & Overlay shows the real overlay for 20 seconds; your Show overlay setting is untouched.

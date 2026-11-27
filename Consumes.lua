@@ -850,7 +850,7 @@ local function reachable(id, level)
 end
 -- Best item on a ladder you're high enough for, and the next better one
 -- with the level it unlocks at
-local function bestFor(ladder, level)
+local function bestForBest(ladder, level)
   local nextId, nextAt
   for _, e in ipairs(LADDER[ladder]) do
     local group = type(e) == "table" and e or { e }
@@ -876,11 +876,37 @@ local function bestFor(ladder, level)
   end
 end
 
+-- How the level list picks, by strategy (README, Consumes):
+--   best:   the strongest you can use now (one in your bags first among equals, else the cheapest)
+--   budget: one you carry, else the cheapest priced one you can use (unpriced ones skipped; none priced: best)
+--   own:    the strongest one you carry and can use, else best
+-- "Can use": your level (First Aid skill for bandages), in the game, and its recipe reachable at your level.
+local function eligible(id, level)
+  return levelOf(id) <= level and not (NW.NOT_YET and NW.NOT_YET[id]) and reachable(id, level)
+end
+local function bestFor(ladder, level, strategy)
+  local id, nextId, nextAt = bestForBest(ladder, level)
+  if strategy ~= "budget" and strategy ~= "own" then return id, nextId, nextAt end
+  local cheap, cheapCost
+  for _, e in ipairs(LADDER[ladder]) do
+    for _, x in ipairs(type(e) == "table" and e or { e }) do
+      if eligible(x, level) then
+        if (NW.ItemCount(x) or 0) > 0 then return x, nextId, nextAt end -- (rungs run best first)
+        if strategy == "budget" then
+          local c, src = NW.Price(x)
+          if c and src ~= "est" and (not cheapCost or c < cheapCost) then cheap, cheapCost = x, c end
+        end
+      end
+    end
+  end
+  return cheap or id, nextId, nextAt
+end
+
 local function playerLevel() return UnitLevel and UnitLevel("player") or 60 end
 
 -- The same shape as a raid list, built for your level
 local upgradeOf = {} -- [item shown] = { next item, level or skill, is a bandage }
-local function levelList(spec)
+local function levelList(spec, strategy)
   local level = playerLevel()
   wipe(upgradeOf)
   local role = ROLES[ROLE_OF[spec.key] or "str"]
@@ -896,11 +922,12 @@ local function levelList(spec)
         if not NO_STONE[spec.key] then for _, x in ipairs(sl) do put(x) end end
       else
         local skill = sl[2] == "bandage"
-        local id, nextId, nextAt = bestFor(sl[2], skill and (firstAid or 0) or level)
+        local id, nextId, nextAt = bestFor(sl[2], skill and (firstAid or 0) or level, strategy)
         if nextId and id then upgradeOf[id] = { nextId, nextAt, skill } end
         if id then
           local fx = ITEM[id] and ITEM[id][2] or ""
-          rows[#rows + 1] = { id, fx ~= "" and (sl[1] .. "  |cffe0dbd0" .. fx .. "|r") or sl[1], nil, sl[4], sl[3] }
+          -- (c[6], the ladder: your pick and target follow the kind as the item upgrades with your level)
+          rows[#rows + 1] = { id, fx ~= "" and (sl[1] .. "  |cffe0dbd0" .. fx .. "|r") or sl[1], nil, sl[4], sl[3], sl[2] }
         end
       end
     end
@@ -1018,11 +1045,25 @@ function NW.HarvestConsumes(all)
 end
 
 -- Which list: "level", "raid" or "budget". Below 60 it starts on your level.
-local function listMode()
+-- What you're preparing for, and how to choose: Activity (Leveling, Raiding) and Strategy
+-- (Best, Budget, Use what I own). The old one-dropdown List setting reads into them.
+local function activity()
+  local a = st().consumeActivity
+  if a then return a end
   local m = st().consumeList
-  if m then return m end
-  if playerLevel() < 60 then return "level" end
-  return st().consumeBudget and "budget" or "raid"
+  if m == "level" then return "level" end
+  if m == "raid" or m == "budget" then return "raid" end
+  return playerLevel() < 60 and "level" or "raid"
+end
+local function strategy()
+  local s = st().consumeStrategy
+  if s then return s end
+  return (st().consumeList == "budget" or (st().consumeList == nil and st().consumeBudget)) and "budget" or "best"
+end
+-- the list to build: "level", "raid" or "budget"
+local function listMode()
+  if activity() == "level" then return "level" end
+  return strategy() == "budget" and "budget" or "raid"
 end
 
 ------------------------------------------------------------------------
@@ -1046,31 +1087,32 @@ local H = S.HEX
 
 local specItems = {}
 for _, l in ipairs(NW.CONSUMES) do specItems[#specItems + 1] = { l.key, l.label } end
-local specDrop = UI.Dropdown(page, 196, "Spec", specItems, function() return currentList().key end, function(v)
+local specDrop = UI.Dropdown(page, 190, "Spec", specItems, function() return currentList().key end, function(v)
   st().consumeSpec = v
   selectedItem = nil
   offset = 0
   refresh()
-end, 156)
+end, 150)
 specDrop:SetPoint("TOPLEFT", PAD, -12)
-local stockDrop = UI.Dropdown(page, 168, "Stock", { { 0, "One of each" }, { 2, "2-hour raid" }, { 3, "3-hour raid" }, { 4, "4-hour raid" }, { 5, "5-hour raid" } },
-  function() return st().consumeHours or 0 end, function(v)
+local stockDrop = UI.Dropdown(page, 158, "Stock", { { 0, "One of each" }, { 1, "1-hour session" }, { 2, "2-hour session" },
+  { 3, "3-hour session" }, { 4, "4-hour session" } },
+  function() return math.min(4, st().consumeHours or 0) end, function(v)
     st().consumeHours = v
     refresh()
-  end, 120, "An estimate. Buffs by the duration the game gives; potions, runes, food and the like at a rough rate an hour. Deaths aren't counted. A target you set by hand stays.")
-stockDrop:SetPoint("LEFT", specDrop, "RIGHT", 22, 0)
-local budget = UI.Dropdown(page, 150, "List", { { "level", "My level" }, { "raid", "Raid best" }, { "budget", "Raid budget" } },
-  listMode, function(v)
-    st().consumeList = v
-    st().consumeBudget = v == "budget"
-    selectedItem = nil
-    offset = 0
-    refresh()
-  end, 112)
-budget:SetPoint("LEFT", stockDrop, "RIGHT", 22, 0)
+  end, 112, "An estimate for a session of play. Buffs by the duration the game gives; potions, runes, food and the like at a rough rate an hour. Deaths aren't counted. A target you set by hand stays.")
+stockDrop:SetPoint("LEFT", specDrop, "RIGHT", 16, 0)
+local function listChanged() selectedItem = nil offset = 0 refresh() end
+local actDrop = UI.Dropdown(page, 146, "Activity", { { "level", "Leveling" }, { "raid", "Raiding" } },
+  activity, function(v) st().consumeActivity = v listChanged() end, 90,
+  "Leveling: the best of each kind you can use at your level, and it moves up as you level. Raiding: your spec's level-60 raid list.")
+actDrop:SetPoint("LEFT", stockDrop, "RIGHT", 16, 0)
+local budget = UI.Dropdown(page, 178, "Strategy", { { "best", "Best" }, { "budget", "Budget" }, { "own", "Use what I own" } },
+  strategy, function(v) st().consumeStrategy = v listChanged() end, 116,
+  "Best: the strongest you can use. Budget: the raid budget list; leveling, one you carry or else the cheapest you can use. Use what I own: what's in your bags first. Your own picks always stay.")
+budget:SetPoint("LEFT", actDrop, "RIGHT", 16, 0)
 local title = UI.Text(page, 12, S.dim, "RIGHT")
 title:SetPoint("RIGHT", page, "TOPRIGHT", -PAD, -24)
-title:SetWidth(DET_W)
+title:SetWidth(110)
 title:SetWordWrap(false)
 
 ------------------------------------------------------------------------
@@ -1158,8 +1200,8 @@ local function rowFor(i)
     local en = r.entry
     if not en or en.hidden then return end
     local pk = picksOf(shown.listKey)
-    if en.set then pk["set:" .. en.set] = (not en.selected) and en.id or false
-    else pk[en.id] = not en.selected end
+    if en.set then pk["set:" .. en.set] = (not en.selected) and en.key or false
+    else pk[en.key] = not en.selected end
     refresh()
   end
   row.pick:SetScript("OnEnter", function(self)
@@ -1202,6 +1244,12 @@ local function rowFor(i)
     if not self.item then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetItemByID(self.item)
+    -- leveling: what this kind upgrades to, and when
+    local up = listMode() == "level" and upgradeOf[self.item]
+    if up then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddDoubleLine("Next", ("%s at %s%d"):format((itemName(up[1])), up[3] and "First Aid " or "level ", up[2]), S.dim[1], S.dim[2], S.dim[3], 0.58, 0.73, 0.47)
+    end
     GameTooltip:Show()
   end)
   row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1348,15 +1396,15 @@ local function setQty(delta)
   local e = selectedItem and shown.byId[selectedItem]
   if not (e and e.selected) then return end
   local q = qtyOf(shown.listKey)
-  local n = math.max(0, (q[e.id] or e.want) + delta)
-  q[e.id] = n
+  local n = math.max(0, (q[e.key] or e.want) + delta)
+  q[e.key] = n
   refresh()
 end
 local qMinus = UI.Button(qtyBtns, "-", 22, function() setQty(-1) end, 20)
 local qPlus = UI.Button(qtyBtns, "+", 22, function() setQty(1) end, 20)
 local qAuto = UI.Button(qtyBtns, "Auto", 50, function()
   local e = selectedItem and shown.byId[selectedItem]
-  if e then qtyOf(shown.listKey)[e.id] = nil refresh() end
+  if e then qtyOf(shown.listKey)[e.key] = nil refresh() end
 end, 20)
 qAuto:SetPoint("RIGHT")
 qPlus:SetPoint("RIGHT", qAuto, "LEFT", -4, 0)
@@ -1605,9 +1653,11 @@ refresh = function()
   if not page:IsShown() then return end
   local list = currentList()
   local mode = listMode()
-  if mode == "level" then list = levelList(list) end
+  local strat = strategy()
+  if mode == "level" then list = levelList(list, strat) end
   title:SetText(mode == "level" and ("Level %d"):format(playerLevel()) or "")
   budget:Refresh()
+  actDrop:Refresh()
   specDrop:Refresh()
   stockDrop:Refresh()
   local wantBudget = mode == "budget"
@@ -1650,8 +1700,10 @@ refresh = function()
         local auto = hours > 0 and math.max(1, math.ceil((c[5] or perHour) * hours)) or 1
         local lasts = hours > 0 and minutesOf(c[1])
         if lasts then auto = math.max(1, math.ceil(hours * 60 / lasts)) end
-        local mine = qty[c[1]] or auto
-        local e = { id = c[1], effect = c[2], price = price, have = have, make = make, m = m, auto = auto, manual = qty[c[1]] ~= nil,
+        -- your pick and target: by item on raid lists, by kind on the level list (it upgrades as you level)
+        local key = c[6] and ("lad:" .. c[6]) or c[1]
+        local mine = qty[key] or auto
+        local e = { id = c[1], key = key, effect = c[2], price = price, have = have, make = make, m = m, auto = auto, manual = qty[key] ~= nil,
           need = 0, short = 0, hidden = isHidden, groupName = g[1] }
         e.want = mine
         shown[#shown + 1] = e
@@ -1665,8 +1717,9 @@ refresh = function()
           if not sets[set] then sets[set] = {} setOrder[#setOrder + 1] = set end
           table.insert(sets[set], e)
         else
-          local p = picks[e.id]
-          if p == nil then p = not e.optional end
+          local p = picks[e.key]
+          -- unset: the list's choice; Use what I own ticks only what you carry
+          if p == nil then p = not e.optional and (strat ~= "own" or have > 0) end
           e.selected = p and not isHidden
         end
       end
@@ -1677,7 +1730,11 @@ refresh = function()
       local chosen = picks["set:" .. set]
       local lead
       if chosen ~= false then
-        for _, e in ipairs(list2) do if not e.hidden and e.id == chosen then lead = e end end
+        for _, e in ipairs(list2) do if not e.hidden and (e.key == chosen or e.id == chosen) then lead = e end end
+        if not lead and chosen == nil and strat == "own" then
+          -- Use what I own: the one you carry most of
+          for _, e in ipairs(list2) do if not e.hidden and e.have > 0 and (not lead or e.have > lead.have) then lead = e end end
+        end
         if not lead and not (list2[1] and list2[1].optional) then
           for _, e in ipairs(list2) do if not e.hidden then lead = e break end end
         end
@@ -1834,12 +1891,12 @@ refresh = function()
   hiddenCheck:Refresh()
   hint:SetShown(nHidden == 0)
   -- your loadout in a line: what you bring, what's ready, what's short and its known cost
-  local parts = { ("%d picked"):format(nPicked) }
+  local parts = { ("%d selected"):format(nPicked) }
   if nStocked > 0 then parts[#parts + 1] = ("%s%d stocked|r"):format(H.good, nStocked) end
   if shortCount > 0 then parts[#parts + 1] = ("%s%d below target|r"):format(H.bad, shortCount) end
-  if sum > 0 then parts[#parts + 1] = "~" .. money(sum) .. (nUnpriced > 0 and (H.bad .. " +?|r") or "") end
-  if nUnpriced > 0 then parts[#parts + 1] = ("%s%d no price|r"):format(H.dim, nUnpriced) end
-  if nPicked > 0 and shortCount == 0 then parts[#parts + 1] = H.good .. "ready|r" end
+  if sum > 0 then parts[#parts + 1] = "~" .. money(sum) .. (nUnpriced > 0 and (H.bad .. "+?|r") or "") .. " to restock" end
+  if nUnpriced > 0 then parts[#parts + 1] = ("%s%d unknown price%s|r"):format(H.dim, nUnpriced, nUnpriced == 1 and "" or "s") end
+  if nPicked > 0 and shortCount == 0 then parts[#parts + 1] = H.good .. "all stocked|r" end
   UI.FitText(total, table.concat(parts, ("  %s·|r  "):format(H.dim)), 12, 10)
   searchBtn:SetEnabled(shortCount > 0)
   drawDetail()

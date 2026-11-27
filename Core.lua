@@ -367,6 +367,7 @@ end)
 -- reading and writing NW.db.settings: these keys are passed through.
 local CHAR_KEYS = {
   consumeSpec = true, consumeList = true, consumeHidden = true, consumeBudget = true, consumeHours = true,
+  consumePick = true, consumeQty = true, consumeActivity = true, consumeStrategy = true,
   profSelected = true, planTarget = true, lastTab = true, routesOpen = true, fishCook = true, fishTab = true,
 }
 local function splitCharSettings(db)
@@ -379,9 +380,9 @@ local function splitCharSettings(db)
   c.settings = c.settings or {}
   local cs, base = c.settings, db.settings
   for k in pairs(CHAR_KEYS) do
-    -- before this, they were shared: the first character to log in keeps them.
-    -- After that, what's left here is only the default (copyDefaults put it back).
-    if first and cs[k] == nil then cs[k] = rawget(base, k) end
+    -- before this, they were shared: the first character to log in keeps them
+    -- (a key added to this list later moves to whoever logs in first after that)
+    if cs[k] == nil then cs[k] = rawget(base, k) end
     rawset(base, k, nil)
   end
   -- a spec carried over from another class: back to this class's own
