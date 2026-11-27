@@ -1504,7 +1504,8 @@ function page.shopping()
     -- bags: a listed consumable's own shortage already counts them; for materials, what's spare
     local e = shown.byId[id]
     local bags = NW.ItemCount(id) or 0
-    local spare = (e and e.selected) and math.max(0, (e.setHave or e.have) - e.need) or bags
+    -- (its own bags only: alternatives that fill its slot aren't spare material)
+    local spare = (e and e.selected) and math.max(0, e.have - e.need) or bags
     local asMat = want[id] - (direct[id] or 0)
     local buy = (direct[id] or 0) + math.max(0, asMat - spare)
     if buy > 0 then
@@ -2194,7 +2195,7 @@ refresh = function()
   if nPicked > 0 and shortCount == 0 then parts[#parts + 1] = H.good .. "all stocked|r" end
   UI.FitText(total, table.concat(parts, ("  %s·|r  "):format(H.dim)), 12, 10)
   -- (Auctionator searches only while the auction house is open)
-  searchBtn:SetEnabled(shortCount > 0 and NW.AHOpen and NW.AHOpen() or false)
+  searchBtn:SetEnabled(shortCount > 0 and #shop.ah > 0 and NW.AHOpen and NW.AHOpen() and NW.HasAuctionator and NW.HasAuctionator() or false)
   drawDetail()
   if selectedItem then
     matsBtn:SetEnabled(NW.RecipeFor(selectedItem) ~= nil and (NW.AHOpen and NW.AHOpen() or false))
