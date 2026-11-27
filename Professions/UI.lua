@@ -1176,7 +1176,12 @@ drawSteps = function()
         row.name:SetText("|cffd6b266" .. (itemName(t.item) or ("item " .. t.item)) .. "|r")
         row.crafts:SetText("×1")
         local price, psrc = NW.Price(t.item)
-        if t.recipe then
+        if t.have then
+          -- already yours: shown so you know it's covered
+          row:SetAlpha(0.6)
+          row.cost:SetText("|cff94ba78have|r")
+          row.mats:SetText("needed from here  ·  in your bags")
+        elseif t.recipe then
           row:SetCraft(selected, t.recipe, 1)
           row.cost:SetText("")
           row.mats:SetText("needed from here  ·  " .. matsText(t.recipe))
@@ -1395,7 +1400,8 @@ local function drawCraft(p)
     for i, stp in ipairs(steps) do
       if rank and stp.from and not stp.rankHead and rank >= stp.from and rank < stp.to then
         local j = i
-        while j > 1 and (steps[j - 1].banner or steps[j - 1].rankHead) do j = j - 1 end
+        -- with the tools and parts it needs first, and its rank heading
+        while j > 1 and (steps[j - 1].banner or steps[j - 1].rankHead or steps[j - 1].tool or steps[j - 1].make) do j = j - 1 end
         stepOffset = math.max(0, math.min(j - 1, MS.dynMax))
         break
       end

@@ -1416,12 +1416,12 @@ NW.TOOLS = {
   engineering = { { 5956, 1 }, { 6219, 30, "Arclight Spanner" }, { 10498, 175, "Gyromatic Micro-Adjustor" } },
   enchanting = { { 6218, 1, "Runed Copper Rod" }, { 6339, 130, "Runed Silver Rod" }, { 11130, 175, "Runed Golden Rod" }, { 11145, 220, "Runed Truesilver Rod" } },
 }
--- The tools the plan reaches that aren't in your bags: { item, recipe, step } where step
--- is the first step that needs it
+-- The tools the plan reaches: { item, recipe, step, have } where step is the first step
+-- that needs it and have says one is already in your bags or bank
 function NW.PlanTools(key, plan)
   local out = {}
   for _, t in ipairs(NW.TOOLS[key] or {}) do
-    if (NW.ItemCount(t[1]) or 0) == 0 and plan.to > t[2] then
+    if plan.to > t[2] then
       local at
       for _, st in ipairs(plan.steps) do
         if st.recipe and st.to > t[2] then at = st break end
@@ -1429,7 +1429,7 @@ function NW.PlanTools(key, plan)
       if at then
         local r
         if t[3] then for _, rr in ipairs(NW.RECIPES[key] or {}) do if rr.name == t[3] then r = rr break end end end
-        out[#out + 1] = { item = t[1], recipe = r, step = at }
+        out[#out + 1] = { item = t[1], recipe = r, step = at, have = (NW.ItemCount(t[1]) or 0) > 0 }
       end
     end
   end
@@ -1483,7 +1483,7 @@ function NW.ShoppingList(key, plan)
     end
     local r = st.recipe
     if keep and r and r.item and st.crafts then made[r.item] = (made[r.item] or 0) + st.crafts * (r.yield or 1) end
-    for _, t in ipairs(toolsAt[st] or {}) do add(t.item, 1, 0) end
+    for _, t in ipairs(toolsAt[st] or {}) do if not t.have then add(t.item, 1, 0) end end
     -- what the next rank's quest asks for
     if st.rankUp then
       local _, _, _, _, _, needs = NW.RankWhere(key, st.rankUp.name)
