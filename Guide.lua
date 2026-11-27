@@ -497,6 +497,7 @@ W.back = UI.Button(right, "", 120, function()
       return
     end
   end
+  if sel.from == "consumes" then NW.ShowTab("consumes") return end
   if sel.from and NW.OpenProfession then NW.OpenProfession(sel.from) end
 end, 22)
 W.back:SetPoint("RIGHT", W.ah, "LEFT", -4, 0)
@@ -2392,7 +2393,7 @@ refresh = function()
   -- back: to the material you came from (an ingredient's Find), else the profession
   local hist = sel.hist
   local prev = hist and hist[#hist]
-  local fromP = sel.from and NW.PROF_BY_KEY[sel.from]
+  local fromP = sel.from and (sel.from == "consumes" and { name = "Consumes" } or NW.PROF_BY_KEY[sel.from])
   W.back:SetShown(prev ~= nil or fromP ~= nil)
   if prev then
     local pe = M.Get(prev.id)

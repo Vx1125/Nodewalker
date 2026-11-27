@@ -575,6 +575,23 @@ local function hiddenOf(key)
   return all[key]
 end
 
+-- Your loadout, per list: { ["set:<slot>"] = chosen id (false: none), [id] = ticked }.
+-- Unset means the list's own choice: the first row of a slot, every other row
+-- except the browse-only sections.
+local function picksOf(key)
+  local all = st().consumePick
+  if not all then all = {} st().consumePick = all end
+  all[key] = all[key] or {}
+  return all[key]
+end
+-- Targets you set by hand, per list: [id] = how many
+local function qtyOf(key)
+  local all = st().consumeQty
+  if not all then all = {} st().consumeQty = all end
+  all[key] = all[key] or {}
+  return all[key]
+end
+
 -- Making it yourself: the recipe, whether you have the profession, whether
 -- you know it, and what one costs to make (nil without full prices)
 local function makeInfo(id)
@@ -608,21 +625,6 @@ local function minutesOf(id)
   if h then return tonumber(h) * 60 end
   local m = tonumber(text:match("(%d+) min"))
   if m and m >= 10 then return m end
-end
-
--- Herb or ore an item is gathered from, for the Farm Guide
-local nodeOfItem
-local function nodeFor(itemID)
-  if not nodeOfItem then
-    nodeOfItem = {}
-    for _, guide in ipairs({ NW.HERB_GUIDE, NW.ORE_GUIDE }) do
-      for _, e in ipairs(guide) do
-        local item = NW.NODE_ITEMS[e[1]]
-        if item and not nodeOfItem[item] then nodeOfItem[item] = e[1] end
-      end
-    end
-  end
-  return nodeOfItem[itemID]
 end
 
 ------------------------------------------------------------------------
@@ -1051,11 +1053,11 @@ local specDrop = UI.Dropdown(page, 196, "Spec", specItems, function() return cur
   refresh()
 end, 156)
 specDrop:SetPoint("TOPLEFT", PAD, -12)
-local stockDrop = UI.Dropdown(page, 168, "Stock", { { 0, "One of each" }, { 2, "2 hours" }, { 3, "3 hours" }, { 4, "4 hours" } },
+local stockDrop = UI.Dropdown(page, 168, "Stock", { { 0, "One of each" }, { 2, "2-hour raid" }, { 3, "3-hour raid" }, { 4, "4-hour raid" }, { 5, "5-hour raid" } },
   function() return st().consumeHours or 0 end, function(v)
     st().consumeHours = v
     refresh()
-  end, 120, "Buffs by their duration, potions at 5 an hour.")
+  end, 120, "An estimate. Buffs by the duration the game gives; potions, runes, food and the like at a rough rate an hour. Deaths aren't counted. A target you set by hand stays.")
 stockDrop:SetPoint("LEFT", specDrop, "RIGHT", 22, 0)
 local budget = UI.Dropdown(page, 150, "List", { { "level", "My level" }, { "raid", "Raid best" }, { "budget", "Raid budget" } },
   listMode, function(v)
@@ -1076,7 +1078,7 @@ title:SetWordWrap(false)
 ------------------------------------------------------------------------
 local listPanel, listHead = UI.Section(page, LIST_W, PANEL_H, "Consumable")
 listPanel:SetPoint("TOPLEFT", PAD, -TOP)
-for _, c in ipairs({ { "Have", COL_HAVE }, { "Craft", COL_CRAFT }, { "Buy", COL_BUY } }) do
+for _, c in ipairs({ { "Owned / Target", COL_HAVE }, { "Craft", COL_CRAFT }, { "Buy", COL_BUY } }) do
   local t = UI.Text(listHead, 11, S.dim, "RIGHT")
   t:SetPoint("RIGHT", listHead, "LEFT", c[2] - 1, 0)
   t:SetText(c[1])
@@ -1136,18 +1138,43 @@ local function rowFor(i)
   row.groupHint:SetPoint("LEFT", row.groupName, "RIGHT", 10, 0)
   row.groupCount = UI.Text(row, 11, S.dim, "RIGHT")
   row.groupCount:SetPoint("RIGHT", -16, 0)
-  -- item parts
+  -- item parts: whether it's in your loadout (a round button where you bring one of
+  -- a slot, a tick box where it's on its own), then the item
+  row.pick = CreateFrame("Button", nil, row, "BackdropTemplate")
+  row.pick:SetSize(14, 14)
+  row.pick:SetPoint("LEFT", 9, 0)
+  UI.Flat(row.pick, S.sunk, S.edge)
+  row.pick.tick = row.pick:CreateTexture(nil, "OVERLAY")
+  row.pick.tick:SetSize(18, 18)
+  row.pick.tick:SetPoint("CENTER", 1, 1)
+  row.pick.tick:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+  row.pick.tick:SetVertexColor(S.gold[1], S.gold[2], S.gold[3])
+  row.pick.dot = row.pick:CreateTexture(nil, "OVERLAY")
+  row.pick.dot:SetSize(16, 16)
+  row.pick.dot:SetPoint("CENTER")
+  row.pick.dot:SetTexture("Interface\\Buttons\\UI-RadioButton")
+  row.pick:SetScript("OnClick", function(self) local r = self:GetParent() if r.onPick then r.onPick(r) end end)
+  row.pick:SetScript("OnEnter", function(self)
+    local e = self:GetParent().entry
+    if not e then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(e.set and "One of these" or "In your loadout", 1, 1, 1)
+    GameTooltip:AddLine(e.set and ("You bring one %s: %s."):format(e.set == e.groupName and e.groupName:lower() or "of this kind", HINT[e.groupName] or "they don't stack")
+      or "Counted in your stock and shopping list when ticked.", S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:Show()
+  end)
+  row.pick:SetScript("OnLeave", GameTooltip_Hide)
   row.icon = row:CreateTexture(nil, "ARTWORK")
   row.icon:SetSize(S.ICON, S.ICON)
-  row.icon:SetPoint("LEFT", 10, 0)
+  row.icon:SetPoint("LEFT", 30, 0)
   row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   row.name = UI.Text(row, 12, S.text)
-  row.name:SetPoint("TOPLEFT", 44, -4)
-  row.name:SetWidth(COL_HAVE - 44 - 70)
+  row.name:SetPoint("TOPLEFT", 64, -4)
+  row.name:SetWidth(COL_HAVE - 64 - 76)
   row.name:SetWordWrap(false)
   row.effect = UI.Text(row, 11, S.dim)
   row.effect:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -3)
-  row.effect:SetWidth(COL_HAVE - 44 - 70)
+  row.effect:SetWidth(COL_HAVE - 64 - 76)
   row.effect:SetWordWrap(false)
   row.have = UI.Text(row, 12, S.text, "RIGHT")
   row.have:SetPoint("RIGHT", row, "LEFT", COL_HAVE, 0)
@@ -1208,14 +1235,16 @@ status:SetHeight(STATUS_H)
 UI.Flat(status, S.header, S.edge)
 local total = UI.Text(status, 12, S.text)
 total:SetPoint("LEFT", 12, 0)
+total:SetWidth(410)
+total:SetWordWrap(false)
 local showHidden = false
 local hiddenCheck = UI.Check(status, "Show hidden", function() return showHidden end, function(v)
   showHidden = v
   refresh()
 end)
-hiddenCheck:SetPoint("LEFT", status, "LEFT", 330, 0)
+hiddenCheck:SetPoint("LEFT", status, "LEFT", 436, 0)
 local hint = UI.Text(status, 11, S.dim)
-hint:SetPoint("LEFT", status, "LEFT", 330, 0)
+hint:SetPoint("LEFT", status, "LEFT", 436, 0)
 hint:SetText("Right-click a row to hide it")
 
 -- Everything you're short of, the cheap way: materials for what you'd make,
@@ -1253,6 +1282,7 @@ searchBtn:SetPoint("RIGHT", -4, 0)
 ------------------------------------------------------------------------
 -- Details: the selected consumable
 ------------------------------------------------------------------------
+local function money(c) return NW.Money(c, "mid") end
 local det = UI.Section(page, DET_W, PANEL_H, "Details")
 det:SetPoint("TOPLEFT", listPanel, "TOPRIGHT", GAP, 0)
 local IN = 12
@@ -1264,6 +1294,17 @@ local dIconEdge = det:CreateTexture(nil, "BORDER")
 dIconEdge:SetPoint("TOPLEFT", dIcon, -1, 1)
 dIconEdge:SetPoint("BOTTOMRIGHT", dIcon, 1, -1)
 dIconEdge:SetColorTexture(unpack(S.edge))
+-- the whole item, the game's own tooltip, on its icon
+local dIconHit = CreateFrame("Frame", nil, det)
+dIconHit:SetAllPoints(dIcon)
+dIconHit:EnableMouse(true)
+dIconHit:SetScript("OnEnter", function(self)
+  if not selectedItem then return end
+  GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+  GameTooltip:SetItemByID(selectedItem)
+  GameTooltip:Show()
+end)
+dIconHit:SetScript("OnLeave", GameTooltip_Hide)
 local dName = UI.Text(det, 14, S.text)
 dName:SetPoint("TOPLEFT", dIcon, "TOPRIGHT", 10, -2)
 dName:SetPoint("RIGHT", -IN, 0)
@@ -1272,14 +1313,43 @@ local dType = UI.Text(det, 11, S.dim)
 dType:SetPoint("TOPLEFT", dName, "BOTTOMLEFT", 0, -4)
 dType:SetPoint("RIGHT", -IN, 0)
 dType:SetWordWrap(false)
-local dEffect = UI.Text(det, 11, S.dim)
+-- what it does, short (the game's full text is on the icon), and how long it lasts
+local dEffect = UI.Text(det, 11, S.text)
 dEffect:SetPoint("TOPLEFT", dIcon, "BOTTOMLEFT", 0, -10)
 dEffect:SetWidth(DET_W - IN * 2)
 dEffect:SetJustifyV("TOP")
-if dEffect.SetMaxLines then dEffect:SetMaxLines(8) end
+if dEffect.SetMaxLines then dEffect:SetMaxLines(3) end
 dEffect:SetSpacing(2)
+-- owned / target / short, and the target by hand
 local dStock = UI.Text(det, 12, S.text)
 dStock:SetPoint("TOPLEFT", dEffect, "BOTTOMLEFT", 0, -10)
+local qtyBtns = CreateFrame("Frame", nil, det)
+qtyBtns:SetSize(110, 20)
+qtyBtns:SetPoint("RIGHT", det, "RIGHT", -IN, 0)
+qtyBtns:SetPoint("TOP", dStock, "TOP", 0, 3)
+local function setQty(delta)
+  local e = selectedItem and shown.byId[selectedItem]
+  if not (e and e.selected) then return end
+  local q = qtyOf(shown.listKey)
+  local n = math.max(0, (q[e.id] or e.want) + delta)
+  q[e.id] = n
+  refresh()
+end
+local qMinus = UI.Button(qtyBtns, "-", 22, function() setQty(-1) end, 20)
+local qPlus = UI.Button(qtyBtns, "+", 22, function() setQty(1) end, 20)
+local qAuto = UI.Button(qtyBtns, "Auto", 50, function()
+  local e = selectedItem and shown.byId[selectedItem]
+  if e then qtyOf(shown.listKey)[e.id] = nil refresh() end
+end, 20)
+qAuto:SetPoint("RIGHT")
+qPlus:SetPoint("RIGHT", qAuto, "LEFT", -4, 0)
+qMinus:SetPoint("RIGHT", qPlus, "LEFT", -4, 0)
+UI.Tip(qMinus, "Target", "One fewer to keep. Your number stays until you click Auto.")
+UI.Tip(qPlus, "Target", "One more to keep. Your number stays until you click Auto.")
+UI.Tip(qAuto, "Auto", function()
+  local e = selectedItem and shown.byId[selectedItem]
+  return ("Back to the estimate for your Stock setting%s."):format(e and (" (" .. e.auto .. ")") or "")
+end)
 
 -- Craft and Buy side by side; the cheaper one gets the gold edge
 local CMP_W = math.floor((DET_W - IN * 2 - 8) / 2)
@@ -1303,12 +1373,18 @@ local function cmpBox(label)
     self.tag:SetText(best and "Cheapest" or "")
     self:SetBackdropBorderColor(unpack(best and S.gold or S.edge))
   end
+  b:EnableMouse(true)
   return b
 end
 local cmpCraft = cmpBox("Craft")
 cmpCraft:SetPoint("TOPLEFT", dStock, "BOTTOMLEFT", 0, -10)
 local cmpBuy = cmpBox("Buy")
 cmpBuy:SetPoint("LEFT", cmpCraft, "RIGHT", 8, 0)
+UI.Tip(cmpCraft, "Craft", function()
+  return "One, at today's material prices (what the materials are worth)."
+    .. (cmpCraft.pay and ("\nTo pay for your shortage: %s, after the materials in your bags."):format(cmpCraft.pay) or "")
+end)
+UI.Tip(cmpBuy, "Buy", "One, at the auction house or a vendor, whichever is cheaper.")
 local dSave = UI.Text(det, 11, S.dim)
 dSave:SetPoint("TOPLEFT", cmpCraft, "BOTTOMLEFT", 0, -7)
 dSave:SetWidth(DET_W - IN * 2)
@@ -1321,44 +1397,40 @@ dRecipe:SetJustifyV("TOP")
 if dRecipe.SetMaxLines then dRecipe:SetMaxLines(2) end
 dRecipe:SetSpacing(2)
 
--- Materials: icon, how many, what you have, what they cost
-local MAT_ROWS, MAT_H = 5, 19
-local matRows = {}
-local matBox = CreateFrame("Frame", nil, det)
-matBox:SetPoint("TOPLEFT", dRecipe, "BOTTOMLEFT", 0, -8)
-matBox:SetSize(DET_W - IN * 2, MAT_ROWS * MAT_H)
-for i = 1, MAT_ROWS do
-  local m = CreateFrame("Button", nil, matBox)
-  m:SetSize(DET_W - IN * 2, MAT_H)
-  m:SetPoint("TOPLEFT", 0, -(i - 1) * MAT_H)
-  m.icon = m:CreateTexture(nil, "ARTWORK")
-  m.icon:SetSize(16, 16)
-  m.icon:SetPoint("LEFT")
-  m.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  m.name = UI.Text(m, 11, S.text)
-  m.name:SetPoint("LEFT", 22, 0)
-  m.name:SetWidth(DET_W - IN * 2 - 22 - 120)
-  m.name:SetWordWrap(false)
-  m.have = UI.Text(m, 11, S.dim, "RIGHT")
-  m.have:SetPoint("RIGHT", -64, 0)
-  m.price = UI.Text(m, 11, S.dim, "RIGHT")
-  m.price:SetPoint("RIGHT")
-  m:SetScript("OnEnter", function(self)
-    if not self.item then return end
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetItemByID(self.item)
-    GameTooltip:Show()
-  end)
-  m:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  m:SetScript("OnClick", function(self)
-    if self.item and IsShiftKeyDown() then
-      local n, ok = itemName(self.item)
-      if NW.AHOpen() and ok then NW.SearchAH({ { n, 1 } }) else NW.ChatLink(self.item, nil, true) end
-    end
-  end)
-  m:Hide()
-  matRows[i] = m
+-- Materials: the professions' reagent icons (one craft's count; edge red where you're short),
+-- each one into the Material Finder, Shift-click to search or link
+local reagentTip = {}
+function reagentTip.tip(icon)
+  local c = icon.ctx
+  GameTooltip:SetOwner(icon, "ANCHOR_LEFT")
+  if not pcall(GameTooltip.SetItemByID, GameTooltip, icon.id) then GameTooltip:SetText((itemName(icon.id)), 1, 1, 1) end
+  GameTooltip:AddLine(" ")
+  local d = S.dim
+  GameTooltip:AddDoubleLine("Per craft", icon.qty, d[1], d[2], d[3], 1, 1, 1)
+  if c.need then GameTooltip:AddDoubleLine("Have / need", ("%d / %d"):format(c.have or 0, c.need), d[1], d[2], d[3], 1, 1, 1) end
+  local p, src = NW.Price(icon.id)
+  GameTooltip:AddDoubleLine("Price", p and ((src == "vendor" and "Vendor " or "") .. money(p)) or "no price", d[1], d[2], d[3], 1, 1, 1)
+  local inFinder = NW.Mat and NW.Mat.Get and NW.Mat.Get(icon.id)
+  GameTooltip:AddDoubleLine("Click", inFinder and "where to get it, in Material Finder" or "not in Material Finder", d[1], d[2], d[3], 1, 1, 1)
+  GameTooltip:AddDoubleLine("Shift-click", NW.AHOpen and NW.AHOpen() and "search the auction house" or "link in chat", d[1], d[2], d[3], 1, 1, 1)
+  GameTooltip:Show()
 end
+function reagentTip.click(icon)
+  local id = icon.id
+  if not id then return end
+  if IsShiftKeyDown() then
+    local n, ok = itemName(id)
+    if NW.AHOpen() and ok then NW.SearchAH({ { n, math.max(1, (icon.ctx.need or 1) - (icon.ctx.have or 0)) } }) else NW.ChatLink(id, nil, true) end
+    return
+  end
+  if NW.FindMaterial then NW.FindMaterial(id, "consumes", icon.ctx.need) end
+end
+local matStrip = UI.ReagentStrip(det, reagentTip, 26)
+matStrip:SetPoint("TOPLEFT", dRecipe, "BOTTOMLEFT", 0, -8)
+local dMats = UI.Text(det, 11, S.dim)
+dMats:SetPoint("TOPLEFT", matStrip, "BOTTOMLEFT", 0, -4)
+dMats:SetWidth(DET_W - IN * 2)
+dMats:SetWordWrap(false)
 
 -- The selected consumable's materials, for making it yourself
 local BTN_W = DET_W - IN * 2
@@ -1377,24 +1449,15 @@ local matsBtn = UI.Button(det, "Search its materials", BTN_W, function()
 end, 24)
 matsBtn:SetPoint("BOTTOMLEFT", IN, IN)
 
--- Gather it instead: opens the Farm Guide on its priciest herb or ore
-local farmNode
-local farmBtn = UI.Button(det, "", BTN_W, function()
-  if farmNode then NW.GuideSelectHerb(farmNode) end
-end, 24)
-farmBtn:SetPoint("BOTTOMLEFT", matsBtn, "TOPLEFT", 0, 6)
-
 local dEmpty = UI.Text(det, 12, S.dim, "CENTER")
 dEmpty:SetPoint("CENTER")
 dEmpty:SetWidth(DET_W - 40)
 
-local detailParts = { dIcon, dIconEdge, dName, dType, dEffect, dStock, cmpCraft, cmpBuy, dSave, dRecipe, matBox }
+local detailParts = { dIcon, dIconEdge, dIconHit, dName, dType, dEffect, dStock, qtyBtns, cmpCraft, cmpBuy, dSave, dRecipe, matStrip, dMats }
 
-local function money(c) return NW.Money(c, "mid") end
 
 local function drawDetail()
   local id = selectedItem
-  farmNode = nil
   local hasItem = id ~= nil
   for _, p in ipairs(detailParts) do p:SetShown(hasItem) end
   dEmpty:SetShown(not hasItem)
@@ -1417,25 +1480,29 @@ local function drawDetail()
   if qc then dName:SetTextColor(qc.r, qc.g, qc.b) else dName:SetTextColor(unpack(S.text)) end
   dType:SetText(iSub and iSub ~= iType and iSub or iType or "")
 
-  -- what it does: the game's text, else the short effect from the list
-  local use = useText(id)
+  -- what it does: the list's short line, else the game's first sentence; how long, from the game's text
   local fx = e and e.effect and e.effect:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-  dEffect:SetText(use or fx or "")
+  local use = useText(id)
+  local short = (fx and fx ~= "") and fx or (use and (use:match("^(.-%.)%s") or use)) or ""
+  local mins = minutesOf(id)
+  local lines = { short }
+  if mins then lines[#lines + 1] = H.dim .. "Lasts " .. (mins >= 60 and (mins % 60 == 0 and (mins / 60 .. " hr") or (mins .. " min")) or (mins .. " min")) .. "|r" end
   local up = listMode() == "level" and upgradeOf[id]
-  if up then
-    dEffect:SetText((dEffect:GetText() or "") .. ("\n%sNext|r %s at %s%d"):format(H.good, (itemName(up[1])), up[3] and "First Aid " or "level ", up[2]))
-  end
+  if up then lines[#lines + 1] = ("%sNext|r %s at %s%d"):format(H.good, (itemName(up[1])), up[3] and "First Aid " or "level ", up[2]) end
+  dEffect:SetText(table.concat(lines, "\n"))
 
-  -- stock
-  if e then
-    local have = not e.alt and e.setHave or e.have
-    local need = e.need or 0
-    local col = need > 0 and have < need and H.bad or H.text
-    dStock:SetText(need > 0 and ("%sHave|r %s%d|r    %sStock|r %d"):format(H.dim, col, have, H.dim, need)
-      or ("%sHave|r %d"):format(H.dim, have))
+  -- stock: owned (what fills the slot), target, and what's short
+  local shortN = e and e.short or 0
+  if e and e.selected then
+    local have = e.setHave or e.have
+    local col = have < e.need and H.bad or H.good
+    dStock:SetText(("%sOwned|r %s%d|r   %sTarget|r %d%s   %s"):format(H.dim, col, have, H.dim, e.need, e.manual and "*" or "",
+      shortN > 0 and (H.bad .. shortN .. " short|r") or (H.good .. "stocked|r")))
   else
-    dStock:SetText(("%sHave|r %d"):format(H.dim, NW.ItemCount(id) or 0))
+    dStock:SetText(("%sOwned|r %d   %snot in your loadout|r"):format(H.dim, e and e.have or (NW.ItemCount(id) or 0), H.dim))
   end
+  qtyBtns:SetShown(e ~= nil and e.selected == true)
+  qAuto:SetEnabled(e ~= nil and e.manual == true)
 
   -- craft or buy
   local vendor, ah = NW.PriceParts(id)
@@ -1447,7 +1514,6 @@ local function drawDetail()
   local craftBest = craft and canMake and (not buy or craft < buy)
   -- only a real choice gets the outline: buying beats a craft you could do
   local buyBest = buy and craft and canMake and buy <= craft
-  cmpCraft.label:SetText("Craft")
   if craft then
     cmpCraft:Set(money(craft), craftBest, not canMake)
   else
@@ -1455,16 +1521,16 @@ local function drawDetail()
   end
   cmpBuy.src:SetText(buySrc == "Vendor" and "Vendor" or buySrc and "AH" or "")
   cmpCraft.src:SetText("")
+  cmpCraft.pay = nil
   if buy then cmpBuy:Set(money(buy), buyBest) else cmpBuy:Set("No price", false, true) end
-  local short = e and e.short or 0
   if craft and buy and canMake then
     local diff = math.abs(buy - craft)
     local how = craft < buy and "Crafting" or "Buying"
     dSave:SetText(diff > 0 and ("%s saves %s each%s"):format(how, money(diff),
-      short > 0 and ("  ·  %s for %d"):format(money(diff * short), short) or "") or "Same either way")
+      shortN > 0 and ("  ·  %s for %d"):format(money(diff * shortN), shortN) or "") or "Same either way")
   elseif craft and buy and m.skill and not m.known then
     dSave:SetText("Learn the recipe to craft it")
-  elseif craft and buy then
+  elseif m and not m.skill then
     dSave:SetText(("Needs %s"):format(NW.PROF_BY_KEY[m.key] and NW.PROF_BY_KEY[m.key].name or "the profession"))
   else
     dSave:SetText("")
@@ -1472,9 +1538,11 @@ local function drawDetail()
 
   -- recipe and materials
   local r, key = NW.RecipeFor(id)
-  for _, mr in ipairs(matRows) do mr:Hide() end
+  matStrip:Begin()
   if not r then
     dRecipe:SetText("")
+    matStrip:Finish(DET_W - IN * 2)
+    dMats:SetText("")
     return
   end
   local prof = NW.PROF_BY_KEY[key]
@@ -1488,27 +1556,30 @@ local function drawDetail()
     else
       line = line .. "  " .. H.bad .. "Recipe not known|r\n" .. H.dim .. (NW.RecipeSourceText(key, r) or "") .. "|r"
     end
+  else
+    line = line .. "  " .. H.dim .. "not your profession|r"
   end
   if (r.yield or 1) > 1 then line = line .. ("  %s· makes %d|r"):format(H.dim, r.yield) end
   dRecipe:SetText(line)
-  local crafts = math.max(1, math.ceil(math.max(1, short) / (r.yield or 1)))
-  local best = 0
-  for i, re in ipairs(r.reagents) do
-    local mr = matRows[i]
-    if not mr then break end
+  -- materials for the shortage (or one craft when you're stocked), with what you'd still pay
+  local crafts = math.max(1, math.ceil(math.max(1, shortN) / (r.yield or 1)))
+  local pay, payUnknown = 0, false
+  for _, re in ipairs(r.reagents) do
     local need = re[2] * crafts
     local have = NW.ItemCount(re[1]) or 0
+    local ic = matStrip:Add(re[1], re[2], have >= need and "ok" or "short")
+    ic.ctx.need, ic.ctx.have = need, have
     local p = NW.Price(re[1])
-    mr.item = re[1]
-    mr.icon:SetTexture(NW.ItemIcon(re[1]) or "Interface\\Icons\\INV_Misc_QuestionMark")
-    UI.FitText(mr.name, ("%d  %s"):format(re[2], (itemName(re[1]))), 11, 9)
-    mr.have:SetText(("%s%d|r%s/%d|r"):format(have >= need and H.good or H.bad, have, H.dim, need))
-    mr.price:SetText(p and money(p * re[2]) or (H.dim .. "?|r"))
-    mr:Show()
-    local node = nodeFor(re[1])
-    local worth = (p or 1) * re[2]
-    if node and worth > best then farmNode, best = node, worth end
+    if have < need then
+      if p then pay = pay + p * (need - have) else payUnknown = true end
+    end
   end
+  matStrip:Finish(DET_W - IN * 2)
+  if shortN > 0 and craft then
+    cmpCraft.pay = (pay > 0 and money(pay) or "nothing") .. (payUnknown and " +?" or "")
+    cmpCraft.src:SetText(pay > 0 and ("pay " .. money(pay) .. (payUnknown and "+?" or "")) or (payUnknown and "pay ?" or "in bags"))
+  end
+  dMats:SetText(("For %d craft%s%s"):format(crafts, crafts == 1 and "" or "s", shortN > 0 and (" · " .. shortN .. " short") or ""))
 end
 
 refresh = function()
@@ -1523,18 +1594,22 @@ refresh = function()
   local wantBudget = mode == "budget"
   local hours = st().consumeHours or 0
   local hidden = hiddenOf(list.key)
+  -- your loadout and hand-set targets belong to this list (raid best and budget differ)
+  local listKey = list.key .. (mode == "budget" and ":budget" or "")
+  local picks, qty = picksOf(listKey), qtyOf(listKey)
   local nHidden = 0
   for _ in pairs(hidden) do nHidden = nHidden + 1 end
   if nHidden == 0 then showHidden = false end
   wipe(shown)
   shown.byId = {}
-  local sum, shortCount = 0, 0
+  shown.listKey = listKey
+  local sum, shortCount, nPicked, nStocked, nUnpriced = 0, 0, 0, 0, 0
   for _, g in ipairs(list.groups) do
     local at = #shown + 1
     local group = { header = g[1], short = 0, n = 0 }
     shown[at] = group
     local perHour = PER_HOUR[g[1]] or 1
-    local sets = {}
+    local sets, setOrder = {}, {}
     -- what isn't in the game yet is left out; if that was the whole best
     -- tier of a slot, the budget rows stand in for it
     local notYet = NW.NOT_YET or {}
@@ -1552,40 +1627,65 @@ refresh = function()
         local m = makeInfo(c[1])
         -- only what you could make yourself counts as a way to get it
         local make = m and m.skill and m.cost or nil
-        -- a buff with a stated duration is counted exactly
-        local mine = hours > 0 and math.max(1, math.ceil((c[5] or perHour) * hours)) or 1
+        -- the estimate: a buff with a stated duration is counted exactly; the rest at a rate an hour
+        local auto = hours > 0 and math.max(1, math.ceil((c[5] or perHour) * hours)) or 1
         local lasts = hours > 0 and minutesOf(c[1])
-        if lasts then mine = math.max(1, math.ceil(hours * 60 / lasts)) end
-        local e = { id = c[1], effect = c[2], price = price, have = have, make = make, m = m,
-          need = mine, short = math.max(0, mine - have), hidden = isHidden, groupName = g[1] }
+        if lasts then auto = math.max(1, math.ceil(hours * 60 / lasts)) end
+        local mine = qty[c[1]] or auto
+        local e = { id = c[1], effect = c[2], price = price, have = have, make = make, m = m, auto = auto, manual = qty[c[1]] ~= nil,
+          need = 0, short = 0, hidden = isHidden, groupName = g[1] }
+        e.want = mine
         shown[#shown + 1] = e
         shown.byId[e.id] = e
-        -- one or the other: the first row you haven't hidden is the one to
-        -- stock, and the rest only show what you already carry
+        -- nice to have: shown with what you carry, never counted unless you tick it
+        if OPTIONAL[g[1]] then e.optional = true end
+        -- a slot you fill with one of several (one flask, one food, one of a kind of elixir)
         local set = (PICK_ONE[g[1]] and g[1]) or c[4]
-        -- nice to have: shown with what you carry, never counted as short
-        if OPTIONAL[g[1]] then e.optional, e.need, e.short = true, 0, 0 end
-        if set and not isHidden then
-          local lead = sets[set]
-          if not lead then
-            sets[set] = e
-            e.setHave = have
-          else
-            e.alt, e.need, e.short = true, 0, 0
-            lead.setHave = lead.setHave + have
-            lead.short = math.max(0, lead.need - lead.setHave)
-          end
+        if set then
+          e.set = set
+          if not sets[set] then sets[set] = {} setOrder[#setOrder + 1] = set end
+          table.insert(sets[set], e)
+        else
+          local p = picks[e.id]
+          if p == nil then p = not e.optional end
+          e.selected = p and not isHidden
         end
+      end
+    end
+    -- each slot: the one you picked (or the list's first), filled by any of them you carry
+    for _, set in ipairs(setOrder) do
+      local list2 = sets[set]
+      local chosen = picks["set:" .. set]
+      local lead
+      if chosen ~= false then
+        for _, e in ipairs(list2) do if not e.hidden and e.id == chosen then lead = e end end
+        if not lead and not (list2[1] and list2[1].optional) then
+          for _, e in ipairs(list2) do if not e.hidden then lead = e break end end
+        end
+      end
+      local carried = 0
+      for _, e in ipairs(list2) do if not e.hidden then carried = carried + e.have end end
+      for _, e in ipairs(list2) do
+        e.selected = e == lead
+        e.alt = not e.selected
+        if e.selected then e.setHave = carried end
       end
     end
     for k = at + 1, #shown do
       local e = shown[k]
       group.n = group.n + 1
-      if not e.hidden and e.short > 0 then
-        local cheapest = makes(e) and e.make or e.price
-        if cheapest then sum = sum + cheapest * e.short end
-        shortCount = shortCount + 1
-        group.short = group.short + 1
+      if e.selected then
+        e.need = e.want
+        e.short = math.max(0, e.need - (e.setHave or e.have))
+        nPicked = nPicked + 1
+        if e.short > 0 then
+          local cheapest = makes(e) and e.make or e.price
+          if cheapest then sum = sum + cheapest * e.short else nUnpriced = nUnpriced + 1 end
+          shortCount = shortCount + 1
+          group.short = group.short + 1
+        else
+          nStocked = nStocked + 1
+        end
       end
     end
     if #shown == at then shown[at] = nil end -- nothing on this list for the slot
@@ -1640,6 +1740,7 @@ refresh = function()
     row.groupHint:SetShown(isGroup)
     row.groupCount:SetShown(isGroup)
     row.icon:SetShown(not isGroup)
+    row.pick:SetShown(not isGroup)
     row.name:SetShown(not isGroup)
     row.effect:SetShown(not isGroup)
     row.have:SetShown(not isGroup)
@@ -1647,7 +1748,7 @@ refresh = function()
     row.price:SetShown(not isGroup)
     if isGroup then
       stripe = false
-      row.group, row.item = e.header, nil
+      row.group, row.item, row.entry = e.header, nil, nil
       row:SetAlpha(1)
       row:SetSelected(false)
       row:SetStripe(false)
@@ -1660,11 +1761,27 @@ refresh = function()
       stripe = not stripe
       row.group = nil
       row:SetStripe(stripe)
+      -- not in your loadout: quieter, but its art stays in colour
       row:SetAlpha(e.hidden and 0.45 or 1)
-      row.item, row.short = e.id, e.short
+      row.item, row.short, row.entry = e.id, e.short, e
       row:SetSelected(e.id == selectedItem)
       row.icon:SetTexture(NW.ItemIcon(e.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
-      row.name:SetText((e.alt and (H.dim .. "or|r  ") or "") .. (itemName(e.id)))
+      row.icon:SetAlpha(e.selected and 1 or 0.7)
+      row.pick.tick:SetShown(e.selected and not e.set)
+      row.pick.dot:SetShown(e.set ~= nil)
+      -- the round button: the texture's own unticked and ticked halves
+      row.pick.dot:SetTexCoord(e.selected and 0.25 or 0, e.selected and 0.5 or 0.25, 0, 1)
+      if e.set then row.pick:SetBackdrop(nil) else UI.Flat(row.pick, e.selected and S.select or S.sunk, S.edge) end
+      row.onPick = function(r)
+        local en = r.entry
+        if not en or en.hidden then return end
+        local pk = picksOf(shown.listKey)
+        if en.set then pk["set:" .. en.set] = (not en.selected) and en.id or false
+        else pk[en.id] = not en.selected end
+        refresh()
+      end
+      row.name:SetText(itemName(e.id))
+      row.name:SetTextColor(unpack(e.selected and S.text or S.dim))
       -- the first sentence; the whole effect is in the item's tooltip
       local eff = e.effect and e.effect:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
       eff = eff:match("^[^\n]*") or eff
@@ -1680,10 +1797,14 @@ refresh = function()
       row.make:SetText(mk)
       local buyCol = (e.price and e.make and e.m.known and not cheaperMake) and H.good or H.text
       row.price:SetText(e.price and (buyCol .. money(e.price):gsub("|r", "|r" .. buyCol) .. "|r") or (H.dim .. "–|r"))
-      -- red only below the stock you asked for
-      local have = not e.alt and e.setHave or e.have
-      local col = (e.need > 0 and have < e.need) and H.bad or ((e.alt or e.optional) and have == 0 and H.dim) or H.text
-      row.have:SetText(e.need > 1 and ("%s%d|r%s/%d|r"):format(col, have, H.dim, e.need) or ("%s%d|r"):format(col, have))
+      -- owned / target for what you bring (red below target); just what you own for the rest
+      local have = e.selected and e.setHave or e.have
+      if e.selected then
+        local col = have < e.need and H.bad or H.good
+        row.have:SetText(("%s%d|r%s / %d%s|r"):format(col, have, H.dim, e.need, e.manual and "*" or ""))
+      else
+        row.have:SetText(have > 0 and ("%d"):format(have) or (H.dim .. "0|r"))
+      end
     end
   end
   emptyText:SetShown(#visible == 0)
@@ -1700,11 +1821,15 @@ refresh = function()
   hiddenCheck:SetShown(nHidden > 0)
   hiddenCheck:Refresh()
   hint:SetShown(nHidden == 0)
-  total:SetText(shortCount > 0 and (("%s%d|r below stock"):format(H.bad, shortCount)
-    .. (sum > 0 and ("  %s·|r  %s to restock"):format(H.dim, money(sum)) or "")) or (H.good .. "Stocked|r"))
+  -- your loadout in a line: what you bring, what's ready, what's short and its known cost
+  local parts = { ("%d picked"):format(nPicked) }
+  if nStocked > 0 then parts[#parts + 1] = ("%s%d stocked|r"):format(H.good, nStocked) end
+  if shortCount > 0 then parts[#parts + 1] = ("%s%d below target|r"):format(H.bad, shortCount) end
+  if sum > 0 then parts[#parts + 1] = "~" .. money(sum) .. (nUnpriced > 0 and (H.bad .. " +?|r") or "") end
+  if nUnpriced > 0 then parts[#parts + 1] = ("%s%d no price|r"):format(H.dim, nUnpriced) end
+  if nPicked > 0 and shortCount == 0 then parts[#parts + 1] = H.good .. "ready|r" end
+  UI.FitText(total, table.concat(parts, ("  %s·|r  "):format(H.dim)), 12, 10)
   searchBtn:SetEnabled(shortCount > 0)
   drawDetail()
   matsBtn:SetShown(selectedItem ~= nil and NW.RecipeFor(selectedItem) ~= nil)
-  farmBtn:SetShown(farmNode ~= nil)
-  if farmNode then farmBtn:SetText("Farm " .. farmNode) end
 end
