@@ -480,6 +480,7 @@ for i = 1, STEP_FRAMES do
   bg:SetAllPoints()
   bg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.025 or 0)
   row.range = UI.Text(row, 12, S.gold)
+  row.range:SetWordWrap(false)
   row.range:SetPoint("TOPLEFT", 8, -5)
   row.range:SetWidth(62)
   row.icon = row:CreateTexture(nil, "ARTWORK")
@@ -514,7 +515,7 @@ for i = 1, STEP_FRAMES do
   -- Craft what this row makes, as many as your bags allow
   row.craft = UI.Button(row, "", 70, function(self) craftClick(self) end, 17)
   row.craft.label:SetFont(UI.FONT, 11, "")
-  row.craft:SetPoint("BOTTOMRIGHT", -6, 3)
+  row.craft:SetPoint("BOTTOMRIGHT", -6, 1)
   row.craft:Hide()
   row.craft:HookScript("OnEnter", function(self)
     if not self.why then return end
@@ -1048,7 +1049,7 @@ end
 function MS.toolText(row, text)
   row.mats:ClearAllPoints()
   row.mats:SetPoint("LEFT", row, "TOPLEFT", MS.COL.mat, -18)
-  row.mats:SetWidth(MS.COL.matW + 40)
+  row.mats:SetWidth(MS.COL.matW)
   UI.FitText(row.mats, text, 11, 9)
 end
 -- Where a row's parts go. cols: Leveling's columns (from: a part or tool,
@@ -1059,21 +1060,26 @@ function MS.layout(row, cols, from)
   local C = MS.COL
   local x = (cols and from) and MS.INDENT or 0
   row.icon:ClearAllPoints()
+  row.range:SetFont(UI.FONT, 12, "")
   row.range:SetWidth(cols and (C.icon - C.range - 4) or 62)
   row.crafts:ClearAllPoints()
   row.mats:ClearAllPoints()
   row.link:Hide()
   row.tick:Hide()
+  row.name:ClearAllPoints()
   if cols then
     row.icon:SetPoint("TOPLEFT", C.icon + x, -2)
+    -- two lines at most, from the top: a long name never reaches the row above
+    row.name:SetPoint("TOPLEFT", row, "TOPLEFT", C.name + x, -5)
     row.name:SetWidth(C.nameW - x)
     row.name:SetWordWrap(true)
-    row.name:SetMaxLines(2)
+    if row.name.SetMaxLines then row.name:SetMaxLines(2) end
     row.crafts:SetPoint("TOPRIGHT", C.crafts, -5)
     row.mats:SetPoint("TOPLEFT", C.name + x, -22)
     row.mats:SetWidth(MID_W - 12 - C.name - x - 8)
   else
     row.icon:SetPoint("TOPLEFT", 70, -2)
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
     row.name:SetWidth(270)
     row.name:SetWordWrap(false)
     row.crafts:SetPoint("TOPRIGHT", -96, -5)
@@ -1354,7 +1360,7 @@ drawSteps = function()
       local done = learned and stp.to and rank >= stp.to and not stp.banner
       row:SetAlpha(done and 0.5 or 1)
       row:SetSelected(learned and rank >= stp.from and rank < stp.to)
-      row.range:SetText((done and "|TInterface\\RaidFrame\\ReadyCheck-Ready:12:12:0:0|t " or "") .. ("%d-%d"):format(stp.shownFrom or stp.from, stp.to))
+      UI.FitText(row.range, (done and "|TInterface\\RaidFrame\\ReadyCheck-Ready:10:10:0:0|t" or "") .. ("%d-%d"):format(stp.shownFrom or stp.from, stp.to), 12, 10)
       if stp.banner then
         -- a trip to the trainer: who, where, and when you can go
         local ru = stp.rankUp
@@ -1451,6 +1457,7 @@ drawSteps = function()
       else
         row.trainBg:Hide()
         row.icon:Hide()
+        MS.layout(row, false) -- a full-width line, not the Recipe column
         row.name:SetText("|cffd17665No recipe in the data covers this range|r")
         row.crafts:SetText("")
         row.cost:SetText("")
@@ -1523,6 +1530,7 @@ function MS.fixedRows()
     row.range:Show() row.name:Show() row.mats:Show() row.crafts:Show() row.cost:Show()
     row.strip:Clear() -- (only Leveling's rows draw icons)
     MS.layout(row, false)
+    row.mats:SetFont(UI.FONT, 11, "") -- (Leveling's FitText may have shrunk it)
     if i > STEP_ROWS then row:Hide() end
   end
 end
