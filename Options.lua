@@ -37,19 +37,32 @@ local function heading(col, text, w)
   if cols[col].y < -10 then cols[col].y = cols[col].y - 10 end
   return place(col, UI.Heading(page, text, w or COL_W), 26)
 end
+-- Appearance presets remember your changes: a setting a preset sets, changed while
+-- that preset is the one you picked last, is kept for it (settings.presetTweaks)
+local PRESET_DEFAULTS = {} -- name -> { key = value }, filled where the presets are
+local function noteTweak(key, v)
+  local name = s().lookPreset
+  local def = name and PRESET_DEFAULTS[name]
+  if not (def and def[key] ~= nil) then return end
+  s().presetTweaks = s().presetTweaks or {}
+  local tw = s().presetTweaks[name] or {}
+  s().presetTweaks[name] = tw
+  local same = (type(v) == "number" and type(def[key]) == "number") and math.abs(v - def[key]) < 0.001 or (v or false) == def[key]
+  if same then tw[key] = nil elseif v == nil then tw[key] = false else tw[key] = v end
+end
 local function check(col, label, key, tip, after)
   return place(col, UI.Check(page, label, function() return s()[key] end,
-    function(v) s()[key] = v; changed(); refreshAll(); if after then after(v) end end, tip), 24, 2)
+    function(v) s()[key] = v; noteTweak(key, v); changed(); refreshAll(); if after then after(v) end end, tip), 24, 2)
 end
 local function slider(col, label, minV, maxV, step, fmt, key, after, tip)
   return place(col, UI.Slider(page, COL_W, label, minV, maxV, step, fmt,
-    function() return s()[key] end, function(v) s()[key] = v; if after then after(v) end end, tip), 44)
+    function() return s()[key] end, function(v) s()[key] = v; noteTweak(key, v); if after then after(v) end end, tip), 44)
 end
 -- A second check on the row just placed
 local function checkBeside(col, label, key, tip)
   cols[col].y = cols[col].y + 24
   return place(col, UI.Check(page, label, function() return s()[key] end,
-    function(v) s()[key] = v; changed(); refreshAll() end, tip), 24, 222)
+    function(v) s()[key] = v; noteTweak(key, v); changed(); refreshAll() end, tip), 24, 222)
 end
 -- Greyed out (value kept) while another setting is off
 local function dependsOn(widget, key, want)
@@ -146,13 +159,22 @@ newPage("look", "Appearance")
 local PRESETS = {
   { "Farming", "Half the screen, live dots, ring, compass and session panel.", {
     overlaySize = 0.5, opacity = 0.4, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.6,
-    brightNear = true, mountZoom = true, liveDots = true, showRangeRing = true, showCompass = true, showSession = true, hidePicked = false } },
+    brightNear = true, liveDots = true, showRangeRing = true, showCompass = true, showSession = true, hidePicked = false } },
   { "Questing", "Smaller and fainter, out of the way.", {
     overlaySize = 0.35, opacity = 0.2, scale = 1.0, tint = "natural", fadeMoving = true, fadeMovingAlpha = 0.4,
-    brightNear = true, mountZoom = true, showRangeRing = false, showCompass = false, showSession = false, hidePicked = false } },
+    brightNear = true, showRangeRing = false, showCompass = false, showSession = false, hidePicked = false } },
   { "Minimal", "Icons and route only, no terrain or panels.", {
-    tint = "none", fadeMoving = false, mountZoom = false, showRangeRing = false, showCompass = false, showSession = false, hidePicked = true } },
+    tint = "none", fadeMoving = false, showRangeRing = false, showCompass = false, showSession = false, hidePicked = true } },
 }
+-- (zooming out when mounted is yours to choose: no preset changes it)
+for _, pr in ipairs(PRESETS) do PRESET_DEFAULTS[pr[1]] = pr[3] end
+-- a preset as you've made it: its values with your changes on top
+local function presetValues(name)
+  local out = {}
+  for k, v in pairs(PRESET_DEFAULTS[name]) do out[k] = v end
+  for k, v in pairs((s().presetTweaks or {})[name] or {}) do out[k] = v end
+  return out
+end
 local presetBtns = {}
 local function presetMatches(values)
   for k, v in pairs(values) do
@@ -165,14 +187,15 @@ local function presetMatches(values)
 end
 local presetMark = { Refresh = function()
   for _, b in ipairs(presetBtns) do
-    local on = presetMatches(b.values)
+    local on = presetMatches(presetValues(b.name))
     b.label:SetTextColor(unpack(on and S.gold or S.text))
     b:SetBackdropBorderColor(unpack(on and S.gold or S.edge))
   end
 end }
 widgets[#widgets + 1] = presetMark
-local function applyPreset(values)
-  for k, v in pairs(values) do s()[k] = v end
+local function applyPreset(name)
+  s().lookPreset = name
+  for k, v in pairs(presetValues(name)) do s()[k] = v end
   if NW.SizeOverlay then NW.SizeOverlay() end
   changed()
   refreshAll()
@@ -181,11 +204,11 @@ heading(1, "Overlay", COL_W - 250)
 do
   local x = COL_X[1] + COL_W - 240
   for i, pr in ipairs(PRESETS) do
-    local b = UI.Button(page, pr[1], 76, function() applyPreset(pr[3]) end, 20)
+    local b = UI.Button(page, pr[1], 76, function() applyPreset(pr[1]) end, 20)
     b:SetPoint("TOPLEFT", page, "TOPLEFT", x + (i - 1) * 82, -8)
-    b.values = pr[3]
+    b.name = pr[1]
     b:HookScript("OnLeave", function() presetMark.Refresh() end)
-    UI.Tip(b, pr[1], pr[2] .. " Gold: your settings match it.")
+    UI.Tip(b, pr[1], pr[2] .. " Keeps your changes to it. Gold: your settings match it.")
     presetBtns[i] = b
   end
 end
@@ -213,7 +236,7 @@ whileTerrain(place(1, UI.Dropdown(page, COL_W, "Map style", {
 place(1, UI.Dropdown(page, COL_W, "Terrain colour", {
   { "natural", "Natural" }, { "muted", "Muted" }, { "silhouette", "Silhouette (dark)" },
   { "gold", "Gold tint" }, { "blue", "Blue tint" }, { "none", "Off (icons and route only)" },
-}, function() return s().tint end, function(v) s().tint = v; changed(); refreshAll() end, 190), 30)
+}, function() return s().tint end, function(v) s().tint = v; noteTweak("tint", v); changed(); refreshAll() end, 190), 30)
 -- says why the two above do nothing while it's off
 local terrainNote = UI.Text(page, 11, S.dim)
 terrainNote:SetText("Terrain colour is Off (Minimal): no map is drawn, so opacity and map style don't apply.")
@@ -244,7 +267,7 @@ dependsOn(slider(1, "Quest area ring", 0, 1, 0.05, pct, "questRingAlpha",
   function() if NW.ApplyQuestRing then NW.ApplyQuestRing() end end,
   "The checkered ring your minimap draws round quest areas, seen through the overlay."), "liveDots")
 place(1, UI.Check(page, "Show gathered spots", function() return not s().hidePicked end,
-  function(v) s().hidePicked = not v or nil; changed(); refreshAll() end,
+  function(v) s().hidePicked = not v or nil; noteTweak("hidePicked", not v); changed(); refreshAll() end,
   "A small grey dot where you gathered, until the gathered node cooldown ends."), 24, 2)
 
 heading(2, "Resource filters")

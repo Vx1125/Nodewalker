@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Appearance presets keep your changes: switching Farming, Questing and Minimal no longer resets what you adjusted.
+- Presets no longer turn on "Zoom out when mounted".
 - Routes: a Back button on the map returns to the profession or material that proposed the route (the proposal stays).
 - Leveling cost: the three totals size to their text, so long gold and silver amounts don't overlap.
 - Fishing: zone panel is a location guide: zone map with your catch spots, fish with what they cook into, the lure (Prefer sets it for Smart Fishing), Base, Bonus and Effective.
