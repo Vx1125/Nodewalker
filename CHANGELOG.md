@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Leveling: a recipe is made until it turns green, then the plan moves to one that's still orange or yellow.
+- Route tab: Start keeps the overlay as you have it.
+- Material Finder: smoother scrolling; recipe view wider, without repeated material lines.
 - Leveling: tools get their own row when first needed (Blacksmith Hammer, Arclight Spanner, Gyromatic Micro-Adjustor, enchanting rods) and go on the shopping list.
 - Leveling: a recipe that comes back after other steps does the points between when it costs about the same; plans are chosen again once.
 - Leveling: parts you make first (Handful of Copper Bolts, blasting powder) get their own row before the step.

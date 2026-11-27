@@ -978,7 +978,7 @@ end
 local function kitSig(key)
   local s = NW.db.settings
   local sell = key ~= "cooking" and s.planSellBack or false
-  return "k3|" .. (s.planStrategy or "") .. "|" .. tostring(sell) .. "|" .. (s.planRecipeItems and "r" or "")
+  return "k4|" .. (s.planStrategy or "") .. "|" .. tostring(sell) .. "|" .. (s.planRecipeItems and "r" or "")
     .. "|" .. (key == "cooking" and NW.CookAllow and NW.CookAllowKey() or "")
 end
 -- The baseline kit: one plan from 1 to 300 at today's prices, ignoring
@@ -1157,12 +1157,21 @@ function NW.BuildPlan(key, from, to)
       end
     end
     stickyI, stickyC, stickyNeeds = nil, nil, nil
-    -- and point to point, the recipe you're already making stays unless
-    -- another is clearly cheaper: no hopping between two for a point or two
+    -- Ride a recipe until it turns green, then move on (the way leveling guides
+    -- do it): the one you're making stays while it's orange or yellow unless
+    -- another is much cheaper, and once it's green a recipe that's still
+    -- orange or yellow takes over if it costs about the same
     local prev = sk > from and pick[sk - 1]
     local cur = prev and here[prev.i]
-    if cur and best ~= prev.i and cur[3] >= 0.25 and cur[1] <= bestCost * 1.10 then
+    if cur and best ~= prev.i and sk < recipes[prev.i].green and cur[3] >= 0.25 and cur[1] <= bestCost * 1.5 then
       best, bestCost, bestNeeds = prev.i, cur[1], cur[2]
+    end
+    if best and sk >= recipes[best].green then
+      local alt, altC, altN
+      for i, c in pairs(here) do
+        if sk < recipes[i].green and c[1] <= bestCost * 1.5 and (not altC or c[1] < altC) then alt, altC, altN = i, c[1], c[2] end
+      end
+      if alt then best, bestCost, bestNeeds = alt, altC, altN end
     end
     if best then
       owned[best] = true
