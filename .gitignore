@@ -8,3 +8,6 @@ research/
 tools/reports/
 tools/*.md
 *.notes.md
+DEVELOPMENT.md
+UI_DESIGN_STANDARD.md
+MARKETING.md
