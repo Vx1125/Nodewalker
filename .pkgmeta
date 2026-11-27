@@ -14,3 +14,9 @@ ignore:
   - UI_DESIGN_STANDARD.md
   - screenshots
   - tools
+  - research
+  - CLAUDE.md
+  - CLAUDE.local.md
+  - .claude
+  - .gitignore
+  - .pkgmeta

@@ -1,1 +1,10 @@
 texluac.out
+
+# Notes and working files for us only: never on GitHub or CurseForge
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+research/
+tools/reports/
+tools/*.md
+*.notes.md
