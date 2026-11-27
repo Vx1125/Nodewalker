@@ -518,6 +518,9 @@ local refresh
 local page = UI.AddTab("consumes", "Consumes", function() refresh() end)
 NW.On("GET_ITEM_INFO_RECEIVED", function() if page:IsShown() then page.dirty = true end end)
 NW.On("BAG_UPDATE_DELAYED", function() if page:IsShown() then page.dirty = true end end)
+-- Search AH works only at the auction house
+NW.On("AUCTION_HOUSE_SHOW", function() if page:IsShown() then page.dirty = true end end)
+NW.On("AUCTION_HOUSE_CLOSED", function() if page:IsShown() then page.dirty = true end end)
 page:SetScript("OnUpdate", function(self) if self.dirty then self.dirty = false refresh() end end)
 
 local selectedItem
@@ -541,7 +544,7 @@ local HINT = {
   Food = "one at a time",
   Drink = "one at a time",
   Poisons = "one per weapon",
-  Runes = "own cooldown, shared with healthstones",
+  Runes = "one per cooldown, shared with healthstones",
   ["Weapon oil"] = "one per weapon",
   Weapon = "one per weapon",
   Potions = "share a cooldown",
@@ -586,8 +589,15 @@ end
 local function picksOf(key)
   local all = st().consumePick
   if not all then all = {} st().consumePick = all end
-  all[key] = all[key] or {}
-  return all[key]
+  local p = all[key] or {}
+  all[key] = p
+  -- runes used to be one of a slot: the one you picked stays ticked
+  local r = p["set:Runes"]
+  if r ~= nil then
+    if r and p[r] == nil then p[r] = true end
+    p["set:Runes"] = nil
+  end
+  return p
 end
 -- Targets you set by hand, per list: [id] = how many
 local function qtyOf(key)
@@ -1159,7 +1169,8 @@ local function copy(src) local o = {} for k, v in pairs(src or {}) do o[k] = v e
 local loadBtn = UI.Button(page, "Loadouts", 110, nil, 22)
 loadBtn:SetPoint("LEFT", budget, "RIGHT", 16, 0)
 page.loadBtn = loadBtn
-local loadMenu = UI.Panel(nil, UIParent, 230, 10)
+local loadMenu = UI.Panel("NodewalkerLoadoutMenu", UIParent, 230, 10)
+if UISpecialFrames then tinsert(UISpecialFrames, "NodewalkerLoadoutMenu") end -- (Escape closes it)
 loadMenu:SetFrameStrata("FULLSCREEN_DIALOG")
 loadMenu:SetClampedToScreen(true)
 loadMenu:Hide()
@@ -1224,7 +1235,7 @@ local function openLoadouts()
     r.text:SetTextColor(unpack(st().consumeLoadout == x.name and S.gold or S.text))
     r.tipTitle = x.name
     r.tip = (x.activity == "level" and "Adapts as you level: your choices follow each kind." or "The exact items you chose.")
-      .. ("\nSaved at level %d. Click: load. Right-click: delete."):format(x.level or 0)
+      .. ("\nSaved at level %d. Click: load (replaces your current choices for that list). Right-click: delete."):format(x.level or 0)
     r:SetScript("OnClick", function(_, button)
       if button == "RightButton" then
         table.remove(l, i)
@@ -1240,7 +1251,7 @@ local function openLoadouts()
   local r = loadRow(n + 1)
   r.text:SetText("Save current")
   r.text:SetTextColor(unpack(S.gold))
-  r.tipTitle, r.tip = "Save current", "Spec, activity, strategy, stock, your choices and targets. Saved under its spec, activity and strategy; saving again replaces it."
+  r.tipTitle, r.tip = "Save current", "Spec, activity, strategy, stock, your choices and targets. Saved under its spec, activity and strategy; saving again replaces it. Ten at most: the oldest goes."
   r:SetScript("OnClick", function() saveLoadout() loadMenu:Hide() refresh() end)
   r:Show()
   for k = n + 2, #loadMenu.rows do loadMenu.rows[k]:Hide() end
@@ -1337,9 +1348,9 @@ local function rowFor(i)
   row.pick.tick:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
   row.pick.tick:SetVertexColor(S.gold[1], S.gold[2], S.gold[3])
   row.pick.dot = row.pick:CreateTexture(nil, "OVERLAY")
-  row.pick.dot:SetSize(16, 16)
+  row.pick.dot:SetSize(6, 6)
   row.pick.dot:SetPoint("CENTER")
-  row.pick.dot:SetTexture("Interface\\Buttons\\UI-RadioButton")
+  row.pick.dot:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
   row.pick:SetScript("OnClick", function(self) local r = self:GetParent() if r.onPick then r.onPick(r) end end)
   row.onPick = function(r)
     local en = r.entry
@@ -1791,7 +1802,15 @@ local function drawDetail()
   -- only a real choice gets the outline: buying beats a craft you could do
   local buyBest = buy and craft and canMake and buy <= craft
   -- exact (gold, silver, copper as needed) so the two never read the same while one is cheaper
-  local exact = function(c) return NW.Money(c) end
+  local exact = function(c)
+    c = math.floor((c or 0) + 0.5)
+    local g, s2, cp = math.floor(c / 10000), math.floor(c / 100) % 100, c % 100
+    local parts = {}
+    if g > 0 then parts[#parts + 1] = g .. "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:1:0|t" end
+    if s2 > 0 then parts[#parts + 1] = s2 .. "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:1:0|t" end
+    if cp > 0 or #parts == 0 then parts[#parts + 1] = cp .. "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:1:0|t" end
+    return table.concat(parts, " ")
+  end
   if craft then
     cmpCraft:Set(exact(craft), craftBest, not canMake)
   else
@@ -1810,7 +1829,8 @@ local function drawDetail()
         if g[1] == e.groupName then
           for _, c in ipairs(g[2]) do
             local pc, sc = NW.Price(c[1])
-            if not alt and c[1] ~= id and pc and sc ~= "est" and not (NW.NOT_YET and NW.NOT_YET[c[1]]) and (not e.set or c[4] == e.set or PICK_ONE[g[1]]) then alt = c[1] end
+            local hid = hiddenOf(currentList().key)[c[1]]
+            if not alt and not hid and c[1] ~= id and pc and sc ~= "est" and not (NW.NOT_YET and NW.NOT_YET[c[1]]) and (not e.set or c[4] == e.set or PICK_ONE[g[1]]) then alt = c[1] end
           end
         end
       end
@@ -2083,10 +2103,10 @@ refresh = function()
       row.icon:SetTexture(NW.ItemIcon(e.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
       row.icon:SetAlpha(e.selected and 1 or 0.7)
       row.pick.tick:SetShown(e.selected and not e.set)
-      row.pick.dot:SetShown(e.set ~= nil)
-      -- the round button: the texture's own unticked and ticked halves
-      row.pick.dot:SetTexCoord(e.selected and 0.25 or 0, e.selected and 0.5 or 0.25, 0, 1)
-      if e.set then row.pick:SetBackdrop(nil) else UI.Flat(row.pick, e.selected and S.select or S.sunk, S.edge) end
+      -- one of a slot: a gold dot in the box when picked; on its own: a tick
+      row.pick.dot:SetShown(e.set ~= nil and e.selected)
+      UI.Flat(row.pick, e.selected and S.select or S.sunk, e.set and S.gold or S.edge)
+      if e.set then row.pick:SetBackdropBorderColor(S.gold[1], S.gold[2], S.gold[3], 0.45) end
       row.pick:SetAlpha(e.hidden and 0.4 or 1)
       row.name:SetText(itemName(e.id))
       row.name:SetTextColor(unpack(e.selected and S.text or S.dim))
