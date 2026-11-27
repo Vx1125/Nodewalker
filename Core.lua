@@ -438,6 +438,8 @@ SlashCmdList.NODEWALKER = function(msg)
     if NW.OpenFishJournal then NW.OpenFishJournal() end
   elseif msg == "buffs" then
     if NW.BuffTracker then NW.BuffTracker.Toggle() end
+  elseif msg == "buffs reset" then
+    if NW.BuffTracker then NW.BuffTracker.ForgetLearned() NW.Print("Learned buffs forgotten.") end
   elseif msg == "fishhud" then
     if NW.ToggleFishHUD then NW.ToggleFishHUD() end
   elseif msg == "window" or msg == "open" then

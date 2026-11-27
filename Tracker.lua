@@ -94,6 +94,8 @@ local function readAuras()
     if hid or not R(sid) then hidden = true
     else fresh[sid] = (R(exp) and type(exp) == "number") and exp or 0 end
   end
+  -- in combat the client may hide auras by returning none at all: there, a reading only adds
+  if combat() then hidden = true end
   hiddenNow = hidden
   if hidden then
     for k, v in pairs(fresh) do auras[k] = v end
@@ -167,7 +169,10 @@ end
 ------------------------------------------------------------------------
 local tracked = {}    -- from the Consumes selection: { id, kind, alts, group, need }
 local bySpell = {}    -- [use spell] = tracked entry (for learning)
+local carry = {}
 local function rebuildTracked(rebuildConsumes)
+  wipe(carry)
+  for _, x in ipairs(tracked) do carry[x.id] = x end
   wipe(tracked)
   wipe(bySpell)
   wipe(useSpell)
@@ -176,7 +181,10 @@ local function rebuildTracked(rebuildConsumes)
     local k = kindOf(e)
     if k and (k ~= "use" or st().buffCooldowns) then
       local x = { id = e.id, kind = k, alts = e.alts, group = e.group, need = e.need or 0, tier = e.tier }
+      local old = carry[e.id]
+      if old then x.state, x.prev, x.last, x.hadStock, x.exp, x.by = old.state, old.prev, old.last, old.hadStock, old.exp, old.by end
       tracked[#tracked + 1] = x
+      carry[e.id] = nil
       if k ~= "use" then
         for _, a in ipairs(e.alts or { e.id }) do
           local sp = spellOf(a)
@@ -185,6 +193,7 @@ local function rebuildTracked(rebuildConsumes)
       end
     end
   end
+  wipe(carry)
 end
 T.tracked = tracked
 
@@ -581,7 +590,10 @@ NW.On("BAG_UPDATE_COOLDOWN", function() if on() then queue() end end)
 NW.On("SPELL_UPDATE_COOLDOWN", function() if on() then queue(0.3) end end)
 NW.On("PLAYER_LEVEL_UP", function() if on() then dirty.list, dirty.rebuild = true, true queue(1) end end)
 NW.On("PLAYER_REGEN_ENABLED", function()
-  if not on() then return end
+  if not on() then
+    if hud:IsShown() then hud:Hide() end -- (turned off during the fight)
+    return
+  end
   dirty.auras, dirty.weapon = true, true
   if T.relist then T.relist = nil dirty.list = true end
   T.relayout = true
@@ -610,6 +622,11 @@ if NW.OnConsumeSelection then
   NW.OnConsumeSelection(function() if on() then dirty.list = true queue(0.1) end end)
 end
 
+-- /nw buffs reset: forget the buffs and enchants learned from your items
+function T.ForgetLearned()
+  NW.db.buffSeen, NW.db.enchSeen = nil, nil
+  T.Refresh()
+end
 -- /nw buffs: the tracker on or off
 function T.Toggle(v)
   if v == nil then v = not st().buffHud end
