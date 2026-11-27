@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased
+- Gathering: your current bracket keeps a gold edge while another is selected.
+- Gathering: trainer rows show learn-at skill and the new cap; brackets past your cap say "train first".
+- Gathering: at your cap, resources say "train to go on"; "best" only marks one that still gives skill-ups.
+- Gathering: zone counts read as known spots (where nodes were seen, not what's up now).
+- Fishing Leveling: Location, Fish and Skill columns; fish icons at gathering size in their own column; no map icons.
+- Fishing: zone panel lists fish as "May be caught in this zone", shows Cooking recipe icons and the lure's name and bonus.
+- Fishing: Base, Equipment, Lure and Effective skill (the lure split read from the pole when the client shows it).
 
 - Gathering: training rows between ranges; finished ranges ticked; the numbers on herb and ore icons are the skill needed (heading hover says so).
 - Gathering plan (right): each resource by name with its skill and what it does for you (skill-ups, few, none, too low; best marked); zones ranked by spots that still give skill-ups; pick a zone for the route and Material Finder.

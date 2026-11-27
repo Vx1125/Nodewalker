@@ -1137,6 +1137,7 @@ function MS.layout(row, cols, from)
   local C = MS.COL
   local x = (cols and from) and MS.INDENT or 0
   row.smelt = nil -- (Mining's smelting rows set it after)
+  if rawget(row, "nowBar") then row.nowBar:Hide() end
   row.icon:ClearAllPoints()
   row.range:SetFont(UI.FONT, 12, "")
   row.range:SetWidth(cols and (C.icon - C.range - 4) or 62)
@@ -2099,7 +2100,7 @@ local function drawGatherRows(key)
       row.mats:ClearAllPoints()
       row.mats:SetPoint("TOPLEFT", row, "TOPLEFT", MS.COL.name, -21)
       row.mats:SetWidth(MID_W - 12 - MS.COL.name - 8)
-      UI.FitText(row.mats, ("|cffe0dbd0%s|r  ·  skill %d%s"):format(who and (who .. ", " .. where) or ("Any " .. (NW.PROF_BY_KEY[key].name) .. " trainer"), ru.skill, lvl), 11, 9)
+      UI.FitText(row.mats, ("|cffe0dbd0%s|r  ·  learn at %d%s  ·  cap %d"):format(who and (who .. ", " .. where) or ("Any " .. (NW.PROF_BY_KEY[key].name) .. " trainer"), ru.skill, lvl, ru.cap), 11, 9)
       row.crafts:SetText("")
       local fee = (NW.RANK_FEE[key] or {})[ru.name]
       row.cost:SetText(trained and "|cff94ba78trained|r" or (fee and NW.Money(fee, true) or ""))
@@ -2108,7 +2109,20 @@ local function drawGatherRows(key)
       MS.layout(row, true)
       local now = rank >= b.from and rank < b.to
       local done = NW.ProfSkill(key) ~= nil and rank >= b.to
+      local _, gmax = NW.ProfSkill(key)
+      local capped = gmax and gmax < 300 and not done and b.from >= gmax -- (past what you've trained)
       row:SetSelected(MS.gsel == b or (not MS.gsel and now))
+      -- your current bracket keeps a gold edge while another one is selected
+      if now then
+        if not rawget(row, "nowBar") then
+          row.nowBar = row:CreateTexture(nil, "OVERLAY")
+          row.nowBar:SetColorTexture(0.84, 0.70, 0.40, 1)
+          row.nowBar:SetPoint("TOPLEFT", 0, 0)
+          row.nowBar:SetPoint("BOTTOMLEFT", 0, 0)
+          row.nowBar:SetWidth(2)
+        end
+        row.nowBar:Show()
+      end
       row:SetAlpha(done and MS.gsel ~= b and 0.6 or 1)
       UI.FitText(row.range, (done and "|TInterface\\RaidFrame\\ReadyCheck-Ready:10:10:0:0|t" or "") .. ("%d-%d"):format(b.from, b.to), 12, 9)
       row.icon:Hide()
@@ -2129,7 +2143,7 @@ local function drawGatherRows(key)
       UI.FitText(row.mats, table.concat(sub, "  ·  "), 11, 9)
       MS.fillGather(row.strip, key, b, C.matW)
       row.crafts:SetText("")
-      row.cost:SetText(now and "|cffd6b266now|r" or (done and "|cff94ba78done|r" or ""))
+      row.cost:SetText(now and "|cffd6b266now|r" or (done and "|cff94ba78done|r") or (capped and "|cff938c80train first|r") or "")
       row.bracket = b
     else
       row:Hide()
@@ -2259,9 +2273,13 @@ end
 function MS.resourceState(key, it, skill, b)
   if key == "skinning" then return (skill and skill < b.from) and "red" or nil end
   if not (skill and it.req) then return nil end
-  return NW.SkillColor(it.req, skill)
+  local c = NW.SkillColor(it.req, skill)
+  -- at your trained cap nothing gives points until you train
+  local r, mx = NW.ProfSkill(key)
+  if r and mx and mx < 300 and skill >= mx and (c == "orange" or c == "yellow" or c == "green") then return "capped" end
+  return c
 end
-MS.RES_WORDS = { orange = "skill-ups", yellow = "skill-ups", green = "few skill-ups", grey = "no skill-ups", red = "needs %d" }
+MS.RES_WORDS = { orange = "skill-ups", yellow = "skill-ups", green = "few skill-ups", grey = "no skill-ups", red = "needs %d", capped = "train to go on" }
 -- zones by the spots that still give skill-ups at that skill (orange, yellow,
 -- green), then by all known spots: lots of low herbs don't make a zone good
 function MS.rankZones(key, b, skill)
@@ -2412,6 +2430,7 @@ function MS.drawGatherContext(key)
       local st = MS.resourceState(key, it, skill, b)
       local name = (itemName(it.id))
       local isBest = best and it.id == best.id
+        and (st == "orange" or st == "yellow" or st == "green" or (key == "skinning" and st == nil))
       z.text:SetText((isBest and "|cffd6b266" or "|cffe0dbd0") .. name .. "|r")
       local words = st and MS.RES_WORDS[st]
       if st == "red" and it.req then words = words:format(it.req) elseif st == "red" then words = "too low" end
@@ -2460,7 +2479,7 @@ function MS.drawGatherContext(key)
       z.zone = e.name
       z.text:SetText(e.name)
       if e.count then
-        z.right:SetText(e.count == 0 and "|cff938c80none known|r" or ("%d of %d for skill-ups"):format(e.useful, e.count))
+        z.right:SetText(e.count == 0 and "|cff938c80no known spots|r" or ("%d of %d known spots"):format(e.useful, e.count))
       else
         z.right:SetText("")
       end
@@ -2471,7 +2490,7 @@ function MS.drawGatherContext(key)
         if e.count then
           GameTooltip:AddDoubleLine("Known spots", e.count, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
           GameTooltip:AddDoubleLine(("Skill-ups at %d"):format(skill), e.useful, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-          GameTooltip:AddLine("Yours and the shipped data. Spots still orange, yellow or green for you count for skill-ups.", S.dim[1], S.dim[2], S.dim[3], true)
+          GameTooltip:AddLine("Where nodes have been seen (yours and the shipped data), not what's up now. Spots still orange, yellow or green for you count for skill-ups.", S.dim[1], S.dim[2], S.dim[3], true)
         end
         if not e.count and e.useful == nil and key ~= "skinning" then GameTooltip:AddLine("No map data for this zone.", S.dim[1], S.dim[2], S.dim[3], true) end
         GameTooltip:AddLine("Click: use this zone for the route and Material Finder", S.dim[1], S.dim[2], S.dim[3], true)

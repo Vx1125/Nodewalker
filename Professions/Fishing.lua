@@ -723,7 +723,9 @@ for i = 1, 24 do
   r.right:SetPoint("RIGHT", -6, 0)
   r.right:SetWidth(150)
   r.right:SetWordWrap(false)
-  r.strip = UI.ReagentStrip(r, W.fh, 20)
+  r.strip = UI.ReagentStrip(r, W.fh, 26) -- (the gathering icon size)
+  -- column headings (Leveling: Location, Fish, Skill)
+  r.cap = UI.Text(r, 10, S.dim)
   r.link = r:CreateTexture(nil, "ARTWORK")
   r.link:SetColorTexture(S.edge[1], S.edge[2], S.edge[3], 0.9)
   r.link:SetWidth(1)
@@ -732,7 +734,7 @@ for i = 1, 24 do
   r.tick:SetHeight(1)
   r:SetScript("OnClick", function(self)
     local it = self.item
-    if not it then return end
+    if not it or it.colhead then return end
     if it.head then
       local folds = F.cfg().folds
       folds[it.foldKey] = not it.folded
@@ -755,10 +757,33 @@ for i = 1, 24 do
   W.rows[i] = r
 end
 F.boxH = 530 - TOP
+-- a row's height: headings and column captions short, rows with icons taller
+local ICON_ROW_H = 30
+local function rowH(it)
+  if it.head then return HEAD_H end
+  if it.colhead then return 16 end
+  if it.strip or (it.fishIcons and #it.fishIcons > 0) then return ICON_ROW_H end
+  return ROW_H
+end
+F.LOC_W, F.FISH_X = 190, 214 -- Leveling's columns: Location, Fish, Skill (right)
 function F.drawRows()
   local h = F.boxH - 4
-  local fit = math.floor(h / ROW_H)
-  F.offset = math.max(0, math.min(F.offset or 0, math.max(0, #F.items - fit)))
+  -- the furthest it scrolls and still fills the list
+  local maxOff, sum = 0, 0
+  for i = #F.items, 1, -1 do
+    sum = sum + rowH(F.items[i])
+    if sum > h then maxOff = i break end
+  end
+  F.offset = math.max(0, math.min(F.offset or 0, maxOff))
+  local fit = 0
+  do
+    local yy = 0
+    for i = F.offset + 1, #F.items do
+      yy = yy + rowH(F.items[i])
+      if yy > h then break end
+      fit = fit + 1
+    end
+  end
   local y = 2
   for i, r in ipairs(W.rows) do
     local it = F.items[i + F.offset]
@@ -766,7 +791,7 @@ function F.drawRows()
     if it and i <= fit then
       r:ClearAllPoints()
       r:SetPoint("TOPLEFT", 4, -y)
-      local rh = it.head and HEAD_H or ROW_H
+      local rh = rowH(it)
       r:SetHeight(rh - 1)
       y = y + rh
       r:Show()
@@ -792,6 +817,23 @@ function F.drawRows()
       r.icon:SetPoint("LEFT", it.child and 38 or 20, 0)
       r.link:Hide()
       r.tick:Hide()
+      -- Leveling's zone rows: the place in its column, no map icon; captions on top
+      r.text:ClearAllPoints()
+      if it.colhead or it.zone then
+        r.text:SetPoint("LEFT", 22, 0)
+      else
+        r.text:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+      end
+      r.cap:SetText("")
+      if it.colhead then
+        r.mark:SetText("")
+        r.text:SetText(H.dim .. "Location|r")
+        r.cap:ClearAllPoints()
+        r.cap:SetPoint("LEFT", F.FISH_X, 0)
+        r.cap:SetText(H.dim .. "Fish|r")
+        r.headBg:Hide()
+        r:SetStripe(false)
+      end
       if it.child then
         r.link:ClearAllPoints()
         r.link:SetPoint("TOP", r, "TOPLEFT", 29, it.linkTop and 1 or -(r:GetHeight() / 2))
@@ -807,7 +849,7 @@ function F.drawRows()
         r.link:SetPoint("BOTTOM", r, "TOPLEFT", 29, -2)
         r.link:Show()
       end
-      r.icon:SetShown(it.icon ~= nil or it.head)
+      r.icon:SetShown((it.icon ~= nil or it.head) and not it.zone and not it.colhead)
       r.icon:SetDesaturated(it.desat and true or false)
       r.right:SetText(it.right or "")
       -- fish (a zone's), or what a step uses or makes: icons on the right
@@ -823,15 +865,20 @@ function F.drawRows()
         end
       end
       local n = strip.n
-      local w = math.max(1, n * 25 - 5)
+      local w = math.max(1, n * 31 - 5)
       strip:Finish(w)
       strip:ClearAllPoints()
-      if it.fishIcons and not it.strip then r.right:SetText("") end
       local rw = (r.right:GetText() or "") ~= "" and math.min(150, (r.right:GetStringWidth() or 0) + 12) or 0
-      strip:SetPoint("RIGHT", r, "RIGHT", -6 - rw, 0)
+      if it.zone then
+        -- a zone: its fish in their own column, its skill on the right
+        strip:SetPoint("LEFT", r, "LEFT", F.FISH_X, 0)
+        r.text:SetWidth(F.LOC_W)
+      else
+        strip:SetPoint("RIGHT", r, "RIGHT", -6 - rw, 0)
+        -- the label stops short of the icons and the right-hand text
+        r.text:SetWidth(MID_W - 8 - 44 - 12 - rw - (n > 0 and (w + 8) or 0) - (it.child and 18 or 0))
+      end
       strip:SetShown(n > 0)
-      -- the label stops short of the icons and the right-hand text
-      r.text:SetWidth(MID_W - 8 - 44 - 12 - rw - (n > 0 and (w + 8) or 0) - (it.child and 18 or 0))
     else
       r:Hide()
     end
@@ -841,7 +888,7 @@ function F.drawRows()
     local th = math.max(20, h * fit / total)
     W.thumb:SetHeight(th)
     W.thumb:ClearAllPoints()
-    W.thumb:SetPoint("TOPRIGHT", W.box, "TOPRIGHT", -1, -2 - (h - th) * (F.offset / math.max(1, total - fit)))
+    W.thumb:SetPoint("TOPRIGHT", W.box, "TOPRIGHT", -1, -2 - (h - th) * (F.offset / math.max(1, maxOff)))
     W.thumb:Show()
   else
     W.thumb:Hide()
@@ -1035,7 +1082,7 @@ function F.leveling()
   local rank, max, bonus = F.skill()
   local base = rank or 0
   local folds = F.cfg().folds
-  local items = {}
+  local items = { { colhead = true, right = H.dim .. "Skill|r" } }
   for bi, b in ipairs(F.BRACKETS) do
     local r = F.RANKS[bi]
     local done = base >= b[2]
@@ -1050,21 +1097,21 @@ function F.leveling()
         local trained = max and max >= r.cap
         items[#items + 1] = { icon = r.item and NW.ItemIcon(r.item) or "Interface\\Icons\\INV_Misc_Book_09",
           mark = trained and mark("done") or mark(), text = H.gold .. "Train " .. r.name .. "|r",
-          right = ("skill %d, level %d"):format(r.skill, r.level), selKey = "rank" .. bi, tip = rankTip(r), dim = trained }
+          right = ("learn at %d · cap %d"):format(r.skill, r.cap), selKey = "rank" .. bi, tip = rankTip(r), dim = trained }
       end
       for _, z in ipairs(F.sortZones(b.zones)) do
         local here, range = F.fishIn(z, bi)
         local icons = {}
         for _, id in ipairs(here) do icons[#icons + 1] = id end
         if #icons == 0 then for _, id in ipairs(range) do if #icons < 5 then icons[#icons + 1] = id end end end
-        local name = z
+        local name = F.hostile(z) and (H.dim .. z .. "|r") or z
         if b.best == z then name = name .. "  " .. H.gold .. "best|r" end
-        if F.hostile(z) then name = H.dim .. z .. "|r" end
-        items[#items + 1] = { icon = "Interface\\Icons\\INV_Misc_Map_01", text = name, fishIcons = icons,
-          selKey = "zone" .. bi .. ":" .. z, zone = z, bi = bi, dim = done }
+        local range = ("%d-%d"):format(b[1], b[2])
+        items[#items + 1] = { text = name, fishIcons = icons, right = cur and (H.gold .. range .. "|r") or range,
+          selKey = "zone" .. bi .. ":" .. z, zone = z, bi = bi, dim = done, mark = cur and mark("next") or nil }
       end
       for _, z in ipairs(b.later or {}) do
-        items[#items + 1] = { icon = "Interface\\Icons\\INV_Misc_Map_01", text = z, right = ("from %d with a lure"):format(b.laterAt),
+        items[#items + 1] = { text = z, right = ("%d+ with a lure"):format(b.laterAt),
           selKey = "zone" .. bi .. ":" .. z, zone = z, bi = bi, later = b.laterAt, dim = done }
       end
     end
@@ -1078,10 +1125,40 @@ function F.equipLines(rows)
   local lure = F.lureOn()
   rows[#rows + 1] = "gap"
   rows[#rows + 1] = { head = "Your fishing" }
-  rows[#rows + 1] = { "Skill", tostring(rank) }
-  rows[#rows + 1] = { "Gear and lures", bonus > 0 and ("+" .. bonus) or "0" }
+  rows[#rows + 1] = { "Base", tostring(rank) }
+  local lb = lure and F.lureBonus()
+  if lb and lb <= bonus then
+    rows[#rows + 1] = { "Equipment", bonus - lb > 0 and ("+" .. (bonus - lb)) or "0" }
+    rows[#rows + 1] = { "Lure", ("+%d, %d min left"):format(lb, lure) }
+  else
+    -- the client gives one total; the split is only read off the pole's tooltip
+    rows[#rows + 1] = { "Equipment and lure", bonus > 0 and ("+" .. bonus) or "0" }
+    if lure ~= nil then rows[#rows + 1] = { "Lure", lure and (lure .. " min left") or (H.dim .. "none|r") } end
+  end
   rows[#rows + 1] = { "Effective", BLUE_HEX .. (rank + bonus) .. "|r" }
-  if lure ~= nil then rows[#rows + 1] = { "Lure", lure and (lure .. " min left") or (H.dim .. "none|r") } end
+end
+-- the active lure's bonus, read off the equipped pole's tooltip (nil if unreadable)
+function F.lureBonus()
+  if not CreateFrame then return nil end
+  local tip = F.scanTip
+  if not tip then
+    tip = CreateFrame("GameTooltip", "NodewalkerScanTip", nil, "GameTooltipTemplate")
+    F.scanTip = tip
+  end
+  tip:SetOwner(WorldFrame, "ANCHOR_NONE")
+  tip:ClearLines()
+  local ok = pcall(tip.SetInventoryItem, tip, "player", 16)
+  local found
+  if ok then
+    for i = 1, tip:NumLines() or 0 do
+      local fs = _G["NodewalkerScanTipTextLeft" .. i]
+      local s = fs and fs:GetText()
+      local n = s and s:match("Lure.-%+(%d+)")
+      if n then found = tonumber(n) break end
+    end
+  end
+  tip:Hide()
+  return found
 end
 
 local function lureFor(b, rows)
@@ -1093,7 +1170,8 @@ local function lureFor(b, rows)
   local name = F.itemName(want[1], LURE_NAME[want[1]])
   local ok = bonus >= want[2]
   local icon = NW.ItemIcon(want[1])
-  rows[#rows + 1] = { "Lure", ok and (H.good .. "+" .. bonus .. " on|r") or ("%s%s +%d"):format(icon and ("|T" .. icon .. ":14:14:0:0|t ") or "", name, want[2]) }
+  rows[#rows + 1] = { "Lure", ("%s%s +%d%s"):format(icon and ("|T" .. icon .. ":14:14:0:0|t ") or "", name, want[2],
+    ok and ("  " .. H.good .. "covered|r") or "") }
 end
 
 local function fishLines(rows, ids, title)
@@ -1118,7 +1196,8 @@ function F.zoneDetail(zone, bi, later)
   }
   lureFor(b, rows)
   rows[#rows + 1] = "gap"
-  fishLines(rows, here, "Caught here")
+  fishLines(rows, here, "May be caught in this zone")
+  if #here > 0 then rows[#rows + 1] = { H.dim .. "Not at every body of water|r" } end
   fishLines(rows, range, #here > 0 and "Also at this skill" or "Fish at this skill")
   -- what you can cook from them
   local cook = NW.ProfSkill("cooking")
@@ -1131,7 +1210,8 @@ function F.zoneDetail(zone, bi, later)
     for k = 1, math.min(5, #uses) do
       local r = uses[k]
       local col = (not cook or cook < (r.orange or r.yellow)) and H.dim or cook < r.grey and H.text or H.dim
-      rows[#rows + 1] = { col .. r.name .. "|r", ("%d-%d"):format(r.orange or r.yellow, r.grey) }
+      local ic = r.item and NW.ItemIcon(r.item)
+      rows[#rows + 1] = { (ic and ("|T" .. ic .. ":14:14:0:0|t ") or "") .. col .. r.name .. "|r", ("%d-%d"):format(r.orange or r.yellow, r.grey) }
     end
   end
   F.equipLines(rows)
