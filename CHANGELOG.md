@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Profit: columns for materials, sells for, net profit and return; the top recipe opens on the right, with a batch size, exact figures and why Craft can't run.
+- Profit: a recipe with an unpriced material no longer counts as profitable; cooldown recipes count one at a time.
 - Consumable tracker (Settings › Consumes, /nw buffs): your loadout's buffs, time left, counts and cooldowns; click to use, right-click for Consumes.
 - Consumes: leveling Budget stays within 10 levels of yours.
 - Consumes: auction-house searches need Auctionator; without it shift-click links instead.
