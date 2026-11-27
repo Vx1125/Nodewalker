@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Herbalism, Mining, Skinning: each range shows its herbs, ore or leather as icons, edged in the colour they are at your skill, with the skill they need.
+- Gathering: click a range for its zones (known spots), what to gather, a route or hunting grounds, on the right; icons and zones open Material Finder.
+- Mining: a Smelting view: every bar, its ore against your bags, what you can make and the cost per bar.
 - Leveling: a recipe to buy with no price marks the step, Estimated cost and the shopping list with "?" instead of counting as free.
 - Action bar button: right-click toggles the overlay (left-click still opens the window); existing buttons update themselves.
 - Leveling: a Materials column with each reagent's item icon and the count per craft (red edge: short, gold edge: made by the steps before). Hover for totals, what you have and price; click for where to get it.

@@ -886,8 +886,12 @@ end
 do
   local GAP = 5
   local QMARK = "Interface\\Icons\\INV_Misc_QuestionMark"
-  local EDGE = { ok = { 0, 0, 0, 0.85 }, made = { 0.839, 0.698, 0.400, 0.9 }, short = { 0.760, 0.440, 0.390, 0.7 } }
-  local COUNT = { ok = { 1, 1, 1, 1 }, made = { 1, 1, 1, 1 }, short = { 1, 0.55, 0.45, 1 } }
+  local EDGE = { ok = { 0, 0, 0, 0.85 }, made = { 0.839, 0.698, 0.400, 0.9 }, short = { 0.760, 0.440, 0.390, 0.7 },
+    -- gathering: the node's colour at your skill, as the game shows it (red: not yet)
+    orange = { 1, 0.5, 0.25, 0.9 }, yellow = { 1, 1, 0, 0.8 }, green = { 0.25, 0.75, 0.25, 0.8 }, grey = { 0.5, 0.5, 0.5, 0.8 },
+    red = { 0.760, 0.440, 0.390, 0.7 } }
+  local COUNT = { ok = { 1, 1, 1, 1 }, made = { 1, 1, 1, 1 }, short = { 1, 0.55, 0.45, 1 },
+    orange = { 1, 0.62, 0.4, 1 }, yellow = { 1, 1, 0.4, 1 }, green = { 0.5, 0.9, 0.5, 1 }, grey = { 0.75, 0.75, 0.75, 1 }, red = { 1, 0.55, 0.45, 1 } }
   local function iconOnEnter(self)
     local h = self.strip.handler
     if h and h.tip then h.tip(self) end
@@ -937,10 +941,10 @@ do
   function Strip:Add(id, qty, state)
     local b = nextIcon(self)
     state = state or "ok"
-    b.id, b.qty, b.state, b.kind = id, qty or 1, state, "item"
+    b.id, b.qty, b.state, b.kind = id, qty or 1, state, "item" -- (qty false: no number)
     b.tex:SetTexture(NW.ItemIcon(id) or QMARK)
     b.edge:SetColorTexture(unpack(EDGE[state] or EDGE.ok))
-    b.count:SetText(tostring(b.qty))
+    b.count:SetText(qty == false and "" or tostring(b.qty))
     b.count:SetTextColor(unpack(COUNT[state] or COUNT.ok))
     return b
   end
