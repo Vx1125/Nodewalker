@@ -1398,7 +1398,7 @@ local function rowFor(i)
     if not e.hidden then
       local pk = picksOf(shown.listKey)
       local mine = pk[e.set and ("set:" .. e.set) or e.key] ~= nil
-      GameTooltip:AddLine(mine and "Your choice." or "The list's choice.", 1, 1, 1, true)
+      GameTooltip:AddLine(not mine and "The list's choice." or (e.set and not e.selected) and "Your choice is another of these, or none." or "Your choice.", 1, 1, 1, true)
       if e.manual then GameTooltip:AddLine(("Target %d* is yours; Auto puts the estimate back."):format(e.want), S.dim[1], S.dim[2], S.dim[3], true) end
     end
     GameTooltip:Show()
@@ -1458,8 +1458,8 @@ local function rowFor(i)
     if IsShiftKeyDown() then
       -- at the auction house it searches; otherwise it links in chat
       local n, ok = itemName(self.item)
-      if ahReady() then
-        if ok then NW.SearchAH({ { n, self.short and self.short > 0 and self.short or 1 } }) end
+      if ahReady() and ok then
+        NW.SearchAH({ { n, self.short and self.short > 0 and self.short or 1 } })
       else
         NW.ChatLink(self.item, nil, true)
       end
@@ -1797,7 +1797,7 @@ dAlt:SetScript("OnClick", function(self)
   if not self.id then return end
   if not (NW.FindMaterial and NW.FindMaterial(self.id, "consumes")) then
     local n, ok = itemName(self.id)
-    if ok and ahReady() then NW.SearchAH({ { n, 1 } }) end
+    if ok and ahReady() then NW.SearchAH({ { n, 1 } }) else NW.ChatLink(self.id, nil, true) end
   end
 end)
 dSave:ClearAllPoints()
