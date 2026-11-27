@@ -674,8 +674,11 @@ local function spellName(id)
   return (ok and R(n) and n) or "?"
 end
 local function counts(id)
-  local a = C_Item and C_Item.GetItemCount and select(2, pcall(C_Item.GetItemCount, id))
-  local b2 = GetItemCount and select(2, pcall(GetItemCount, id))
+  -- (Forever has C_Item.GetItemCount; the old global may be missing)
+  local fn = (C_Item and C_Item.GetItemCount) or GetItemCount
+  if not fn then return "?", "?" end
+  local _, a = pcall(fn, id)
+  local _, b2 = pcall(fn, id, true)
   return tostring(a), tostring(b2)
 end
 function T.Debug()
