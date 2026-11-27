@@ -2079,8 +2079,10 @@ local function drawGatherRows(key)
     row.profitRow = nil
     row.bracket = nil
     if b and b.banner then
-      -- a rank to train: who, and what it needs
+      -- a rank to train: who, and what it needs (row.step: the trainer tooltip and map pin crafts use)
       local ru = b.rankUp
+      b.rankFee = (NW.RANK_FEE[key] or {})[ru.name]
+      row.step = b
       local _, max = NW.ProfSkill(key)
       local trained = max and max >= ru.cap
       row:Show()
@@ -2219,7 +2221,7 @@ function MS.buildGatherContext()
   G.next:SetWidth(W)
   G.resHead = UI.Heading(info, "Gather", W)
   G.res = {}
-  for k = 1, 5 do
+  for k = 1, 6 do
     local z = MS.listRow(info, W)
     z.text:SetPoint("LEFT", z.icon, "RIGHT", 6, 0)
     z.text:SetWidth(W - 130)
@@ -2284,10 +2286,15 @@ function MS.rankZones(key, b, skill)
       end
       rows[#rows + 1] = row
     elseif not id then
+      row.count, row.useful = nil, nil -- (no map for it: unknown, not none)
       rows[#rows + 1] = row
     end
   end
-  table.sort(rows, function(a, c) if a.useful ~= c.useful then return a.useful > c.useful end return a.count > c.count end)
+  table.sort(rows, function(a, c)
+    local au, cu = a.useful or -1, c.useful or -1
+    if au ~= cu then return au > cu end
+    return (a.count or -1) > (c.count or -1)
+  end)
   return rows, useful
 end
 -- the resource worth going for: the highest one that still gives skill-ups
@@ -2404,13 +2411,14 @@ function MS.drawGatherContext(key)
       z.icon:SetTexture(itemIcon(it.id))
       local st = MS.resourceState(key, it, skill, b)
       local name = (itemName(it.id))
-      z.text:SetText((it == best and "|cffd6b266" or "|cffe0dbd0") .. name .. "|r")
+      local isBest = best and it.id == best.id
+      z.text:SetText((isBest and "|cffd6b266" or "|cffe0dbd0") .. name .. "|r")
       local words = st and MS.RES_WORDS[st]
       if st == "red" and it.req then words = words:format(it.req) elseif st == "red" then words = "too low" end
       local right = {}
       if it.req then right[#right + 1] = ("skill %d"):format(it.req) end
       if words then right[#right + 1] = ("|cff%s%s|r"):format(MS.STATE_HEX[st] or "938c80", words) end
-      if it == best and st ~= "red" then right[#right + 1] = "|cffd6b266best|r" end
+      if isBest and st ~= "red" then right[#right + 1] = "|cffd6b266best|r" end
       z.right:SetText(table.concat(right, "  ·  "))
       local id = it.id
       z.go = function() MS.findResource(key, id, G.zsel and G.zsel.name) end
@@ -2431,7 +2439,9 @@ function MS.drawGatherContext(key)
   local ranked = {}
   if key ~= "skinning" and b.nodes then ranked = MS.rankZones(key, b, skill)
   else for _, z in ipairs(b.zones) do ranked[#ranked + 1] = { name = z } end end
-  if G.zselFor ~= b then G.zsel, G.zselFor = nil, b end
+  -- the zone you picked stays while you're on this bracket (brackets are rebuilt each refresh)
+  local bk = key .. b.from .. "-" .. b.to
+  if G.zselKey ~= bk then G.zsel, G.zselKey = nil, bk end
   if G.zsel then
     local keep
     for _, e in ipairs(ranked) do if e.name == G.zsel.name then keep = e end end
@@ -2463,6 +2473,7 @@ function MS.drawGatherContext(key)
           GameTooltip:AddDoubleLine(("Skill-ups at %d"):format(skill), e.useful, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
           GameTooltip:AddLine("Yours and the shipped data. Spots still orange, yellow or green for you count for skill-ups.", S.dim[1], S.dim[2], S.dim[3], true)
         end
+        if not e.count and e.useful == nil and key ~= "skinning" then GameTooltip:AddLine("No map data for this zone.", S.dim[1], S.dim[2], S.dim[3], true) end
         GameTooltip:AddLine("Click: use this zone for the route and Material Finder", S.dim[1], S.dim[2], S.dim[3], true)
         GameTooltip:Show()
       end

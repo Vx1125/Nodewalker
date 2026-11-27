@@ -71,14 +71,15 @@ F.FISH = {
   [6359] = { skill = 150, bracket = 3, note = "Coast", src = "guide" },
   [8365] = { skill = 225, zones = { "Alterac Mountains", "Arathi Highlands", "Dustwallow Marsh", "Desolace" }, src = "forever" },
   [13754] = { skill = 225, bracket = 4, note = "Coast", src = "guide" },
-  [13759] = { skill = 225, bracket = 4, note = "At night", src = "guide" },
-  [13760] = { skill = 225, bracket = 4, note = "By day", src = "guide" },
+  -- (night and day are the guides' notes; the Classic loot tables have no time condition for them)
+  [13759] = { skill = 225, bracket = 4, note = "At night (guides)", src = "guide" },
+  [13760] = { skill = 225, bracket = 4, note = "By day (guides)", src = "guide" },
   -- Raw Summer Bass, Winter Squid: zones and season from cMaNGOS classic-db (13e9337) fishing loot.
   -- Summer Bass: Tanaris and Azshara coastal areas (reference tables 11009, 11105) all year, more in the
   -- Summer Season Fishing event (table 13755, condition 323). Winter Squid: only table 13755 under
   -- condition 322, the Winter Season Fishing event. Classic data; not verified in Forever.
   [13756] = { skill = 225, bracket = 4, zones = { "Tanaris", "Azshara" }, note = "Coast", src = "guide", zoneSrc = "classic" },
-  [13755] = { skill = 225, bracket = 4, zones = { "Tanaris", "Azshara" }, note = "Coast, winter only", season = "winter", src = "guide", zoneSrc = "classic" },
+  [13755] = { skill = 225, bracket = 4, zones = { "Tanaris", "Azshara", "Stranglethorn Vale", "The Hinterlands", "Feralas" }, note = "Coast, winter only", season = "winter", src = "guide", zoneSrc = "classic" },
   [13758] = { skill = 300, zones = { "Western Plaguelands", "The Hinterlands", "Moonglade", "Felwood", "Un'Goro Crater" }, note = "Lakes and rivers", src = "forever" },
   [4603] = { skill = 300, zones = { "Tanaris", "The Hinterlands" }, note = "Coast", src = "forever" },
   -- Stonescale Eel: cMaNGOS classic-db fishing loot (Tanaris and Azshara coastal areas, reference
