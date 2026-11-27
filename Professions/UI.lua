@@ -250,6 +250,13 @@ local opts = {
       function(v) st().planRecipeItems = v; NW.InvalidatePlans() end, "Plans with vendor and drop recipes too, and adds them to the shopping list." },
     { "Start from skill 1", function() return st().planFromStart end, function(v) st().planFromStart = v end,
       "Plans every step from 1, not from your skill." },
+    { "Re-plan at today's prices", action = function() if MS.kitKey then NW.RebuildKit(MS.kitKey) end end,
+      enabled = function() return MS.kitKey and MS.kitPlan and true or false end,
+      tip = function()
+        local kit = MS.kitKey and NW.Kit(MS.kitKey)
+        local t = kit and kit.made and tonumber(tostring(kit.made):match("^%d+"))
+        return "Picks the recipes and shopping list again." .. (t and ("\nCurrent plan: " .. date("%b %d", t) .. " prices.") or "")
+      end },
   }, function() refresh() end),
 }
 opts[1]:SetPoint("LEFT", 0, 0)
@@ -265,31 +272,9 @@ MS.cookSrc:Hide()
 
 local priceLine = UI.Text(mid, 11, S.dim)
 priceLine:SetPoint("TOPLEFT", optRow, "BOTTOMLEFT", 0, -6)
-priceLine:SetWidth(MID_W - 92)
+priceLine:SetWidth(MID_W)
 priceLine:SetHeight(26)
 priceLine:SetJustifyV("TOP")
--- lock the plan as a kit: what you buy for it carries you to its end
-MS.kitBtn = UI.Button(mid, "Re-plan", 86, function()
-  local p = MS.kitKey and MS.kitPlan
-  if not p then return end
-  NW.RebuildKit(MS.kitKey)
-  refresh()
-end, 18)
-MS.kitBtn.label:SetFont(UI.FONT, 10, "")
-MS.kitBtn:SetPoint("TOPRIGHT", optRow, "BOTTOMRIGHT", 0, -3)
-MS.kitBtn:SetScript("OnEnter", function(self)
-  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  local kit = MS.kitKey and NW.Kit(MS.kitKey)
-  GameTooltip:SetText("Kit 1-300")
-  if kit and kit.made then
-    local t = tonumber(tostring(kit.made):match("^%d+"))
-    if t then GameTooltip:AddLine("Chosen " .. date("%b %d", t) .. ", from that day's prices.", 1, 1, 1, true) end
-  end
-  GameTooltip:AddLine("Re-plan: choose the recipes again at today's prices.", 1, 1, 1, true)
-  GameTooltip:Show()
-end)
-MS.kitBtn:SetScript("OnLeave", GameTooltip_Hide)
-MS.kitBtn:Hide()
 
 -- Profit: how to order it, a floor on what's worth it, and less-used filters
 local profitCtl = CreateFrame("Frame", nil, mid)
@@ -1566,9 +1551,6 @@ local function drawCraft(p)
   end
   priceLine:SetText(not ah and "|cffd17665Auctionator isn't loaded:|r vendor prices and rough estimates only."
     or nowLine or "")
-  local kit = rank and NW.Kit(p.key)
-  MS.kitBtn:SetText("Re-plan")
-  MS.kitBtn:SetShown(rank and true or false)
 end
 
 ------------------------------------------------------------------------
@@ -2957,7 +2939,6 @@ refresh = function()
   searchBtn:SetShown(planPanel)
   MS.fcBtn:SetShown(planPanel and selected == "cooking")
   if not planPanel then MS.recipesBtn:Hide() end
-  if not planPanel then MS.kitBtn:Hide() end
   -- the key to the list's colours and marks, and notes on this profession: on hover
   tips:Hide()
   if not MS.help then

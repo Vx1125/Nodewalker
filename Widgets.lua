@@ -352,17 +352,37 @@ function UI.CheckMenu(parent, text, w, items, onChange)
   autoClose(menu)
   local checks = {}
   local widest = 0
+  local acts = {}
   for i, it in ipairs(items) do
-    local cb = UI.Check(menu, it[1], it[2], function(v) it[3](v) if onChange then onChange() end b:Refresh() end, it[4])
-    cb:SetPoint("TOPLEFT", 10, -8 - (i - 1) * RH)
-    checks[i] = cb
-    widest = math.max(widest, cb.label:GetStringWidth())
+    local y = -8 - (i - 1) * RH
+    if it.action then
+      -- an action, not a setting: a line of gold text that closes the menu
+      local a = CreateFrame("Button", nil, menu)
+      a:SetHeight(RH - 2)
+      a:SetPoint("TOPLEFT", 6, y + 3)
+      a:SetPoint("RIGHT", -6, 0)
+      local hl = a:CreateTexture(nil, "HIGHLIGHT")
+      hl:SetAllPoints()
+      hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.1)
+      a.label = UI.Text(a, 12, S.gold)
+      a.label:SetPoint("LEFT", 4, 0)
+      a.label:SetText(it[1])
+      a:SetScript("OnClick", function() menu:Hide(); it.action(); if onChange then onChange() end end)
+      if it.tip then UI.Tip(a, it[1], it.tip) end
+      acts[#acts + 1] = { a, it }
+      widest = math.max(widest, a.label:GetStringWidth() - 24)
+    else
+      local cb = UI.Check(menu, it[1], it[2], function(v) it[3](v) if onChange then onChange() end b:Refresh() end, it[4])
+      cb:SetPoint("TOPLEFT", 10, y)
+      checks[#checks + 1] = cb
+      widest = math.max(widest, cb.label:GetStringWidth())
+    end
   end
   menu:SetSize(math.max(w, widest + 44), 12 + #items * RH)
   -- the button shows how many are on
   function b:Refresh()
     local n = 0
-    for _, it in ipairs(items) do if it[2]() then n = n + 1 end end
+    for _, it in ipairs(items) do if not it.action and it[2]() then n = n + 1 end end
     self:SetText(n > 0 and ("%s (%d)"):format(text, n) or text)
   end
   b:SetScript("OnClick", function()
@@ -370,6 +390,11 @@ function UI.CheckMenu(parent, text, w, items, onChange)
     if openMenu and openMenu ~= menu then openMenu:Hide() end
     openMenu = menu
     for _, cb in ipairs(checks) do cb:Refresh() end
+    for _, x in ipairs(acts) do
+      local on = not x[2].enabled or x[2].enabled()
+      x[1]:SetEnabled(on)
+      x[1].label:SetTextColor(unpack(on and S.gold or S.dim))
+    end
     menu:SetScale(b:GetEffectiveScale() / UIParent:GetEffectiveScale())
     menu:ClearAllPoints()
     menu:SetPoint("TOPRIGHT", b, "BOTTOMRIGHT", 0, -2)

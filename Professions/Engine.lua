@@ -1326,9 +1326,10 @@ function NW.BuildPlan(key, from, to)
   end
   local fees, paid, spend = 0, {}, 0
   local rankFee = NW.RANK_FEE[key] or {}
-  -- a few spare crafts, enough for about 4 runs in 5; none while it's orange.
+  -- spare crafts, enough for about 19 runs in 20, so bad luck doesn't mean
+  -- another trip to the auction house; none while it's orange.
   -- Worked out over a whole run of one recipe (a rank split doesn't double
-  -- them) and never more than a fifth of the run.
+  -- them), at least 1 and never more than a third of the run.
   local runVar, runCrafts = 0, 0
   for n, st in ipairs(steps) do
     st.spare = 0
@@ -1336,7 +1337,7 @@ function NW.BuildPlan(key, from, to)
       runVar, runCrafts = runVar + st.var, runCrafts + st.crafts
       local nx = steps[n + 1]
       if not (nx and nx.idx == st.idx) then
-        if runVar > 0 then st.spare = math.min(math.ceil(0.85 * math.sqrt(runVar)), math.max(1, math.floor(runCrafts * 0.2))) end
+        if runVar > 0 then st.spare = math.max(1, math.min(math.ceil(1.65 * math.sqrt(runVar)), math.floor(runCrafts / 3))) end
         runVar, runCrafts = 0, 0
       end
     else
