@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+- Consumes: auction-house searches need Auctionator; without it shift-click links instead.
+- Consumes: estimated prices are never shown as a price.
+- Consumes: the recipe source (vendors, reputation) is on hover, also before you open the profession.
+- Consumes: the tick's tooltip says whether it's your choice or the list's.
 - Consumes: mana potions are core on raid healer lists.
 - Consumes: the restock cost is what you'd actually buy: materials for crafts less what's in your bags, shared materials once.
 - Consumes: the shopping search no longer over-buys a material that's also on your list.

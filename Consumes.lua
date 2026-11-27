@@ -1326,6 +1326,8 @@ local function setFolded(name, v)
   st().consumeFolds[name] = v
 end
 
+-- Auction house searches go through Auctionator, and only while the auction house is open
+local function ahReady() return (NW.AHOpen and NW.AHOpen() and NW.HasAuctionator and NW.HasAuctionator()) and true or false end
 local rows, shown, visible = {}, {}, {}
 local function onWheel(_, delta)
   local o = math.max(0, math.min(visible.maxOffset or 0, offset - delta * 2))
@@ -1393,6 +1395,12 @@ local function rowFor(i)
     else
       GameTooltip:AddLine("Counted in your stock and shopping list when ticked.", S.dim[1], S.dim[2], S.dim[3], true)
     end
+    if not e.hidden then
+      local pk = picksOf(shown.listKey)
+      local mine = pk[e.set and ("set:" .. e.set) or e.key] ~= nil
+      GameTooltip:AddLine(mine and "Your choice." or "The list's choice.", 1, 1, 1, true)
+      if e.manual then GameTooltip:AddLine(("Target %d* is yours; Auto puts the estimate back."):format(e.want), S.dim[1], S.dim[2], S.dim[3], true) end
+    end
     GameTooltip:Show()
   end)
   row.pick:SetScript("OnLeave", GameTooltip_Hide)
@@ -1450,7 +1458,7 @@ local function rowFor(i)
     if IsShiftKeyDown() then
       -- at the auction house it searches; otherwise it links in chat
       local n, ok = itemName(self.item)
-      if NW.AHOpen() then
+      if ahReady() then
         if ok then NW.SearchAH({ { n, self.short and self.short > 0 and self.short or 1 } }) end
       else
         NW.ChatLink(self.item, nil, true)
@@ -1666,6 +1674,19 @@ dRecipe:SetWidth(DET_W - IN * 2)
 dRecipe:SetJustifyV("TOP")
 if dRecipe.SetMaxLines then dRecipe:SetMaxLines(2) end
 dRecipe:SetSpacing(2)
+-- the whole of where the recipe comes from (two lines can cut off a vendor or a reputation)
+local dRecipeHit = CreateFrame("Frame", nil, det)
+dRecipeHit:SetAllPoints(dRecipe)
+dRecipeHit:EnableMouse(true)
+dRecipeHit:SetScript("OnEnter", function(self)
+  if not self.title then return end
+  GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+  GameTooltip:SetText(self.title, 1, 1, 1)
+  if self.status then GameTooltip:AddLine(self.status, 1, 1, 1, true) end
+  for part in (self.src or ""):gsub("  ·  ", "\n"):gmatch("[^\n]+") do GameTooltip:AddLine(part, S.dim[1], S.dim[2], S.dim[3], true) end
+  GameTooltip:Show()
+end)
+dRecipeHit:SetScript("OnLeave", GameTooltip_Hide)
 
 -- Materials: the professions' reagent icons (one craft's count; edge red where you're short),
 -- each one into the Material Finder, Shift-click to search or link
@@ -1679,10 +1700,11 @@ function reagentTip.tip(icon)
   GameTooltip:AddDoubleLine("Per craft", icon.qty, d[1], d[2], d[3], 1, 1, 1)
   if c.need then GameTooltip:AddDoubleLine("Have / need", ("%d / %d"):format(c.have or 0, c.need), d[1], d[2], d[3], 1, 1, 1) end
   local p, src = NW.Price(icon.id)
+  if src == "est" then p = nil end
   GameTooltip:AddDoubleLine("Price", p and ((src == "vendor" and "Vendor " or "") .. money(p)) or "no price", d[1], d[2], d[3], 1, 1, 1)
   local inFinder = NW.Mat and NW.Mat.Get and NW.Mat.Get(icon.id)
   GameTooltip:AddDoubleLine("Click", inFinder and "where to get it, in Material Finder" or "not in Material Finder", d[1], d[2], d[3], 1, 1, 1)
-  GameTooltip:AddDoubleLine("Shift-click", NW.AHOpen and NW.AHOpen() and "search the auction house" or "link in chat", d[1], d[2], d[3], 1, 1, 1)
+  GameTooltip:AddDoubleLine("Shift-click", ahReady() and "search the auction house" or "link in chat", d[1], d[2], d[3], 1, 1, 1)
   GameTooltip:Show()
 end
 function reagentTip.click(icon)
@@ -1690,7 +1712,7 @@ function reagentTip.click(icon)
   if not id then return end
   if IsShiftKeyDown() then
     local n, ok = itemName(id)
-    if NW.AHOpen() and ok then NW.SearchAH({ { n, math.max(1, (icon.ctx.need or 1) - (icon.ctx.have or 0)) } }) else NW.ChatLink(id, nil, true) end
+    if ahReady() and ok then NW.SearchAH({ { n, math.max(1, (icon.ctx.need or 1) - (icon.ctx.have or 0)) } }) else NW.ChatLink(id, nil, true) end
     return
   end
   if NW.FindMaterial then NW.FindMaterial(id, "consumes", icon.ctx.need) end
@@ -1720,7 +1742,8 @@ local matsBtn = UI.Button(det, "Materials", BTN_W, function()
 end, 22)
 matsBtn:SetPoint("TOPLEFT", cmpCraft, "BOTTOMLEFT", 0, -6)
 UI.Tip(matsBtn, "Materials", function()
-  if not (selectedItem and NW.RecipeFor(selectedItem)) then return "No known recipe for it, so no materials to search." end
+  if not (selectedItem and NW.RecipeFor(selectedItem)) then return "Nodewalker has no recipe for it, so no materials to search." end
+  if not (NW.HasAuctionator and NW.HasAuctionator()) then return "Searches the auction house for the materials you're short of. Needs Auctionator." end
   if not (NW.AHOpen and NW.AHOpen()) then return "Searches the auction house for the materials you're short of. Open the auction house first." end
   return "Searches the auction house for the materials you're short of (vendor materials left out)."
 end)
@@ -1731,6 +1754,7 @@ local ahBtn = UI.Button(det, "Search AH", BTN_W, function()
 end, 22)
 ahBtn:SetPoint("LEFT", matsBtn, "RIGHT", 6, 0)
 UI.Tip(ahBtn, "Search AH", function()
+  if not (NW.HasAuctionator and NW.HasAuctionator()) then return "Searches the auction house for the item itself. Needs Auctionator." end
   if not (NW.AHOpen and NW.AHOpen()) then return "Searches the auction house for the item itself. Open the auction house first." end
   return "Searches the auction house for the item itself."
 end)
@@ -1773,7 +1797,7 @@ dAlt:SetScript("OnClick", function(self)
   if not self.id then return end
   if not (NW.FindMaterial and NW.FindMaterial(self.id, "consumes")) then
     local n, ok = itemName(self.id)
-    if ok and NW.AHOpen() then NW.SearchAH({ { n, 1 } }) end
+    if ok and ahReady() then NW.SearchAH({ { n, 1 } }) end
   end
 end)
 dSave:ClearAllPoints()
@@ -1783,7 +1807,7 @@ local dEmpty = UI.Text(det, 12, S.dim, "CENTER")
 dEmpty:SetPoint("CENTER")
 dEmpty:SetWidth(DET_W - 40)
 
-local detailParts = { dIcon, dIconEdge, dIconHit, dName, dType, dEffect, dStock, qtyBtns, cmpCraft, cmpBuy, dSave, dRecipe, matStrip, dMats,
+local detailParts = { dIcon, dIconEdge, dIconHit, dName, dType, dEffect, dStock, qtyBtns, cmpCraft, cmpBuy, dSave, dRecipe, dRecipeHit, matStrip, dMats,
   matsBtn, ahBtn, findBtn, dAlt }
 
 
@@ -1864,7 +1888,7 @@ local function drawDetail()
   if craft then
     cmpCraft:Set(exact(craft), craftBest, not canMake)
   else
-    cmpCraft:Set(m and "No price" or "No known recipe", false, true)
+    cmpCraft:Set(m and "No price" or "No recipe", false, true)
   end
   cmpBuy.src:SetText(buySrc == "Vendor" and "Vendor" or buySrc and "AH" or "")
   cmpCraft.src:SetText("")
@@ -1913,6 +1937,7 @@ local function drawDetail()
   -- recipe and materials
   local r, key = NW.RecipeFor(id)
   matStrip:Begin()
+  dRecipeHit.title = nil
   if not r then
     dRecipe:SetText("")
     matStrip:Finish(DET_W - IN * 2)
@@ -1922,16 +1947,22 @@ local function drawDetail()
   local prof = NW.PROF_BY_KEY[key]
   local req = r.orange or r.yellow
   local line = ("%s%s|r%s"):format(H.gold, prof and prof.name or "", req and req > 0 and (" " .. req) or "")
+  local srcText = NW.RecipeSourceText(key, r) or ""
+  dRecipeHit.title, dRecipeHit.src = (prof and prof.name or "") .. (req and req > 0 and (" " .. req) or ""), srcText
   if m.skill then
     if m.known then
       line = line .. "  " .. H.good .. "Recipe known|r"
+      dRecipeHit.status = "Recipe known"
     elseif not m.scanned then
-      line = line .. "  " .. H.dim .. "open it once to check recipes|r"
+      line = line .. "  " .. H.dim .. "open it once to check recipes|r\n" .. H.dim .. srcText .. "|r"
+      dRecipeHit.status = "Open the profession once to check which recipes you know."
     else
-      line = line .. "  " .. H.bad .. "Recipe not known|r\n" .. H.dim .. (NW.RecipeSourceText(key, r) or "") .. "|r"
+      line = line .. "  " .. H.bad .. "Recipe not known|r\n" .. H.dim .. srcText .. "|r"
+      dRecipeHit.status = "Recipe not known"
     end
   else
     line = line .. "  " .. H.dim .. "not your profession|r"
+    dRecipeHit.status = "Not your profession"
   end
   if (r.yield or 1) > 1 then line = line .. ("  %s· makes %d|r"):format(H.dim, r.yield) end
   dRecipe:SetText(line)
@@ -1943,7 +1974,8 @@ local function drawDetail()
     local have = NW.ItemCount(re[1]) or 0
     local ic = matStrip:Add(re[1], re[2], have >= need and "ok" or "short")
     ic.ctx.need, ic.ctx.have = need, have
-    local p = NW.Price(re[1])
+    local p, psrc = NW.Price(re[1])
+    if psrc == "est" then p = nil end
     if have < need then
       if p then pay = pay + p * (need - have) else payUnknown = true end
     end
@@ -2215,9 +2247,9 @@ refresh = function()
   searchBtn:SetEnabled(shortCount > 0 and #shop.ah > 0 and NW.AHOpen and NW.AHOpen() and NW.HasAuctionator and NW.HasAuctionator() or false)
   drawDetail()
   if selectedItem then
-    matsBtn:SetEnabled(NW.RecipeFor(selectedItem) ~= nil and (NW.AHOpen and NW.AHOpen() or false))
+    matsBtn:SetEnabled(NW.RecipeFor(selectedItem) ~= nil and ahReady())
     local _, ok = itemName(selectedItem)
-    ahBtn:SetEnabled(ok and NW.AHOpen and NW.AHOpen() or false)
+    ahBtn:SetEnabled(ok and ahReady() or false)
     findBtn:SetEnabled(findBtn.id ~= nil)
   end
 end
