@@ -809,6 +809,23 @@ local ROLE_OF = {
   rogue = "agi", hunter = "agi", ["druid-cat"] = "agi",
   ["warrior-prot"] = "tank", ["paladin-prot"] = "tank", ["druid-bear"] = "tank",
 }
+-- Raid healers: mana potions are core (copied, so lists that share a group aren't changed)
+do
+  local MANA_POT = { [13444] = true, [13443] = true }
+  for _, list in ipairs(NW.CONSUMES) do
+    if ROLE_OF[list.key] == "heal" then
+      for gi, g in ipairs(list.groups) do
+        if g[1] == "Potions" then
+          local items = {}
+          for i, c in ipairs(g[2]) do
+            items[i] = MANA_POT[c[1]] and { c[1], c[2], c[3], c[4], c[5], c[6], "core" } or c
+          end
+          list.groups[gi] = { g[1], items }
+        end
+      end
+    end
+  end
+end
 -- A caster's own school
 local SCHOOL = {
   mage = { slot("Elixir", "fire"), slot("Elixir", "frost") }, warlock = { slot("Elixir", "shadow"), slot("Elixir", "fire") },

@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Consumes: mana potions are core on raid healer lists.
 - Consumes: the restock cost is what you'd actually buy: materials for crafts less what's in your bags, shared materials once.
 - Consumes: the shopping search no longer over-buys a material that's also on your list.
 - Consumes: buttons that need the auction house say so when it's closed; durations ignore cooldown text.
