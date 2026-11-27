@@ -882,8 +882,8 @@ if NW.BuffTracker then
   place(1, resetPos, 30, 2)
   heading(1, "Display")
   track("buffMode", "Show")
-  dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Show", { { "all", "All selected buffs" }, { "missing", "Missing only" }, { "soon", "Missing and expiring" } },
-    function() return s().buffMode or "all" end, function(v) s().buffMode = v; apply() end, 200), 30, 2), "buffHud")
+  dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Show", { { "missing", "Missing only" }, { "soon", "Missing + expiring" }, { "all", "Show all, dim active" } },
+    function() return s().buffMode or "soon" end, function(v) s().buffMode = v; apply() end, 200), 30, 2), "buffHud")
   track("buffLayout", "Layout")
   dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Layout", { { "horizontal", "Horizontal" }, { "vertical", "Vertical" } },
     function() return s().buffLayout or "horizontal" end, function(v) s().buffLayout = v; apply() end, 200), 30, 2), "buffHud")

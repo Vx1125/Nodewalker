@@ -435,8 +435,9 @@ end
 local function wanted(x)
   if st().buffHideEmpty and (x.state == "out" or x.state == "none") then return false end
   if x.kind == "use" then return true end
-  local m = st().buffMode or "all"
-  if m == "all" then return true end
+  -- a reminder: what's missing gets the room; a buff that's on steps back
+  local m = st().buffMode or "soon"
+  if m == "all" or T.combatAll then return true end -- (dimmed when on)
   if x.state == "missing" or x.state == "out" or x.state == "unknown" then return true end
   return m == "soon" and x.state == "expiring"
 end
@@ -537,7 +538,9 @@ local function paint()
       local st0 = x.state
       local muted = (x.count or 0) == 0 and st0 ~= "on" and st0 ~= "expiring"
       if b.tex.SetDesaturated then b.tex:SetDesaturated(muted) end
-      b.tex:SetAlpha(muted and 0.45 or 1)
+      -- a buff that's on (Show all, or kept in place through a fight): faint; a potion on cooldown: dimmed
+      local alpha = muted and 0.45 or (st0 == "on" and 0.25) or (st0 == "cd" and 0.5) or 1
+      b.tex:SetAlpha(alpha)
       b:SetBackdropBorderColor(unpack(BORDER[st0] or DIM))
       b.count:SetText(showCount and tostring(x.count or 0) or "")
       b.count:SetTextColor(unpack((x.count or 0) == 0 and S.bad or S.text))
@@ -639,6 +642,7 @@ NW.On("BAG_UPDATE_COOLDOWN", function() if on() then queue() end end)
 NW.On("SPELL_UPDATE_COOLDOWN", function() if on() then queue(0.3) end end)
 NW.On("PLAYER_LEVEL_UP", function() if on() then dirty.list, dirty.rebuild = true, true queue(1) end end)
 NW.On("PLAYER_REGEN_ENABLED", function()
+  T.combatAll = nil
   if not on() then
     if hud:IsShown() then hud:Hide() end -- (turned off during the fight)
     return
@@ -663,10 +667,15 @@ NW.On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
 end)
 -- a fight is starting: the last moment the HUD can still appear (lockdown comes after this event).
 -- Hidden for a city or a mount, it comes back for the fight: potions matter then.
+-- A fight is starting: the last moment the layout can change (lockdown comes after this event).
+-- Every tracked buff gets its place, those that are on dimmed, so one running out mid-fight
+-- shows; and a HUD hidden for a city or a mount comes back. After the fight it goes back.
 NW.On("PLAYER_REGEN_DISABLED", function()
-  if not on() or hud:IsShown() or #shownList == 0 then return end
-  if InCombatLockdown and InCombatLockdown() then return end
-  hud:Show()
+  if not on() or (InCombatLockdown and InCombatLockdown()) then return end
+  T.combatAll = (st().buffMode or "soon") ~= "all"
+  desired()
+  layout()
+  if #shownList > 0 and not hud:IsShown() then hud:Show() end
   T.lastCtx = nil -- (looked at again after the fight)
 end)
 NW.On("PLAYER_UPDATE_RESTING", function() if on() then T.relayout = true queue() end end)
@@ -799,3 +808,13 @@ function T.Toggle(v)
     if not combat() then hud:Hide() end
   end
 end
+
+-- Before 2026-11-27 the tracker opened on "All my buffs"; it's a reminder now: missing + expiring.
+-- (A one-time change; a choice made after it stays.)
+table.insert(NW.OnLoad, function()
+  local s0 = NW.db.settings
+  if not s0.buffModeV2 then
+    if s0.buffMode == "all" then s0.buffMode = "soon" end
+    s0.buffModeV2 = true
+  end
+end)
