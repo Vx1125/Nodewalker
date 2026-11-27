@@ -80,7 +80,9 @@ mode = "plan" -- plan | missing | profit
 -- Opening a profession: there's nothing to level at 300, so show what pays
 function openMode(key)
   local skill = NW.ProfSkill(key)
-  return (skill and skill >= 300) and "profit" or "plan"
+  if skill and skill >= 300 then return "profit" end
+  -- Cooking opens on the plan it shares with Fishing
+  return key == "cooking" and "fishcook" or "plan"
 end
 local modeBtns = {}
 local listNote = UI.Text(page, 11, S.dim)
@@ -197,15 +199,14 @@ viewRow:SetSize(MID_W, 26)
 do
   local VIEWS = {
     { "plan", "Leveling", "Cheapest way to level, with a shopping list." },
+    { "fishcook", "Fishing + Cooking", "Level both from the fish you catch." }, -- Cooking only
     { "missing", "Missing recipes", "Recipes you don't know yet and where each comes from." },
     { "profit", "Profit", "What each craft earns at today's prices." },
   }
-  local WIDTHS, x = { 84, 124, 76 }, 0
+  local WIDTHS = { 84, 136, 124, 76 }
   for i, v in ipairs(VIEWS) do
     local b = CreateFrame("Button", nil, viewRow, "BackdropTemplate")
     b:SetSize(WIDTHS[i], 26)
-    b:SetPoint("LEFT", x, 0)
-    x = x + WIDTHS[i] + 4
     UI.Flat(b, S.cell, S.edge)
     b.label = UI.Text(b, 12, S.text, "CENTER")
     b.label:SetPoint("CENTER")
@@ -229,7 +230,24 @@ do
     b:SetScript("OnLeave", function(self) self:SetSelected(self.on) end)
     b:SetScript("OnClick", function() mode = v[1]; refresh() end)
     modeBtns[v[1]] = b
+    modeBtns[i] = b
   end
+  -- lay the row out: Fishing + Cooking only shows for Cooking
+  function viewRow.Layout(cooking)
+    local x = 0
+    for i, v in ipairs(VIEWS) do
+      local b = modeBtns[i]
+      local on = v[1] ~= "fishcook" or cooking
+      b:ClearAllPoints()
+      b:SetPoint("LEFT", x, 0)
+      if on then x = x + WIDTHS[i] + 4 end
+      b.hide = not on
+    end
+  end
+  -- the Fishing + Cooking plan (Fishing.lua) shows the same row as Cooking's
+  NW.COOK_VIEWS = VIEWS
+  NW.COOK_VIEW_W = WIDTHS
+  function NW.SetCookView(m) mode = m; refresh() end
 end
 
 local optRow = CreateFrame("Frame", nil, mid)
@@ -2888,10 +2906,13 @@ refresh = function()
   listNote:Hide()
   local p = NW.PROF_BY_KEY[selected]
   local fishing = selected == "fishing"
-  mid:SetShown(not fishing)
-  right:SetShown(not fishing)
-  if NW.FishPanel then NW.FishPanel(fishing) end
-  if fishing then NW.SetWindowSubtitle(p.name) return end
+  if selected ~= "cooking" and mode == "fishcook" then mode = "plan" end
+  -- Fishing's page, or Cooking's Fishing + Cooking view: the same panel and plan
+  local fishPanel = fishing or mode == "fishcook"
+  mid:SetShown(not fishPanel)
+  right:SetShown(not fishPanel)
+  if NW.FishPanel then NW.FishPanel(fishPanel, fishing and "fishing" or "cooking") end
+  if fishPanel then NW.SetWindowSubtitle(p.name) return end
   local vk = selected .. ":" .. mode .. ":" .. searchText
   viewChanged = vk ~= lastView
   lastView = vk
@@ -2907,9 +2928,12 @@ refresh = function()
   local isCraft = p.kind == "craft"
   local isProfit = isCraft and mode == "profit"
   local isMissing = isCraft and (mode == "missing" or isProfit) -- both use the list-and-notes layout
+  viewRow.Layout(selected == "cooking")
   for k, b in pairs(modeBtns) do
-    b:SetShown(isCraft)
-    b:SetSelected(k == mode)
+    if type(k) == "string" then
+      b:SetShown(isCraft and not b.hide)
+      b:SetSelected(k == mode)
+    end
   end
   -- Leveling has its options row with one line under it; the list views
   -- use both rows for their description
@@ -2937,7 +2961,7 @@ refresh = function()
   priceLine:SetShown(isCraft)
   shopBox:SetShown(planPanel or showCard)
   searchBtn:SetShown(planPanel)
-  MS.fcBtn:SetShown(planPanel and selected == "cooking")
+  MS.fcBtn:Hide() -- (Cooking has a Fishing + Cooking view now)
   if not planPanel then MS.recipesBtn:Hide() end
   -- the key to the list's colours and marks, and notes on this profession: on hover
   tips:Hide()

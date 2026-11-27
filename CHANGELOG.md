@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Cooking opens on Fishing + Cooking, the same plan as Fishing; Leveling, Missing recipes and Profit sit beside it.
+
 ## 1.3.0
 
 - Route tab merged into Material Finder: Routes button, saved routes picker, the same editor and Expand.

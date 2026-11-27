@@ -461,7 +461,13 @@ F.frame = fp
 local W = {} -- widgets
 
 local function st() return NW.db.settings end
-local function tab() local t = st().fishTab return (t and t ~= "finder") and t or "leveling" end
+-- F.ctx: "fishing" (Fishing's page) or "cooking" (Cooking's Fishing + Cooking view)
+F.ctx = "fishing"
+local function tab()
+  if F.ctx == "cooking" then return "combined" end
+  local t = st().fishTab
+  return (t and t ~= "finder") and t or "leveling"
+end
 local function money(c, mode) return c and NW.Money(c, mode or "mid") or (H.dim .. "–|r") end
 
 -- header
@@ -514,6 +520,35 @@ do
     b:SetScript("OnLeave", function(self) self:SetSelected(self.on) end)
     b:SetScript("OnClick", function() st().fishTab = t[1]; F.sel = nil; F.offset = 0; F.Redraw() end)
     W.tabs[t[1]] = b
+  end
+  -- seen from Cooking: Cooking's views instead (the same plan, the same settings)
+  W.cookTabs = {}
+  local x2 = 0
+  for i, v in ipairs(NW.COOK_VIEWS or {}) do
+    local w = NW.COOK_VIEW_W[i]
+    local b = CreateFrame("Button", nil, fp, "BackdropTemplate")
+    b:SetSize(w, 26)
+    b:SetPoint("TOPLEFT", W.iconBox, "BOTTOMLEFT", x2, -10)
+    x2 = x2 + w + 4
+    UI.Flat(b, S.cell, S.edge)
+    b.label = UI.Text(b, 12, S.text, "CENTER")
+    b.label:SetPoint("CENTER")
+    b.label:SetText(v[2])
+    b.bar = b:CreateTexture(nil, "OVERLAY")
+    b.bar:SetPoint("BOTTOMLEFT", 1, 1)
+    b.bar:SetPoint("BOTTOMRIGHT", -1, 1)
+    b.bar:SetHeight(2)
+    b.bar:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+    b.bar:Hide()
+    local on = v[1] == "fishcook"
+    b.on = on
+    b.bar:SetShown(on)
+    b.label:SetTextColor(unpack(on and S.gold or S.dim))
+    b:SetBackdropColor(unpack(on and S.hover or S.cell))
+    b:SetScript("OnEnter", function(self) if not self.on then self.label:SetTextColor(unpack(S.text)) end end)
+    b:SetScript("OnLeave", function(self) if not self.on then self.label:SetTextColor(unpack(S.dim)) end end)
+    b:SetScript("OnClick", function() if not on and NW.SetCookView then NW.SetCookView(v[1]) end end)
+    W.cookTabs[i] = b
   end
 end
 
@@ -1289,6 +1324,19 @@ end
 -- Drawing
 ------------------------------------------------------------------------
 function F.header()
+  local cooking = F.ctx == "cooking"
+  local cp = NW.PROF_BY_KEY and NW.PROF_BY_KEY.cooking
+  W.icon:SetTexture(cooking and cp and cp.icon or "Interface\\Icons\\Trade_Fishing")
+  W.name:SetText(cooking and "Cooking" or "Fishing")
+  for _, b in pairs(W.tabs) do b:SetShown(not cooking) end
+  for _, b in ipairs(W.cookTabs) do b:SetShown(cooking) end
+  if cooking then
+    local r, m = NW.ProfSkill("cooking")
+    W.skill:SetText(r and ("%d / %d"):format(r, m or 75) or ("Not learned  ·  " .. H.dim .. "planning mode|r"))
+    W.next:SetText("")
+    W.next2:SetText("")
+    return
+  end
   local rank, max, bonus = F.skill()
   if rank then
     W.skill:SetText(("%d / %d  ·  %s%s"):format(rank, max or 75, F.rankOf(max),
@@ -1732,7 +1780,8 @@ table.insert(NW.OnLoad, function()
 end)
 
 -- shown in place of the craft layout while Fishing is selected
-function NW.FishPanel(on)
+function NW.FishPanel(on, ctx)
+  if on and ctx and ctx ~= F.ctx then F.ctx = ctx; F.sel = nil; F.offset = 0 end
   fp:SetShown(on)
   if on then F.Redraw() end
 end
