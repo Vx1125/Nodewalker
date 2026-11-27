@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+- Fishing: zone panel shows fish, recipes and the lure as icons; notes moved to tooltips.
+- Fishing: skill on one line (Base, Bonus, Effective); equipment and lure in its tooltip.
+- Fishing + Cooking: shorter rows (icons say the action), vendor items as icons, catches hang off their dish.
+- Fishing + Cooking: each step's panel shows only what that step needs.
 - Gathering: your current bracket keeps a gold edge on the right while another is selected.
 - Gathering: trainer rows show learn-at skill and the new cap; brackets past your cap say "train first".
 - Gathering: at your cap, resource icons and the panel say "train to go on"; "best" only marks one that still gives skill-ups.
