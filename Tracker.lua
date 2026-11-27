@@ -327,7 +327,8 @@ hud:SetClampedToScreen(true)
 hud:SetMovable(true)
 hud:EnableMouse(false)
 hud:Hide()
--- Unlocked, you drag it by any icon (no bar of its own); locked, it doesn't move
+-- Unlocked, a thin bar above it to drag by (icons use the item on the press, so they can't
+-- be dragged without using it); locked, no bar and it doesn't move
 local function dragStart() if not (st().buffHudLock or combat()) then hud:StartMoving() hud.moving = true end end
 local function dragStop()
   if not hud.moving then return end
@@ -340,6 +341,17 @@ local function dragStop()
     st().buffHudPos = { l, top }
   end
 end
+local grip = CreateFrame("Frame", nil, hud, "BackdropTemplate")
+grip:SetPoint("BOTTOMLEFT", hud, "TOPLEFT", 0, 3)
+grip:SetPoint("BOTTOMRIGHT", hud, "TOPRIGHT", 0, 3)
+grip:SetHeight(6)
+UI.Flat(grip, S.edge, S.edge)
+grip:SetAlpha(0.8)
+grip:EnableMouse(true)
+grip:RegisterForDrag("LeftButton")
+grip:SetScript("OnDragStart", dragStart)
+grip:SetScript("OnDragStop", dragStop)
+UI.Tip(grip, "Consumables", "Drag to move. Lock it in Settings › Consumes to hide this bar.")
 
 local icons = {}
 local DIM = { 0, 0, 0, 0.85 }
@@ -379,7 +391,6 @@ local function iconTip(self)
   GameTooltip:AddDoubleLine("In your bags", tostring(x.count or 0), d[1], d[2], d[3], 1, 1, 1)
   if st().buffClickUse ~= false then GameTooltip:AddDoubleLine("Click", "use it", d[1], d[2], d[3], 1, 1, 1) end
   GameTooltip:AddDoubleLine("Right-click", "in Consumes", d[1], d[2], d[3], 1, 1, 1)
-  if not st().buffHudLock then GameTooltip:AddDoubleLine("Drag", "move (lock it in Settings)", d[1], d[2], d[3], 1, 1, 1) end
   GameTooltip:Show()
 end
 
@@ -408,9 +419,6 @@ local function iconFor(i)
   -- time left above the icon; the count stays in the corner, so the two never meet
   b.time = UI.Text(b, 10, S.text, "CENTER")
   b.time:SetPoint("BOTTOM", b, "TOP", 0, 2)
-  b:RegisterForDrag("LeftButton")
-  b:SetScript("OnDragStart", dragStart)
-  b:SetScript("OnDragStop", dragStop)
   b:SetScript("OnEnter", iconTip)
   b:SetScript("OnLeave", GameTooltip_Hide)
   b:SetScript("PostClick", function(self, button, down)
@@ -499,6 +507,7 @@ local function layout()
   local w = vertical and total or maxAlong
   local h = vertical and maxAlong or total
   hud:SetSize(math.max(size, w), math.max(size, h))
+  grip:SetShown(not st().buffHudLock)
   hud:SetScale(st().buffHudScale or 1)
   hud:SetAlpha(st().buffHudAlpha or 1)
   hud:SetShown(st().buffHud and n > 0 and not contextHides() and true or false)
