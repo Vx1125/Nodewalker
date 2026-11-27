@@ -669,6 +669,10 @@ function W.fh.tip(icon)
     local r = c.recipe
     GameTooltip:AddDoubleLine("Cooking", ("%d-%d"):format(r.orange or r.yellow, r.grey), d[1], d[2], d[3], 1, 1, 1)
     if c.stepFrom then GameTooltip:AddDoubleLine("In this plan", ("%d-%d"):format(c.stepFrom, c.stepTo), d[1], d[2], d[3], 1, 1, 1) end
+    if c.recipes then
+      GameTooltip:AddLine(" ")
+      for k = 2, #c.recipes do local x = c.recipes[k] GameTooltip:AddDoubleLine("Also: " .. x.name, ("%d-%d"):format(x.orange or x.yellow, x.grey), d[1], d[2], d[3], 1, 1, 1) end
+    end
     local cook = NW.ProfSkill("cooking")
     local st = F.cookState(r, cook)
     if cook and st then GameTooltip:AddDoubleLine(("At your %d"):format(cook), F.COOK_WORDS[st], d[1], d[2], d[3], 1, 1, 1) end
@@ -956,6 +960,7 @@ for i = 1, 28 do
   local l = UI.Text(W.right, 11, S.dim)
   local v = UI.Text(W.right, 11, S.text, "RIGHT")
   l:SetWordWrap(false)
+  v:SetWordWrap(false)
   W.lines[i] = { l = l, v = v }
 end
 W.bars = {}
@@ -1019,6 +1024,7 @@ W.mapHit:SetScript("OnLeave", GameTooltip_Hide)
 -- one small button on a row (the lure's Smart Fishing choice)
 W.rowBtn = UI.Button(W.right, "", 70, nil, 20)
 W.rowBtn:Hide()
+if W.rowBtn.SetMotionScriptsWhileDisabled then W.rowBtn:SetMotionScriptsWhileDisabled(true) end -- (its tooltip says why it's off)
 W.rowBtn:HookScript("OnEnter", function(self)
   if not self.tip then return end
   GameTooltip:SetOwner(self, "ANCHOR_LEFT") GameTooltip:SetText(self:GetText() or "", 1, 1, 1)
@@ -1142,9 +1148,9 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
         else
           local bw = row.btn and 76 or 0
           ln.v:SetJustifyH("RIGHT")
-          ln.v:SetPoint("TOPRIGHT", anchor, "BOTTOMLEFT", RIGHT_W - bw, y - 9)
-          ln.v:SetWidth(70)
-          ln.l:SetWidth(RIGHT_W - 32 - 74 - bw)
+          ln.v:SetPoint("TOPRIGHT", anchor, "BOTTOMLEFT", RIGHT_W - bw - 4, y - 9)
+          ln.v:SetWidth(40)
+          ln.l:SetWidth(RIGHT_W - 32 - 44 - bw)
           if row.btn then
             local b = W.rowBtn
             b:ClearAllPoints()
@@ -1160,7 +1166,8 @@ function F.detail(head, icon, title, sub, rows, b1, b2)
         ln.v:SetText(row.info or "")
         ln.l:Show() ln.v:Show()
         lineTip(ln, row.tip, 26)
-        if ln.hit and row.tip then ln.hit:SetPoint("TOPLEFT", ln.l, "TOPLEFT", 0, 9) ln.hit:SetWidth(RIGHT_W - ITEM2_INFO - 80) end
+        -- (an item row's tooltip sits on its info, where the "+N" is)
+        if ln.hit and row.tip then ln.hit:ClearAllPoints() ln.hit:SetPoint("TOPLEFT", ln.v, "TOPLEFT", 0, 9) ln.hit:SetWidth(row.item2 and ITEM2_INFO or 70) end
         y = y - 28
       end
     elseif row.stats then
@@ -1419,7 +1426,7 @@ local function catchRow(id, cook)
   local r = list[1]
   if r and r.item then
     local rname = r.name or ""
-    row.item2 = { r.item, false, F.cookState(r, cook) or "ok", { recipe = r } }
+    row.item2 = { r.item, false, F.cookState(r, cook) or "ok", { recipe = r, recipes = #list > 1 and list or nil } }
     row.info = ("%d-%d"):format(r.orange or r.yellow, r.grey) .. (#list > 1 and (H.dim .. " +" .. (#list - 1) .. "|r") or "")
     if #list > 1 or rname ~= name then
       row.tip = function(tt)
@@ -1444,8 +1451,12 @@ local function lureRow(b)
     text = F.itemName(want[1], SF and SF.LURE_NAME and SF.LURE_NAME[want[1]]), info = ("+%d"):format(want[2]) }
   if SF then
     local s = NW.db.settings
-    if s.fishLure == "pref" and s.fishLurePref == want[1] then
+    local pref = SF.prefLure and SF.prefLure() or s.fishLurePref
+    if s.fishLure == "pref" and pref == want[1] then
       row.btn = { "Preferred", nil, tip = "Smart Fishing puts this lure on with its key." }
+    elseif have == 0 then
+      -- preferring one you don't carry would stop Smart Fishing putting any lure on
+      row.btn = { "Prefer", nil, tip = "None in your bags." }
     else
       row.btn = { "Prefer", function()
         s.fishLure, s.fishLurePref = "pref", want[1]
@@ -1494,6 +1505,7 @@ function F.zoneDetail(zone, bi, later)
     tt:SetText("May be caught in this zone", 1, 1, 1)
     tt:AddLine("Not at every body of water.", d[1], d[2], d[3], true)
     tt:AddLine("Skill range from leveling guides; the zone's minimum isn't published.", d[1], d[2], d[3], true)
+    for k = 1, #here do tt:AddLine((F.itemName(here[k])):gsub("^Raw ", ""), 1, 1, 1) end
   end)
   list(range, #here > 0 and "Also at this skill" or "At this skill", function(tt)
     tt:SetText("Other fish at this skill", 1, 1, 1)
