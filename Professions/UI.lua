@@ -1137,7 +1137,7 @@ drawSteps = function()
       local done = learned and stp.to and rank >= stp.to and not stp.banner
       row:SetAlpha(done and 0.5 or 1)
       row:SetSelected(learned and rank >= stp.from and rank < stp.to)
-      row.range:SetText((done and "|TInterface\\RaidFrame\\ReadyCheck-Ready:12:12:0:0|t " or "") .. ("%d-%d"):format(stp.from, stp.to))
+      row.range:SetText((done and "|TInterface\\RaidFrame\\ReadyCheck-Ready:12:12:0:0|t " or "") .. ("%d-%d"):format(stp.shownFrom or stp.from, stp.to))
       if stp.banner then
         -- a trip to the trainer: who, where, and when you can go
         local ru = stp.rankUp
@@ -1370,7 +1370,7 @@ local function drawCraft(p)
         local done = rank and rank >= ru.cap or false
         local f = folds[ru.name]
         if f == nil then f = done end -- finished ranks start folded
-        head = { rankHead = ru.name, ri = ri, lo = math.max(prevCap, from), hi = math.min(ru.cap, to),
+        head = { rankHead = ru.name, ri = ri, lo = math.max(prevCap, plan.kit and 1 or from), hi = math.min(ru.cap, to),
           done = done, current = rank and rank >= prevCap and rank < ru.cap, folded = f }
         list[#list + 1] = head
       end

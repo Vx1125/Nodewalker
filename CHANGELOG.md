@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Leveling: step ranges stay as planned instead of moving up with your skill.
 - Shopping list: enough spare materials for bad luck, so one trip covers the plan.
 - Re-plan moved to Options: Re-plan at today's prices.
 - Leveling: a recipe is made until it turns green, then the plan moves to one that's still orange or yellow.

@@ -1324,6 +1324,24 @@ function NW.BuildPlan(key, from, to)
       cur.var = cur.var + (1 - p) / (p * p) -- luck: how much the crafts needed can vary
     end
   end
+  -- a step of the locked plan shows where the plan starts it, not your skill
+  if kit then
+    for _, st in ipairs(steps) do
+      if st.recipe then
+        for n, ks in ipairs(kit.steps) do
+          if ks[3] == st.recipe.name and ks[1] <= st.from and st.from < ks[2] then
+            local s0 = ks[1]
+            for m = n - 1, 1, -1 do
+              local pk = kit.steps[m]
+              if pk[3] == ks[3] and pk[2] == s0 then s0 = pk[1] else break end
+            end
+            if s0 < st.from then st.shownFrom = s0 end
+            break
+          end
+        end
+      end
+    end
+  end
   local fees, paid, spend = 0, {}, 0
   local rankFee = NW.RANK_FEE[key] or {}
   -- spare crafts, enough for about 19 runs in 20, so bad luck doesn't mean
