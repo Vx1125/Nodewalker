@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Leveling: a recipe is kept until green only while it costs within a tenth of the cheapest; plans 2-10% cheaper (Engineering to 150: 5.11g to 4.49g at the same prices).
 - Cooking opens on Fishing + Cooking, the same plan as Fishing; Leveling, Missing recipes and Profit sit beside it.
 
 ## 1.3.0

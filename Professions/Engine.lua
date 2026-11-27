@@ -1159,17 +1159,18 @@ function NW.BuildPlan(key, from, to)
     stickyI, stickyC, stickyNeeds = nil, nil, nil
     -- Ride a recipe until it turns green, then move on (the way leveling guides
     -- do it): the one you're making stays while it's orange or yellow unless
-    -- another is much cheaper, and once it's green a recipe that's still
-    -- orange or yellow takes over if it costs about the same
+    -- another is cheaper by more than a tenth, and once it's green a recipe
+    -- that's still orange or yellow takes over if it costs about the same.
+    -- (At half again the cost, riding added 2-10% to whole plans.)
     local prev = sk > from and pick[sk - 1]
     local cur = prev and here[prev.i]
-    if cur and best ~= prev.i and sk < recipes[prev.i].green and cur[3] >= 0.25 and cur[1] <= bestCost * 1.5 then
+    if cur and best ~= prev.i and sk < recipes[prev.i].green and cur[3] >= 0.25 and cur[1] <= bestCost * 1.1 then
       best, bestCost, bestNeeds = prev.i, cur[1], cur[2]
     end
     if best and sk >= recipes[best].green then
       local alt, altC, altN
       for i, c in pairs(here) do
-        if sk < recipes[i].green and c[1] <= bestCost * 1.5 and (not altC or c[1] < altC) then alt, altC, altN = i, c[1], c[2] end
+        if sk < recipes[i].green and c[1] <= bestCost * 1.1 and (not altC or c[1] < altC) then alt, altC, altN = i, c[1], c[2] end
       end
       if alt then best, bestCost, bestNeeds = alt, altC, altN end
     end
