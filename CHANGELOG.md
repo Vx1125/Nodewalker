@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Action bar button: right-click toggles the overlay (left-click still opens the window); existing buttons update themselves.
 - Leveling: reagents shown as item icons with the count per craft; greyed with a red count when earlier steps leave you short. Hover for the step's totals and price; click for where to get it.
 - Leveling: a scroll icon replaces "needs recipe".
 - Leveling: a recipe is kept until green only while it costs within a tenth of the cheapest; plans 2-10% cheaper (Engineering to 150: 5.11g to 4.49g at the same prices).

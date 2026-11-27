@@ -412,7 +412,10 @@ NW.OnLoad = {}
 SLASH_NODEWALKER1 = "/nw"
 SLASH_NODEWALKER2 = "/nodewalker"
 SlashCmdList.NODEWALKER = function(msg)
-  msg = strtrim(msg or ""):lower()
+  msg = strtrim(msg or "")
+  -- macro conditions, as in the action bar button: "/nw [btn:2] map; window"
+  if msg:find("%[") and SecureCmdOptionParse then msg = SecureCmdOptionParse(msg) or "" end
+  msg = strtrim(msg):lower()
   if msg == "" or msg == "map" or msg == "toggle" then
     NW.ToggleOverlay()
   elseif msg == "plan" or msg == "route" then

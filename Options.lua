@@ -88,11 +88,14 @@ check(2, "Minimap button", "minimapButton", "Nodewalker is also in the game's Ad
 -- A button for your action bars: a macro that opens the window, handed to
 -- your cursor to drop where you like
 local barBtn
+-- left-click: this window; right-click: the overlay
+local BAR_MACRO = "/nw [btn:2] map; window"
 barBtn = UI.Button(page, "Action bar button", 170, function()
   if InCombatLockdown and InCombatLockdown() then return end
   local idx = GetMacroIndexByName and GetMacroIndexByName("Nodewalker") or 0
+  if idx > 0 and EditMacro then pcall(EditMacro, idx, nil, nil, BAR_MACRO) end
   if idx == 0 and CreateMacro then
-    local ok, made = pcall(CreateMacro, "Nodewalker", "INV_Misc_Map_01", "/nw window", nil)
+    local ok, made = pcall(CreateMacro, "Nodewalker", "INV_Misc_Map_01", BAR_MACRO, nil)
     idx = ok and made or 0
   end
   if idx and idx > 0 and PickupMacro then
@@ -103,7 +106,17 @@ barBtn = UI.Button(page, "Action bar button", 170, function()
   end
 end, 24)
 place(2, barBtn, 30, 2)
-UI.Tip(barBtn, "Action bar button", "Drop it on an action bar. It opens this window.")
+UI.Tip(barBtn, "Action bar button", "Drop it on an action bar. Left-click: this window. Right-click: the overlay.")
+-- a button made before right-click did anything: give it the overlay too
+local function upgradeBarMacro()
+  local idx = GetMacroIndexByName and GetMacroIndexByName("Nodewalker") or 0
+  if idx > 0 and GetMacroInfo and EditMacro and not (InCombatLockdown and InCombatLockdown()) then
+    local _, _, body = GetMacroInfo(idx)
+    if body and strtrim(body) == "/nw window" then pcall(EditMacro, idx, nil, nil, BAR_MACRO) end
+  end
+end
+NW.On("PLAYER_LOGIN", upgradeBarMacro)
+NW.On("UPDATE_MACROS", upgradeBarMacro)
 
 -- Controls and commands: on hover, not on the page
 local helpBtn = UI.Button(page, "Controls & commands", 170, nil, 22)
