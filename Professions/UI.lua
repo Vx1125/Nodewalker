@@ -926,7 +926,10 @@ function MS.rh.tip(icon)
   elseif c.total and c.have then GameTooltip:AddDoubleLine("Short", "none", d[1], d[2], d[3], S.good[1], S.good[2], S.good[3]) end
   local price, src = NW.Price(id)
   if price then
-    GameTooltip:AddDoubleLine(src == "vendor" and "Vendor price" or "Price each", NW.Money(price), d[1], d[2], d[3], 1, 1, 1)
+    GameTooltip:AddDoubleLine("Price each", NW.Money(price), d[1], d[2], d[3], 1, 1, 1)
+    local from = ({ ah = "Auction house (Auctionator)", vendor = "Vendor", craft = "Cheaper to make", est = "Estimate (no price yet)" })[src or ""]
+    if from then GameTooltip:AddDoubleLine("From", from, d[1], d[2], d[3], 1, 1, 1) end
+    if c.total then GameTooltip:AddDoubleLine(("This step's %d"):format(c.total), NW.Money(price * c.total), d[1], d[2], d[3], 1, 1, 1) end
     if short > 0 then GameTooltip:AddDoubleLine(("The %d short"):format(short), NW.Money(price * short), d[1], d[2], d[3], 1, 1, 1) end
   end
   if ahOpen() then GameTooltip:AddDoubleLine("Click", "search the auction house", d[1], d[2], d[3], 1, 1, 1)
@@ -938,14 +941,22 @@ end
 function MS.rh.click(icon)
   if icon.kind == "recipe" then
     local r = icon.ctx and icon.ctx.recipe
-    if IsShiftKeyDown() and r then chatLink(r.recipeItem, r.spell, true) end
+    if not r then return end
+    if ahOpen() and r.recipeItem then
+      local n, ok = itemName(r.recipeItem)
+      if ok then searchAH({ { n, 1 } }) end
+    elseif IsShiftKeyDown() then
+      chatLink(r.recipeItem, r.spell, true)
+    end
     return
   end
   local id = icon.id
   if not id then return end
   local c = icon.ctx or {}
   local short = c.total and c.have and math.ceil(c.total - c.have) or 0
+  -- at the auction house: search what's short (Shift-click: search anyway), as the shopping list does
   if ahOpen() then
+    if short <= 0 and not IsShiftKeyDown() then return end
     local n, ok = itemName(id)
     if ok then searchAH({ { n, math.max(1, short > 0 and short or (c.total or 1)) } }) end
     return
@@ -991,7 +1002,7 @@ function MS.simulate(seq, rank)
         have[re[1]] = left(re[1])
         stock[re[1]] = math.max(0, have[re[1]] - re[2] * n)
       end
-      if r.item then stock[r.item] = left(r.item) + n * (r.yield or 1) end
+      if r.item and e.keep then stock[r.item] = left(r.item) + n * (r.yield or 1) end
       e.into.availHave = have
     else
       e.into.availHave = nil
@@ -1407,6 +1418,7 @@ function MS.fixedRows()
     row.headBg:Hide() row.head:Hide() row.headCount:Hide() row.trainBg:Hide()
     row:SetAlpha(1)
     row.range:Show() row.name:Show() row.mats:Show() row.crafts:Show() row.cost:Show()
+    row.strip:Clear() -- (only Leveling's rows draw icons)
     if i > STEP_ROWS then row:Hide() end
   end
 end
@@ -1506,10 +1518,11 @@ local function drawCraft(p)
     for _, stp in ipairs(plan.steps) do
       if stp.recipe then
         for _, t in ipairs(toolsAt[stp] or {}) do
-          if t.recipe and not t.have then seq[#seq + 1] = { r = t.recipe, n = 1, into = t } end
+          if t.recipe and not t.have then seq[#seq + 1] = { r = t.recipe, n = 1, to = stp.to, into = t, keep = true } end
         end
-        for _, pp in ipairs(prep[stp] or {}) do seq[#seq + 1] = { r = pp.recipe, n = pp.crafts, into = pp } end
-        seq[#seq + 1] = { r = stp.recipe, n = stp.crafts, to = stp.to, into = stp }
+        for _, pp in ipairs(prep[stp] or {}) do seq[#seq + 1] = { r = pp.recipe, n = pp.crafts, to = stp.to, into = pp, keep = true } end
+        -- what a step makes counts for later ones only when you keep it (as the shopping list does)
+        seq[#seq + 1] = { r = stp.recipe, n = stp.crafts, to = stp.to, into = stp, keep = p.key == "cooking" or not st().planSellBack }
       end
     end
     MS.simulate(seq, rank)

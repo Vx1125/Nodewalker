@@ -897,15 +897,18 @@ do
     GameTooltip:SetText("Also needs", 1, 1, 1)
     for k = strip.shown + 1, strip.n do
       local ic = strip.icons[k]
-      local name = ic.id and NW.ItemName(ic.id) or "?"
-      GameTooltip:AddDoubleLine(name, "×" .. (ic.qty or 1), 1, 1, 1, S.dim[1], S.dim[2], S.dim[3])
+      local name = ic.id and NW.ItemName(ic.id)
+      if not name and ic.id and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, ic.id) end
+      local r, g, b = 1, 1, 1
+      if ic.short then r, g, b = S.bad[1], S.bad[2], S.bad[3] end
+      GameTooltip:AddDoubleLine(name or ("item " .. tostring(ic.id)), "×" .. (ic.qty or 1), r, g, b, S.dim[1], S.dim[2], S.dim[3])
     end
     GameTooltip:Show()
   end
   local function newIcon(strip)
     local b = CreateFrame("Button", nil, strip)
     b:SetSize(SIZE, SIZE)
-    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:RegisterForClicks("LeftButtonUp")
     b.edge = b:CreateTexture(nil, "BACKGROUND")
     b.edge:SetPoint("TOPLEFT", -1, 1)
     b.edge:SetPoint("BOTTOMRIGHT", 1, -1)
@@ -947,6 +950,7 @@ do
     b.tex:SetTexture(NW.ItemIcon(id) or QMARK)
     b.tex:SetDesaturated(b.short)
     b.tex:SetVertexColor(1, 1, 1, b.short and 0.55 or 1)
+    b.edge:SetColorTexture(0, 0, 0, 0.8)
     b.count:SetText((b.qty > 1 or b.short) and tostring(b.qty) or "")
     b.count:SetTextColor(unpack(b.short and S.bad or S.text))
     return b
@@ -958,6 +962,7 @@ do
     b.tex:SetTexture(tex or QMARK)
     b.tex:SetDesaturated(false)
     b.tex:SetVertexColor(1, 1, 1, 1)
+    b.edge:SetColorTexture(1, 0.5, 0.25, 0.9) -- a blocker: orange-edged, like the "needs recipe" it stands for
     b.count:SetText("")
     return b
   end
@@ -985,7 +990,10 @@ do
     local over = self.n - self.shown
     self.more:SetShown(over > 0)
     if over > 0 then
+      local short = false
+      for k = self.shown + 1, self.n do if self.icons[k].short then short = true end end
       self.more.text:SetText("+" .. over)
+      self.more.text:SetTextColor(unpack(short and S.bad or S.dim))
       self.more:ClearAllPoints()
       self.more:SetPoint("LEFT", self, "LEFT", x + self.shown * (SIZE + GAP), 0)
     end
