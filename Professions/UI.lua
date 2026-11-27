@@ -3317,7 +3317,8 @@ local function drawCard()
   UI.FitText(CW.cProf, ("%s%s%s  ·  %s%s"):format(prof and prof.name or "", req and req > 0 and (" " .. req) or "",
     (r.yield or 1) > 1 and ("  ·  makes %d"):format(r.yield) or "", status, cdRecipe and "  ·  |cffd6b266cooldown|r" or ""), 11, 9)
   local acquiring = mode == "missing"
-  CW.cSource:SetText(acquiring and "" or (sourceText(card.key, r, NW.ProfSkill(card.key))) or "")
+  -- where the recipe comes from: only while you don't know it (not "learn it now" on a known one)
+  CW.cSource:SetText((acquiring or knows) and "" or (sourceText(card.key, r, NW.ProfSkill(card.key))) or "")
   CW.grid:SetShown(not acquiring)
   CW.cAge:SetShown(not acquiring)
   CW.batch:SetShown(not acquiring)
