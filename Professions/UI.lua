@@ -1327,7 +1327,9 @@ end, 20)
 CW.bMax:SetPoint("LEFT", CW.bPlus, "RIGHT", 6, 0)
 UI.Tip(CW.bMax, "Bags", "As many as the materials in your bags make.")
 CW.bMakes = UI.Text(CW.batch, 11, S.dim, "RIGHT")
+CW.bMakes:SetPoint("LEFT", CW.bMax, "RIGHT", 8, 0) -- (never under the Bags button)
 CW.bMakes:SetPoint("RIGHT", 0, 0)
+CW.bMakes:SetWordWrap(false)
 -- exact money (gold, silver, copper as needed), so two figures never read the same while they differ
 function CW.exact(c)
   if not c then return "?" end
@@ -3328,7 +3330,7 @@ local function drawCard()
     CW.bNum:SetText(tostring(n))
     CW.bMinus:SetEnabled(n > 1)
     CW.bPlus:SetEnabled(not cdRecipe)
-    CW.bMakes:SetText(("makes %d%s"):format(n * (r.yield or 1), cdRecipe and "  ·  one at a time" or ""))
+    CW.bMakes:SetText(("makes %d"):format(n * (r.yield or 1))) -- (a cooldown recipe says so in its header)
   end
   CW.acq:SetShown(acquiring)
   CW.cMatsHead:ClearAllPoints()
@@ -3365,7 +3367,9 @@ local function drawCard()
   CW.cells[3].label:SetText("Net profit")
   if profitN then
     local roi = matValue > 0 and math.floor(profitN / matValue * 100 + 0.5) or nil
-    CW.cells[3].value:SetText((profitN >= 0 and "+" or "-") .. CW.exact(math.abs(profitN)) .. (roi and ("  |cff938c80%s%d%%|r"):format(roi > 0 and "+" or "", roi) or ""))
+    -- the return goes with the label: the exact amount needs the cell's width
+    CW.cells[3].label:SetText("Net profit" .. (roi and ("  |cff%s%s%d%%|r"):format(roi >= 0 and "94ba78" or "d17665", roi > 0 and "+" or "", roi) or ""))
+    CW.cells[3].value:SetText((profitN >= 0 and "+" or "-") .. CW.exact(math.abs(profitN)))
     CW.cells[3].value:SetTextColor(unpack(profitN >= 0 and S.good or S.bad))
     CW.cells[3].tip = ("Sells for less material value.\nEach craft: %s%s.  Each item: %s%s.\nReturn: net profit over material value.")
       :format(profitN >= 0 and "+" or "-", CW.exact(math.abs(profitN / n)), profitN >= 0 and "+" or "-", CW.exact(math.abs(profitN / (n * yield))))
@@ -3390,6 +3394,8 @@ local function drawCard()
     CW.cells[4].value:SetText("Nothing")
     CW.cells[4].value:SetTextColor(unpack(S.good))
   end
+  -- long amounts shrink a point or two rather than run off the cell
+  for _, c in ipairs(CW.cells) do UI.FitText(c.value, c.value:GetText() or "", 13, 10) end
   CW.cells[4].tip = "What you'd spend: the materials you don't have (bags and bank counted). Out of pocket, not the profit."
 
   -- how old the price for what it makes is
