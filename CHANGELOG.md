@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Gathering: training rows between ranges; finished ranges ticked; the numbers on herb and ore icons are the skill needed (heading hover says so).
+- Gathering plan (right): each resource by name with its skill and what it does for you (skill-ups, few, none, too low; best marked); zones ranked by spots that still give skill-ups; pick a zone for the route and Material Finder.
+- Mining: bars that give skill-ups at your skill, a click from the Smelting view.
+- Fishing + Cooking: each catch sits indented right above the dish it's for, with a line to it; catch counts say fish (not casts).
+- Winter Squid planned only when buying (winter-only by Classic data); Summer Bass and Winter Squid zones added.
 - Fishing: fish shown as larger icons with the guide's skill (not a confirmed minimum), source and zones on hover; click for where to fish it.
 - Fishing + Cooking: catch steps show the dish they're cooked into, cook steps their fish; "Or buy it" when a catch waits for Fishing.
 - Fishing + Cooking: Cooking no longer waits for Fishing to finish: a step goes where its fish can be caught (or bought), and a Cooking rank already trained gets no step.

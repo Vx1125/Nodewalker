@@ -476,8 +476,15 @@ MS.matHead = CreateFrame("Frame", nil, mid)
 MS.matHead:SetPoint("BOTTOMLEFT", stepsBox, "TOPLEFT", MS.COL.mat, 0)
 MS.matHead:SetSize(MS.COL.matW, 16)
 MS.matHead:EnableMouse(true)
-UI.Tip(MS.matHead, "Materials", "Each number is what one craft takes. Hover an icon for the whole step: "
-  .. "what you have, what the steps before make and what's short.\nRed edge: short. Gold edge: made by the steps before.")
+UI.Tip(MS.matHead, function() return MS.matHeadGather and "Skill needed" or "Materials" end, function()
+  local g = MS.matHeadGather
+  if g == "skinning" then return "The leather and hide creatures in this range drop. Red edge: your skill is too low for them." end
+  if g == "mining" and mode == "smelt" then return "Each number is the ore one bar takes. Red edge: not enough in your bags." end
+  if g then return "Each number is the skill the node needs, not an amount. The edge is its colour at your skill: "
+    .. "|cffff8040orange|r and |cffffff00yellow|r give skill-ups, |cff40bf40green|r sometimes, |cff808080grey|r none, red: too low." end
+  return "Each number is what one craft takes. Hover an icon for the whole step: "
+    .. "what you have, what the steps before make and what's short.\nRed edge: short. Gold edge: made by the steps before."
+end)
 -- gather: a gathering profession's list (its brackets, or Mining's smelting)
 function MS.capsFor(plan, gather)
   local cols = plan or gather
@@ -490,13 +497,14 @@ function MS.capsFor(plan, gather)
   local mat = plan and "Materials" or ""
   if gather then
     local smelt = selected == "mining" and mode == "smelt"
-    mat = smelt and "Ore" or ({ herbalism = "Herbs", mining = "Ore and stone", skinning = "Leather and hides" })[selected] or ""
+    mat = smelt and "Ore (per bar)" or ({ herbalism = "Herbs  ·  skill needed", mining = "Ore  ·  skill needed", skinning = "Leather and hides" })[selected] or ""
     caps[2]:SetText(smelt and "Bar" or "Zones")
     caps[3]:SetText(smelt and "Can make" or "")
     caps[4]:SetText(smelt and "Cost each" or "")
   end
   caps[5]:SetText(mat)
-  MS.matHead:SetShown(plan)
+  MS.matHead:SetShown(plan or gather)
+  MS.matHeadGather = gather and selected or nil
 end
 local CAPS = {
   plan = { "Skill", "Recipe", "Crafts", "Cost" },
@@ -1917,7 +1925,13 @@ end
 local function bracketRows(key)
   local g = NW.GATHER_GUIDE[key]
   local out = {}
+  local ri = 2
   for _, b in ipairs(g.brackets) do
+    -- a rank to train before the first bracket that goes past the one before it
+    while NW.RANKS[ri] and b[2] > NW.RANKS[ri - 1].cap do
+      out[#out + 1] = { banner = true, rankUp = NW.RANKS[ri], from = NW.RANKS[ri - 1].cap, to = NW.RANKS[ri - 1].cap }
+      ri = ri + 1
+    end
     out[#out + 1] = { from = b[1], to = b[2], nodes = b[3], zones = b[4], note = b[5], fish = b[6], gather = true }
   end
   return out
@@ -2063,12 +2077,38 @@ local function drawGatherRows(key)
     row.missingRecipe = nil
     row.sectionRow = nil
     row.profitRow = nil
-    if b then
+    row.bracket = nil
+    if b and b.banner then
+      -- a rank to train: who, and what it needs
+      local ru = b.rankUp
+      local _, max = NW.ProfSkill(key)
+      local trained = max and max >= ru.cap
+      row:Show()
+      MS.layout(row, true)
+      row.trainBg:Show()
+      row:SetAlpha(trained and 0.55 or 1)
+      row:SetSelected(false)
+      UI.FitText(row.range, (trained and "|TInterface\\RaidFrame\\ReadyCheck-Ready:10:10:0:0|t" or "") .. b.from, 12, 9)
+      row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+      row.icon:Show()
+      row.name:SetText(("|cffd6b266Train %s|r"):format(ru.name))
+      local who, where = NW.RankWhere(key, ru.name)
+      local lvl = (UnitLevel and UnitLevel("player") or 0) < ru.level and (", level " .. ru.level) or ""
+      row.mats:ClearAllPoints()
+      row.mats:SetPoint("TOPLEFT", row, "TOPLEFT", MS.COL.name, -21)
+      row.mats:SetWidth(MID_W - 12 - MS.COL.name - 8)
+      UI.FitText(row.mats, ("|cffe0dbd0%s|r  ·  skill %d%s"):format(who and (who .. ", " .. where) or ("Any " .. (NW.PROF_BY_KEY[key].name) .. " trainer"), ru.skill, lvl), 11, 9)
+      row.crafts:SetText("")
+      local fee = (NW.RANK_FEE[key] or {})[ru.name]
+      row.cost:SetText(trained and "|cff94ba78trained|r" or (fee and NW.Money(fee, true) or ""))
+    elseif b then
       row:Show()
       MS.layout(row, true)
       local now = rank >= b.from and rank < b.to
+      local done = NW.ProfSkill(key) ~= nil and rank >= b.to
       row:SetSelected(MS.gsel == b or (not MS.gsel and now))
-      row.range:SetText(("%d-%d"):format(b.from, b.to))
+      row:SetAlpha(done and MS.gsel ~= b and 0.6 or 1)
+      UI.FitText(row.range, (done and "|TInterface\\RaidFrame\\ReadyCheck-Ready:10:10:0:0|t" or "") .. ("%d-%d"):format(b.from, b.to), 12, 9)
       row.icon:Hide()
       -- zones in the Recipe column, one line; the rest and notes under it
       row.name:SetWordWrap(false)
@@ -2087,7 +2127,7 @@ local function drawGatherRows(key)
       UI.FitText(row.mats, table.concat(sub, "  ·  "), 11, 9)
       MS.fillGather(row.strip, key, b, C.matW)
       row.crafts:SetText("")
-      row.cost:SetText(now and "|cffd6b266now|r" or "")
+      row.cost:SetText(now and "|cffd6b266now|r" or (done and "|cff94ba78done|r" or ""))
       row.bracket = b
     else
       row:Hide()
@@ -2127,9 +2167,39 @@ for _, row in ipairs(stepRows) do
 end
 
 ------------------------------------------------------------------------
--- Gathering: the selected bracket on the right (in place of notes): your
--- skill and next rank, what to gather there, its zones and a route
+-- Gathering plan, on the right: the selected bracket's rank and range, what
+-- to gather (by name, skill and what it does for you), its zones ranked by
+-- the spots that still give skill-ups, and a route from the zone you pick
 ------------------------------------------------------------------------
+MS.STATE_HEX = { orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080", red = "d17665" }
+function MS.listRow(parent, w)
+  local z = CreateFrame("Button", nil, parent)
+  z:SetSize(w, 22)
+  UI.RowHighlight(z)
+  z.sel = z:CreateTexture(nil, "BACKGROUND")
+  z.sel:SetAllPoints()
+  z.sel:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.14)
+  z.sel:Hide()
+  z.bar = z:CreateTexture(nil, "ARTWORK")
+  z.bar:SetPoint("TOPLEFT")
+  z.bar:SetPoint("BOTTOMLEFT")
+  z.bar:SetWidth(2)
+  z.bar:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+  z.bar:Hide()
+  z.icon = z:CreateTexture(nil, "ARTWORK")
+  z.icon:SetSize(18, 18)
+  z.icon:SetPoint("LEFT", 6, 0)
+  z.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  z.text = UI.Text(z, 12, S.text)
+  z.text:SetWordWrap(false)
+  z.right = UI.Text(z, 11, S.dim, "RIGHT")
+  z.right:SetPoint("RIGHT", -6, 0)
+  z:SetScript("OnClick", function(self) if self.go then self.go() end end)
+  z:SetScript("OnEnter", function(self) if self.tip then self.tip(self) end end)
+  z:SetScript("OnLeave", GameTooltip_Hide)
+  function z:SetSel(on) self.sel:SetShown(on) self.bar:SetShown(on) end
+  return z
+end
 function MS.buildGatherContext()
   local G = {}
   MS.gctx = G
@@ -2148,50 +2218,87 @@ function MS.buildGatherContext()
   G.next:SetPoint("TOPLEFT", G.skill, "BOTTOMLEFT", 0, -4)
   G.next:SetWidth(W)
   G.resHead = UI.Heading(info, "Gather", W)
-  G.resHead:SetPoint("TOPLEFT", G.next, "BOTTOMLEFT", 0, -12)
-  G.strip = UI.ReagentStrip(info, MS.gh, 30)
-  G.strip:SetPoint("TOPLEFT", G.resHead, "BOTTOMLEFT", 0, -6)
+  G.res = {}
+  for k = 1, 5 do
+    local z = MS.listRow(info, W)
+    z.text:SetPoint("LEFT", z.icon, "RIGHT", 6, 0)
+    z.text:SetWidth(W - 130)
+    G.res[k] = z
+  end
   G.zoneHead = UI.Heading(info, "Zones", W)
   G.zones = {}
-  for k = 1, 6 do
-    local z = CreateFrame("Button", nil, info)
-    z:SetSize(W, 22)
-    UI.RowHighlight(z)
-    z.text = UI.Text(z, 12, S.text)
-    z.text:SetPoint("LEFT", 6, 0)
-    z.text:SetWidth(W - 70)
-    z.text:SetWordWrap(false)
-    z.right = UI.Text(z, 11, S.dim, "RIGHT")
-    z.right:SetPoint("RIGHT", -6, 0)
-    z:SetScript("OnClick", function(self) if self.go then self.go() end end)
-    z:SetScript("OnEnter", function(self)
-      if not self.zone then return end
-      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-      GameTooltip:SetText(self.zone, 1, 1, 1)
-      if self.tip then GameTooltip:AddLine(self.tip, S.dim[1], S.dim[2], S.dim[3], true) end
-      GameTooltip:AddLine("Click: this zone in Material Finder", S.dim[1], S.dim[2], S.dim[3], true)
-      GameTooltip:Show()
-    end)
-    z:SetScript("OnLeave", GameTooltip_Hide)
+  for k = 1, 5 do
+    local z = MS.listRow(info, W)
+    z.icon:Hide()
+    z.text:SetPoint("LEFT", 8, 0)
+    z.text:SetWidth(W - 110)
     G.zones[k] = z
   end
   G.route = UI.Button(info, "Build route", math.floor((W - 6) / 2), function() if G.routeFn then G.routeFn() end end, 24, "primary")
   G.finder = UI.Button(info, "Material Finder", math.floor((W - 6) / 2), function() if G.finderFn then G.finderFn() end end, 24)
   G.finder:SetPoint("LEFT", G.route, "RIGHT", 6, 0)
   UI.Tip(G.route, function() return G.routeTitle or "Build route" end, function() return G.routeTip end)
-  UI.Tip(G.finder, "Material Finder", "Where to get this bracket's best resource for your skill.")
+  UI.Tip(G.finder, "Material Finder", function() return G.finderTip end)
+  -- Mining: the bars that give skill-ups now, a click from the Smelting view
+  G.smeltHead = UI.Heading(info, "Smelting", W)
+  G.smelt = {}
+  for k = 1, 3 do
+    local z = MS.listRow(info, W)
+    z.text:SetPoint("LEFT", z.icon, "RIGHT", 6, 0)
+    z.text:SetWidth(W - 110)
+    G.smelt[k] = z
+  end
   G.hint = UI.Text(info, 11, S.dim)
   G.hint:SetWidth(W)
   G.hint:SetJustifyV("TOP")
   G.hint:SetSpacing(2)
 end
--- the resource worth going for: the highest one your skill can gather
-local function bestResource(key, b)
-  local skill = NW.ProfSkill(key) or 0
+-- what a resource does for you at a skill: its node colour, in words
+function MS.resourceState(key, it, skill, b)
+  if key == "skinning" then return (skill and skill < b.from) and "red" or nil end
+  if not (skill and it.req) then return nil end
+  return NW.SkillColor(it.req, skill)
+end
+MS.RES_WORDS = { orange = "skill-ups", yellow = "skill-ups", green = "few skill-ups", grey = "no skill-ups", red = "needs %d" }
+-- zones by the spots that still give skill-ups at that skill (orange, yellow,
+-- green), then by all known spots: lots of low herbs don't make a zone good
+function MS.rankZones(key, b, skill)
+  local useful, want = {}, {}
+  for _, n in ipairs(b.nodes or {}) do
+    want[n] = true
+    local req = NW.RequiredSkill(n)
+    local c = req and NW.SkillColor(req, skill)
+    useful[n] = c == "orange" or c == "yellow" or c == "green"
+  end
+  local rows, seen = {}, {}
+  for _, z in ipairs(b.zones) do
+    local id = NW.ZoneID and NW.ZoneID(z)
+    local row = { name = z, mapID = id, count = 0, useful = 0 }
+    if id and not seen[id] then
+      seen[id] = true
+      for _, nd in ipairs(NW.db.nodes[id] or {}) do
+        if want[nd.name] then
+          row.count = row.count + 1
+          if useful[nd.name] then row.useful = row.useful + 1 end
+        end
+      end
+      rows[#rows + 1] = row
+    elseif not id then
+      rows[#rows + 1] = row
+    end
+  end
+  table.sort(rows, function(a, c) if a.useful ~= c.useful then return a.useful > c.useful end return a.count > c.count end)
+  return rows, useful
+end
+-- the resource worth going for: the highest one that still gives skill-ups
+-- (else the highest you can gather); Skinning: its leather
+function MS.bestResource(key, b, skill)
   local items = MS.bracketItems(key, b)
-  local best = items[1]
+  local best, ok = items[1], nil
   for _, it in ipairs(items) do
-    if it.req and it.req <= skill then best = it end -- (Skinning has none: its leather, first)
+    local c = it.req and skill and NW.SkillColor(it.req, skill)
+    if c == "orange" or c == "yellow" or c == "green" then best = it end
+    if it.req and skill and it.req <= skill then ok = ok or it end
   end
   return best
 end
@@ -2200,97 +2307,209 @@ function MS.drawGatherContext(key)
   local G = MS.gctx
   local p = NW.PROF_BY_KEY[key]
   local rank, max = NW.ProfSkill(key)
-  -- Smelting: what the list shows and what it can't do
+  local W = RIGHT_W
+  local function hideAll()
+    for _, w in ipairs({ G.resHead, G.zoneHead, G.route, G.finder, G.smeltHead }) do w:Hide() end
+    for _, l in ipairs({ G.res, G.zones, G.smelt }) do for _, z in ipairs(l) do z:Hide() end end
+  end
+  -- the bars that give skill-ups at a skill, as shortcuts
+  local function smeltRows(anchor, skill)
+    local list = {}
+    for _, r in ipairs(NW.RECIPES.mining or {}) do
+      local learn = r.orange or r.yellow
+      if skill and skill >= learn and r.grey > learn and NW.SkillUpChance(r, skill) > 0 then list[#list + 1] = r end
+    end
+    if #list == 0 then G.smeltHead:Hide() return anchor, 0 end
+    G.smeltHead:ClearAllPoints()
+    G.smeltHead:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -12)
+    G.smeltHead:Show()
+    local n = 0
+    for k, z in ipairs(G.smelt) do
+      local r = list[k]
+      z:SetShown(r ~= nil)
+      z:SetSel(false)
+      if r then
+        n = k
+        z:ClearAllPoints()
+        z:SetPoint("TOPLEFT", G.smeltHead, "BOTTOMLEFT", 0, -4 - (k - 1) * 22)
+        z.icon:SetTexture(itemIcon(r.item))
+        z.text:SetText(("|cff%s%s|r"):format(colorFor(r, skill), r.name))
+        local make = math.huge
+        for _, re in ipairs(r.reagents) do make = math.min(make, math.floor((NW.ItemCount(re[1]) or 0) / re[2])) end
+        z.right:SetText(make > 0 and ("can make %d"):format(make * (r.yield or 1)) or ("%d-%d"):format(r.orange or r.yellow, r.grey))
+        z.go = function() if mode ~= "smelt" then mode = "smelt"; refresh() end end
+        z.tip = function(self)
+          GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+          if not pcall(GameTooltip.SetItemByID, GameTooltip, r.item) then GameTooltip:SetText(r.name, 1, 1, 1) end
+          GameTooltip:AddLine(("Skill-ups while it's orange, yellow or green: %s-%d."):format(r.orange or r.yellow, r.grey), S.dim[1], S.dim[2], S.dim[3], true)
+          if mode ~= "smelt" then GameTooltip:AddLine("Click: the Smelting view", S.dim[1], S.dim[2], S.dim[3]) end
+          GameTooltip:Show()
+        end
+      end
+    end
+    return G.smelt[n], n
+  end
+  -- Smelting: the bars that help at your skill; the rest is in the list
   if mode == "smelt" then
+    hideAll()
     G.title:SetText("Smelting")
-    G.skill:SetText(rank and ("Mining %d / %d"):format(rank, max or 75) or "Mining not learned")
+    G.skill:SetText(rank and ("Mining %d / %d"):format(rank, max or 75) or "Mining not learned  ·  |cff938c80planning mode|r")
     G.next:SetText("")
-    for _, w in ipairs({ G.resHead, G.strip, G.zoneHead, G.route, G.finder }) do w:Hide() end
-    for _, z in ipairs(G.zones) do z:Hide() end
+    local last, n = smeltRows(G.next, rank)
+    if G.smeltHead:IsShown() then G.smeltHead.text:SetText("Skill-ups now") end
     G.hint:ClearAllPoints()
-    G.hint:SetPoint("TOPLEFT", G.next, "BOTTOMLEFT", 0, -10)
-    G.hint:SetText("Each bar gives skill-ups while it's |cffff8040orange|r, |cffffff00yellow|r or |cff40bf40green|r for you. "
-      .. "Smelting covers only some ranges; mine nodes for the rest, so there's no smelting-only plan.\n\nHover an ore for what you have and its price. Click it for where to mine it.")
+    G.hint:SetPoint("TOPLEFT", n > 0 and last or G.next, "BOTTOMLEFT", 0, -12)
+    G.hint:SetText((n == 0 and (rank and "No bar gives skill-ups at your skill: mine nodes for these points.\n\n" or "") or "")
+      .. "Smelting gives points only in some ranges; mining nodes covers the rest.")
     return
   end
-  for _, w in ipairs({ G.resHead, G.strip, G.zoneHead, G.route, G.finder }) do w:Show() end
   local b = MS.gsel
   if not b then
-    for _, sb in ipairs(steps) do if rank and sb.from and rank >= sb.from and rank < sb.to then b = sb break end end
-    b = b or steps[1]
+    for _, sb in ipairs(steps) do if sb.zones and rank and rank >= sb.from and rank < sb.to then b = sb break end end
+    if not b then for _, sb in ipairs(steps) do if sb.zones then b = sb break end end end
   end
   if not (b and b.zones) then
+    hideAll()
     G.title:SetText(p and p.name or "")
-    for _, w in ipairs({ G.resHead, G.strip, G.zoneHead, G.route, G.finder }) do w:Hide() end
-    for _, z in ipairs(G.zones) do z:Hide() end
+    G.skill:SetText("")
+    G.next:SetText("")
     G.hint:SetText("")
     return
   end
+  for _, w in ipairs({ G.resHead, G.zoneHead, G.route, G.finder }) do w:Show() end
+  -- planning a profession you don't have: as if at the bracket's start
+  local skill = rank or b.from
   local now = rank and rank >= b.from and rank < b.to
-  G.title:SetText(("Skill %d-%d%s"):format(b.from, b.to, now and "  |cffd6b266now|r" or ""))
-  local rk = NW.RANKS and max and (function() for _, r in ipairs(NW.RANKS) do if r.cap == max then return r.name end end end)() or nil
-  G.skill:SetText(rank and ("%s %d / %d%s"):format(p.name, rank, max or 75, rk and ("  ·  " .. rk) or "") or (p.name .. " not learned  ·  |cff938c80planning mode|r"))
-  local line = rankLine(key)
-  G.next:SetText(line or (rank and "All ranks trained." or ""))
+  local rkName
+  for _, r in ipairs(NW.RANKS) do if max and r.cap == max then rkName = r.name end end
+  G.title:SetText(("Skill %d-%d%s"):format(b.from, b.to, now and "  |cffd6b266now|r" or (rank and rank >= b.to and "  |cff94ba78done|r" or "")))
+  G.skill:SetText(rank and ("%s %d / %d%s"):format(p.name, rank, max or 75, rkName and ("  ·  " .. rkName) or "")
+    or ("%s not learned  ·  |cff938c80planning at %d|r"):format(p.name, skill))
+  G.next:SetText(rankLine(key) or (rank and "All ranks trained." or ""))
+  -- what to gather: name, skill, what it does for you; the best one marked
+  G.resHead:ClearAllPoints()
+  G.resHead:SetPoint("TOPLEFT", G.next, "BOTTOMLEFT", 0, -10)
   G.resHead.text:SetText(key == "skinning" and "Skin" or key == "mining" and "Mine" or "Gather")
-  local rows = MS.fillGather(G.strip, key, b, RIGHT_W)
-  G.zoneHead:ClearAllPoints()
-  G.zoneHead:SetPoint("TOPLEFT", G.strip, "TOPLEFT", 0, -rows * 35 - 10)
-  -- zones: known spots for herbs and ore (yours and the shipped data), best first
-  local best = bestResource(key, b)
-  local ranked
-  if key ~= "skinning" and b.nodes then ranked = NW.RankZonesForNodes(b.nodes, b.zones) end
-  local list = ranked or {}
-  if not ranked then for _, z in ipairs(b.zones) do list[#list + 1] = { name = z } end end
-  local y = 0
-  for k, z in ipairs(G.zones) do
-    local e = list[k]
-    z:ClearAllPoints()
-    z:SetPoint("TOPLEFT", G.zoneHead, "BOTTOMLEFT", 0, -4 - (k - 1) * 22)
-    z:SetShown(e ~= nil)
-    if e then
-      y = k
-      z.zone = e.name
-      z.text:SetText(e.name)
-      z.right:SetText(e.count and (e.count > 0 and (e.count .. " known") or "|cff938c80none known|r") or "")
-      z.tip = e.count and ("Known spots of these nodes: %d (yours and the shipped data)."):format(e.count) or nil
-      local id, zone = best and best.id, e.name
-      z.go = function() if id then MS.findResource(key, id, zone) end end
+  local items = MS.bracketItems(key, b)
+  local best = MS.bestResource(key, b, skill)
+  local nRes = 0
+  for k, z in ipairs(G.res) do
+    local it = items[k]
+    z:SetShown(it ~= nil)
+    z:SetSel(false)
+    if it then
+      nRes = k
+      z:ClearAllPoints()
+      z:SetPoint("TOPLEFT", G.resHead, "BOTTOMLEFT", 0, -4 - (k - 1) * 22)
+      z.icon:SetTexture(itemIcon(it.id))
+      local st = MS.resourceState(key, it, skill, b)
+      local name = (itemName(it.id))
+      z.text:SetText((it == best and "|cffd6b266" or "|cffe0dbd0") .. name .. "|r")
+      local words = st and MS.RES_WORDS[st]
+      if st == "red" and it.req then words = words:format(it.req) elseif st == "red" then words = "too low" end
+      local right = {}
+      if it.req then right[#right + 1] = ("skill %d"):format(it.req) end
+      if words then right[#right + 1] = ("|cff%s%s|r"):format(MS.STATE_HEX[st] or "938c80", words) end
+      if it == best and st ~= "red" then right[#right + 1] = "|cffd6b266best|r" end
+      z.right:SetText(table.concat(right, "  ·  "))
+      local id = it.id
+      z.go = function() MS.findResource(key, id, G.zsel and G.zsel.name) end
+      z.tip = function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        if not pcall(GameTooltip.SetItemByID, GameTooltip, id) then GameTooltip:SetText(name, 1, 1, 1) end
+        GameTooltip:AddLine(" ")
+        if it.req then GameTooltip:AddDoubleLine(("Needs %s"):format(p.name), it.req, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        if st and MS.SKILL_WORDS[st] then GameTooltip:AddDoubleLine(("At %d"):format(skill), MS.SKILL_WORDS[st], S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        GameTooltip:AddLine("Click: Material Finder" .. (G.zsel and (", " .. G.zsel.name) or ""), S.dim[1], S.dim[2], S.dim[3])
+        GameTooltip:Show()
+      end
     end
   end
-  if #list > #G.zones then
-    G.zones[#G.zones].right:SetText(("%s  ·  +%d more"):format(G.zones[#G.zones].right:GetText() or "", #list - #G.zones))
+  -- zones: by the spots that still give you skill-ups; pick one for the route
+  G.zoneHead:ClearAllPoints()
+  G.zoneHead:SetPoint("TOPLEFT", G.res[math.max(1, nRes)], "BOTTOMLEFT", 0, -10)
+  local ranked = {}
+  if key ~= "skinning" and b.nodes then ranked = MS.rankZones(key, b, skill)
+  else for _, z in ipairs(b.zones) do ranked[#ranked + 1] = { name = z } end end
+  if G.zselFor ~= b then G.zsel, G.zselFor = nil, b end
+  if G.zsel then
+    local keep
+    for _, e in ipairs(ranked) do if e.name == G.zsel.name then keep = e end end
+    G.zsel = keep
+  end
+  local zsel = G.zsel or ranked[1]
+  local nZ = 0
+  for k, z in ipairs(G.zones) do
+    local e = ranked[k]
+    z:SetShown(e ~= nil)
+    if e then
+      nZ = k
+      z:ClearAllPoints()
+      z:SetPoint("TOPLEFT", G.zoneHead, "BOTTOMLEFT", 0, -4 - (k - 1) * 22)
+      z:SetSel(e == zsel)
+      z.zone = e.name
+      z.text:SetText(e.name)
+      if e.count then
+        z.right:SetText(e.count == 0 and "|cff938c80none known|r" or ("%d of %d for skill-ups"):format(e.useful, e.count))
+      else
+        z.right:SetText("")
+      end
+      z.go = function() G.zsel = e; MS.drawGatherContext(key) end
+      z.tip = function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(e.name, 1, 1, 1)
+        if e.count then
+          GameTooltip:AddDoubleLine("Known spots", e.count, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+          GameTooltip:AddDoubleLine(("Skill-ups at %d"):format(skill), e.useful, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+          GameTooltip:AddLine("Yours and the shipped data. Spots still orange, yellow or green for you count for skill-ups.", S.dim[1], S.dim[2], S.dim[3], true)
+        end
+        GameTooltip:AddLine("Click: use this zone for the route and Material Finder", S.dim[1], S.dim[2], S.dim[3], true)
+        GameTooltip:Show()
+      end
+    end
+  end
+  if #ranked > #G.zones then
+    local z = G.zones[#G.zones]
+    z.right:SetText((z.right:GetText() or "") .. ("  ·  +%d"):format(#ranked - #G.zones))
   end
   G.route:ClearAllPoints()
-  G.route:SetPoint("TOPLEFT", G.zoneHead, "BOTTOMLEFT", 0, -10 - y * 22)
-  G.finderFn = function() if best then MS.findResource(key, best.id) end end
+  G.route:SetPoint("TOPLEFT", G.zones[math.max(1, nZ)], "BOTTOMLEFT", 0, -10)
+  local zname = zsel and zsel.name
+  G.finderFn = function() if best then MS.findResource(key, best.id, zname) end end
+  G.finderTip = best and ("%s%s, in Material Finder."):format(itemName(best.id), zname and (" in " .. zname) or "") or nil
   if key == "skinning" then
     G.route:SetText("Hunting grounds")
     G.routeTitle = "Hunting grounds"
-    G.routeTip = "Creatures to skin for this range in Material Finder, with their camps and a hunting route."
-    G.routeFn = function() if best then MS.findResource(key, best.id) end end
+    G.routeTip = ("Creatures to skin%s, with their camps and a hunting route, in Material Finder."):format(zname and (" in " .. zname) or "")
+    G.routeFn = G.finderFn
   else
     G.route:SetText("Build route")
     G.routeTitle = "Build route"
-    local top = ranked and ranked[1]
-    G.routeTip = top and top.count > 0 and ("A loop through %s's known %s spots. Opens in Routes to review; nothing changes until Start."):format(top.name, key == "mining" and "ore" or "herb")
-      or "No known spots in these zones yet. Import GatherMate2 in Settings, or gather a few first."
+    local _, useful = MS.rankZones(key, b, skill)
+    local focus, names = {}, {}
+    for _, n in ipairs(b.nodes) do if useful[n] then focus[n] = true; names[#names + 1] = n end end
+    if #names == 0 then for _, n in ipairs(b.nodes) do focus[n] = true; names[#names + 1] = n end end
+    local ok = zsel and zsel.mapID and (zsel.count or 0) > 0
+    G.routeTip = ok and ("A loop through %s's known spots of %s. Opens in Routes to review; nothing changes until Start."):format(zname, table.concat(names, ", "))
+      or ("No known spots in %s yet. Import GatherMate2 in Settings, or gather a few first."):format(zname or "these zones")
     G.routeFn = function()
-      if not (top and top.mapID and top.count > 0) then NW.Print("No known spots in those zones yet. Import GatherMate2 in Settings, or gather a few first.") return end
-      local focus = {}
-      for _, n in ipairs(b.nodes) do focus[n] = true end
-      NW.ProposeRoute({ kind = "nodes", src = "nodes", zone = top.name, map = top.mapID, label = table.concat(b.nodes, ", "), opts = { focus = focus } })
+      if not ok then NW.Print(("No known spots in %s yet. Import GatherMate2 in Settings, or gather a few first."):format(zname or "these zones")) return end
+      NW.ProposeRoute({ kind = "nodes", src = "nodes", zone = zname, map = zsel.mapID, label = table.concat(names, ", "), opts = { focus = focus } })
     end
   end
-  G.hint:ClearAllPoints()
-  G.hint:SetPoint("TOPLEFT", G.route, "BOTTOMLEFT", 0, -12)
-  local g = NW.GATHER_GUIDE[key]
-  local hint = {}
-  if key == "skinning" then
-    if rank then hint[#hint + 1] = ("At %d you can skin creatures up to level %d."):format(rank, MS.skinLevel(rank)) end
-    if b.note then hint[#hint + 1] = b.note .. "." end
+  local after = G.route
+  if key == "mining" then
+    local last, n = smeltRows(G.route, skill)
+    if n > 0 then G.smeltHead.text:SetText("Smelting gives skill-ups too") after = last end
+  else
+    G.smeltHead:Hide()
+    for _, z in ipairs(G.smelt) do z:Hide() end
   end
-  hint[#hint + 1] = g and g.intro or nil
+  G.hint:ClearAllPoints()
+  G.hint:SetPoint("TOPLEFT", after, "BOTTOMLEFT", 0, -12)
+  local hint = {}
+  if key == "skinning" and rank then hint[#hint + 1] = ("At %d you can skin creatures up to level %d."):format(rank, MS.skinLevel(rank)) end
+  if key == "skinning" and b.note then hint[#hint + 1] = b.note .. "." end
   G.hint:SetText(table.concat(hint, "\n"))
 end
 
@@ -2311,7 +2530,7 @@ local function drawGather(p)
   if MS.gselKey ~= p.key then MS.gsel, MS.gselKey = nil, p.key end
   if MS.gsel then
     local found
-    for _, b in ipairs(steps) do if b.from == MS.gsel.from and b.to == MS.gsel.to then MS.gsel = b found = true end end
+    for _, b in ipairs(steps) do if b.zones and b.from == MS.gsel.from and b.to == MS.gsel.to then MS.gsel = b found = true end end
     if not found then MS.gsel = nil end
   end
   if viewChanged then
@@ -3638,7 +3857,7 @@ refresh = function()
     MS.ov:SetShown(isMissing and not isProfit and not showCard)
     MS.ctl:SetShown(isMissing and not isProfit)
   end
-  rHead.text:SetText(isProfit and "Profit" or isMissing and "Recipe collection" or isCraft and "Shopping list" or "Notes")
+  rHead.text:SetText(isProfit and "Profit" or isMissing and "Recipe collection" or isCraft and "Shopping list" or "Gathering plan")
   scrollDraw = isProfit and function() drawProfitRows(p.key) end
     or isMissing and function() drawMissingRows(p.key) end
     or (not isCraft and function() drawGatherRows(p.key) end) or nil

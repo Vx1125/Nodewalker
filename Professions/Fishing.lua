@@ -73,8 +73,12 @@ F.FISH = {
   [13754] = { skill = 225, bracket = 4, note = "Coast", src = "guide" },
   [13759] = { skill = 225, bracket = 4, note = "At night", src = "guide" },
   [13760] = { skill = 225, bracket = 4, note = "By day", src = "guide" },
-  [13756] = { skill = 225, bracket = 4, src = "guide" },
-  [13755] = { skill = 225, bracket = 4, src = "guide" },
+  -- Raw Summer Bass, Winter Squid: zones and season from cMaNGOS classic-db (13e9337) fishing loot.
+  -- Summer Bass: Tanaris and Azshara coastal areas (reference tables 11009, 11105) all year, more in the
+  -- Summer Season Fishing event (table 13755, condition 323). Winter Squid: only table 13755 under
+  -- condition 322, the Winter Season Fishing event. Classic data; not verified in Forever.
+  [13756] = { skill = 225, bracket = 4, zones = { "Tanaris", "Azshara" }, note = "Coast", src = "guide", zoneSrc = "classic" },
+  [13755] = { skill = 225, bracket = 4, zones = { "Tanaris", "Azshara" }, note = "Coast, winter only", season = "winter", src = "guide", zoneSrc = "classic" },
   [13758] = { skill = 300, zones = { "Western Plaguelands", "The Hinterlands", "Moonglade", "Felwood", "Un'Goro Crater" }, note = "Lakes and rivers", src = "forever" },
   [4603] = { skill = 300, zones = { "Tanaris", "The Hinterlands" }, note = "Coast", src = "forever" },
   -- Stonescale Eel: cMaNGOS classic-db fishing loot (Tanaris and Azshara coastal areas, reference
@@ -203,6 +207,8 @@ function NW.CookAllow(r, sk)
     local f = F.FISH[id]
     if f then
       if not ctx.buyFish and not (f.skill and f.skill <= canFish) then return false end
+      -- a fish only caught in one season isn't planned for catching (buying it is fine)
+      if not ctx.buyFish and f.season then return false end
     elseif NW.IsVendor(id) then
       if not ctx.vendor then return false end
     elseif not ctx.nonFish then
@@ -413,7 +419,12 @@ function F.Build()
             end
           end
         end
-        for _, id in ipairs(fishOrder) do
+        -- each fish just before the first cooking that uses it (all of the
+        -- group's need at once), so a catch sits right above its dish
+        local emitted = {}
+        local function catchFish(id)
+          if emitted[id] then return end
+          emitted[id] = true
           local n = fishNeed[id]
           local h = math.min(have(id), n)
           left[id] = have(id) - h
@@ -434,6 +445,7 @@ function F.Build()
         end
         for _, st in ipairs(group) do
           trainCooking(tierOf(st.from))
+          for _, m in ipairs(st.mats or {}) do if fishNeed[m[1]] then catchFish(m[1]) end end
           if st.recipe then
             local ca = add({ kind = "cook", step = st, recipe = st.recipe, label = ("Cook %s"):format(st.recipe.name),
               done = (cookNow or 0) >= st.to })
@@ -659,7 +671,9 @@ function W.fh.tip(icon)
     end
     if f.note then GameTooltip:AddDoubleLine("Where", f.note, d[1], d[2], d[3], 1, 1, 1) end
     if f.zones then GameTooltip:AddLine(table.concat(f.zones, ", "), 1, 1, 1, true) end
-    if f.src and SRC_NAME[f.src] then GameTooltip:AddDoubleLine("Source", SRC_NAME[f.src], d[1], d[2], d[3], d[1], d[2], d[3]) end
+    if f.season then GameTooltip:AddLine(("Caught only in %s, by Classic data."):format(f.season), 1, 0.82, 0.2, true) end
+    if f.src and SRC_NAME[f.src] then GameTooltip:AddDoubleLine("Skill from", SRC_NAME[f.src], d[1], d[2], d[3], d[1], d[2], d[3]) end
+    if f.zoneSrc and SRC_NAME[f.zoneSrc] then GameTooltip:AddDoubleLine("Zones from", SRC_NAME[f.zoneSrc], d[1], d[2], d[3], d[1], d[2], d[3]) end
     local rank, _, bonus = F.skill()
     if rank then GameTooltip:AddDoubleLine("Your fishing", ("%d (+%d gear and lures)"):format(rank, bonus), d[1], d[2], d[3], 1, 1, 1) end
   end
@@ -709,6 +723,12 @@ for i = 1, 24 do
   r.right:SetWidth(150)
   r.right:SetWordWrap(false)
   r.strip = UI.ReagentStrip(r, W.fh, 20)
+  r.link = r:CreateTexture(nil, "ARTWORK")
+  r.link:SetColorTexture(S.edge[1], S.edge[2], S.edge[3], 0.9)
+  r.link:SetWidth(1)
+  r.tick = r:CreateTexture(nil, "ARTWORK")
+  r.tick:SetColorTexture(S.edge[1], S.edge[2], S.edge[3], 0.9)
+  r.tick:SetHeight(1)
   r:SetScript("OnClick", function(self)
     local it = self.item
     if not it then return end
@@ -766,6 +786,26 @@ function F.drawRows()
         r.icon:SetTexture(it.icon)
         r.text:SetText(it.text)
       end
+      -- a catch under its dish: indented, a line from its icon down to the dish's
+      r.icon:ClearAllPoints()
+      r.icon:SetPoint("LEFT", it.child and 38 or 20, 0)
+      r.link:Hide()
+      r.tick:Hide()
+      if it.child then
+        r.link:ClearAllPoints()
+        r.link:SetPoint("TOP", r, "TOPLEFT", 29, it.linkTop and 1 or -(r:GetHeight() / 2))
+        r.link:SetPoint("BOTTOM", r, "BOTTOMLEFT", 29, -1)
+        r.link:Show()
+        r.tick:ClearAllPoints()
+        r.tick:SetPoint("LEFT", r, "LEFT", 29, 0)
+        r.tick:SetWidth(8)
+        r.tick:Show()
+      elseif it.parent then
+        r.link:ClearAllPoints()
+        r.link:SetPoint("TOP", r, "TOPLEFT", 29, 1)
+        r.link:SetPoint("BOTTOM", r, "TOPLEFT", 29, -2)
+        r.link:Show()
+      end
       r.icon:SetShown(it.icon ~= nil or it.head)
       r.icon:SetDesaturated(it.desat and true or false)
       r.right:SetText(it.right or "")
@@ -790,7 +830,7 @@ function F.drawRows()
       strip:SetPoint("RIGHT", r, "RIGHT", -6 - rw, 0)
       strip:SetShown(n > 0)
       -- the label stops short of the icons and the right-hand text
-      r.text:SetWidth(MID_W - 8 - 44 - 12 - rw - (n > 0 and (w + 8) or 0))
+      r.text:SetWidth(MID_W - 8 - 44 - 12 - rw - (n > 0 and (w + 8) or 0) - (it.child and 18 or 0))
     else
       r:Hide()
     end
@@ -1267,7 +1307,7 @@ local function actionIcon(a)
 end
 local function actionRight(a)
   if a.kind == "catch" then
-    return ("%s%d|r%s/~%d"):format(a.have >= a.need and H.good or H.text, a.have, H.dim, a.need)
+    return ("%s%d|r%s/~%d fish|r"):format(a.have >= a.need and H.good or H.text, a.have, H.dim, a.need)
   elseif a.kind == "cook" then
     return ("%d-%d  ·  ×%d"):format(a.step.from, a.step.to, a.step.crafts)
   elseif a.kind == "fishto" then
@@ -1334,6 +1374,26 @@ function F.combinedItems(plan)
       end
     end
   end
+  -- a catch right above the cooking that uses its fish hangs off it: indented,
+  -- with a line down to the dish (catch fish, then cook, as the plan does it)
+  for i, it in ipairs(items) do
+    local a = it.action
+    if a and a.kind == "catch" then
+      local j = i + 1
+      while items[j] and items[j].action and items[j].action.kind == "catch" do j = j + 1 end
+      local cook = items[j] and items[j].action
+      if cook and cook.kind == "cook" then
+        for _, re in ipairs(cook.recipe.reagents) do
+          if re[1] == a.fish then
+            it.child = true
+            it.linkTop = items[i - 1] and items[i - 1].child or false
+            items[j].parent = true
+            break
+          end
+        end
+      end
+    end
+  end
   return items
 end
 
@@ -1350,6 +1410,9 @@ function F.actionDetail(a, plan)
       { bar = a.need > 0 and math.min(1, a.have / a.need) or 1 },
       { "Guides fish it from", f.skill and tostring(f.skill) or (H.dim .. "not known|r") },
     }
+    if f.note then rows[#rows + 1] = { "Where", f.note } end
+    if f.season then rows[#rows + 1] = { "Season", H.gold .. f.season .. " only|r (Classic data)" } end
+
     if a.blocked then rows[#rows + 1] = { H.bad .. a.blocked .. "|r" } end
     if a.value then rows[#rows + 1] = { "Worth", "~" .. NW.Money(a.value, "mid") } end
     -- catching it waits for Fishing; buying it would let Cooking go on now
@@ -1361,7 +1424,7 @@ function F.actionDetail(a, plan)
     for _, b in ipairs(a.phase and a.phase.actions or {}) do
       if b.kind == "cook" then
         for _, re in ipairs(b.recipe.reagents) do
-          if re[1] == a.fish then rows[#rows + 1] = { "Cooked into", ("%s (%d-%d)"):format(b.recipe.name, b.step.from, b.step.to) } break end
+          if re[1] == a.fish then rows[#rows + 1] = { "Cooked into", ("%s ×%d each (%d-%d)"):format(b.recipe.name, re[2], b.step.from, b.step.to) } break end
         end
       end
     end
@@ -1391,9 +1454,9 @@ function F.actionDetail(a, plan)
       rows[#rows + 1] = { head = "Also gives skill-ups" }
       for z = 1, math.min(3, #alt) do rows[#rows + 1] = { (F.itemName(alt[z])):gsub("^Raw ", ""), color = S.dim } end
     end
-    F.detail("Fish", NW.ItemIcon(a.fish), F.itemName(a.fish), "Estimate: skill-ups are random", rows,
+    F.detail("Fish", NW.ItemIcon(a.fish), F.itemName(a.fish), "Fish needed: an estimate (skill-ups are random), not casts", rows,
       zones[1] and { "Show on map", F.showZone(zones[1]) } or nil,
-      { "Find fish", function() NW.OpenFishFinder(a.fish) end })
+      { "Material Finder", function() NW.OpenFishFinder(a.fish) end })
   elseif k == "cook" then
     local r, stp = a.recipe, a.step
     local known = (NW.charDB.known.cooking or {})[r.name]
