@@ -530,6 +530,9 @@ local PER_HOUR = { Flask = 0.5, Elixirs = 1, Food = 2, Drink = 2, ["Weapon oil"]
 local PICK_ONE = { Flask = true, Food = true, Drink = true, ["Weapon oil"] = true, Weapon = true, Runes = true }
 -- Sections that are there to browse, not to stock
 local OPTIONAL = { Situational = true, Camp = true }
+-- Raid lists: long buffs are core (ticked to start); items you use now and then are optional,
+-- the protection potions situational. Nothing is ranked beyond the guides' own order.
+local RAID_TIER = { Potions = "optional", Runes = "optional", Other = "optional", Protection = "situational" }
 -- What can run together, shown beside each heading
 local HINT = {
   Flask = "one at a time",
@@ -907,58 +910,74 @@ local function playerLevel() return UnitLevel and UnitLevel("player") or 60 end
 
 -- The same shape as a raid list, built for your level
 local upgradeOf = {} -- [item shown] = { next item, level or skill, is a bandage }
+-- The leveling list, in categories (Food, Elixirs, Weapon, ...) like the raid lists. Each row
+-- has a tier: core (the role's first list: ticked unless you untick it), optional (the role's
+-- second list), situational (the fight decides). Only core rows start ticked.
+-- Healers level by questing, not healing: a healing spec gets its class's solo list (paladins
+-- melee, the rest caster), with the healing elixir and potion as optional.
+local CATEGORY = { Food = "Food", Elixir = "Elixirs", Weapon = "Weapon", Oil = "Weapon", Poison = "Poisons",
+  Potion = "Potions", Bandage = "Bandages", Scroll = "Utility", Drink = "Utility", Camp = "Camp" }
+local CATEGORY_ORDER = { "Food", "Elixirs", "Weapon", "Poisons", "Potions", "Bandages", "Utility", "Situational", "Camp" }
 local function levelList(spec, strategy)
   local level = playerLevel()
   wipe(upgradeOf)
-  local role = ROLES[ROLE_OF[spec.key] or "str"]
-  local out = { key = spec.key .. ":level", label = ("%s  ·  level %d"):format(spec.label, level), groups = {} }
   local roleKey = ROLE_OF[spec.key] or "str"
+  local healer = roleKey == "heal"
+  if healer then roleKey = spec.class == "PALADIN" and "str" or "caster" end
+  local role = ROLES[roleKey]
+  local out = { key = spec.key .. ":level", label = ("%s  ·  level %d"):format(spec.label, level), groups = {} }
   local firstAid = NW.ProfSkill("firstaid")
-  for gi, heading in ipairs({ "Recommended", "Also helpful", "Situational", "Camp" }) do
-    local rows = {}
-    local function put(sl)
-      if sl == "school" then
-        for _, x in ipairs(SCHOOL[spec.key] or {}) do put(x) end
-      elseif type(sl[1]) == "table" then
-        if not NO_STONE[spec.key] then for _, x in ipairs(sl) do put(x) end end
-      else
-        local skill = sl[2] == "bandage"
-        local id, nextId, nextAt = bestFor(sl[2], skill and (firstAid or 0) or level, strategy)
-        if nextId and id then upgradeOf[id] = { nextId, nextAt, skill } end
-        if id then
-          local fx = ITEM[id] and ITEM[id][2] or ""
-          -- (c[6], the ladder: your pick and target follow the kind as the item upgrades with your level)
-          rows[#rows + 1] = { id, fx ~= "" and (sl[1] .. "  |cffe0dbd0" .. fx .. "|r") or sl[1], nil, sl[4], sl[3], sl[2] }
-        end
+  local byCat, seen = {}, {}
+  local function put(sl, tier, cat)
+    if sl == "school" then
+      for _, x in ipairs(SCHOOL[spec.key] or {}) do put(x, tier, cat) end
+    elseif type(sl[1]) == "table" then
+      if not NO_STONE[spec.key] then for _, x in ipairs(sl) do put(x, tier, cat) end end
+    else
+      local skill = sl[2] == "bandage"
+      local id, nextId, nextAt = bestFor(sl[2], skill and (firstAid or 0) or level, strategy)
+      if nextId and id then upgradeOf[id] = { nextId, nextAt, skill } end
+      if id and not seen[id] then
+        seen[id] = true
+        local fx = ITEM[id] and ITEM[id][2] or ""
+        local c = cat or CATEGORY[sl[1]] or "Utility"
+        byCat[c] = byCat[c] or {}
+        -- (c[6], the ladder: your pick and target follow the kind as the item upgrades with your level)
+        table.insert(byCat[c], { id, fx ~= "" and fx or sl[1], nil, sl[4], sl[3], sl[2], tier })
       end
     end
-    for _, sl in ipairs(role[gi] or {}) do put(sl) end
-    local mana = MANA_TOO[spec.key] or roleKey == "caster" or roleKey == "heal" or spec.class == "DRUID"
-    if gi == 1 and MANA_TOO[spec.key] then put(slot("Potion", "manapot", 3)) end
-    if gi == 1 and firstAid then put(slot("Bandage", "bandage", 3)) end
-    if gi == 2 and (spec.class == "WARRIOR" or spec.key == "druid-bear") then put(slot("Potion", "rage", 3)) end
-    if gi == 1 and spec.key == "rogue" then put(slot("Poison", "instant", 2)) put(slot("Poison", "deadly", 2)) end
-    if gi == 2 and roleKey == "tank" then put(slot("Food", "fArmor", 2)) end
-    if gi == 2 and spec.key == "mage" then put(slot("Scroll", "familiar")) end
-    if gi == 2 then put(slot("Drink", "rum", 4)) end
-    if gi == 4 then
-      if roleKey == "str" or roleKey == "tank" then put(slot("Camp", "wheel", 1, "camp")) put(slot("Camp", "lodestone", 1, "camp")) end
-      if roleKey == "agi" then put(slot("Camp", "lodestone", 1, "camp")) end
-      if roleKey == "caster" or roleKey == "heal" then put(slot("Camp", "well", 1, "camp")) end
-      if roleKey ~= "tank" then put(slot("Camp", "chair", 1, "camp")) end
-      if roleKey == "heal" then
-        put(slot("Camp", UnitFactionGroup and UnitFactionGroup("player") == "Alliance" and "bannerA" or "bannerH", 1, "camp"))
-      end
-    end
-    if gi == 2 and MANA_TOO[spec.key] then put(slot("Elixir", "wicked")) end
-    if gi == 3 then
-      put(slot("Potion", "freeAction")) put(slot("Potion", "swift")) put(slot("Potion", "discolored"))
-      if mana then put(slot("Potion", "rejuv")) end
-      if roleKey == "tank" or roleKey == "str" then put(slot("Potion", "stoneshield")) end
-      if roleKey == "tank" then put(slot("Potion", "invuln")) end
-      put(slot("Potion", "resist"))
-    end
-    out.groups[gi] = { heading, rows }
+  end
+  for _, sl in ipairs(role[1] or {}) do put(sl, "core") end
+  if healer then put(slot("Potion", "manapot", 3), "core") end
+  if MANA_TOO[spec.key] then put(slot("Potion", "manapot", 3), "core") end
+  if firstAid then put(slot("Bandage", "bandage", 3), "core") end
+  if spec.key == "rogue" then put(slot("Poison", "instant", 2), "core") put(slot("Poison", "deadly", 2), "core") end
+  for _, sl in ipairs(role[2] or {}) do put(sl, "optional") end
+  if healer then put(slot("Elixir", "healing"), "optional") put(slot("Potion", "mender", 3), "optional") end
+  if spec.class == "WARRIOR" or spec.key == "druid-bear" then put(slot("Potion", "rage", 3), "optional") end
+  if roleKey == "tank" then put(slot("Food", "fArmor", 2), "optional") end
+  if spec.key == "mage" then put(slot("Scroll", "familiar"), "optional") end
+  put(slot("Drink", "rum", 4), "optional")
+  if MANA_TOO[spec.key] then put(slot("Elixir", "wicked"), "optional") end
+  -- situational: the fight decides
+  local mana = MANA_TOO[spec.key] or roleKey == "caster" or healer or spec.class == "DRUID"
+  put(slot("Potion", "freeAction"), "situational", "Situational") put(slot("Potion", "swift"), "situational", "Situational")
+  put(slot("Potion", "discolored"), "situational", "Situational")
+  if mana then put(slot("Potion", "rejuv"), "situational", "Situational") end
+  if roleKey == "tank" or roleKey == "str" then put(slot("Potion", "stoneshield"), "situational", "Situational") end
+  if roleKey == "tank" then put(slot("Potion", "invuln"), "situational", "Situational") end
+  put(slot("Potion", "resist"), "situational", "Situational")
+  -- campfire items: a shared cooldown, browse only
+  local campRole = ROLE_OF[spec.key] or "str"
+  if roleKey == "str" or roleKey == "tank" then put(slot("Camp", "wheel", 1, "camp"), "optional") put(slot("Camp", "lodestone", 1, "camp"), "optional") end
+  if roleKey == "agi" then put(slot("Camp", "lodestone", 1, "camp"), "optional") end
+  if roleKey == "caster" or campRole == "heal" then put(slot("Camp", "well", 1, "camp"), "optional") end
+  if roleKey ~= "tank" then put(slot("Camp", "chair", 1, "camp"), "optional") end
+  if campRole == "heal" then
+    put(slot("Camp", UnitFactionGroup and UnitFactionGroup("player") == "Alliance" and "bannerA" or "bannerH", 1, "camp"), "optional")
+  end
+  for _, c in ipairs(CATEGORY_ORDER) do
+    if byCat[c] then out.groups[#out.groups + 1] = { c, byCat[c] } end
   end
   return out
 end
@@ -1245,12 +1264,17 @@ local function rowFor(i)
     if not self.item then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetItemByID(self.item)
+    local en = self.entry
+    if en and en.key == "lad:bandage" then
+      GameTooltip:AddLine(("Chosen by your First Aid skill (%d), not your level."):format(NW.ProfSkill("firstaid") or 0), S.dim[1], S.dim[2], S.dim[3], true)
+    end
     -- leveling: what this kind upgrades to, and when
     local up = listMode() == "level" and upgradeOf[self.item]
     if up then
       GameTooltip:AddLine(" ")
       GameTooltip:AddDoubleLine("Next", ("%s at %s%d"):format((itemName(up[1])), up[3] and "First Aid " or "level ", up[2]), S.dim[1], S.dim[2], S.dim[3], 0.58, 0.73, 0.47)
     end
+    GameTooltip:AddLine("Right-click: hide it", S.dim[1], S.dim[2], S.dim[3])
     GameTooltip:Show()
   end)
   row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1300,17 +1324,17 @@ status:SetHeight(STATUS_H)
 UI.Flat(status, S.header, S.edge)
 local total = UI.Text(status, 12, S.text)
 total:SetPoint("LEFT", 12, 0)
-total:SetWidth(410)
+total:SetWidth(540)
 total:SetWordWrap(false)
 local showHidden = false
 local hiddenCheck = UI.Check(status, "Show hidden", function() return showHidden end, function(v)
   showHidden = v
   refresh()
 end)
-hiddenCheck:SetPoint("LEFT", status, "LEFT", 436, 0)
+hiddenCheck:SetPoint("LEFT", status, "LEFT", 566, 0)
 local hint = UI.Text(status, 11, S.dim)
-hint:SetPoint("LEFT", status, "LEFT", 436, 0)
-hint:SetText("Right-click a row to hide it")
+hint:SetPoint("LEFT", status, "LEFT", 566, 0)
+hint:SetText("") -- (right-click to hide: in each row's tooltip)
 
 -- Everything you're short of, the cheap way: materials for what you'd make,
 -- the item itself for the rest
@@ -1517,6 +1541,15 @@ local matsBtn = UI.Button(det, "Search its materials", BTN_W, function()
   NW.SearchAH(items)
 end, 24)
 matsBtn:SetPoint("BOTTOMLEFT", IN, IN)
+-- other ways to get it (vendors, drops, gathering), in the Material Finder
+local findBtn
+findBtn = UI.Button(det, "Where to get it", BTN_W, function()
+  if findBtn.id then
+    local e = shown.byId[findBtn.id]
+    NW.FindMaterial(findBtn.id, "consumes", e and e.short > 0 and e.short or nil)
+  end
+end, 24)
+UI.Tip(findBtn, "Where to get it", "Vendors, drops and other sources in the Material Finder. A missing recipe or price doesn't mean it can't be had.")
 
 local dEmpty = UI.Text(det, 12, S.dim, "CENTER")
 dEmpty:SetPoint("CENTER")
@@ -1547,7 +1580,13 @@ local function drawDetail()
   local qc = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
   dName:SetText(name)
   if qc then dName:SetTextColor(qc.r, qc.g, qc.b) else dName:SetTextColor(unpack(S.text)) end
-  dType:SetText(iSub and iSub ~= iType and iSub or iType or "")
+  -- its category and tier (the game's own subtype is often just "Other" for these)
+  if e then
+    dType:SetText(e.groupName .. (e.tier ~= "core" and not OPTIONAL[e.groupName] and ("  ·  " .. e.tier) or ""))
+  else
+    local sub = iSub and iSub ~= iType and iSub or iType
+    dType:SetText((sub and sub ~= "Other") and sub or "")
+  end
 
   -- what it does: the list's short line, else the game's first sentence; how long, from the game's text
   local fx = e and e.effect and e.effect:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
@@ -1586,12 +1625,14 @@ local function drawDetail()
   if craft then
     cmpCraft:Set(money(craft), craftBest, not canMake)
   else
-    cmpCraft:Set(m and "No price" or "No recipe", false, true)
+    cmpCraft:Set(m and "No price" or "No known recipe", false, true)
   end
   cmpBuy.src:SetText(buySrc == "Vendor" and "Vendor" or buySrc and "AH" or "")
   cmpCraft.src:SetText("")
   cmpCraft.pay = nil
-  if buy then cmpBuy:Set(money(buy), buyBest) else cmpBuy:Set("No price", false, true) end
+  if buy then cmpBuy:Set(money(buy), buyBest) else cmpBuy:Set("No AH price", false, true) end
+  -- where else it comes from: the Material Finder, when it knows the item
+  findBtn.id = (NW.Mat and NW.Mat.Get and NW.Mat.Get(id)) and id or nil
   if craft and buy and canMake then
     local diff = math.abs(buy - craft)
     local how = craft < buy and "Crafting" or "Buying"
@@ -1708,7 +1749,7 @@ refresh = function()
         local q = qty[key] or qty[c[1]]
         local mine = q or auto
         local e = { id = c[1], key = key, effect = c[2], price = price, have = have, make = make, m = m, auto = auto, manual = q ~= nil,
-          need = 0, short = 0, hidden = isHidden, groupName = g[1] }
+          need = 0, short = 0, hidden = isHidden, groupName = g[1], tier = c[7] or (mode ~= "level" and RAID_TIER[g[1]]) or "core" }
         e.want = mine
         shown[#shown + 1] = e
         shown.byId[e.id] = e
@@ -1722,8 +1763,8 @@ refresh = function()
           table.insert(sets[set], e)
         else
           local p = picks[e.key]
-          -- unset: the list's choice; Use what I own ticks only what you carry
-          if p == nil then p = not e.optional and (strat ~= "own" or have > 0) end
+          -- unset: the list's choice (core rows only); Use what I own ticks only what you carry
+          if p == nil then p = not e.optional and e.tier == "core" and (strat ~= "own" or have > 0) end
           e.selected = p and not isHidden
         end
       end
@@ -1739,7 +1780,7 @@ refresh = function()
           -- Use what I own: the one you carry most of
           for _, e in ipairs(list2) do if not e.hidden and e.have > 0 and (not lead or e.have > lead.have) then lead = e end end
         end
-        if not lead and not (list2[1] and list2[1].optional) then
+        if not lead and not (list2[1] and (list2[1].optional or list2[1].tier ~= "core")) then
           for _, e in ipairs(list2) do if not e.hidden then lead = e break end end
         end
       end
@@ -1859,6 +1900,8 @@ refresh = function()
       local eff = e.effect and e.effect:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or ""
       eff = eff:match("^[^\n]*") or eff
       eff = eff:match("^(.-%.)%s") or eff
+      -- its tier, where the heading doesn't already say it
+      if e.tier ~= "core" and not OPTIONAL[e.groupName] then eff = eff .. "  " .. H.dim .. "· " .. e.tier .. "|r" end
       UI.FitText(row.effect, eff, 11, 10)
       -- green only where it's the cheaper way; grey where you don't know the recipe
       local cheaperMake = e.make and e.m.known and (not e.price or e.make < e.price)
@@ -1904,5 +1947,9 @@ refresh = function()
   UI.FitText(total, table.concat(parts, ("  %s·|r  "):format(H.dim)), 12, 10)
   searchBtn:SetEnabled(shortCount > 0)
   drawDetail()
-  matsBtn:SetShown(selectedItem ~= nil and NW.RecipeFor(selectedItem) ~= nil)
+  local hasRecipe = selectedItem ~= nil and NW.RecipeFor(selectedItem) ~= nil
+  matsBtn:SetShown(hasRecipe)
+  findBtn:SetShown(selectedItem ~= nil and findBtn.id ~= nil)
+  findBtn:ClearAllPoints()
+  if hasRecipe then findBtn:SetPoint("BOTTOMLEFT", matsBtn, "TOPLEFT", 0, 6) else findBtn:SetPoint("BOTTOMLEFT", det, "BOTTOMLEFT", IN, IN) end
 end
