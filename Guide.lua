@@ -15,7 +15,14 @@ local refresh
 local page
 -- Routes (Planner.lua) is a view of this tab: it takes the page's place while open
 page = UI.AddTab("guide", "Material Finder", function()
-  if NW.Routes and NW.Routes.Wanted() then NW.Routes.Open() return end
+  local R = NW.Routes
+  if R then
+    local keep = R.keep
+    R.keep = nil
+    -- the tab clicked while Routes shows: back to the Finder
+    if R.IsOpen() and not keep then R.Close() return end
+    if R.Wanted() then R.Open() return end
+  end
   refresh()
   if NW.MaybeImportPrompt then NW.MaybeImportPrompt(page) end
 end, function() if NW.Routes then NW.Routes.Leave() end end,
@@ -265,7 +272,7 @@ search:SetTextInsets(22, 8, 0, 0)
 search:SetAutoFocus(false)
 search:SetMaxLetters(40)
 -- Routes: your saved routes and the one you're on, no material needed
-W.routes = UI.Button(page, "Routes", ROUTES_W, function() if NW.ShowRoutes then NW.ShowRoutes() end end, 24)
+W.routes = UI.Button(page, "Routes", ROUTES_W, function() if NW.ShowRoutes then NW.ShowRoutes(false) end end, 24)
 W.routes:SetPoint("LEFT", search, "RIGHT", 6, 0)
 UI.Tip(W.routes, "Routes", "Saved routes, the route where you are, and the editor.")
 local sIcon = search:CreateTexture(nil, "ARTWORK")
@@ -2591,6 +2598,7 @@ NW.On("BAG_UPDATE_DELAYED", later)
 
 function NW.ToggleGuide()
   if NW.Routes and NW.Routes.IsOpen() then NW.Routes.Close() return end
+  if NW.Routes and not NW.window:IsShown() then NW.Routes.Close() end -- opens on the Finder, not Routes
   NW.ToggleWindow("guide")
 end
 if NW.Routes then NW.Routes.Attach(page, function() refresh() end) end

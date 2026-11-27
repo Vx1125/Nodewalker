@@ -518,7 +518,7 @@ end
 -- Key binding labels (Bindings.xml)
 BINDING_HEADER_NODEWALKER = "Nodewalker"
 BINDING_NAME_NODEWALKER_TOGGLE = "Toggle overlay"
-BINDING_NAME_NODEWALKER_PLANNER = "Toggle route planner"
+BINDING_NAME_NODEWALKER_PLANNER = "Toggle Routes"
 BINDING_NAME_NODEWALKER_NEXT = "Skip to next stop"
 BINDING_NAME_NODEWALKER_FISHHUD = "Toggle fishing HUD"
 BINDING_NAME_NODEWALKER_JOURNAL = "Fishing Journal"

@@ -15,6 +15,7 @@ local SIDE_X, SIDE_W = 16 + SMALL_W + 2 + 18, 1020 - (16 + SMALL_W + 2 + 18) - 1
 
 local refresh
 local finder -- the Material Finder's page and refresh, set by Guide.lua
+local editorKeep -- Routes' own view, while the editor is opened from the Finder
 NW.Routes = NW.Routes or {}
 -- the page sits where a tab's page does and takes the Finder's place while open
 local page = CreateFrame("Frame", nil, NW.window)
@@ -215,6 +216,8 @@ local function startDraft(d)
     NW.db.routes[d.map] = route
     NW.RouteAroundAvoid(d.map)
     NW.ResetProgress(d.map)
+    -- Routes then shows the route just started (where you are, if you're there)
+    NW.routeView = (NW.PlayerPos()) ~= d.map and d.map or nil
   end
   NW.routeDraft = nil
   return true
@@ -289,6 +292,7 @@ btnExpand:SetFrameLevel(mapFrame:GetFrameLevel() + 20)
 
 big:SetScript("OnHide", function()
   placeMap(false)
+  if editorKeep then NW.routeView = editorKeep.view; editorKeep = nil end
   if page:IsVisible() then refresh()
   elseif finder and finder.page:IsVisible() then finder.refresh() end -- the Finder's map shows what changed
 end)
@@ -313,7 +317,7 @@ local getNum, resetNums = UI.Pool(function()
   local fs = mapArt:CreateFontString(nil, "OVERLAY")
   fs:SetFont(UI.FONT, 13, "OUTLINE")
   return fs
-end, "Route tab ground numbers")
+end, "Routes ground numbers")
 local DR = {} -- draft helpers, in one table to keep refresh's upvalues down
 
 -- which controls show: the node controls, or the few a hunting route needs
@@ -499,7 +503,7 @@ refresh = function()
       end
     end
   end
-  empty:SetText(#nodes == 0 and "No nodes known here yet.\nImport GatherMate2, or gather a few." or "")
+  empty:SetText(#nodes == 0 and "No nodes known here yet.\nGather a few, or import GatherMate2 in Settings › Routes." or "")
   btnOptimize:SetEnabled(wantedCount > 0)
   bigOptimize:SetEnabled(wantedCount > 0)
 
@@ -842,7 +846,7 @@ function NW.Routes.Close()
 end
 -- leaving the Finder's tab: hide the view, remember it was open
 function NW.Routes.Leave() page:Hide() end
-function NW.Routes.Tick() if page:IsVisible() then refresh() end end
+function NW.Routes.Tick() if page:IsVisible() or big:IsShown() then refresh() end end
 -- map: a zone to look at (false: where you are; nil: as it was)
 function NW.ShowRoutes(map)
   if map ~= nil then NW.routeView = map or nil end
@@ -855,8 +859,10 @@ end
 function NW.OpenRouteEditor(map)
   -- a proposal elsewhere is open: show it in Routes, where it can be started or discarded
   local d = NW.routeDraft
-  if d and map and d.map ~= map then NW.ShowRoutes() return end
-  if map and not (NW.routeDraft and NW.routeDraft.map == map) then NW.routeView = map end
+  if d and (d.kind == "hunt" or d.map ~= map) then NW.ShowRoutes() return end
+  -- the zone is looked at only while the editor is open; Routes keeps its own
+  if not page:IsVisible() then editorKeep = { view = NW.routeView } end
+  if map and not d then NW.routeView = map end
   setDrawMode(false)
   placeMap(true)
   big:Show()
@@ -866,6 +872,7 @@ end
 NW.TAB_ALIAS = NW.TAB_ALIAS or {}
 NW.TAB_ALIAS.route = function()
   if NW.db then NW.db.settings.routesOpen = true end
+  NW.Routes.keep = true
   return "guide"
 end
 function NW.TogglePlanner()

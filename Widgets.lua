@@ -716,6 +716,7 @@ end)
 
 -- Open the window on a tab; if it's already open on that tab, close it.
 function NW.ToggleWindow(key)
+  if key == "route" and NW.TogglePlanner then return NW.TogglePlanner() end
   local alias = NW.TAB_ALIAS and NW.TAB_ALIAS[key]
   if alias then key = alias() end
   if win:IsShown() and (not key or NW.CurrentTab() == key) then
