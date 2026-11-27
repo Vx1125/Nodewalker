@@ -1299,7 +1299,8 @@ CW.bLabel:SetText("Crafts")
 function CW.setBatch(n)
   local cap = card and NW.RecipeOnCooldown(card.r) and 1 or 999
   MS.batch = math.max(1, math.min(cap, n))
-  refresh()
+  -- only the opened recipe changes: the list isn't worked out again
+  if MS.drawCard and cardFrame:IsShown() then MS.drawCard() else refresh() end
 end
 CW.bMinus = UI.Button(CW.batch, "-", 22, function() CW.setBatch((MS.batch or 1) - 1) end, 20)
 CW.bMinus:SetPoint("LEFT", CW.bLabel, "RIGHT", 8, 0)
@@ -3454,6 +3455,7 @@ local function drawCard()
   end
 end
 
+MS.drawCard = drawCard
 -- A missing recipe's source as rows: only what the data says
 function MS.fillAcquisition(key, r)
   local rows = {}
