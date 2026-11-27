@@ -762,23 +762,25 @@ local ICON_ROW_H = 30
 local function rowH(it)
   if it.head then return HEAD_H end
   if it.colhead then return 16 end
-  if it.strip or (it.fishIcons and #it.fishIcons > 0) then return ICON_ROW_H end
+  if (it.strip and #it.strip > 0) or (it.fishIcons and #it.fishIcons > 0) then return ICON_ROW_H end
   return ROW_H
 end
 F.LOC_W, F.FISH_X = 190, 214 -- Leveling's columns: Location, Fish, Skill (right)
 function F.drawRows()
-  local h = F.boxH - 4
+  -- column headings (an item first in the list) stay put; the rest scrolls under them
+  local pin = (F.items[1] and F.items[1].colhead) and 1 or 0
+  local h = F.boxH - 4 - (pin == 1 and rowH(F.items[1]) or 0)
   -- the furthest it scrolls and still fills the list
   local maxOff, sum = 0, 0
-  for i = #F.items, 1, -1 do
+  for i = #F.items, pin + 1, -1 do
     sum = sum + rowH(F.items[i])
-    if sum > h then maxOff = i break end
+    if sum > h then maxOff = i - pin break end
   end
   F.offset = math.max(0, math.min(F.offset or 0, maxOff))
-  local fit = 0
+  local fit = pin
   do
     local yy = 0
-    for i = F.offset + 1, #F.items do
+    for i = pin + F.offset + 1, #F.items do
       yy = yy + rowH(F.items[i])
       if yy > h then break end
       fit = fit + 1
@@ -786,7 +788,7 @@ function F.drawRows()
   end
   local y = 2
   for i, r in ipairs(W.rows) do
-    local it = F.items[i + F.offset]
+    local it = (i <= pin) and F.items[i] or F.items[i + F.offset]
     r.item = it
     if it and i <= fit then
       r:ClearAllPoints()
@@ -795,6 +797,7 @@ function F.drawRows()
       r:SetHeight(rh - 1)
       y = y + rh
       r:Show()
+      r:EnableMouse(not it.colhead)
       r.headBg:SetShown(it.head and true or false)
       r:SetStripe(not it.head and (i % 2 == 0))
       r:SetSelected(not it.head and it.selKey ~= nil and it.selKey == F.sel)
@@ -846,7 +849,7 @@ function F.drawRows()
       elseif it.parent then
         r.link:ClearAllPoints()
         r.link:SetPoint("TOP", r, "TOPLEFT", 29, 1)
-        r.link:SetPoint("BOTTOM", r, "TOPLEFT", 29, -2)
+        r.link:SetPoint("BOTTOM", r, "TOPLEFT", 29, -(r:GetHeight() - 18) / 2)
         r.link:Show()
       end
       r.icon:SetShown((it.icon ~= nil or it.head) and not it.zone and not it.colhead)
@@ -883,7 +886,7 @@ function F.drawRows()
       r:Hide()
     end
   end
-  if #F.items > fit and fit > 0 then
+  if maxOff > 0 and fit > 0 then
     local total = #F.items
     local th = math.max(20, h * fit / total)
     W.thumb:SetHeight(th)
@@ -1082,7 +1085,7 @@ function F.leveling()
   local rank, max, bonus = F.skill()
   local base = rank or 0
   local folds = F.cfg().folds
-  local items = { { colhead = true, right = H.dim .. "Skill|r" } }
+  local items = { { colhead = true, right = H.dim .. "Skill range|r" } }
   for bi, b in ipairs(F.BRACKETS) do
     local r = F.RANKS[bi]
     local done = base >= b[2]
@@ -1111,7 +1114,7 @@ function F.leveling()
           selKey = "zone" .. bi .. ":" .. z, zone = z, bi = bi, dim = done, mark = cur and mark("next") or nil }
       end
       for _, z in ipairs(b.later or {}) do
-        items[#items + 1] = { text = z, right = ("%d+ with a lure"):format(b.laterAt),
+        items[#items + 1] = { text = z, right = ("from %d with a lure"):format(b.laterAt),
           selKey = "zone" .. bi .. ":" .. z, zone = z, bi = bi, later = b.laterAt, dim = done }
       end
     end
@@ -1127,7 +1130,11 @@ function F.equipLines(rows)
   rows[#rows + 1] = { head = "Your fishing" }
   rows[#rows + 1] = { "Base", tostring(rank) }
   local lb = lure and F.lureBonus()
-  if lb and lb <= bonus then
+  if lure == false then
+    -- a pole with no lure on: it's all equipment
+    rows[#rows + 1] = { "Equipment", bonus > 0 and ("+" .. bonus) or "0" }
+    rows[#rows + 1] = { "Lure", H.dim .. "none|r" }
+  elseif lb and lb <= bonus then
     rows[#rows + 1] = { "Equipment", bonus - lb > 0 and ("+" .. (bonus - lb)) or "0" }
     rows[#rows + 1] = { "Lure", ("+%d, %d min left"):format(lb, lure) }
   else
@@ -1191,7 +1198,7 @@ function F.zoneDetail(zone, bi, later)
   local here, range = F.fishIn(zone, bi)
   local rows = {
     { head = "Fishing" },
-    { "Recommended", later and ("%d+ with a lure"):format(later) or ("%d-%d"):format(b[1], b[2]) },
+    { "Recommended", later and ("from %d with a lure"):format(later) or ("%d-%d"):format(b[1], b[2]) },
     { "Zone minimum", H.dim .. "not published|r" },
   }
   lureFor(b, rows)

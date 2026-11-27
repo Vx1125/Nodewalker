@@ -1941,7 +1941,7 @@ end
 -- needs in the corner (herbs, ore); tooltip and Material Finder on click
 MS.gh = {}
 MS.SKILL_WORDS = { orange = "a skill-up every time", yellow = "usually a skill-up", green = "sometimes a skill-up",
-  grey = "no skill-ups", red = "your skill is too low", unknown = "not learned" }
+  grey = "no skill-ups", red = "your skill is too low", unknown = "not learned", capped = "train to go on" }
 function MS.gh.tip(icon)
   local c = icon.ctx
   GameTooltip:SetOwner(icon, "ANCHOR_RIGHT")
@@ -1956,11 +1956,11 @@ function MS.gh.tip(icon)
   if c.key == "skinning" and c.level then
     GameTooltip:AddDoubleLine("Creatures up to", "level " .. c.level, d[1], d[2], d[3], 1, 1, 1)
   end
-  if c.key == "skinning" and c.skill then
+  if c.key == "skinning" and c.skill and icon.state ~= "capped" then
     GameTooltip:AddDoubleLine(("At your %d"):format(c.skill), icon.state == "red" and "|cffd17665too low for this range|r"
       or ("creatures up to level %d"):format(MS.skinLevel(c.skill)), d[1], d[2], d[3], 1, 1, 1)
   elseif c.skill and icon.state and MS.SKILL_WORDS[icon.state] then
-    local hex = ({ orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080", red = "d17665" })[icon.state] or "e0dbd0"
+    local hex = ({ orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080", red = "d17665", capped = "938c80" })[icon.state] or "e0dbd0"
     GameTooltip:AddDoubleLine(("At your %d"):format(c.skill), ("|cff%s%s|r"):format(hex, MS.SKILL_WORDS[icon.state]), d[1], d[2], d[3], 1, 1, 1)
   end
   local have = NW.ItemCount(icon.id) or 0
@@ -1989,9 +1989,8 @@ function MS.fillGather(strip, key, b, width)
   local skill = NW.ProfSkill(key)
   strip:Begin()
   for _, it in ipairs(MS.bracketItems(key, b)) do
-    local state
-    if skill and it.req then state = NW.SkillColor(it.req, skill)
-    elseif skill and key == "skinning" then state = skill < b.from and "red" or nil end -- (too low for this range's creatures)
+    -- the node's colour at your skill; red: too low for this range's creatures; capped: train first
+    local state = skill and MS.resourceState(key, it, skill, b) or nil
     local ic = strip:Add(it.id, it.req or false, state)
     ic.ctx.key, ic.ctx.req, ic.ctx.node, ic.ctx.skill = key, it.req, it.node, skill
     if key == "skinning" then ic.ctx.level = MS.skinLevel(b.to) end
@@ -2110,15 +2109,16 @@ local function drawGatherRows(key)
       local now = rank >= b.from and rank < b.to
       local done = NW.ProfSkill(key) ~= nil and rank >= b.to
       local _, gmax = NW.ProfSkill(key)
-      local capped = gmax and gmax < 300 and not done and b.from >= gmax -- (past what you've trained)
+      -- past what you've trained, or in it but at your cap
+      local capped = gmax and gmax < 300 and not done and (b.from >= gmax or (now and rank >= gmax))
       row:SetSelected(MS.gsel == b or (not MS.gsel and now))
       -- your current bracket keeps a gold edge while another one is selected
       if now then
         if not rawget(row, "nowBar") then
           row.nowBar = row:CreateTexture(nil, "OVERLAY")
-          row.nowBar:SetColorTexture(0.84, 0.70, 0.40, 1)
-          row.nowBar:SetPoint("TOPLEFT", 0, 0)
-          row.nowBar:SetPoint("BOTTOMLEFT", 0, 0)
+          row.nowBar:SetColorTexture(0.84, 0.70, 0.40, 0.9)
+          row.nowBar:SetPoint("TOPRIGHT", 0, 0) -- (the selection bar is on the left)
+          row.nowBar:SetPoint("BOTTOMRIGHT", 0, 0)
           row.nowBar:SetWidth(2)
         end
         row.nowBar:Show()
@@ -2143,7 +2143,7 @@ local function drawGatherRows(key)
       UI.FitText(row.mats, table.concat(sub, "  ·  "), 11, 9)
       MS.fillGather(row.strip, key, b, C.matW)
       row.crafts:SetText("")
-      row.cost:SetText(now and "|cffd6b266now|r" or (done and "|cff94ba78done|r") or (capped and "|cff938c80train first|r") or "")
+      row.cost:SetText((capped and "|cffd6b266train first|r") or (now and "|cffd6b266now|r") or (done and "|cff94ba78done|r") or "")
       row.bracket = b
     else
       row:Hide()
@@ -2271,12 +2271,12 @@ function MS.buildGatherContext()
 end
 -- what a resource does for you at a skill: its node colour, in words
 function MS.resourceState(key, it, skill, b)
-  if key == "skinning" then return (skill and skill < b.from) and "red" or nil end
-  if not (skill and it.req) then return nil end
-  local c = NW.SkillColor(it.req, skill)
+  local c
+  if key == "skinning" then c = (skill and skill < b.from) and "red" or nil
+  elseif skill and it.req then c = NW.SkillColor(it.req, skill) end
   -- at your trained cap nothing gives points until you train
   local r, mx = NW.ProfSkill(key)
-  if r and mx and mx < 300 and skill >= mx and (c == "orange" or c == "yellow" or c == "green") then return "capped" end
+  if r and mx and mx < 300 and skill and skill >= mx and c ~= "red" and c ~= "grey" then return "capped" end
   return c
 end
 MS.RES_WORDS = { orange = "skill-ups", yellow = "skill-ups", green = "few skill-ups", grey = "no skill-ups", red = "needs %d", capped = "train to go on" }
@@ -2479,7 +2479,7 @@ function MS.drawGatherContext(key)
       z.zone = e.name
       z.text:SetText(e.name)
       if e.count then
-        z.right:SetText(e.count == 0 and "|cff938c80no known spots|r" or ("%d of %d known spots"):format(e.useful, e.count))
+        z.right:SetText(e.count == 0 and "|cff938c80no known spots|r" or ("%d skill-ups · %d known"):format(e.useful, e.count))
       else
         z.right:SetText("")
       end
