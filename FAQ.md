@@ -37,7 +37,7 @@ Nodewalker doesn't say. Catch rates and each zone's fishing skill aren't publish
 Yes. `/nw options`: size, opacity, zoom, terrain colour, the minimap range ring, compass, session panel, gathered spots, and which herbs and ore show. Farming, Questing and Minimal set several of these at once.
 
 **How do I change or rebuild a route?**
-Open the Route tab (`/nw plan`). **Optimize loop** rebuilds it from the spots you know now. **Draw avoid zone** and **Clear avoid zones** steer it. Building a zone's route from Material Finder replaces it too.
+Open the Route tab (`/nw plan`). **Optimize loop** rebuilds it from the spots you know now. **Draw avoid zone** and **Clear avoid zones** steer it. A route built from Material Finder opens in the Route tab first and replaces the zone's route only when you press **Start**.
 
 **Which game versions are supported?**
 WoW Forever (interface 16001).

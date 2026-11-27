@@ -1651,8 +1651,9 @@ for _, row in ipairs(stepRows) do
       end
       local focus = {}
       for _, n in ipairs(b.nodes) do focus[n] = true end
-      NW.BuildRoute(best.mapID, function(route)
-      end, { focus = focus })
+      -- reviewed in the Route tab like every other route; the zone's saved route changes on Start
+      NW.ProposeRoute({ kind = "nodes", src = "nodes", zone = best.name, map = best.mapID, label = table.concat(b.nodes, ", "),
+        opts = { focus = focus } })
     end
   end)
 end

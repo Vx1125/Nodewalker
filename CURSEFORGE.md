@@ -39,7 +39,7 @@ Leveling a profession, getting ready for raid night, or out picking herbs and or
 - Where to get it: best zones for herbs and ore, hunting grounds for skins and creature drops, fishing waters, vendors, recipes
 - A map of each zone: known spots, your own gathering, heatmap, route
 - Targets: track how many you want; the session panel counts them
-- One click builds a herb, ore or hunting route
+- One click opens a herb, ore or hunting route in the Route tab to review and start
 - **Both** view for Herbalism and Mining together
 
 Loop times and gold per hour are worked out from known spots and current prices. What you actually gather depends on spawns and other players.
@@ -48,10 +48,11 @@ Loop times and gold per hour are worked out from known spots and current prices.
 
 ![Leveling](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/professions.jpg)
 
-- A plan to your target skill for every profession, at today's prices
+- A plan from 1 to 300 for every profession, chosen once at today's prices and kept as you level (**Re-plan** to choose again)
 - Choose a strategy: **Cheapest**, **Fewest crafts**, or **Known recipes**
 - Steps grouped by rank, with each trainer one click from your map
 - Crafts per step, from each recipe's skill-up chance
+- Parts you make first (bolts, blasting powder) and the tools you need (Blacksmith Hammer, Arclight Spanner, enchanting rods) get their own rows
 - One shopping list: recipes to buy, materials and vendor supplies, minus what's in your bags
 - Estimated total cost, with resale value beside it
 - One click to search Auctionator for what's missing; craft straight from the plan
@@ -129,7 +130,7 @@ Zone fishing skill and catch rates aren't published for WoW Forever, so Nodewalk
 
 ## Quick start
 
-**Start gathering:** `/nw guide` › pick an herb or ore › click a zone › **Build route** › go there and type `/nw` › follow the cyan line.
+**Start gathering:** `/nw guide` › pick an herb or ore › click a zone › **Build route** › **Start** in the Route tab › go there and type `/nw` › follow the cyan line.
 
 **Level a profession:** `/nw prof` › pick a profession › **Leveling** › set your target skill › buy what's on the list (**Search missing**) › follow the steps.
 

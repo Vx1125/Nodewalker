@@ -408,7 +408,7 @@ function DR.hunt(d, here, ppx, ppy)
   local gold, dim, bad = "|cffd6b266", "|cff938c80", "|cffd17665"
   local e = NW.Mat and NW.Mat.Get(d.item)
   local lines = {}
-  lines[#lines + 1] = gold .. "Proposed: " .. (e and e.name or ("item " .. tostring(d.item))) .. "|r"
+  lines[#lines + 1] = gold .. "Proposed: " .. (e and e.name or d.label or ("item " .. tostring(d.item))) .. "|r"
     .. dim .. (d.method == "skin" and ", skinning" or ", creature loot") .. "|r"
   local len = NW.Hunt.DraftLength(d)
   lines[#lines + 1] = ("%d ground%s"):format(n, n == 1 and "" or "s") .. (len and len > 0 and ("  ·  %d yd loop"):format(math.floor(len)) or "")
