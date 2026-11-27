@@ -1174,7 +1174,7 @@ drawSteps = function()
         else
           -- eligible from its skill; needed by the point the banner sits at
           -- the level only while you're under it
-          local lvl = (UnitLevel("player") or 0) < ru.level and (", level " .. ru.level) or ""
+          local lvl = (UnitLevel and UnitLevel("player") or 0) < ru.level and (", level " .. ru.level) or ""
           UI.FitText(row.mats, ("|cffe0dbd0%s|r  ·  skill %d%s"):format(place, ru.skill, lvl), 11, 9)
         end
       elseif stp.tool then
