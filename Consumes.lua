@@ -1154,13 +1154,28 @@ local function rowFor(i)
   row.pick.dot:SetPoint("CENTER")
   row.pick.dot:SetTexture("Interface\\Buttons\\UI-RadioButton")
   row.pick:SetScript("OnClick", function(self) local r = self:GetParent() if r.onPick then r.onPick(r) end end)
+  row.onPick = function(r)
+    local en = r.entry
+    if not en or en.hidden then return end
+    local pk = picksOf(shown.listKey)
+    if en.set then pk["set:" .. en.set] = (not en.selected) and en.id or false
+    else pk[en.id] = not en.selected end
+    refresh()
+  end
   row.pick:SetScript("OnEnter", function(self)
     local e = self:GetParent().entry
     if not e then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText(e.set and "One of these" or "In your loadout", 1, 1, 1)
-    GameTooltip:AddLine(e.set and ("You bring one %s: %s."):format(e.set == e.groupName and e.groupName:lower() or "of this kind", HINT[e.groupName] or "they don't stack")
-      or "Counted in your stock and shopping list when ticked.", S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:SetText(e.hidden and "Hidden" or (e.set and "One of these" or "In your loadout"), 1, 1, 1)
+    if e.hidden then
+      GameTooltip:AddLine("Right-click the row to bring it back.", S.dim[1], S.dim[2], S.dim[3], true)
+    elseif e.set then
+      -- a whole heading (one flask, one food) has its own hint; a set inside Elixirs doesn't stack with itself
+      local why = e.set == e.groupName and (HINT[e.groupName] or "one at a time") or "these don't stack with each other"
+      GameTooltip:AddLine(("You bring one: %s. Click the picked one again for none."):format(why), S.dim[1], S.dim[2], S.dim[3], true)
+    else
+      GameTooltip:AddLine("Counted in your stock and shopping list when ticked.", S.dim[1], S.dim[2], S.dim[3], true)
+    end
     GameTooltip:Show()
   end)
   row.pick:SetScript("OnLeave", GameTooltip_Hide)
@@ -1318,11 +1333,13 @@ local dEffect = UI.Text(det, 11, S.text)
 dEffect:SetPoint("TOPLEFT", dIcon, "BOTTOMLEFT", 0, -10)
 dEffect:SetWidth(DET_W - IN * 2)
 dEffect:SetJustifyV("TOP")
-if dEffect.SetMaxLines then dEffect:SetMaxLines(3) end
+if dEffect.SetMaxLines then dEffect:SetMaxLines(4) end
 dEffect:SetSpacing(2)
 -- owned / target / short, and the target by hand
 local dStock = UI.Text(det, 12, S.text)
 dStock:SetPoint("TOPLEFT", dEffect, "BOTTOMLEFT", 0, -10)
+dStock:SetWidth(DET_W - IN * 2 - 116) -- (stops short of the target buttons)
+dStock:SetWordWrap(false)
 local qtyBtns = CreateFrame("Frame", nil, det)
 qtyBtns:SetSize(110, 20)
 qtyBtns:SetPoint("RIGHT", det, "RIGHT", -IN, 0)
@@ -1366,6 +1383,8 @@ local function cmpBox(label)
   b.value:SetPoint("BOTTOMLEFT", 8, 8)
   b.value:SetWordWrap(false)
   b.src = UI.Text(b, 10, S.dim, "RIGHT")
+  b.src:SetWidth(CMP_W - 80)
+  b.src:SetWordWrap(false)
   b.src:SetPoint("BOTTOMRIGHT", -8, 10)
   function b:Set(text, best, dim)
     self.value:SetText(text)
@@ -1486,7 +1505,7 @@ local function drawDetail()
   local short = (fx and fx ~= "") and fx or (use and (use:match("^(.-%.)%s") or use)) or ""
   local mins = minutesOf(id)
   local lines = { short }
-  if mins then lines[#lines + 1] = H.dim .. "Lasts " .. (mins >= 60 and (mins % 60 == 0 and (mins / 60 .. " hr") or (mins .. " min")) or (mins .. " min")) .. "|r" end
+  if mins then lines[#lines + 1] = H.dim .. "Lasts " .. ((mins >= 60 and mins % 60 == 0) and (("%d hr"):format(mins / 60)) or (("%d min"):format(mins))) .. "|r" end
   local up = listMode() == "level" and upgradeOf[id]
   if up then lines[#lines + 1] = ("%sNext|r %s at %s%d"):format(H.good, (itemName(up[1])), up[3] and "First Aid " or "level ", up[2]) end
   dEffect:SetText(table.concat(lines, "\n"))
@@ -1577,7 +1596,7 @@ local function drawDetail()
   matStrip:Finish(DET_W - IN * 2)
   if shortN > 0 and craft then
     cmpCraft.pay = (pay > 0 and money(pay) or "nothing") .. (payUnknown and " +?" or "")
-    cmpCraft.src:SetText(pay > 0 and ("pay " .. money(pay) .. (payUnknown and "+?" or "")) or (payUnknown and "pay ?" or "in bags"))
+    UI.FitText(cmpCraft.src, pay > 0 and ("pay " .. money(pay) .. (payUnknown and "+?" or "")) or (payUnknown and "pay ?" or "in bags"), 10, 8)
   end
   dMats:SetText(("For %d craft%s%s"):format(crafts, crafts == 1 and "" or "s", shortN > 0 and (" · " .. shortN .. " short") or ""))
 end
@@ -1772,14 +1791,7 @@ refresh = function()
       -- the round button: the texture's own unticked and ticked halves
       row.pick.dot:SetTexCoord(e.selected and 0.25 or 0, e.selected and 0.5 or 0.25, 0, 1)
       if e.set then row.pick:SetBackdrop(nil) else UI.Flat(row.pick, e.selected and S.select or S.sunk, S.edge) end
-      row.onPick = function(r)
-        local en = r.entry
-        if not en or en.hidden then return end
-        local pk = picksOf(shown.listKey)
-        if en.set then pk["set:" .. en.set] = (not en.selected) and en.id or false
-        else pk[en.id] = not en.selected end
-        refresh()
-      end
+      row.pick:SetAlpha(e.hidden and 0.4 or 1)
       row.name:SetText(itemName(e.id))
       row.name:SetTextColor(unpack(e.selected and S.text or S.dim))
       -- the first sentence; the whole effect is in the item's tooltip
