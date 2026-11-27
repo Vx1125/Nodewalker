@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased
+- Settings: a sidebar with General, Map & Overlay, Gathering (with Herbs & ore), Fishing, and Data & Integrations.
+- Settings: key bindings, mouse controls and slash commands shown under General.
+- Settings: Herbs & ore has search, one section open at a time, and "x of y shown" counts.
+- Settings: fishing gear as equipment slots with item tooltips.
+- Settings: Data & Integrations shows which add-ons are loaded, where the data comes from, memory and timings.
+- Settings: Defaults on each page puts back only that page's settings, after a confirming click.
+- Settings: presets marked * when you've changed them; Shift-click for the preset's own values.
 - Appearance presets keep your changes: switching Farming, Questing and Minimal no longer resets what you adjusted.
 - Presets no longer turn on "Zoom out when mounted".
 - Routes: a Back button on the map returns to the profession or material that proposed the route (the proposal stays).

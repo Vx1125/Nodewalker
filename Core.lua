@@ -59,6 +59,8 @@ local DEFAULTS = {
   },
 }
 
+NW.DEFAULTS = DEFAULTS -- (Settings' per-page Defaults read it; never written)
+
 local function copyDefaults(src, dst)
   for k, v in pairs(src) do
     if type(v) == "table" then
@@ -533,7 +535,7 @@ function NW.CutSweep()
   NW.cutSweeping = true
   local steps = {}
   local function add(label, fn) steps[#steps + 1] = { label, fn } end
-  for _, k in ipairs({ "profs", "guide", "route", "find", "consumes", "overlay", "look", "gather", "routes", "fishing" }) do
+  for _, k in ipairs({ "profs", "guide", "route", "find", "consumes", "general", "map", "gather", "nodes", "fishing", "data" }) do
     add("tab " .. k, function() NW.ShowTab(k) end)
   end
   for _, p in ipairs(NW.PROFS or {}) do add("profession " .. p.key, function() NW.OpenProfession(p.key) end) end

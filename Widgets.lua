@@ -637,11 +637,11 @@ function NW.ShowTab(key)
   end
   for name, g in pairs(groups) do
     local inside = t.group == name
-    if inside then layoutSubs(g) end
+    if inside and not g.noSubs then layoutSubs(g) end
     setOn(g.button, inside)
     if inside then g.last = t.key end
     for k, sb in pairs(g.subs) do
-      sb:SetShown(inside)
+      sb:SetShown(inside and not g.noSubs)
       setOn(sb, k == t.key)
     end
   end
@@ -651,6 +651,12 @@ end
 
 function NW.CurrentTab() return current and current.key end
 function NW.TabPage(key) return tabs[key] and tabs[key].page end
+
+-- A group that draws its own navigation (Settings' sidebar): no switches in the tab row
+function UI.HideGroupSubs(group)
+  local g = groups[group:lower()]
+  if g then g.noSubs = true; for _, sb in pairs(g.subs) do sb:Hide() end end
+end
 
 -- key, label, onShow, onHide, onTick (once a second while shown), group
 -- (a tab name its page goes under, e.g. "Settings"). Returns the page.
