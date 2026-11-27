@@ -875,19 +875,24 @@ if NW.BuffTracker then
     function(v) BT.Toggle(v) end)
   dependsOn(checkBeside(1, "Lock position", "buffHudLock", "Needs Show the tracker.", apply), "buffHud")
   dependsOn(check(1, "Click to use", "buffClickUse", "Click an icon to use the item. Right-click opens it in Consumes.", apply), "buffHud")
-  dependsOn(checkBeside(1, "Hide when all are on", "buffHideOk", "Buffs only; potions and the like stay.", apply), "buffHud")
+  dependsOn(checkBeside(1, "Hide when fully buffed", "buffHideOk", "Buffs only; potions and the like stay.", apply), "buffHud")
+  dependsOn(check(1, "Hide in cities and inns", "buffHideResting", "Out of combat; it can't appear or disappear in a fight.", apply), "buffHud")
+  dependsOn(checkBeside(1, "Hide while mounted", "buffHideMounted", "Out of combat; it can't appear or disappear in a fight.", apply), "buffHud")
+  local resetPos = UI.Button(page, "Reset position", 130, function() BT.ResetPosition() end, 22)
+  place(1, resetPos, 30, 2)
   heading(1, "Display")
   track("buffMode", "Show")
-  dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Show", { { "all", "All my buffs" }, { "missing", "Missing only" }, { "soon", "Missing and expiring" } },
+  dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Show", { { "all", "All selected buffs" }, { "missing", "Missing only" }, { "soon", "Missing and expiring" } },
     function() return s().buffMode or "all" end, function(v) s().buffMode = v; apply() end, 200), 30, 2), "buffHud")
   track("buffLayout", "Layout")
-  dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Layout", { { "horizontal", "In a row" }, { "vertical", "In a column" } },
+  dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Layout", { { "horizontal", "Horizontal" }, { "vertical", "Vertical" } },
     function() return s().buffLayout or "horizontal" end, function(v) s().buffLayout = v; apply() end, 200), 30, 2), "buffHud")
-  dependsOn(slider(1, "Icon size", 20, 48, 2, function(v) return ("%d"):format(v) end, "buffIconSize", apply), "buffHud")
-  dependsOn(slider(1, "Scale", 0.6, 1.5, 0.05, pct, "buffHudScale", apply), "buffHud")
+  dependsOn(slider(1, "Icon size", 20, 48, 2, function(v) return ("%d"):format(v) end, "buffIconSize", apply,
+    "The icons only; counts and times keep their size."), "buffHud")
+  dependsOn(slider(1, "Scale", 0.6, 1.5, 0.05, pct, "buffHudScale", apply, "Everything, text included."), "buffHud")
   dependsOn(slider(1, "Opacity", 0.3, 1, 0.05, pct, "buffHudAlpha", apply), "buffHud")
-  dependsOn(check(1, "Counts", "buffShowCount", "How many are in your bags.", apply), "buffHud")
-  dependsOn(checkBeside(1, "Time left", "buffShowTime", "Under each icon.", apply), "buffHud")
+  dependsOn(check(1, "Inventory counts", "buffShowCount", "How many are in your bags, bottom right.", apply), "buffHud")
+  dependsOn(checkBeside(1, "Buff duration", "buffShowTime", "Time left, under each icon.", apply), "buffHud")
   heading(2, "Duration warnings")
   dependsOn(slider(2, "Expiring at", 1, 15, 1, function(v) return ("%d min"):format(v) end, "buffWarnMin", apply,
     "A buff with less time left than this gets a gold edge."), "buffHud")
@@ -897,7 +902,7 @@ if NW.BuffTracker then
   heading(2, "Notices")
   dependsOn(check(2, "Expired", "buffNotifyMissing", "A tracked buff ran out."), "buffHud")
   dependsOn(checkBeside(2, "Expiring", "buffNotifyExpiring", "Once, at your Expiring at time."), "buffHud")
-  dependsOn(check(2, "None left", "buffNotifyStock", "You used your last one."), "buffHud")
+  dependsOn(check(2, "Out of stock", "buffNotifyStock", "You used your last one."), "buffHud")
   dependsOn(checkBeside(2, "Ready check", "buffNotifyReady", "Names the tracked buffs you're missing."), "buffHud")
   dependsOn(check(2, "Sound", "buffSound"), "buffHud")
   defaultsButton(function() BT.Toggle(s().buffHud) end)

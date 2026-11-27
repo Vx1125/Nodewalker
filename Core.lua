@@ -59,7 +59,7 @@ local DEFAULTS = {
     -- the consumable buff tracker (off until you turn it on)
     buffHud = false, buffHudLock = false, buffClickUse = true, buffHideOk = false, buffMode = "all",
     buffLayout = "horizontal", buffIconSize = 32, buffHudScale = 1, buffHudAlpha = 1, buffShowCount = true,
-    buffShowTime = true, buffWarnMin = 5, buffCooldowns = true,
+    buffShowTime = true, buffWarnMin = 5, buffCooldowns = true, buffHideResting = false, buffHideMounted = false,
     buffNotifyMissing = true, buffNotifyExpiring = true, buffNotifyStock = false, buffNotifyReady = true, buffSound = false,
   },
 }

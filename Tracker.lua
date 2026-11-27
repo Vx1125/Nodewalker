@@ -70,29 +70,33 @@ local function enchSeen() NW.db.enchSeen = NW.db.enchSeen or {} return NW.db.enc
 -- every slot could be read; a reading with hidden slots only adds to it.
 local auras, hiddenNow = {}, false
 local fresh = {}
+local durs = {} -- [spell ID] = full duration, when the client gives it
 local function readAuras()
   wipe(fresh)
   local hidden = false
   local modern = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex
   for i = 1, 40 do
-    local sid, exp, done, hid
+    local sid, exp, dur, done, hid
     if modern then
       local ok, d = pcall(C_UnitAuras.GetAuraDataByIndex, "player", i, "HELPFUL")
       if not ok then hid = true
       elseif not d then done = true
       else
-        local ok2, a, b = pcall(function() return d.spellId, d.expirationTime end)
-        if ok2 then sid, exp = a, b else hid = true end
+        local ok2, a, b, c = pcall(function() return d.spellId, d.expirationTime, d.duration end)
+        if ok2 then sid, exp, dur = a, b, c else hid = true end
       end
     elseif UnitBuff then
-      local ok, n, _, _, _, _, e, _, _, _, id = pcall(UnitBuff, "player", i)
-      if not ok then hid = true elseif not n then done = true else sid, exp = id, e end
+      local ok, n, _, _, _, du, e, _, _, _, id = pcall(UnitBuff, "player", i)
+      if not ok then hid = true elseif not n then done = true else sid, exp, dur = id, e, du end
     else
       done = true
     end
     if done then break end
     if hid or not R(sid) then hidden = true
-    else fresh[sid] = (R(exp) and type(exp) == "number") and exp or 0 end
+    else
+      fresh[sid] = (R(exp) and type(exp) == "number") and exp or 0
+      if R(dur) and type(dur) == "number" and dur > 0 then durs[sid] = dur end
+    end
   end
   -- in combat the client may hide auras by returning none at all: there, a reading only adds
   if combat() then hidden = true end
@@ -201,7 +205,7 @@ T.tracked = tracked
 local function buffState(x)
   local sn = seen()
   local cands = x.alts or { x.id }
-  local best, bestExp, knownAny = nil, nil, false
+  local best, bestExp, knownAny, bestAura = nil, nil, false, nil
   for _, c in ipairs(cands) do
     local aura = sn[c]
     local direct = spellOf(c)
@@ -210,12 +214,14 @@ local function buffState(x)
     if hit then
       if direct and auras[direct] and not aura and x.group ~= "Food" then sn[c] = direct knownAny = true end
       local exp = hit
-      if not best or (exp == 0) or (bestExp ~= 0 and exp > bestExp) then best, bestExp = c, exp end
+      if not best or (exp == 0) or (bestExp ~= 0 and exp > bestExp) then
+        best, bestExp, bestAura = c, exp, (aura and auras[aura]) and aura or direct
+      end
     end
   end
   if best then
     if bestExp > 0 and bestExp <= now() then best = nil -- ran out (counted down through combat)
-    else return "on", best, bestExp end
+    else x.dur = bestAura and durs[bestAura] return "on", best, bestExp end
   end
   -- not seen on you: missing only when Nodewalker knows what it looks like
   if not knownAny then return "unknown" end
@@ -296,7 +302,7 @@ local function notices()
     end
     if x.count == 0 and st().buffNotifyStock and not said[key .. "out"] and x.hadStock then
       said[key .. "out"] = true
-      notify(itemName(x.id) .. ": none left")
+      notify(itemName(x.id) .. ": out of stock")
     end
     if x.count > 0 then said[key .. "out"] = nil x.hadStock = true end
   end
@@ -351,8 +357,8 @@ local BORDER = {
 }
 local function fmtTime(sec)
   if sec >= 3600 then return ("%dh"):format(math.floor(sec / 3600 + 0.5)) end
-  if sec >= 60 then return ("%dm"):format(math.floor(sec / 60 + 0.5)) end
-  return ("%d"):format(math.max(0, math.floor(sec)))
+  if sec >= 60 then return ("%dm"):format(math.ceil(sec / 60)) end
+  return ("%ds"):format(math.max(0, math.floor(sec)))
 end
 
 local function iconTip(self)
@@ -394,8 +400,15 @@ local function iconFor(i)
   b.cd = CreateFrame("Cooldown", nil, b, "CooldownFrameTemplate")
   b.cd:SetAllPoints(b.tex)
   if b.cd.SetHideCountdownNumbers then b.cd:SetHideCountdownNumbers(true) end
+  if b.cd.SetDrawEdge then b.cd:SetDrawEdge(false) end
   b.count = UI.Text(b, 11, S.text, "RIGHT")
-  b.count:SetPoint("BOTTOMRIGHT", -2, 2)
+  b.count:SetPoint("BOTTOMRIGHT", -1, 2)
+  if b.count.SetShadowOffset then b.count:SetShadowOffset(1, -1) end
+  -- unknown: a small neutral square in the corner (not a red edge: it isn't missing)
+  b.unk = b:CreateTexture(nil, "OVERLAY")
+  b.unk:SetSize(6, 6)
+  b.unk:SetPoint("TOPRIGHT", -2, -2)
+  b.unk:SetColorTexture(0.576, 0.549, 0.502, 0.9)
   b.time = UI.Text(b, 10, S.text, "CENTER")
   b.time:SetPoint("TOP", b, "BOTTOM", 0, -2)
   b:SetScript("OnEnter", iconTip)
@@ -417,6 +430,11 @@ local function wanted(x)
   return m == "soon" and x.state == "expiring"
 end
 
+local function contextHides()
+  if st().buffHideResting and IsResting and IsResting() then return true end
+  if st().buffHideMounted and IsMounted and IsMounted() then return true end
+  return false
+end
 local shownList, want = {}, {}
 local function desired()
   wipe(want)
@@ -440,22 +458,32 @@ local function layout()
   wipe(shownList)
   for i, x in ipairs(want) do shownList[i] = x end
   local size = st().buffIconSize or 32
-  local gap = 4
+  local usize = math.max(18, math.floor(size * 0.8 + 0.5)) -- (potions and the like: a step smaller)
+  local gap, sep = 3, 6
+  local tH = st().buffShowTime ~= false and 12 or 0
   local vertical = st().buffLayout == "vertical"
-  local lane, pos, lanes = 0, 0, 0
+  -- along: where the next icon goes in its group; across: where the group starts
+  local along, across, groupDepth, maxAlong, total = 0, 0, 0, 0, 0
   local lastKind
   for i, x in ipairs(shownList) do
     local b = iconFor(i)
     local k = x.kind == "use" and "use" or "buff"
-    if lastKind and k ~= lastKind then lane, pos = lane + 1, 0 end -- things you use start their own row
+    if lastKind and k ~= lastKind then across, along, groupDepth = across + groupDepth + sep, 0, 0 end -- things you use: their own group
     lastKind = k
+    local s = k == "use" and usize or size
     b:ClearAllPoints()
-    b:SetSize(size, size)
-    local step = size + gap + (st().buffShowTime ~= false and 12 or 0)
-    if vertical then b:SetPoint("TOPLEFT", hud, "TOPLEFT", lane * (size + gap), -pos * step)
-    else b:SetPoint("TOPLEFT", hud, "TOPLEFT", pos * (size + gap), -lane * step) end
-    pos = pos + 1
-    lanes = math.max(lanes, pos)
+    b:SetSize(s, s)
+    if vertical then
+      b:SetPoint("TOPLEFT", hud, "TOPLEFT", across, -along)
+      along = along + s + tH + gap
+      groupDepth = math.max(groupDepth, s)
+    else
+      b:SetPoint("TOPLEFT", hud, "TOPLEFT", along, -across)
+      along = along + s + gap
+      groupDepth = math.max(groupDepth, s + tH)
+    end
+    maxAlong = math.max(maxAlong, along - gap)
+    total = across + groupDepth
     b.x = x
     b:SetAttribute("type1", st().buffClickUse ~= false and "item" or nil)
     b:SetAttribute("item", "item:" .. x.id)
@@ -467,14 +495,14 @@ local function layout()
     icons[i]:Hide()
   end
   local n = #shownList
-  local w = vertical and (lane + 1) * (size + gap) or math.max(1, lanes) * (size + gap)
-  local h = vertical and math.max(1, lanes) * (size + gap + 12) or (lane + 1) * (size + gap + 12)
-  hud:SetSize(math.max(size, w - gap), math.max(size, h))
-  grip:SetWidth(math.max(size, w - gap))
+  local w = vertical and total or maxAlong
+  local h = vertical and maxAlong or total
+  hud:SetSize(math.max(size, w), math.max(size, h))
+  grip:SetWidth(math.max(size, w))
   grip:SetShown(not st().buffHudLock)
   hud:SetScale(st().buffHudScale or 1)
   hud:SetAlpha(st().buffHudAlpha or 1)
-  hud:SetShown(st().buffHud and n > 0 and true or false)
+  hud:SetShown(st().buffHud and n > 0 and not contextHides() and true or false)
 end
 
 -- what changes in combat too: textures, borders, counts, times, cooldown swipes
@@ -493,19 +521,19 @@ local function paint()
       b:SetBackdropBorderColor(unpack(BORDER[st0] or DIM))
       b.count:SetText(showCount and tostring(x.count or 0) or "")
       b.count:SetTextColor(unpack((x.count or 0) == 0 and S.bad or S.text))
-      local left
+      b.unk:SetShown(st0 == "unknown")
+      local left, cs, cdur
       if x.kind == "use" then
-        if x.cdStart then
-          left = x.cdStart + x.cdDur - t
-          b.cd:SetCooldown(x.cdStart, x.cdDur)
-        else
-          b.cd:Clear()
-        end
+        if x.cdStart then left, cs, cdur = x.cdStart + x.cdDur - t, x.cdStart, x.cdDur end
       elseif x.exp then
         left = x.exp - t
-        b.cd:Clear()
-      else
-        b.cd:Clear()
+        if x.dur and x.dur > 0 then cs, cdur = x.exp - x.dur, x.dur end
+      end
+      -- the game's own cooldown animation: started once, cleared once
+      local key = cs and (cs .. ":" .. cdur) or nil
+      if key ~= b.cdKey then
+        b.cdKey = key
+        if cs then b.cd:SetCooldown(cs, cdur) else b.cd:Clear() end
       end
       if left and left > 0 then timed = true end
       b.time:SetText((showTime and left and left > 0) and fmtTime(left) or "")
@@ -550,6 +578,8 @@ update = function()
   evaluate()
   notices()
   -- the set of icons changes only out of combat, and only when it's different
+  local ctx = contextHides()
+  if ctx ~= T.lastCtx then T.lastCtx, T.relayout = ctx, true end
   desired()
   if T.relayout or not sameList() then layout() end
   dirty.tick = false
@@ -612,6 +642,8 @@ NW.On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
   -- eating takes a while, an oil a few seconds: look again
   for _, d in ipairs({ 3, 12, 25, 40 }) do C_Timer.After(d, function() if pending == p then dirty.auras, dirty.weapon = true, true queue() end end) end
 end)
+NW.On("PLAYER_UPDATE_RESTING", function() if on() then T.relayout = true queue() end end)
+NW.On("PLAYER_MOUNT_DISPLAY_CHANGED", function() if on() then T.relayout = true queue() end end)
 NW.On("READY_CHECK", function()
   if not (on() and st().buffNotifyReady) then return end
   local miss = T.ReadyCheckSummary()
@@ -622,6 +654,11 @@ if NW.OnConsumeSelection then
   NW.OnConsumeSelection(function() if on() then dirty.list = true queue(0.1) end end)
 end
 
+-- Back to the middle of the screen
+function T.ResetPosition()
+  st().buffHudPos = nil
+  T.Apply()
+end
 -- /nw buffs reset: forget the buffs and enchants learned from your items
 function T.ForgetLearned()
   NW.db.buffSeen, NW.db.enchSeen = nil, nil
