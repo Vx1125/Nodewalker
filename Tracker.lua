@@ -106,6 +106,7 @@ local function readAuras()
   else
     wipe(auras)
     for k, v in pairs(fresh) do auras[k] = v end
+    for k in pairs(durs) do if not fresh[k] then durs[k] = nil end end
   end
   return not hidden
 end
@@ -530,9 +531,8 @@ local function paint()
         if x.dur and x.dur > 0 then cs, cdur = x.exp - x.dur, x.dur end
       end
       -- the game's own cooldown animation: started once, cleared once
-      local key = cs and (cs .. ":" .. cdur) or nil
-      if key ~= b.cdKey then
-        b.cdKey = key
+      if cs ~= b.cdS or cdur ~= b.cdD then
+        b.cdS, b.cdD = cs, cdur
         if cs then b.cd:SetCooldown(cs, cdur) else b.cd:Clear() end
       end
       if left and left > 0 then timed = true end
@@ -641,6 +641,14 @@ NW.On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
   queue(0.5)
   -- eating takes a while, an oil a few seconds: look again
   for _, d in ipairs({ 3, 12, 25, 40 }) do C_Timer.After(d, function() if pending == p then dirty.auras, dirty.weapon = true, true queue() end end) end
+end)
+-- a fight is starting: the last moment the HUD can still appear (lockdown comes after this event).
+-- Hidden for a city or a mount, it comes back for the fight: potions matter then.
+NW.On("PLAYER_REGEN_DISABLED", function()
+  if not on() or hud:IsShown() or #shownList == 0 then return end
+  if InCombatLockdown and InCombatLockdown() then return end
+  hud:Show()
+  T.lastCtx = nil -- (looked at again after the fight)
 end)
 NW.On("PLAYER_UPDATE_RESTING", function() if on() then T.relayout = true queue() end end)
 NW.On("PLAYER_MOUNT_DISPLAY_CHANGED", function() if on() then T.relayout = true queue() end end)
