@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fishing: fish shown as larger icons with the guide's skill (not a confirmed minimum), source and zones on hover; click for where to fish it.
+- Fishing + Cooking: catch steps show the dish they're cooked into, cook steps their fish; "Or buy it" when a catch waits for Fishing.
+- Fishing + Cooking: Cooking no longer waits for Fishing to finish: a step goes where its fish can be caught (or bought), and a Cooking rank already trained gets no step.
 - Herbalism, Mining, Skinning: each range shows its herbs, ore or leather as icons, edged in the colour they are at your skill, with the skill they need.
 - Gathering: click a range for its zones (known spots), what to gather, a route or hunting grounds, on the right; icons and zones open Material Finder.
 - Mining: a Smelting view: every bar, its ore against your bags, what you can make and the cost per bar.

@@ -271,6 +271,30 @@ function F.Build()
   -- steps that need it are blocked with the same reason
   local fishBlock, cookBlock, gapBlock
   local fishCap, cookCap = fishMax or 75, cookMax or 75
+  -- Which phase each cooking step lands in: as soon as its fish can be had
+  -- (bought, or caught at the fishing skill that phase reaches) and its
+  -- Cooking rank is trained, never before the step before it. The two
+  -- professions needn't level together: Cooking 299 with Fishing 7 cooks its
+  -- last point once that fish is in reach (or bought), not after Fishing 300.
+  -- early: the fish can be had when the phase starts (cooked before fishing on)
+  local stepPhase, stepEarly, prevPhase = {}, {}, 1
+  for _, st in ipairs(cp and cp.steps or {}) do
+    local ct = tierOf(st.from)
+    local ready = (cookMax or 75) >= TIERS[ct][2] and 1 or ct -- that Cooking rank: trained already, or trained in its phase
+    local need, needSkill = 1, nil
+    for _, m in ipairs(st.mats or {}) do
+      local f = F.FISH[m[1]]
+      if f and not c.buyFish and f.skill and f.skill > base then
+        local ft = tierOf(f.skill - 1) -- the phase whose fishing reaches it
+        if ft > need then need = ft end
+        if not needSkill or f.skill > needSkill then needSkill = f.skill end
+      end
+    end
+    local ph = math.max(ready, need, prevPhase)
+    stepPhase[st], prevPhase = ph, ph
+    stepEarly[st] = not needSkill or needSkill <= math.max(base, TIERS[ph][1])
+  end
+  local cookTrained = {} -- Cooking ranks given a training step
   for ti, t in ipairs(TIERS) do
     local lo, hi = t[1], t[2]
     local ph = { name = t[3], lo = lo, hi = hi, ti = ti, actions = {} }
@@ -284,7 +308,7 @@ function F.Build()
     if fishAtEnd < base then fishAtEnd = base end
     local cookSteps = {}
     for _, st in ipairs(cp and cp.steps or {}) do
-      if tierOf(st.from) == ti then cookSteps[#cookSteps + 1] = st end
+      if stepPhase[st] == ti then cookSteps[#cookSteps + 1] = st end
     end
     local cookHere = #cookSteps > 0
     if fishHere or cookHere then
@@ -307,15 +331,22 @@ function F.Build()
           plan.fees = plan.fees + (a.cost or 0)
         end
       end
-      if ti >= 2 and cookHere then
-        local ru = NW.RANKS[ti]
-        local done = cookMax and cookMax >= hi or false
-        local a = add({ kind = "train", prof = "cooking", crank = ru, label = "Train " .. ru.name .. " Cooking", done = done })
-        if not done and ru.level and level < ru.level then a.blocked = ("Needs level %d"):format(ru.level) end
-        if not done and cookBlock then a.blocked = a.blocked or cookBlock end
-        if a.blocked and not cookBlock then cookBlock = "Needs " .. ru.name .. " Cooking" end
-        local fee = (NW.RANK_FEE.cooking or {})[ru.name]
-        if not done and fee then a.cost = fee; plan.fees = plan.fees + fee end
+      -- a Cooking rank not trained yet: its training goes just before the
+      -- first cooking that needs it (a rank already trained gets no step)
+      local function trainCooking(upTo)
+        for rt = 2, upTo do
+          local ru = NW.RANKS[rt]
+          local done = cookMax and cookMax >= TIERS[rt][2] or false
+          if not cookTrained[rt] and not done then
+            cookTrained[rt] = true
+            local a = add({ kind = "train", prof = "cooking", crank = ru, label = "Train " .. ru.name .. " Cooking", done = false })
+            if ru.level and level < ru.level then a.blocked = ("Needs level %d"):format(ru.level) end
+            if cookBlock then a.blocked = a.blocked or cookBlock end
+            if a.blocked and not cookBlock then cookBlock = "Needs " .. ru.name .. " Cooking" end
+            local fee = (NW.RANK_FEE.cooking or {})[ru.name]
+            if fee then a.cost = fee; plan.fees = plan.fees + fee end
+          end
+        end
       end
       -- recipes this phase needs
       for _, st in ipairs(cookSteps) do
@@ -332,13 +363,11 @@ function F.Build()
         end
       end
       -- what the phase's cooking takes
-      local fishNeed, fishOrder, vend, other = {}, {}, {}, {}
+      local vend, other = {}, {}
       for _, st in ipairs(cookSteps) do
         for _, m in ipairs(st.mats or {}) do
           local id, n = m[1], m[2]
           if F.FISH[id] then
-            if not fishNeed[id] then fishOrder[#fishOrder + 1] = id end
-            fishNeed[id] = (fishNeed[id] or 0) + n
           elseif NW.IsVendor(id) then vend[id] = (vend[id] or 0) + n
           else other[id] = (other[id] or 0) + n end
         end
@@ -370,44 +399,65 @@ function F.Build()
         if not odone and (cookBlock or gapBlock) then oa.blocked = cookBlock or gapBlock end
         for _, e in ipairs(olist) do plan.buy[#plan.buy + 1] = e end
       end
+      -- the fish for a group of steps, then the cooking: what can be had now
+      -- comes before fishing on, what needs more skill after it
+      local function catchAndCook(group, reachSkill)
+        local fishNeed, fishOrder = {}, {}
+        for _, st in ipairs(group) do
+          for _, m in ipairs(st.mats or {}) do
+            local id, n = m[1], m[2]
+            if F.FISH[id] then
+              if not fishNeed[id] then fishOrder[#fishOrder + 1] = id end
+              fishNeed[id] = (fishNeed[id] or 0) + n
+            end
+          end
+        end
+        for _, id in ipairs(fishOrder) do
+          local n = fishNeed[id]
+          local h = math.min(have(id), n)
+          left[id] = have(id) - h
+          local f = F.FISH[id]
+          local reach = f.skill and f.skill <= reachSkill
+          local buy = c.buyFish and not (f.skill and f.skill <= base)
+          local a = add({ kind = "catch", fish = id, need = n, have = h, buy = buy,
+            label = (buy and "Buy " or "Catch ") .. (F.itemName(id)), done = h >= n })
+          if not reach and not c.buyFish then
+            a.blocked = f.skill and ("Needs Fishing %d"):format(f.skill) or "No fishing data for it"
+          elseif not a.done and not buy and fishBlock and f.skill and f.skill > fishCap then
+            a.blocked = fishBlock
+          end
+          local pr = NW.Price(id)
+          a.value = pr and pr * n or nil
+          plan.fish[#plan.fish + 1] = a
+        end
+        for _, st in ipairs(group) do
+          trainCooking(tierOf(st.from))
+          if st.recipe then
+            local ca = add({ kind = "cook", step = st, recipe = st.recipe, label = ("Cook %s"):format(st.recipe.name),
+              done = (cookNow or 0) >= st.to })
+            if not ca.done then
+              if gapBlock then ca.blocked = gapBlock
+              elseif cookBlock and st.to > cookCap then ca.blocked = cookBlock end
+            end
+          else
+            local a = add({ kind = "gap", step = st, label = ("No recipe for %d-%d"):format(st.from, st.to), done = false })
+            a.blocked = c.nonFish and "Nothing in the data" or "Allow non-fish recipes"
+            gapBlock = gapBlock or ("Needs a recipe for %d-%d"):format(st.from, st.to)
+          end
+        end
+      end
+      local early, late = {}, {}
+      for _, st in ipairs(cookSteps) do
+        if stepEarly[st] and #late == 0 then early[#early + 1] = st else late[#late + 1] = st end
+      end
+      catchAndCook(early, math.max(base, lo))
       if fishHere then
         local bi, b = F.bracketFor(math.max(base, lo))
         local fa = add({ kind = "fishto", from = math.max(base, lo), to = fishAtEnd, bracket = bi, b = b,
           label = ("Fish to %d"):format(fishAtEnd), done = (fishNow or 0) >= fishAtEnd })
         if not fa.done and fishBlock and fishAtEnd > fishCap then fa.blocked = fishBlock end
       end
-      for _, id in ipairs(fishOrder) do
-        local n = fishNeed[id]
-        local h = math.min(have(id), n)
-        left[id] = have(id) - h
-        local f = F.FISH[id]
-        local reach = f.skill and f.skill <= math.max(fishAtEnd, base)
-        local buy = c.buyFish and not reach
-        local a = add({ kind = "catch", fish = id, need = n, have = h, buy = buy,
-          label = (buy and "Buy " or "Catch ") .. (F.itemName(id)), done = h >= n })
-        if not reach and not c.buyFish then
-          a.blocked = f.skill and ("Needs Fishing %d"):format(f.skill) or "No fishing data for it"
-        elseif not a.done and not buy and fishBlock and f.skill and f.skill > fishCap then
-          a.blocked = fishBlock
-        end
-        local pr = NW.Price(id)
-        a.value = pr and pr * n or nil
-        plan.fish[#plan.fish + 1] = a
-      end
-      for _, st in ipairs(cookSteps) do
-        if st.recipe then
-          local ca = add({ kind = "cook", step = st, recipe = st.recipe, label = ("Cook %s"):format(st.recipe.name),
-            done = (cookNow or 0) >= st.to })
-          if not ca.done then
-            if gapBlock then ca.blocked = gapBlock
-            elseif cookBlock and st.to > cookCap then ca.blocked = cookBlock end
-          end
-        else
-          local a = add({ kind = "gap", step = st, label = ("No recipe for %d-%d"):format(st.from, st.to), done = false })
-          a.blocked = c.nonFish and "Nothing in the data" or "Allow non-fish recipes"
-          gapBlock = gapBlock or ("Needs a recipe for %d-%d"):format(st.from, st.to)
-        end
-      end
+      catchAndCook(late, math.max(fishAtEnd, base))
       -- the phase is finished when everything in it is
       local all = true
       for _, a in ipairs(ph.actions) do if not a.done then all = false end end
@@ -565,6 +615,48 @@ W.thumb:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.6)
 W.thumb:SetWidth(3)
 F.items, F.offset = {}, 0
 W.rows = {}
+-- fish and dish icons on the rows: the professions' reagent strip, with the
+-- fishing facts in the tooltip and Material Finder on click
+local SRC_NAME = { forever = "Method's WoW Forever guide", guide = "Classic leveling guides", classic = "Classic data (cMaNGOS)" }
+W.fh = {}
+function W.fh.tip(icon)
+  local id, c = icon.id, icon.ctx
+  GameTooltip:SetOwner(icon, "ANCHOR_RIGHT")
+  if not pcall(GameTooltip.SetItemByID, GameTooltip, id) then GameTooltip:SetText(F.itemName(id), 1, 1, 1) end
+  GameTooltip:AddLine(" ")
+  local d = S.dim
+  local f = F.FISH[id]
+  if c.perCraft then GameTooltip:AddDoubleLine("Per craft", c.perCraft, d[1], d[2], d[3], 1, 1, 1) end
+  if c.cookedInto then GameTooltip:AddLine("What this fish is cooked into", d[1], d[2], d[3], true) end
+  if f then
+    if f.skill then
+      GameTooltip:AddDoubleLine("Guides fish it from", f.skill, d[1], d[2], d[3], 1, 1, 1)
+      GameTooltip:AddLine("A guide's skill, not a confirmed minimum.", d[1], d[2], d[3], true)
+    else
+      GameTooltip:AddDoubleLine("Fishing skill", "not known", d[1], d[2], d[3], d[1], d[2], d[3])
+    end
+    if f.note then GameTooltip:AddDoubleLine("Where", f.note, d[1], d[2], d[3], 1, 1, 1) end
+    if f.zones then GameTooltip:AddLine(table.concat(f.zones, ", "), 1, 1, 1, true) end
+    if f.src and SRC_NAME[f.src] then GameTooltip:AddDoubleLine("Source", SRC_NAME[f.src], d[1], d[2], d[3], d[1], d[2], d[3]) end
+    local rank, _, bonus = F.skill()
+    if rank then GameTooltip:AddDoubleLine("Your fishing", ("%d (+%d gear and lures)"):format(rank, bonus), d[1], d[2], d[3], 1, 1, 1) end
+  end
+  local have = NW.ItemCount(id) or 0
+  if have > 0 then GameTooltip:AddDoubleLine("In your bags and bank", have, d[1], d[2], d[3], 1, 1, 1) end
+  GameTooltip:AddDoubleLine("Click", f and "where to fish it, in Material Finder" or "where to get it, in Material Finder", d[1], d[2], d[3], 1, 1, 1)
+  GameTooltip:AddDoubleLine("Shift-click", "link in chat", d[1], d[2], d[3], 1, 1, 1)
+  GameTooltip:Show()
+end
+function W.fh.click(icon)
+  local id = icon.id
+  if not id then return end
+  if IsShiftKeyDown() then
+    local link = select(2, NW.ItemInfo(id))
+    if link and ChatEdit_InsertLink then ChatEdit_InsertLink(link) end
+    return
+  end
+  if F.FISH[id] then NW.OpenFishFinder(id) elseif NW.FindMaterial then NW.FindMaterial(id) end
+end
 local function mark(state)
   if state == "done" then return "|TInterface\\RaidFrame\\ReadyCheck-Ready:12:12:0:0|t" end
   if state == "blocked" then return "|TInterface\\RaidFrame\\ReadyCheck-NotReady:12:12:0:0|t" end
@@ -594,15 +686,7 @@ for i = 1, 24 do
   r.right:SetPoint("RIGHT", -6, 0)
   r.right:SetWidth(150)
   r.right:SetWordWrap(false)
-  r.icons = {}
-  for k = 1, 5 do
-    local t = r:CreateTexture(nil, "ARTWORK")
-    t:SetSize(16, 16)
-    t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    t:SetPoint("RIGHT", r, "RIGHT", -6 - (k - 1) * 19, 0)
-    t:Hide()
-    r.icons[k] = t
-  end
+  r.strip = UI.ReagentStrip(r, W.fh, 20)
   r:SetScript("OnClick", function(self)
     local it = self.item
     if not it then return end
@@ -663,12 +747,28 @@ function F.drawRows()
       r.icon:SetShown(it.icon ~= nil or it.head)
       r.icon:SetDesaturated(it.desat and true or false)
       r.right:SetText(it.right or "")
-      for k, t in ipairs(r.icons) do
-        local id = it.fishIcons and it.fishIcons[k]
-        t:SetShown(id ~= nil)
-        if id then t:SetTexture(NW.ItemIcon(id)) end
+      -- fish (a zone's), or what a step uses or makes: icons on the right
+      local list = it.strip or (it.fishIcons and #it.fishIcons > 0 and it.fishIcons)
+      local strip = r.strip
+      strip:Begin()
+      if list then
+        for _, e in ipairs(list) do
+          local id = type(e) == "table" and e[1] or e
+          local ic = strip:Add(id, type(e) == "table" and e[2] or false, type(e) == "table" and e[3] or nil)
+          ic.ctx.perCraft = type(e) == "table" and e[2] or nil
+          ic.ctx.cookedInto = type(e) == "table" and e.dish or nil
+        end
       end
-      if it.fishIcons and #it.fishIcons > 0 then r.right:SetText("") end
+      local n = strip.n
+      local w = math.max(1, n * 25 - 5)
+      strip:Finish(w)
+      strip:ClearAllPoints()
+      if it.fishIcons and not it.strip then r.right:SetText("") end
+      local rw = (r.right:GetText() or "") ~= "" and math.min(150, (r.right:GetStringWidth() or 0) + 12) or 0
+      strip:SetPoint("RIGHT", r, "RIGHT", -6 - rw, 0)
+      strip:SetShown(n > 0)
+      -- the label stops short of the icons and the right-hand text
+      r.text:SetWidth(MID_W - 8 - 44 - 12 - rw - (n > 0 and (w + 8) or 0))
     else
       r:Hide()
     end
@@ -929,7 +1029,8 @@ local function lureFor(b, rows)
   if not want then return end
   local name = F.itemName(want[1], LURE_NAME[want[1]])
   local ok = bonus >= want[2]
-  rows[#rows + 1] = { "Lure", ok and (H.good .. "+" .. bonus .. " on|r") or ("%s +%d"):format(name, want[2]) }
+  local icon = NW.ItemIcon(want[1])
+  rows[#rows + 1] = { "Lure", ok and (H.good .. "+" .. bonus .. " on|r") or ("%s%s +%d"):format(icon and ("|T" .. icon .. ":14:14:0:0|t ") or "", name, want[2]) }
 end
 
 local function fishLines(rows, ids, title)
@@ -1172,8 +1273,32 @@ function F.combinedItems(plan)
         local label = a.label
         if plan.next == a then label = H.gold .. label .. "|r" elseif a.blocked then label = H.dim .. label .. "|r" end
         if a.kind == "catch" and a.done and not a.blocked then label = label .. H.good .. "  collected|r" end
+        -- what connects them: a catch shows the dish it's cooked into, a cook
+        -- step its fish and other ingredients (one craft's worth)
+        local strip
+        if a.kind == "catch" then
+          strip = {}
+          for _, b in ipairs(ph.actions) do
+            if b.kind == "cook" and b.recipe.item then
+              for _, re in ipairs(b.recipe.reagents) do
+                if re[1] == a.fish then strip[#strip + 1] = { b.recipe.item, false, nil, dish = true } break end
+              end
+            end
+          end
+        elseif a.kind == "cook" then
+          strip = {}
+          for _, re in ipairs(a.recipe.reagents) do
+            local st = nil
+            if not a.done then
+              for _, b in ipairs(ph.actions) do
+                if b.kind == "catch" and b.fish == re[1] then st = (b.done and "ok") or (b.blocked and "short") or nil end
+              end
+            end
+            strip[#strip + 1] = { re[1], re[2], st }
+          end
+        end
         items[#items + 1] = { icon = actionIcon(a), mark = mark(state), text = label, right = actionRight(a),
-          selKey = ("a%d:%d"):format(ph.ti, ai), action = a, dim = a.done or ph.done }
+          selKey = ("a%d:%d"):format(ph.ti, ai), action = a, dim = a.done or ph.done, strip = strip }
       end
     end
   end
@@ -1195,6 +1320,19 @@ function F.actionDetail(a, plan)
     }
     if a.blocked then rows[#rows + 1] = { H.bad .. a.blocked .. "|r" } end
     if a.value then rows[#rows + 1] = { "Worth", "~" .. NW.Money(a.value, "mid") } end
+    -- catching it waits for Fishing; buying it would let Cooking go on now
+    if not a.buy and not a.done and f.skill and f.skill > (plan.fishNow or 0) then
+      local p, src = NW.Price(a.fish)
+      rows[#rows + 1] = { "Or buy it", (p and src ~= "est") and ("%s each, Cooking goes on now"):format(NW.Money(p, "mid")) or "\"Catch or buy\" lets Cooking go on now", color = S.gold }
+    end
+    -- what it's for
+    for _, b in ipairs(a.phase and a.phase.actions or {}) do
+      if b.kind == "cook" then
+        for _, re in ipairs(b.recipe.reagents) do
+          if re[1] == a.fish then rows[#rows + 1] = { "Cooked into", ("%s (%d-%d)"):format(b.recipe.name, b.step.from, b.step.to) } break end
+        end
+      end
+    end
     rows[#rows + 1] = "gap"
     if #zones > 0 then
       rows[#rows + 1] = { head = named and "Found in" or "Waters at this skill" }
