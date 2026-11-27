@@ -443,7 +443,8 @@ local function desired()
   wipe(want)
   local buffsOk = true
   for _, x in ipairs(tracked) do
-    if x.kind ~= "use" and x.state ~= "on" and x.state ~= "expiring" then buffsOk = false end
+    -- (one hidden as out of stock doesn't stop "fully buffed")
+    if x.kind ~= "use" and x.state ~= "on" and x.state ~= "expiring" and not (st().buffHideEmpty and x.state == "out") then buffsOk = false end
   end
   for _, x in ipairs(tracked) do
     if wanted(x) and not (x.kind ~= "use" and buffsOk and st().buffHideOk) then want[#want + 1] = x end
