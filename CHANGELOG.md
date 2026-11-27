@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Tracker: clicking a weapon oil, stone or poison puts it straight on your weapon.
 - Tracker: a thin bar to drag it by while unlocked; /nw buffs debug and /nw buffs auras show what it reads.
 - Profit: columns for materials, sells for, net profit and return; the top recipe opens on the right, with a batch size, exact figures and why Craft can't run.
 - Profit: a recipe with an unpriced material no longer counts as profitable; cooldown recipes count one at a time.
