@@ -1445,8 +1445,6 @@ NW.TOOLS = {
   engineering = { { 5956, 1 }, { 6219, 30, "Arclight Spanner" }, { 10498, 175, "Gyromatic Micro-Adjustor" } },
   enchanting = { { 6218, 1, "Runed Copper Rod" }, { 6339, 130, "Runed Silver Rod" }, { 11130, 175, "Runed Golden Rod" }, { 11145, 220, "Runed Truesilver Rod" } },
 }
--- The tools the plan reaches: { item, recipe, step, have } where step is the first step
--- that needs it and have says one is already in your bags or bank
 -- What's there for each step's reagents, in the order you craft: seq is a
 -- list of { r = recipe, n = crafts, to = skill it ends at, keep = its product
 -- counts for later steps, into = table to write into }. Each into gets
@@ -1477,6 +1475,8 @@ function NW.StepStock(seq, rank)
   end
 end
 
+-- The tools the plan reaches: { item, recipe, step, have } where step is the first step
+-- that needs it and have says one is already in your bags or bank
 function NW.PlanTools(key, plan)
   local out = {}
   for _, t in ipairs(NW.TOOLS[key] or {}) do

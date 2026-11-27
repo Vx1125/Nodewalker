@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Action bar button: right-click toggles the overlay (left-click still opens the window); existing buttons update themselves.
-- Leveling: reagents shown as item icons with the count per craft and have/need for the step (gold: made by the steps before, red: short). Hover for totals and price; click for where to get it.
+- Leveling: a Materials column with each reagent's item icon and the count per craft (red edge: short, gold edge: made by the steps before). Hover for totals, what you have and price; click for where to get it.
 - Leveling: parts made first and tools sit indented under a line to the step that needs them; a scroll icon replaces "needs recipe".
 - Leveling: a recipe is kept until green only while it costs within a tenth of the cheapest; plans 2-10% cheaper (Engineering to 150: 5.11g to 4.49g at the same prices).
 - Cooking opens on Fishing + Cooking, the same plan as Fishing; Leveling, Missing recipes and Profit sit beside it.

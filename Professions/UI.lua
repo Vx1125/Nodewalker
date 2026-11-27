@@ -401,13 +401,22 @@ function NW.CraftStatus(msg)
   C_Timer.After(4.1, function() if page:IsShown() then refresh() end end)
 end
 local STEP_H, STEP_ROWS, STEP_FRAMES, HEAD_ROW_H = 38, 10, 15, 24
--- a row with reagent icons under its name is taller (only those)
-MS.ICON_ROW_H, MS.INDENT = 54, 22
+-- Leveling's columns: Skill | Recipe | Materials | Crafts | Cost (row x).
+-- The materials are 30px icons, four across; a recipe with more takes a
+-- second row of icons, and only that row is taller.
+MS.COL = { range = 8, icon = 62, name = 88, nameW = 150, mat = 244, matW = 150, crafts = -70 }
+MS.ICON, MS.INDENT = 30, 18
+local function reagentCount(stp)
+  local r = stp.recipe or stp.make or (stp.tool and not stp.tool.have and stp.tool.recipe)
+  if not r then return 0 end
+  return #r.reagents + (stp.needsRecipe and 1 or 0)
+end
 function MS.rowH(stp)
   if stp.rankHead then return HEAD_ROW_H end
-  if stp.banner then return STEP_H end
-  if stp.recipe or stp.make or (stp.tool and stp.tool.recipe and not stp.tool.have) then return MS.ICON_ROW_H end
-  return STEP_H
+  local n = reagentCount(stp)
+  if n == 0 then return STEP_H end
+  local rows = UI.ReagentRows(n, MS.COL.matW, MS.ICON)
+  return math.max(STEP_H, rows * (MS.ICON + 6) + 2)
 end
 local STEPS_BOX_H = STEP_H * STEP_ROWS + 2
 local stepsBox = UI.Box(mid, MID_W, STEPS_BOX_H)
@@ -418,6 +427,18 @@ for i, c in ipairs({ { "BOTTOMLEFT", "TOPLEFT", 9 }, { "BOTTOMLEFT", "TOPLEFT", 
   local t = UI.Text(mid, 10, S.dim, i > 2 and "RIGHT" or "LEFT")
   t:SetPoint(c[1], stepsBox, c[2], c[3], 3)
   caps[i] = t
+end
+-- Leveling's Materials heading, and its Crafts heading sits further right
+caps[5] = UI.Text(mid, 10, S.dim, "LEFT")
+caps[5]:SetPoint("BOTTOMLEFT", stepsBox, "TOPLEFT", MS.COL.mat + 2, 3)
+function MS.capsFor(plan)
+  caps[1]:ClearAllPoints()
+  caps[1]:SetPoint("BOTTOMLEFT", stepsBox, "TOPLEFT", 9, 3)
+  caps[2]:ClearAllPoints()
+  caps[2]:SetPoint("BOTTOMLEFT", stepsBox, "TOPLEFT", plan and (MS.COL.icon + 2) or 73, 3)
+  caps[3]:ClearAllPoints()
+  caps[3]:SetPoint("BOTTOMRIGHT", stepsBox, "TOPRIGHT", plan and (MS.COL.crafts - 11) or -107, 3)
+  caps[5]:SetText(plan and "Materials" or "")
 end
 local CAPS = {
   plan = { "Skill", "Recipe", "Crafts", "Cost" },
@@ -478,8 +499,8 @@ for i = 1, STEP_FRAMES do
   row.mats:SetWidth(MID_W - 116)
   row.mats:SetWordWrap(false)
   -- the reagents as icons, in the line under the name (MS.rh: tooltips and clicks)
-  row.strip = UI.ReagentStrip(row, MS.rh, 28)
-  row.strip:SetPoint("TOPLEFT", 96, -21)
+  row.strip = UI.ReagentStrip(row, MS.rh, MS.ICON)
+  row.strip:SetPoint("TOPLEFT", MS.COL.mat, -3)
   -- a part made first, or a tool, hangs off the step under it: a line down
   -- the left of the indented rows, joining the step's icon
   row.link = row:CreateTexture(nil, "ARTWORK")
@@ -581,7 +602,7 @@ for i = 1, STEP_FRAMES do
       if stp.make then
         GameTooltip:AddLine(("Make %d first, for %s"):format(stp.crafts, stp.forStep.recipe.name), 0.91, 0.77, 0.42, true)
       else
-        GameTooltip:AddLine(("A tool %s needs"):format(stp.forStep and stp.forStep.recipe and stp.forStep.recipe.name or "the next step"), 0.91, 0.77, 0.42, true)
+        GameTooltip:AddLine(("Tool for %s"):format(stp.forStep and stp.forStep.recipe and stp.forStep.recipe.name or "the next step"), 0.91, 0.77, 0.42, true)
       end
       GameTooltip:Show()
       return
@@ -967,7 +988,7 @@ function MS.rh.tip(icon)
     if c.total then GameTooltip:AddDoubleLine(("This step's %d"):format(c.total), NW.Money(price * c.total), d[1], d[2], d[3], 1, 1, 1) end
     if short > 0 then GameTooltip:AddDoubleLine(("The %d short"):format(short), NW.Money(price * short), d[1], d[2], d[3], 1, 1, 1) end
   end
-  if ahOpen() then GameTooltip:AddDoubleLine("Click", "search the auction house", d[1], d[2], d[3], 1, 1, 1)
+  if ahOpen() then GameTooltip:AddDoubleLine(short > 0 and "Click" or "Shift-click", "search the auction house", d[1], d[2], d[3], 1, 1, 1)
   elseif NW.IsFish and NW.IsFish(id) then GameTooltip:AddDoubleLine("Click", "where to fish it", d[1], d[2], d[3], 1, 1, 1)
   elseif NW.Mat and NW.Mat.Get(id) then GameTooltip:AddDoubleLine("Click", "where to get it", d[1], d[2], d[3], 1, 1, 1) end
   GameTooltip:AddDoubleLine("Shift-click", "link in chat", d[1], d[2], d[3], 1, 1, 1)
@@ -1015,36 +1036,59 @@ function MS.fillStrip(row, r, crafts, stp, needsRecipe, width)
     local id = re[1]
     local total = re[2] * (crafts or 1)
     local o, m = own and own[id], made and made[id] or 0
-    local state, label
-    if o then
-      state = o >= total and "ok" or (o + m >= total and "made") or "short"
-      label = ("%d/%d"):format(math.min(math.floor(o), total), total)
-    end
-    local b = strip:Add(id, re[2], state, label)
+    local state
+    if o then state = o >= total and "ok" or (o + m >= total and "made") or "short" end
+    local b = strip:Add(id, re[2], state)
     b.ctx.total, b.ctx.owned, b.ctx.made, b.ctx.crafts = total, o, m, crafts
   end
-  strip:Finish(width or row.mats:GetWidth())
+  strip:Finish(MS.COL.matW)
   row.mats:SetText("")
 end
--- A part or tool row sits indented under the line that runs down to its step.
--- from: where the line starts (0: the row's top, joining the row above; else
--- the icon's middle); nil puts the row back.
-function MS.indent(row, from)
-  local x = from and MS.INDENT or 0
+-- a tool you buy or have: what it is and where, in the Materials column
+function MS.toolText(row, text)
+  row.mats:ClearAllPoints()
+  row.mats:SetPoint("LEFT", row, "TOPLEFT", MS.COL.mat, -18)
+  row.mats:SetWidth(MS.COL.matW + 40)
+  UI.FitText(row.mats, text, 11, 9)
+end
+-- Where a row's parts go. cols: Leveling's columns (from: a part or tool,
+-- indented under the line down to its step; the line starts at the row's
+-- top, 0, to join the row above, or at the icon's middle); otherwise the
+-- plain layout the other views use (name across, a line of text under it).
+function MS.layout(row, cols, from)
+  local C = MS.COL
+  local x = (cols and from) and MS.INDENT or 0
   row.icon:ClearAllPoints()
-  row.icon:SetPoint("TOPLEFT", 70 + x, -2)
-  row.strip:ClearAllPoints()
-  row.strip:SetPoint("TOPLEFT", 96 + x, -21)
+  row.range:SetWidth(cols and (C.icon - C.range - 4) or 62)
+  row.crafts:ClearAllPoints()
+  row.mats:ClearAllPoints()
   row.link:Hide()
   row.tick:Hide()
-  if not from then return end
+  if cols then
+    row.icon:SetPoint("TOPLEFT", C.icon + x, -2)
+    row.name:SetWidth(C.nameW - x)
+    row.name:SetWordWrap(true)
+    row.name:SetMaxLines(2)
+    row.crafts:SetPoint("TOPRIGHT", C.crafts, -5)
+    row.mats:SetPoint("TOPLEFT", C.name + x, -22)
+    row.mats:SetWidth(MID_W - 12 - C.name - x - 8)
+  else
+    row.icon:SetPoint("TOPLEFT", 70, -2)
+    row.name:SetWidth(270)
+    row.name:SetWordWrap(false)
+    row.crafts:SetPoint("TOPRIGHT", -96, -5)
+    row.mats:SetPoint("TOPLEFT", 96, -22)
+    row.mats:SetWidth(MID_W - 116)
+  end
+  if not (cols and from) then return end
+  local mid = C.icon + 10 -- under the step's icon
   row.link:ClearAllPoints()
-  row.link:SetPoint("TOPLEFT", row, "TOPLEFT", 80, -from)
-  row.link:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 80, -2) -- across the gap to the next row
+  row.link:SetPoint("TOPLEFT", row, "TOPLEFT", mid, -from)
+  row.link:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", mid, -2) -- across the gap to the next row
   row.link:Show()
   row.tick:ClearAllPoints()
-  row.tick:SetPoint("LEFT", row, "TOPLEFT", 80, -12)
-  row.tick:SetWidth(70 + x - 80 - 2)
+  row.tick:SetPoint("LEFT", row, "TOPLEFT", mid, -12)
+  row.tick:SetWidth(C.icon + x - mid - 2)
   row.tick:Show()
 end
 -- the line joins the row above when that's a part or tool of the same step
@@ -1287,7 +1331,7 @@ drawSteps = function()
     row.profitRow = nil
     row:SetCraft()
     row.strip:Clear()
-    MS.indent(row, nil)
+    MS.layout(row, true)
     if stp then
       row:ClearAllPoints()
       row:SetPoint("TOPLEFT", 1, -1 - y)
@@ -1347,7 +1391,7 @@ drawSteps = function()
         row:SetSelected(false)
         local t = stp.tool
         row.range:SetText("")
-        MS.indent(row, MS.linkFrom(i + stepOffset, h))
+        MS.layout(row, true, MS.linkFrom(i + stepOffset))
         row.icon:SetTexture(itemIcon(t.item))
         row.icon:Show()
         row.name:SetText("|cffd6b266" .. (itemName(t.item) or ("item " .. t.item)) .. "|r")
@@ -1357,15 +1401,14 @@ drawSteps = function()
           -- already yours: shown so you know it's covered
           row:SetAlpha(0.6)
           row.cost:SetText("|cff94ba78have|r")
-          row.mats:SetText("Tool  ·  in your bags")
+          MS.toolText(row, "Tool  ·  in your bags")
         elseif t.recipe then
           row:SetCraft(selected, t.recipe, 1)
-          row.name:SetWidth(270 - MS.INDENT)
           row.cost:SetText("")
-          MS.fillStrip(row, t.recipe, 1, t, false, row.mats:GetWidth() - MS.INDENT)
+          MS.fillStrip(row, t.recipe, 1, t, false)
         else
           row.cost:SetText(price and NW.Money(price, true) or "")
-          row.mats:SetText("Tool  ·  Trade Supplies vendor")
+          MS.toolText(row, "Tool  ·  Trade Supplies vendor")
         end
       elseif stp.make then
         -- a part to make first, for the step under it
@@ -1374,15 +1417,14 @@ drawSteps = function()
         row:SetSelected(false)
         local r = stp.make
         row.range:SetText("")
-        MS.indent(row, MS.linkFrom(i + stepOffset, h))
+        MS.layout(row, true, MS.linkFrom(i + stepOffset))
         row.icon:SetTexture(recipeIcon(r))
         row.icon:Show()
         row.name:SetText(("|cff%s%s|r"):format(colorFor(r, rank or stp.from), r.name))
         row.crafts:SetText("×" .. stp.crafts)
         row:SetCraft(selected, r, stp.crafts)
-        row.name:SetWidth(270 - MS.INDENT)
         row.cost:SetText("")
-        MS.fillStrip(row, r, stp.crafts, stp.pp, false, row.mats:GetWidth() - MS.INDENT)
+        MS.fillStrip(row, r, stp.crafts, stp.pp, false)
       elseif stp.recipe then
         row.trainBg:Hide()
         local r = stp.recipe
@@ -1402,8 +1444,8 @@ drawSteps = function()
         local prev = steps[i + stepOffset - 1]
         if searchText == "" and prev and (prev.make or prev.tool) and prev.forStep == stp then
           row.link:ClearAllPoints()
-          row.link:SetPoint("TOPLEFT", row, "TOPLEFT", 80, 2)
-          row.link:SetPoint("BOTTOMLEFT", row, "TOPLEFT", 80, -2)
+          row.link:SetPoint("TOPLEFT", row, "TOPLEFT", MS.COL.icon + 10, 2)
+          row.link:SetPoint("BOTTOMLEFT", row, "TOPLEFT", MS.COL.icon + 10, -2)
           row.link:Show()
         end
       else
@@ -1416,6 +1458,7 @@ drawSteps = function()
       end
     end
   end
+  stepScroll:SetVisible(STEPS_BOX_H, math.max(1, #steps - MS.maxOffset()))
   stepScroll:Update()
 end
 
@@ -1479,7 +1522,7 @@ function MS.fixedRows()
     row:SetAlpha(1)
     row.range:Show() row.name:Show() row.mats:Show() row.crafts:Show() row.cost:Show()
     row.strip:Clear() -- (only Leveling's rows draw icons)
-    MS.indent(row, nil)
+    MS.layout(row, false)
     if i > STEP_ROWS then row:Hide() end
   end
 end
@@ -1801,6 +1844,7 @@ local function drawGatherRows(key)
       row:Hide()
     end
   end
+  stepScroll:SetVisible(STEPS_BOX_H, math.max(1, #steps - MS.maxOffset()))
   stepScroll:Update()
 end
 
@@ -2261,7 +2305,7 @@ local function drawMissingRows(key)
     row.profitRow = nil
     row:SetCraft()
     row.strip:Clear()
-    MS.indent(row, nil)
+    MS.layout(row, false)
     if r then
       row:ClearAllPoints()
       row:SetPoint("TOPLEFT", 1, -1 - y)
@@ -2297,6 +2341,7 @@ local function drawMissingRows(key)
       row:Hide()
     end
   end
+  stepScroll:SetVisible(STEPS_BOX_H, math.max(1, #steps - MS.maxOffset()))
   stepScroll:Update()
 end
 
@@ -2345,6 +2390,7 @@ local function drawProfitRows(key)
       row:Hide()
     end
   end
+  stepScroll:SetVisible(STEPS_BOX_H, math.max(1, #steps - MS.maxOffset()))
   stepScroll:Update()
 end
 local function drawProfit(p)
@@ -3132,7 +3178,8 @@ refresh = function()
   if isProfit then sortDrop:Refresh() minProfit:Refresh() profitFilters:Refresh() end
   priceLine:SetWidth(MID_W)
   local capSet = CAPS[isProfit and "profit" or isMissing and "missing" or isCraft and "plan" or "gather"]
-  for i, t in ipairs(caps) do t:SetText(capSet[i]) end
+  for i = 1, 4 do caps[i]:SetText(capSet[i]) end
+  MS.capsFor(capSet == CAPS.plan)
   -- an opened recipe belongs to the Profit view of one profession
   local cardKey = selected .. ":" .. mode
   if not (isProfit or isMissing) or cardKey ~= lastCardKey then card = nil end
