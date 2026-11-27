@@ -47,7 +47,7 @@ Client: WoW Forever (interface 16001).
 
 - **Activity: Leveling** builds a list for your level: the best of each kind (food, elixirs, potions, oils and stones, scrolls, bandages by First Aid skill) you can use now, from items in the game whose recipe you can reach at your level. It moves up as you level; the next one and the level it unlocks at are in the row's tooltip.
 - **Activity: Raiding** is your spec's level-60 list, from the guides credited below.
-- **Strategy: Best** takes the strongest; among equals, one in your bags, else the cheapest. **Budget** uses the raid budget list; when leveling, one you carry, else the cheapest priced one you can use. **Use what I own** puts what's in your bags first.
+- **Strategy: Best** takes the strongest; among equals, one in your bags, else the cheapest. **Budget** uses the raid budget list; when leveling, one you carry, else the cheapest priced one you can use. **Use what I own** puts what's in your bags first: on the leveling list it shows those items; on a raid list it picks and ticks them.
 - Your own picks and hand-set targets always stay. On the leveling list they follow the kind (your choice for "Elixir: agility" carries over to the next agility elixir).
 - Stock is an estimate: buffs by the duration the game gives, other items at a rough rate an hour. Deaths aren't counted. No item stats or rankings are invented.
 

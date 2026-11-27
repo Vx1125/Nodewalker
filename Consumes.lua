@@ -890,8 +890,9 @@ local function bestFor(ladder, level, strategy)
   local cheap, cheapCost
   for _, e in ipairs(LADDER[ladder]) do
     for _, x in ipairs(type(e) == "table" and e or { e }) do
+      -- one you carry counts if you can use it, wherever its recipe comes from (rungs run best first)
+      if (NW.ItemCount(x) or 0) > 0 and levelOf(x) <= level and not (NW.NOT_YET and NW.NOT_YET[x]) then return x, nextId, nextAt end
       if eligible(x, level) then
-        if (NW.ItemCount(x) or 0) > 0 then return x, nextId, nextAt end -- (rungs run best first)
         if strategy == "budget" then
           local c, src = NW.Price(x)
           if c and src ~= "est" and (not cheapCost or c < cheapCost) then cheap, cheapCost = x, c end
@@ -1262,7 +1263,8 @@ local function rowFor(i)
     if not self.item then return end
     if button == "RightButton" then
       local h = hiddenOf(currentList().key .. (listMode() == "level" and ":level" or ""))
-      h[self.item] = (not h[self.item]) or nil
+      local key = self.entry and self.entry.key or self.item
+      if h[key] or h[self.item] then h[key], h[self.item] = nil, nil else h[key] = true end
       refresh()
       return
     end
@@ -1404,7 +1406,7 @@ local qMinus = UI.Button(qtyBtns, "-", 22, function() setQty(-1) end, 20)
 local qPlus = UI.Button(qtyBtns, "+", 22, function() setQty(1) end, 20)
 local qAuto = UI.Button(qtyBtns, "Auto", 50, function()
   local e = selectedItem and shown.byId[selectedItem]
-  if e then qtyOf(shown.listKey)[e.key] = nil refresh() end
+  if e then local q = qtyOf(shown.listKey) q[e.key], q[e.id] = nil, nil refresh() end
 end, 20)
 qAuto:SetPoint("RIGHT")
 qPlus:SetPoint("RIGHT", qAuto, "LEFT", -4, 0)
@@ -1661,7 +1663,7 @@ refresh = function()
   specDrop:Refresh()
   stockDrop:Refresh()
   local wantBudget = mode == "budget"
-  local hours = st().consumeHours or 0
+  local hours = math.min(4, st().consumeHours or 0) -- (an old 5-hour setting reads as 4, as the menu shows)
   local hidden = hiddenOf(list.key)
   -- your loadout and hand-set targets belong to this list (raid best and budget differ)
   local listKey = list.key .. (mode == "budget" and ":budget" or "")
@@ -1688,7 +1690,9 @@ refresh = function()
       local tier = c[3]
       if not bestLeft then tier = nil end
       if notYet[c[1]] then tier = "none" end
-      local isHidden = hidden[c[1]] and true or false
+      -- hidden, like picks, follows the kind on the leveling list (an item id from before still counts)
+      local key = c[6] and ("lad:" .. c[6]) or c[1]
+      local isHidden = (hidden[key] or hidden[c[1]]) and true or false
       if tier ~= "none" and (not tier or (tier == "budget") == (wantBudget and true or false)) and (showHidden or not isHidden) then
         local price, src = NW.Price(c[1])
         if src == "est" then price = nil end
@@ -1701,9 +1705,9 @@ refresh = function()
         local lasts = hours > 0 and minutesOf(c[1])
         if lasts then auto = math.max(1, math.ceil(hours * 60 / lasts)) end
         -- your pick and target: by item on raid lists, by kind on the level list (it upgrades as you level)
-        local key = c[6] and ("lad:" .. c[6]) or c[1]
-        local mine = qty[key] or auto
-        local e = { id = c[1], key = key, effect = c[2], price = price, have = have, make = make, m = m, auto = auto, manual = qty[key] ~= nil,
+        local q = qty[key] or qty[c[1]]
+        local mine = q or auto
+        local e = { id = c[1], key = key, effect = c[2], price = price, have = have, make = make, m = m, auto = auto, manual = q ~= nil,
           need = 0, short = 0, hidden = isHidden, groupName = g[1] }
         e.want = mine
         shown[#shown + 1] = e
