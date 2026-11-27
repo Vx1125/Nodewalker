@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased
+- Settings: key bindings set right on General (click, press a key; right-click clears), "Not bound" when unassigned.
+- Settings: "Reset this page" (was Defaults); its tooltip lists what it puts back.
+- Settings: Preview overlay on Map & Overlay shows the real overlay for 20 seconds; your Show overlay setting is untouched.
+- Settings: Herbs & ore gets Gatherable and Skill-ups picks (once, by your skill now; whole section).
+- Settings: fishing gear slots labelled, a tick on what you're wearing, empty slots faint, tooltips say why.
+- Settings: add-ons show loaded, installed but not loaded, or not installed; GatherMate2 import is off until it's loaded.
+- Settings: data sources give the full source and licence on hover.
 - Settings: a sidebar with General, Map & Overlay, Gathering (with Herbs & ore), Fishing, and Data & Integrations.
 - Settings: key bindings, mouse controls and slash commands shown under General.
 - Settings: Herbs & ore has search, one section open at a time, and "x of y shown" counts.

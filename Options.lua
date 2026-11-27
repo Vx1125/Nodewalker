@@ -112,22 +112,22 @@ local function infoLine(col, left, right, tip)
   if tip then f:EnableMouse(true) UI.Tip(f, left, tip) end
   return place(col, f, 18, 2)
 end
--- Defaults, at the page's foot: puts back the settings on this page only (a second click confirms)
+-- Reset this page, at the page's foot: puts back the settings on this page only (a second click confirms)
 local function defaultsButton(after)
   local keys = page.keys
   local b
-  b = UI.Button(page, "Defaults", 110, function()
+  b = UI.Button(page, "Reset this page", 130, function()
     if not rawget(b, "armed") then
       b.armed = true
-      b:SetText("Click to confirm")
+      b:SetText("Click again to reset")
       -- (only the latest arming times out: an older timer can't cut a new confirm short)
       local id = (rawget(b, "armID") or 0) + 1
       b.armID = id
-      C_Timer.After(4, function() if b.armID == id then b.armed = nil; b:SetText("Defaults") end end)
+      C_Timer.After(4, function() if b.armID == id then b.armed = nil; b:SetText("Reset this page") end end)
       return
     end
     b.armed = nil
-    b:SetText("Defaults")
+    b:SetText("Reset this page")
     local D = NW.DEFAULTS and NW.DEFAULTS.settings or {}
     for _, k in ipairs(keys) do
       local d = D[k]
@@ -138,10 +138,10 @@ local function defaultsButton(after)
     refreshAll()
   end, 22)
   b:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -24, 14)
-  UI.Tip(b, "Defaults", function()
+  UI.Tip(b, "Reset this page", function()
     local names = {}
     for _, k in ipairs(keys) do names[#names + 1] = LABELS[k] or k end
-    return "Puts back: " .. table.concat(names, ", ") .. ".\nOther pages, routes, journals and what you've recorded stay as they are."
+    return "Back to their defaults, on this page only: " .. table.concat(names, ", ") .. ".\nOther pages, routes, journals and what you've recorded stay as they are."
   end)
   return b
 end
@@ -188,23 +188,95 @@ end
 NW.On("PLAYER_LOGIN", upgradeBarMacro)
 NW.On("UPDATE_MACROS", upgradeBarMacro)
 
--- key bindings: set in the game's Key Bindings (under Nodewalker); shown here
+-- key bindings: set here (the game's own binding system, the same as Key Bindings ›
+-- AddOns): click, then press a key; a key already in use asks for a second press;
+-- right-click clears
 heading(1, "Key bindings")
-local function bound(action)
-  local key = GetBindingKey and GetBindingKey(action)
-  if not key then return "|cff6f6f74not bound|r" end
-  return GOLD_HEX .. (GetBindingText and GetBindingText(key, "KEY_") or key) .. "|r"
+local function keyName(k) return GetBindingText and GetBindingText(k, "KEY_") or k end
+local function bindButton(action, label, after)
+  local row = CreateFrame("Frame", nil, page)
+  row:SetSize(COL_W, 24)
+  row.l = UI.Text(row, 12, S.text)
+  row.l:SetPoint("LEFT")
+  row.l:SetText(label)
+  local b = UI.Button(row, "", 150, nil, 22)
+  b:SetPoint("RIGHT")
+  local function keys() if not GetBindingKey then return {} end return { GetBindingKey(action) } end
+  local function show()
+    local k = keys()[1]
+    if rawget(b, "waiting") then
+      b:SetText(rawget(b, "confirm") and ("Press %s again"):format(keyName(b.confirm)) or "Press a key...")
+      b.label:SetTextColor(unpack(S.gold))
+    elseif k then
+      b:SetText(keyName(k))
+      b.label:SetTextColor(unpack(S.gold))
+    else
+      b:SetText("Not bound")
+      b.label:SetTextColor(unpack(S.dim))
+    end
+  end
+  row.Refresh = show
+  local function listen(on)
+    b:EnableKeyboard(on)
+    if b.EnableGamePadButton then pcall(b.EnableGamePadButton, b, on) end
+  end
+  local function stop() b.waiting, b.confirm = nil, nil; listen(false); show() end
+  local function save() pcall(function() SaveBindings(GetCurrentBindingSet and GetCurrentBindingSet() or 1) end) end
+  local function inCombat() return InCombatLockdown and InCombatLockdown() end
+  b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  b:SetScript("OnClick", function(_, button)
+    if inCombat() then return end -- the game blocks binding changes in combat
+    if button == "RightButton" then
+      for _, k in ipairs(keys()) do SetBinding(k) end
+      save(); stop(); if after then after() end
+      return
+    end
+    if rawget(b, "waiting") then stop() return end
+    b.waiting, b.confirm = true, nil
+    listen(true)
+    pcall(b.SetPropagateKeyboardInput, b, false)
+    show()
+  end)
+  local function take(_, key)
+    if not rawget(b, "waiting") then return end
+    if key == "ESCAPE" or key == "PADBACK" then stop() return end
+    if key:find("SHIFT$") or key:find("CTRL$") or key:find("ALT$") then return end
+    local full = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "") .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
+    local was = GetBindingAction and GetBindingAction(full) or ""
+    if was ~= "" and was ~= action and rawget(b, "confirm") ~= full then
+      b.confirm, b.boundTo = full, was
+      show()
+      return
+    end
+    if inCombat() then stop() return end
+    for _, k in ipairs(keys()) do SetBinding(k) end
+    SetBinding(full, action)
+    save(); stop(); if after then after() end
+    refreshAll()
+  end
+  b:SetScript("OnKeyDown", take)
+  pcall(b.SetScript, b, "OnGamePadButtonDown", take)
+  b:SetScript("OnHide", function() b.waiting, b.confirm = nil, nil; listen(false) end)
+  b:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(label, 1, 1, 1)
+    local c, was = rawget(self, "confirm"), rawget(self, "boundTo")
+    if c and was then
+      GameTooltip:AddLine(("%s is bound to %s. Press it again to move it here."):format(keyName(c), _G["BINDING_NAME_" .. was] or was), 1, 0.82, 0.2, true)
+    end
+    GameTooltip:AddLine("Click, then press a key. Right-click to clear. Also in Key Bindings › AddOns.", S.dim[1], S.dim[2], S.dim[3], true)
+    GameTooltip:Show()
+  end)
+  b:HookScript("OnLeave", GameTooltip_Hide)
+  return place(1, row, 26, 2)
 end
-local BIND_TIP = "Set in the game's Key Bindings, under Nodewalker."
 for _, b in ipairs({ { "NODEWALKER_TOGGLE", "Overlay" }, { "NODEWALKER_PLANNER", "Routes" }, { "NODEWALKER_NEXT", "Skip to next stop" },
   { "NODEWALKER_FISHHUD", "Fishing HUD" }, { "NODEWALKER_JOURNAL", "Fishing Journal" } }) do
-  infoLine(1, b[2], function() return bound(b[1]) end, BIND_TIP)
+  bindButton(b[1], b[2])
 end
 if NW.SmartFish then
-  infoLine(1, "Smart Fishing", function()
-    local k = NW.SmartFish.key and NW.SmartFish.key()
-    return k and (GOLD_HEX .. (GetBindingText and GetBindingText(k, "KEY_") or k) .. "|r") or "|cff6f6f74not bound|r"
-  end, "Set it under Fishing.")
+  local SF = NW.SmartFish
+  bindButton(SF.COMMAND, "Smart Fishing", function() if SF.ApplyKey then SF.ApplyKey() end if SF.KeyRefresh then SF.KeyRefresh() end end)
 end
 
 heading(2, "Mouse")
@@ -331,6 +403,30 @@ widgets[#widgets + 1] = tnRefresh
 heading(1, "Overlay")
 check(1, "Show overlay", "overlayShown", "Same as /nw or your key binding. Changes here show on it straight away.", nil, true)
 check(1, "Zoom out when mounted", "mountZoom", "With live nodes on, the minimap's herb dots shift while it zooms.")
+-- Preview: the real overlay, shown for a while whatever the visibility rules say;
+-- your Show overlay setting isn't touched, so it goes back as it was
+local mapPage = page
+local preview
+local function endPreview()
+  if not NW.overlayPreview then return end
+  NW.overlayPreview = nil
+  NW.UpdateVisibility()
+  if preview then preview:SetText("Preview overlay") end
+end
+preview = UI.Button(page, "Preview overlay", 150, function()
+  if NW.overlayPreview then endPreview() return end
+  if InCombatLockdown and InCombatLockdown() then return end
+  NW.overlayPreview = true
+  if NW.RecentreOverlay then NW.RecentreOverlay() end
+  NW.UpdateVisibility()
+  preview:SetText("End preview")
+  local id = (rawget(preview, "pid") or 0) + 1
+  preview.pid = id
+  C_Timer.After(20, function() if preview.pid == id then endPreview() end end)
+end, 24)
+place(1, preview, 30, 2)
+UI.Tip(preview, "Preview overlay", "Shows the overlay for 20 seconds, even where it would be hidden, so you can see your changes. Ends when you leave this page; Show overlay stays as you set it.")
+mapPage:HookScript("OnHide", endPreview)
 
 heading(2, "Visibility")
 check(2, "Hide in combat", "hideCombat")
@@ -440,7 +536,7 @@ local function section(kind, title, ncols)
   local sec = { kind = kind, list = list, ncols = ncols, colW = math.floor(NODE_W / ncols), checks = {} }
   -- its heading: a fold button, the count shown, All and None
   local hb = CreateFrame("Button", nil, nodesPage)
-  hb:SetSize(NODE_W - 160, 22)
+  hb:SetSize(NODE_W - 340, 22)
   hb.fold = hb:CreateTexture(nil, "ARTWORK")
   hb.fold:SetSize(14, 14)
   hb.fold:SetPoint("LEFT")
@@ -464,9 +560,43 @@ local function section(kind, title, ncols)
     if NW.RefreshPlanner then NW.RefreshPlanner() end
     refreshNodes()
   end
-  sec.none = UI.Button(nodesPage, "None", 70, function() setAll(false) end, 20)
-  sec.all = UI.Button(nodesPage, "All", 70, function() setAll(true) end, 20)
-  UI.Tip(sec.all, "All", "Shows every " .. (kind == "herb" and "herb" or "vein") .. " here. Whether you can gather it is its colour.")
+  sec.none = UI.Button(nodesPage, "None", 56, function() setAll(false) end, 20)
+  sec.all = UI.Button(nodesPage, "All", 56, function() setAll(true) end, 20)
+  local what = kind == "herb" and "herbs" or "veins"
+  local prof = kind == "herb" and "Herbalism" or "Mining"
+  UI.Tip(sec.all, "All", "Shows every one of these " .. what .. ", the whole section (not just a search). Whether you can gather one is its colour.")
+  UI.Tip(sec.none, "None", "Hides all of these " .. what .. ", the whole section.")
+  -- one-time picks by your skill now: shown if they match, hidden if not; ones with no
+  -- known skill stay as they are. Nothing changes later by itself.
+  local function pick(want)
+    local skill = NW.GetSkill(kind)
+    if not skill then return end
+    for _, e in ipairs(list) do
+      if e.req < 999 then
+        local c = NW.SkillColor(e.req, skill)
+        NW.db.settings.hiddenNodes[e.name] = (not want(c)) or nil
+      end
+    end
+    if NW.RefreshPlanner then NW.RefreshPlanner() end
+    refreshNodes()
+  end
+  sec.sku = UI.Button(nodesPage, "Skill-ups", 80, function()
+    pick(function(c) return c == "orange" or c == "yellow" or c == "green" end)
+  end, 20)
+  sec.gat = UI.Button(nodesPage, "Gatherable", 90, function()
+    pick(function(c) return c ~= "red" end)
+  end, 20)
+  for _, bb in ipairs({ sec.sku, sec.gat }) do
+    if bb.SetMotionScriptsWhileDisabled then bb:SetMotionScriptsWhileDisabled(true) end
+  end
+  UI.Tip(sec.gat, "Gatherable", function()
+    if not NW.GetSkill(kind) then return "You don't have " .. prof .. "." end
+    return ("Shows the %s you can gather at %s %d and hides the rest. Once, now: it doesn't change as your skill goes up. Whole section."):format(what, prof, NW.GetSkill(kind))
+  end)
+  UI.Tip(sec.sku, "Skill-ups", function()
+    if not NW.GetSkill(kind) then return "You don't have " .. prof .. "." end
+    return ("Shows the %s that still give skill-ups at %s %d (orange, yellow, green) and hides the rest. Once, now. Whole section."):format(what, prof, NW.GetSkill(kind))
+  end)
   for _, e in ipairs(list) do
     local cb = UI.Check(nodesPage, e.name, function() return not NW.IsHidden(e.name) end,
       function(v) NW.SetHidden(e.name, not v) refreshNodes() end)
@@ -516,6 +646,13 @@ refreshNodes = function()
     sec.none:SetPoint("TOPRIGHT", nodesPage, "TOPRIGHT", -24, y + 1)
     sec.all:ClearAllPoints()
     sec.all:SetPoint("RIGHT", sec.none, "LEFT", -6, 0)
+    sec.sku:ClearAllPoints()
+    sec.sku:SetPoint("RIGHT", sec.all, "LEFT", -6, 0)
+    sec.gat:ClearAllPoints()
+    sec.gat:SetPoint("RIGHT", sec.sku, "LEFT", -6, 0)
+    local known = NW.GetSkill(sec.kind) ~= nil
+    sec.sku:SetEnabled(known)
+    sec.gat:SetEnabled(known)
     y = y - 28
     for _, cb in ipairs(sec.checks) do cb:Hide() end
     if expanded then
@@ -572,7 +709,7 @@ if NW.SmartFish then
 
   -- your fishing gear as slots: the pole and the pieces saved with it (native tooltips)
   heading(1, "Equipment")
-  local SLOTS = { { 16, "MainHand", "Fishing pole" }, { 1, "Head", "Head" }, { 10, "Hands", "Hands" }, { 8, "Feet", "Feet" } }
+  local SLOTS = { { 16, "MainHand", "Pole" }, { 1, "Head", "Head" }, { 10, "Hands", "Hands" }, { 8, "Feet", "Feet" } }
   local slotRow = CreateFrame("Frame", nil, page)
   slotRow:SetSize(COL_W, 58)
   slotRow.slots = {}
@@ -586,42 +723,69 @@ if NW.SmartFish then
     b.tex:SetPoint("BOTTOMRIGHT", -1, 1)
     b.count = UI.Text(b, 11, S.text, "RIGHT")
     b.count:SetPoint("BOTTOMRIGHT", -2, 2)
+    -- worn now: a tick in the corner (the set is what Equip puts on; this is what you have on)
+    b.worn = b:CreateTexture(nil, "OVERLAY")
+    b.worn:SetSize(12, 12)
+    b.worn:SetPoint("TOPRIGHT", 3, 3)
+    b.worn:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+    b.cap = UI.Text(slotRow, 10, S.dim, "CENTER")
+    b.cap:SetPoint("TOP", b, "BOTTOM", 0, -3)
+    b.cap:SetText(sl[3])
     b.slot, b.slotTex, b.slotName = sl[1], "Interface\\PaperDoll\\UI-PaperDoll-Slot-" .. sl[2], sl[3]
     b:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      local d = S.dim
       if not (self.item and pcall(GameTooltip.SetItemByID, GameTooltip, self.item)) then
         GameTooltip:SetText(self.slotName, 1, 1, 1)
-        GameTooltip:AddLine(self.slot == 16 and "No fishing pole in your bags." or "Not saved with your pole.", S.dim[1], S.dim[2], S.dim[3], true)
+        if self.slot == 16 then
+          GameTooltip:AddLine("No fishing pole in your bags.", d[1], d[2], d[3], true)
+        elseif (s().fishGearSlots or {})[self.slot] then
+          GameTooltip:AddLine("Ticked: saved with your pole the next time you click Use what I'm wearing.", d[1], d[2], d[3], true)
+        else
+          GameTooltip:AddLine("Not in your fishing set. Tick it to save this slot with your pole.", d[1], d[2], d[3], true)
+        end
+      else
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddDoubleLine("Fishing set", self.saved and "saved" or "your best pole", d[1], d[2], d[3], 1, 1, 1)
+        GameTooltip:AddDoubleLine("Now", self.isWorn and "worn" or "in your bags", d[1], d[2], d[3], 1, 1, 1)
       end
       GameTooltip:Show()
     end)
     b:SetScript("OnLeave", GameTooltip_Hide)
     -- head, hands, feet: whether Use what I'm wearing saves that slot
     if sl[1] ~= 16 then
-      -- (named for its tooltip; no label under the icon)
+      -- (beside its slot; named in its tooltip)
       local cb = UI.Check(slotRow, sl[3], function() return (s().fishGearSlots or {})[sl[1]] end,
-        function(v) s().fishGearSlots = s().fishGearSlots or {}; s().fishGearSlots[sl[1]] = v or nil end,
-        "Saved with your pole when you click Use what I'm wearing.")
-      cb:SetPoint("TOP", b, "BOTTOM", -4, -6)
+        function(v) s().fishGearSlots = s().fishGearSlots or {}; s().fishGearSlots[sl[1]] = v or nil; refreshAll() end,
+        "Ticked: saved with your pole when you click Use what I'm wearing.")
+      cb:SetPoint("LEFT", b, "RIGHT", 4, 0)
       cb:SetLabel("")
       widgets[#widgets + 1] = cb
     end
     slotRow.slots[i] = b
   end
   slotRow.note = UI.Text(slotRow, 11, S.dim)
-  slotRow.note:SetPoint("LEFT", slotRow.slots[4], "RIGHT", 14, 0)
-  slotRow.note:SetWidth(COL_W - 4 * 64 + 20)
+  slotRow.note:SetPoint("LEFT", slotRow.slots[4], "RIGHT", 26, 0)
+  slotRow.note:SetWidth(COL_W - 4 * 64 + 6)
   function slotRow:Refresh()
     local g, saved = SF.gearSet()
     for _, b in ipairs(self.slots) do
       local id = g and g[b.slot]
-      b.item = id
+      b.item, b.saved = id, saved
+      b.isWorn = id ~= nil and GetInventoryItemID and GetInventoryItemID("player", b.slot) == id
+      b.worn:SetShown(b.isWorn and true or false)
       b.tex:SetTexture(id and NW.ItemIcon(id) or b.slotTex)
       b.tex:SetTexCoord(id and 0.08 or 0, id and 0.92 or 1, id and 0.08 or 0, id and 0.92 or 1)
+      -- an empty slot: not in the set (faint); its name stays under it
+      b.tex:SetAlpha(id and 1 or 0.45)
+      b.cap:SetTextColor(unpack(id and S.text or S.dim))
       b.count:SetText((b.slot == 16 and g and SF.GearBonus(g) > 0) and ("+" .. SF.GearBonus(g)) or "")
     end
-    self.note:SetText(not g and "No pole in your bags" or (saved and "Saved set" or "Your best pole"))
+    self.note:SetText((not g and "No pole in your bags" or (saved and "Saved set" or "Your best pole"))
+      .. "\n|TInterface\\RaidFrame\\ReadyCheck-Ready:10:10:0:0|t worn now")
   end
+  -- what you have on changes the ticks
+  NW.On("PLAYER_EQUIPMENT_CHANGED", function() if slotRow:IsVisible() then slotRow:Refresh() end end)
   place(1, slotRow, 60, 2)
   local saveBtn = UI.Button(page, "Use what I'm wearing", 170, function()
     if not SF.SaveWorn() and UIErrorsFrame then UIErrorsFrame:AddMessage("Put your fishing pole on first", S.gold[1], S.gold[2], S.gold[3]) end
@@ -667,34 +831,54 @@ end
 -- Data & Integrations: other add-ons, where the data comes from, upkeep
 ------------------------------------------------------------------------
 newPage("data", "Data & Integrations", "Interface\\Icons\\INV_Misc_Book_09")
-local function loaded(name)
-  local f = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
-  return f and f(name) and true or false
+-- an add-on's state, as far as the game tells: loaded, installed but not loaded, or not installed
+-- (none of them is required: a missing one is just "not installed", not an error)
+local function addonState(name, isLoaded)
+  local isOn = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
+  if isLoaded or (isOn and isOn(name)) then return "loaded" end
+  local info = (C_AddOns and C_AddOns.GetAddOnInfo) or GetAddOnInfo
+  if info then
+    local ok, nm, _, _, _, reason = pcall(info, name)
+    if ok and nm and reason ~= "MISSING" then return "installed" end
+  end
+  return "missing"
 end
-local function yes(on, off) return on and "|cff94ba78loaded|r" or ("|cff6f6f74" .. (off or "not loaded") .. "|r") end
+local STATE_TEXT = { loaded = "|cff94ba78loaded|r", installed = "|cffd6b266installed, not loaded|r", missing = "|cff6f6f74not installed|r" }
 heading(1, "Add-ons")
-infoLine(1, "Auctionator", function() return yes(NW.HasAuctionator and NW.HasAuctionator(), "not loaded: vendor prices only") end,
-  "Prices for leveling costs, shopping lists and catch values.")
-infoLine(1, "GatherMate2", function() return yes(_G.GatherMate2 ~= nil) end,
-  "Only needed for an import. Turn it on for one login, import, then you can turn it off.")
+infoLine(1, "Auctionator", function() return STATE_TEXT[addonState("Auctionator", NW.HasAuctionator and NW.HasAuctionator())] end,
+  "Optional. Prices for leveling costs, shopping lists and catch values. Without it: vendor prices and estimates.")
+infoLine(1, "GatherMate2", function() return STATE_TEXT[addonState("GatherMate2", _G.GatherMate2 ~= nil)] end,
+  "Optional, only for an import. Turn it on in the AddOns list for one login, import, then you can turn it off.")
 infoLine(1, "LibDBIcon", function()
   local ls = LibStub and LibStub("LibDBIcon-1.0", true)
-  return yes(ls ~= nil, "not loaded: own minimap button")
-end, "Used only when another add-on loads it.")
+  return ls and "|cff94ba78in use|r" or "|cff6f6f74not in use|r"
+end, "A library other add-ons may load. When one does, Nodewalker's minimap button goes through it; otherwise it draws its own.")
 local gmBtn = UI.Button(page, "Import GatherMate2", 170, function()
+  if not _G.GatherMate2 then return end
   NW.ImportGatherMate2()
   if NW.RefreshPlanner then NW.RefreshPlanner() end
   refreshAll()
 end, 24)
+if gmBtn.SetMotionScriptsWhileDisabled then gmBtn:SetMotionScriptsWhileDisabled(true) end
 place(1, gmBtn, 30, 2)
-UI.Tip(gmBtn, "Import GatherMate2", "Copies its herb and ore spots, and its data pack. Your own spots stay.")
+function gmBtn:Refresh() self:SetEnabled(_G.GatherMate2 ~= nil) end
+UI.Tip(gmBtn, "Import GatherMate2", function()
+  if _G.GatherMate2 then return "Copies its herb and ore spots, and its data pack. Your own spots stay." end
+  return addonState("GatherMate2") == "installed"
+    and "GatherMate2 is installed but not loaded. Turn it on in the AddOns list, log in, then import."
+    or "Needs GatherMate2 loaded. It isn't installed."
+end)
+-- where each kind of data comes from; the full source and licence on hover (LICENSES/ in the add-on folder)
 heading(1, "Where the data comes from")
-infoLine(1, "Items, recipes, spells", "WoW Forever client")
+infoLine(1, "Items, recipes, spells", "WoW Forever client",
+  "Recipe data from One For All (Forever) by Smoergi (GPL-3.0-or-later), which reads the WoW Forever client database. Nodewalker's corrections are its own. LICENSES/OneForAll.txt.")
 infoLine(1, "Drops, spawns, skinning", "Classic data (pfQuest, cMaNGOS)",
-  "Classic 1.12 data; creatures and chances may differ in WoW Forever.")
-infoLine(1, "Fishing skill ranges", "leveling guides", "A guide's skill, not a confirmed minimum.")
+  "Spawns and loot chances from pfQuest (MIT, Shagu); skinning and fishing loot from cMaNGOS classic-db (GPL-3.0). Classic 1.12 data: creatures and chances may differ in WoW Forever. LICENSES/.")
+infoLine(1, "Minimap tiles", "OpenMap", "Minimap tile tables from OpenMap (MIT, OpenMap contributors). LICENSES/OpenMap-LICENSE.txt.")
+infoLine(1, "Fishing skill ranges", "leveling guides",
+  "Classic leveling guides and Method's WoW Forever guide: a guide's skill, not a confirmed minimum. Seasonal fish and some zones from cMaNGOS classic-db.")
 infoLine(1, "Prices", "Auctionator, else vendor")
-infoLine(1, "Your spots and catches", "recorded by you", "Stay on this PC, in your SavedVariables.")
+infoLine(1, "Your spots and catches", "recorded by you", "Stay on this PC, in your SavedVariables. Never shipped or uploaded.")
 
 heading(2, "Saved")
 infoLine(2, "Known spots", function()

@@ -1245,6 +1245,9 @@ end
 
 function NW.OverlayShouldShow()
   local s = NW.db.settings
+  -- Settings' Preview: shown for a moment whatever the visibility rules say (never in combat);
+  -- your own on/off setting isn't touched, so the overlay goes back as it was
+  if NW.overlayPreview and not inCombat then return true end
   if not s.overlayShown then return false end
   if s.hideCombat and inCombat then return false end
   if s.hideResting and IsResting() then return false end
