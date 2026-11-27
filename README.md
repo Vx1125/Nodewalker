@@ -54,4 +54,3 @@ Consumable lists follow Method's and Wowhead's WoW Forever class guides.
 
 GPL-3.0-or-later. See `LICENSE`.
 
-Working on the code: see [DEVELOPMENT.md](DEVELOPMENT.md).
