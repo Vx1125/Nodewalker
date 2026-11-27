@@ -605,6 +605,7 @@ function SF.KeyButton(parent, w)
   end)
   local function take(self, key)
     if not self.waiting then return end
+    if combat() then stop(self) return end -- (never hold a key back in a fight)
     if key == "ESCAPE" or key == "PADBACK" then stop(self) return end
     if key:find("SHIFT$") or key:find("CTRL$") or key:find("ALT$") then return end
     local full = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "") .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
@@ -623,6 +624,7 @@ function SF.KeyButton(parent, w)
     SF.ApplyKey()
   end
   b:SetScript("OnKeyDown", take)
+  NW.On("PLAYER_REGEN_DISABLED", function() if b.waiting then stop(b) end end)
   -- a controller button (PAD1, PADLSHOULDER...); modifiers follow the game's gamepad settings
   pcall(b.SetScript, b, "OnGamePadButtonDown", take)
   b:SetScript("OnHide", function(self) self.waiting, self.confirm = nil, nil; listen(self, false) end)

@@ -193,6 +193,8 @@ NW.On("UPDATE_MACROS", upgradeBarMacro)
 -- right-click clears
 heading(1, "Key bindings")
 local function keyName(k) return GetBindingText and GetBindingText(k, "KEY_") or k end
+local bindStops = {} -- every row's stop(): one waits at a time, and combat stops them all
+NW.On("PLAYER_REGEN_DISABLED", function() for _, f in ipairs(bindStops) do f() end end)
 local function bindButton(action, label, after)
   local row = CreateFrame("Frame", nil, page)
   row:SetSize(COL_W, 24)
@@ -220,18 +222,23 @@ local function bindButton(action, label, after)
     b:EnableKeyboard(on)
     if b.EnableGamePadButton then pcall(b.EnableGamePadButton, b, on) end
   end
-  local function stop() b.waiting, b.confirm = nil, nil; listen(false); show() end
+  local function stop() if rawget(b, "waiting") then b.waiting, b.confirm = nil, nil; listen(false); show() end end
+  bindStops[#bindStops + 1] = stop
   local function save() pcall(function() SaveBindings(GetCurrentBindingSet and GetCurrentBindingSet() or 1) end) end
   local function inCombat() return InCombatLockdown and InCombatLockdown() end
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   b:SetScript("OnClick", function(_, button)
     if inCombat() then return end -- the game blocks binding changes in combat
     if button == "RightButton" then
-      for _, k in ipairs(keys()) do SetBinding(k) end
+      -- clears the key shown; a second key set in Key Bindings stays
+      local k1 = keys()[1]
+      if k1 then SetBinding(k1) end
       save(); stop(); if after then after() end
+      refreshAll()
       return
     end
     if rawget(b, "waiting") then stop() return end
+    for _, f in ipairs(bindStops) do f() end
     b.waiting, b.confirm = true, nil
     listen(true)
     pcall(b.SetPropagateKeyboardInput, b, false)
@@ -239,6 +246,7 @@ local function bindButton(action, label, after)
   end)
   local function take(_, key)
     if not rawget(b, "waiting") then return end
+    if inCombat() then stop() return end -- (never hold a key back in a fight)
     if key == "ESCAPE" or key == "PADBACK" then stop() return end
     if key:find("SHIFT$") or key:find("CTRL$") or key:find("ALT$") then return end
     local full = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "") .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
@@ -248,8 +256,9 @@ local function bindButton(action, label, after)
       show()
       return
     end
-    if inCombat() then stop() return end
-    for _, k in ipairs(keys()) do SetBinding(k) end
+    -- the new key takes the shown one's place; a second key set in Key Bindings stays
+    local k1 = keys()[1]
+    if k1 and k1 ~= full then SetBinding(k1) end
     SetBinding(full, action)
     save(); stop(); if after then after() end
     refreshAll()
@@ -263,6 +272,12 @@ local function bindButton(action, label, after)
     local c, was = rawget(self, "confirm"), rawget(self, "boundTo")
     if c and was then
       GameTooltip:AddLine(("%s is bound to %s. Press it again to move it here."):format(keyName(c), _G["BINDING_NAME_" .. was] or was), 1, 0.82, 0.2, true)
+    end
+    local all = keys()
+    if #all > 1 then
+      local names = {}
+      for _, k in ipairs(all) do names[#names + 1] = keyName(k) end
+      GameTooltip:AddDoubleLine("Keys", table.concat(names, ", "), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     end
     GameTooltip:AddLine("Click, then press a key. Right-click to clear. Also in Key Bindings › AddOns.", S.dim[1], S.dim[2], S.dim[3], true)
     GameTooltip:Show()
@@ -410,6 +425,7 @@ local preview
 local function endPreview()
   if not NW.overlayPreview then return end
   NW.overlayPreview = nil
+  if NW.overlay then NW.overlay:SetFrameStrata("BACKGROUND") end
   NW.UpdateVisibility()
   if preview then preview:SetText("Preview overlay") end
 end
@@ -417,6 +433,8 @@ preview = UI.Button(page, "Preview overlay", 150, function()
   if NW.overlayPreview then endPreview() return end
   if InCombatLockdown and InCombatLockdown() then return end
   NW.overlayPreview = true
+  -- above this window while it lasts (it's drawn under everything otherwise)
+  if NW.overlay then NW.overlay:SetFrameStrata("DIALOG") end
   if NW.RecentreOverlay then NW.RecentreOverlay() end
   NW.UpdateVisibility()
   preview:SetText("End preview")
@@ -580,22 +598,40 @@ local function section(kind, title, ncols)
     if NW.RefreshPlanner then NW.RefreshPlanner() end
     refreshNodes()
   end
-  sec.sku = UI.Button(nodesPage, "Skill-ups", 80, function()
+  -- (it replaces your picks in this section, so a second click confirms)
+  local function armed(bb, text, fn)
+    return function()
+      if not rawget(bb[1], "armed") then
+        bb[1].armed = true
+        bb[1]:SetText("Click again")
+        local id = (rawget(bb[1], "armID") or 0) + 1
+        bb[1].armID = id
+        C_Timer.After(4, function() if bb[1].armID == id then bb[1].armed = nil; bb[1]:SetText(text) end end)
+        return
+      end
+      bb[1].armed = nil
+      bb[1]:SetText(text)
+      fn()
+    end
+  end
+  local skuRef, gatRef = {}, {}
+  sec.sku = UI.Button(nodesPage, "Skill-ups", 80, armed(skuRef, "Skill-ups", function()
     pick(function(c) return c == "orange" or c == "yellow" or c == "green" end)
-  end, 20)
-  sec.gat = UI.Button(nodesPage, "Gatherable", 90, function()
+  end), 20)
+  sec.gat = UI.Button(nodesPage, "Gatherable", 90, armed(gatRef, "Gatherable", function()
     pick(function(c) return c ~= "red" end)
-  end, 20)
+  end), 20)
+  skuRef[1], gatRef[1] = sec.sku, sec.gat
   for _, bb in ipairs({ sec.sku, sec.gat }) do
     if bb.SetMotionScriptsWhileDisabled then bb:SetMotionScriptsWhileDisabled(true) end
   end
   UI.Tip(sec.gat, "Gatherable", function()
     if not NW.GetSkill(kind) then return "You don't have " .. prof .. "." end
-    return ("Shows the %s you can gather at %s %d and hides the rest. Once, now: it doesn't change as your skill goes up. Whole section."):format(what, prof, NW.GetSkill(kind))
+    return ("Shows the %s you can gather at %s %d and hides the rest. Once, now: it doesn't change as your skill goes up. Whole section; replaces your picks here (click twice)."):format(what, prof, NW.GetSkill(kind))
   end)
   UI.Tip(sec.sku, "Skill-ups", function()
     if not NW.GetSkill(kind) then return "You don't have " .. prof .. "." end
-    return ("Shows the %s that still give skill-ups at %s %d (orange, yellow, green) and hides the rest. Once, now. Whole section."):format(what, prof, NW.GetSkill(kind))
+    return ("Shows the %s that still give skill-ups at %s %d (orange, yellow, green) and hides the rest. Once, now. Whole section; replaces your picks here (click twice)."):format(what, prof, NW.GetSkill(kind))
   end)
   for _, e in ipairs(list) do
     local cb = UI.Check(nodesPage, e.name, function() return not NW.IsHidden(e.name) end,
@@ -871,9 +907,9 @@ end)
 -- where each kind of data comes from; the full source and licence on hover (LICENSES/ in the add-on folder)
 heading(1, "Where the data comes from")
 infoLine(1, "Items, recipes, spells", "WoW Forever client",
-  "Recipe data from One For All (Forever) by Smoergi (GPL-3.0-or-later), which reads the WoW Forever client database. Nodewalker's corrections are its own. LICENSES/OneForAll.txt.")
+  "Recipe data from One For All (Forever) by Smoergi (GPL-3.0-or-later), built from the WoW Forever client database, QuestieDB, cMaNGOS classic-db and ProfessionDB. Nodewalker's corrections are its own. LICENSES/OneForAll.txt.")
 infoLine(1, "Drops, spawns, skinning", "Classic data (pfQuest, cMaNGOS)",
-  "Spawns and loot chances from pfQuest (MIT, Shagu); skinning and fishing loot from cMaNGOS classic-db (GPL-3.0). Classic 1.12 data: creatures and chances may differ in WoW Forever. LICENSES/.")
+  "Spawns and loot chances from pfQuest (MIT, Shagu); skinning loot, and some fishing zones and seasons, from cMaNGOS classic-db (GPL-3.0). Classic 1.12 data: creatures and chances may differ in WoW Forever. LICENSES/.")
 infoLine(1, "Minimap tiles", "OpenMap", "Minimap tile tables from OpenMap (MIT, OpenMap contributors). LICENSES/OpenMap-LICENSE.txt.")
 infoLine(1, "Fishing skill ranges", "leveling guides",
   "Classic leveling guides and Method's WoW Forever guide: a guide's skill, not a confirmed minimum. Seasonal fish and some zones from cMaNGOS classic-db.")

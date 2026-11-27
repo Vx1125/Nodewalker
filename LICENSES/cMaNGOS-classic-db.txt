@@ -20,6 +20,11 @@ What was used, and how it was changed (tools/build_sources.py):
   - fishing_loot_template (reference tables 11009 and 11105) and the Stonescale Eel Swarm
     gameobject (180712): looked up by hand to add Stonescale Eel's zones (Tanaris, Azshara) to
     Professions/Fishing.lua. Only the zone names were used; no chance was copied.
+  - fishing_loot_template (reference tables 11009, 11105 and 13755), conditions 322 and 323,
+    and game_event 35 and 36: looked up by hand for Raw Summer Bass (Tanaris and Azshara all
+    year, more in the summer fishing event) and Winter Squid (table 13755 under the winter
+    condition: Azshara, Jaguero Isle, Overlook Cliffs, Tanaris, the Forgotten Coast) in
+    Professions/Fishing.lua. Only zone names and seasons were used; no chance was copied.
   - Changes: records were filtered to the configured materials and to open-world creatures
     with spawn points. Every dropped record is listed with a reason in
     tools/reports/rejected_sources.csv. Values were rounded for size: chances of 1% or more
