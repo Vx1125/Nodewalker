@@ -67,8 +67,8 @@ Buffs are recognised by spell ID: the item's own use spell from the game, or the
 ## Credits
 
 Minimap tile tables in `OpenMapData/` come from [OpenMap](https://github.com/openmap-world/openmap) (MIT, see `LICENSES/`).
-Recipe data: SeeMeta's WoW Forever recipe database.
-The full recipe list, sources and trainer fees are derived from [One For All](https://www.curseforge.com/wow/addons/oneforall) by Smoergi (GPL-3.0-or-later, see `LICENSES/`).
+Smelting (Mining) levels: SeeMeta's WoW Forever recipe database, pending replacement.
+The recipe lists, sources and trainer fees are generated from [OneForAll – Forever](https://www.curseforge.com/wow/addons/oneforall-forever) 6.3.0 by Smoergi (GPL-3.0-or-later, see `LICENSES/OneForAll.txt`).
 Consumable lists follow Method's and Wowhead's WoW Forever class guides.
 
 ## License

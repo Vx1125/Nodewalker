@@ -1,18 +1,30 @@
-Professions/Catalog.lua, and the learn levels, recipe items, reagent and yield
-corrections in Professions/*.lua, are derived from the recipe data of One For All (Forever)
-by Smoergi, licensed GPL-3.0-or-later.
+Professions/Catalog.lua and the leveling lists Professions/{Alchemy,Blacksmithing,Cooking,Enchanting,
+Engineering,FirstAid,Leatherworking,Tailoring}.lua are generated from the recipe data of
+OneForAll – Forever by Smoergi, licensed GPL-3.0-or-later.
 
-  CurseForge: https://www.curseforge.com/wow/addons/oneforall-forever  (project ID 1714201)
-  Version used: One For All 6.2.12 (Interface 16001), its Data/Professions/*.lua and
-  Data/ProfessionFees.lua. Regenerating Catalog.lua from 6.2.12 matches the shipped file
-  except for 24 records Nodewalker corrected by hand (learn levels, sources, recipe items),
-  checked 2026-11-26.
+  CurseForge: https://www.curseforge.com/wow/addons/oneforall-forever  (project ID 1714201, GPLv3)
+  Version used: OneForAll 6.3.0 (game version 1.60.1), checked 2026-11-27. Files and SHA-256:
+    644697effd15715bb83a830c5e5b7cccbd911f9588479d13f87bf13857592f38  Data/Professions/Alchemy.lua
+    f9735066a9b48198b613ce4cfc0cd2f049083ff56359f5ad2750fbc59f700ebf  Data/Professions/Blacksmithing.lua
+    89faefa6cc3b9aaec4edef173492506e7629d5e928596554a4496059621262ca  Data/Professions/Cooking.lua
+    3a9330547c4d0e92954b490caea0f4bb10525b39dc41fddfb8a6866b84023118  Data/Professions/Enchanting.lua
+    557e4590acd6f1e5f207d4c6f288c07add67cce849213b212b5c8aa61ce803c1  Data/Professions/Engineering.lua
+    13b5ec0fe476d0d5baebcacd61d5c087f10250a32dfdb26a5241785b29a68404  Data/Professions/FirstAid.lua
+    ac9a5cc55337fa884e7625095a8b8400c92cd586bf9d623c55792b3625452d59  Data/Professions/Leatherworking.lua
+    d5ff31deb3879b74cc41e77091cd2871a87ed6173a6f1c153d6dd1efb3c984ec  Data/Professions/Tailoring.lua
+    3abd99fa3e20338f2e2a8e66d97106978c2078a6c1a1ac01b118f5410ac786b9  Data/ProfessionFees.lua
+  Method: tools/build_recipes.lua in Nodewalker's repository (deterministic; it reads only these
+  files). Nothing is edited by hand.
 
 One For All states that this data comes from:
-  - the WoW Forever client database (build 1.60.1.70205), via wago.tools DB2 exports;
+  - the WoW Forever client database (build 1.60.1.70205), via wago.tools DB2 exports: names, items,
+    reagents, counts, skill colours, recipe items;
   - QuestieDB and Questie (GPL-3.0): recipe sources such as vendors, drops and quests;
-  - CMaNGOS classic-db (GPL-3.0): trainer fees and ranks (npc_trainer);
+  - CMaNGOS classic-db (GPL-3.0): trainer fees, ranks and required skill (npc_trainer);
   - ProfessionDB / LibProfessionDB (MIT, below): which recipes are Merchant's Favor recipes.
+One For All notes that some learn levels (marked rw=true) come from wowtbc.gg and that some recipe
+sources come from Wowhead Forever. Nodewalker leaves the rw=true learn levels out (unknown instead);
+a Classic trainer level (CMaNGOS) is used only where Forever's skill colours agree with it.
 World of Warcraft game data remains Blizzard's and is not covered by the GPL.
 
 The full text of the GNU General Public License version 3 is in LICENSE, and at

@@ -953,7 +953,7 @@ end)
 -- where each kind of data comes from; the full source and licence on hover (LICENSES/ in the add-on folder)
 heading(1, "Where the data comes from")
 infoLine(1, "Items, recipes, spells", "WoW Forever client",
-  "Recipe data from One For All (Forever) by Smoergi (GPL-3.0-or-later), built from the WoW Forever client database, QuestieDB, cMaNGOS classic-db and ProfessionDB. Nodewalker's corrections are its own. LICENSES/OneForAll.txt.")
+  "Recipe data generated from OneForAll – Forever 6.3.0 by Smoergi (GPL-3.0-or-later), built from the WoW Forever client database, QuestieDB, cMaNGOS classic-db and ProfessionDB. LICENSES/OneForAll.txt.")
 infoLine(1, "Drops, spawns, skinning", "Classic data (pfQuest, cMaNGOS)",
   "Spawns and loot chances from pfQuest (MIT, Shagu); skinning loot, and some fishing zones and seasons, from cMaNGOS classic-db (GPL-3.0). Classic 1.12 data: creatures and chances may differ in WoW Forever. LICENSES/.")
 infoLine(1, "Minimap tiles", "OpenMap", "Minimap tile tables from OpenMap (MIT, OpenMap contributors). LICENSES/OpenMap-LICENSE.txt.")

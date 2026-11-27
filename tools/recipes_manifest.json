@@ -1,0 +1,22 @@
+{
+ "source": "OneForAll – Forever",
+ "author": "Smoergi",
+ "curseforge_project": 1714201,
+ "url": "https://www.curseforge.com/wow/addons/oneforall-forever",
+ "version": "6.3.0",
+ "game_version": "1.60.1",
+ "licence": "GPL-3.0-or-later (LICENSE.txt in the addon; CurseForge: GPLv3)",
+ "checked": "2026-11-27",
+ "upstream": "Forever client DB2 (build 1.60.1.70205 via wago.tools), QuestieDB (GPL-3.0), CMaNGOS classic-db (GPL-3.0); some levels marked rw=true from wowtbc.gg (excluded); recipe sources partly Wowhead Forever (Catalog's where codes)",
+ "files": {
+  "Data/Professions/Alchemy.lua": "644697effd15715bb83a830c5e5b7cccbd911f9588479d13f87bf13857592f38",
+  "Data/Professions/Blacksmithing.lua": "f9735066a9b48198b613ce4cfc0cd2f049083ff56359f5ad2750fbc59f700ebf",
+  "Data/Professions/Cooking.lua": "89faefa6cc3b9aaec4edef173492506e7629d5e928596554a4496059621262ca",
+  "Data/Professions/Enchanting.lua": "3a9330547c4d0e92954b490caea0f4bb10525b39dc41fddfb8a6866b84023118",
+  "Data/Professions/Engineering.lua": "557e4590acd6f1e5f207d4c6f288c07add67cce849213b212b5c8aa61ce803c1",
+  "Data/Professions/FirstAid.lua": "13b5ec0fe476d0d5baebcacd61d5c087f10250a32dfdb26a5241785b29a68404",
+  "Data/Professions/Leatherworking.lua": "ac9a5cc55337fa884e7625095a8b8400c92cd586bf9d623c55792b3625452d59",
+  "Data/Professions/Tailoring.lua": "d5ff31deb3879b74cc41e77091cd2871a87ed6173a6f1c153d6dd1efb3c984ec",
+  "Data/ProfessionFees.lua": "3abd99fa3e20338f2e2a8e66d97106978c2078a6c1a1ac01b118f5410ac786b9"
+ }
+}
