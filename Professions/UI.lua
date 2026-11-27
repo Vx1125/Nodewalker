@@ -1164,6 +1164,20 @@ drawSteps = function()
           -- eligible from its skill; needed by the point the banner sits at
           row.mats:SetText(("|cffe0dbd0%s|r  ·  from skill %d, level %d"):format(place, ru.skill, ru.level))
         end
+      elseif stp.make then
+        -- a part to make first, for the step under it
+        row.trainBg:Hide()
+        row:SetAlpha(1)
+        row:SetSelected(false)
+        local r = stp.make
+        row.range:SetText("|cff938c80first|r")
+        row.icon:SetTexture(recipeIcon(r))
+        row.icon:Show()
+        row.name:SetText(("|cff%s%s|r"):format(colorFor(r, rank or stp.from), r.name))
+        row.crafts:SetText("×" .. stp.crafts)
+        row:SetCraft(selected, r, stp.crafts)
+        row.cost:SetText("")
+        row.mats:SetText(("for %s  ·  "):format(stp.forStep.recipe.name) .. matsText(r))
       elseif stp.recipe then
         row.trainBg:Hide()
         local r = stp.recipe
@@ -1307,6 +1321,7 @@ local function drawCraft(p)
     local folds = st().planFolds[p.key] or {}
     st().planFolds[p.key] = folds
     local list, head, lo = {}, nil, 1
+    local prep = NW.PlanPrep(p.key, plan)
     for _, stp in ipairs(steps) do
       if stp.rankUp then
         list[#list + 1] = { banner = true, rankUp = stp.rankUp, rankFee = stp.rankFee, from = stp.from, to = stp.from }
@@ -1326,7 +1341,13 @@ local function drawCraft(p)
           done = done, current = rank and rank >= prevCap and rank < ru.cap, folded = f }
         list[#list + 1] = head
       end
-      if not head.folded then list[#list + 1] = stp end
+      if not head.folded then
+        -- the parts this step needs that you make first
+        for _, pp in ipairs(prep[stp] or {}) do
+          list[#list + 1] = { make = pp.recipe, crafts = pp.crafts, forStep = stp, from = stp.from, to = stp.from }
+        end
+        list[#list + 1] = stp
+      end
     end
     steps = list
   end

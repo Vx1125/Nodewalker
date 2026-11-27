@@ -1310,6 +1310,44 @@ function NW.BuildPlan(key, from, to)
   return plan
 end
 
+-- What to make before each step: its own-profession parts (Handful of Copper
+-- Bolts for Rough Copper Bombs) that the plan makes rather than buys, less
+-- what's in your bags and what earlier steps made. [step] = { { recipe, crafts } }
+function NW.PlanPrep(key, plan)
+  NW.BuildPlan(key, plan.from, plan.to) -- makes sure craftOf is this profession's
+  local out = {}
+  local avail = {}
+  local keep = key == "cooking" or not NW.db.settings.planSellBack
+  local function have(id)
+    if avail[id] == nil then avail[id] = NW.ItemCount(id) or 0 end
+    return avail[id]
+  end
+  local function need(list, id, n, depth)
+    local r = craftOf and craftOf[id]
+    if not r then return end
+    local _, src = NW.Price(id)
+    if src ~= "craft" then return end -- bought, not made: it's on the shopping list
+    local use = math.min(have(id), n)
+    avail[id] = avail[id] - use
+    n = n - use
+    if n <= 0 then return end
+    local crafts = math.ceil(n / (r.yield or 1))
+    -- its own parts first (powder before dynamite)
+    if depth < 2 then for _, re in ipairs(r.reagents) do need(list, re[1], re[2] * crafts, depth + 1) end end
+    list[#list + 1] = { recipe = r, crafts = crafts }
+    avail[id] = avail[id] + crafts * (r.yield or 1) - n
+  end
+  for _, st in ipairs(plan.steps) do
+    if st.recipe and st.crafts then
+      local list = {}
+      for _, re in ipairs(st.recipe.reagents) do need(list, re[1], re[2] * st.crafts, 0) end
+      if #list > 0 then out[st] = list end
+      if keep and st.recipe.item then avail[st.recipe.item] = have(st.recipe.item) + st.crafts * (st.recipe.yield or 1) end
+    end
+  end
+  return out
+end
+
 -- Everything to buy for a plan. Things you can make cheaper than buy are
 -- broken down into what they're made from. Counts what's in your bags.
 function NW.ShoppingList(key, plan)
