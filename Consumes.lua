@@ -548,6 +548,7 @@ local HINT = {
   Recommended = "best you can use at your level",
   ["Also helpful"] = "for your other buff slots",
   Situational = "when the fight calls for it",
+  Bandages = "by your First Aid skill",
   Camp = "at a campfire, 1 hour shared cooldown",
 }
 
@@ -1274,7 +1275,7 @@ local function rowFor(i)
       GameTooltip:AddLine(" ")
       GameTooltip:AddDoubleLine("Next", ("%s at %s%d"):format((itemName(up[1])), up[3] and "First Aid " or "level ", up[2]), S.dim[1], S.dim[2], S.dim[3], 0.58, 0.73, 0.47)
     end
-    GameTooltip:AddLine("Right-click: hide it", S.dim[1], S.dim[2], S.dim[3])
+    GameTooltip:AddLine((en and en.hidden) and "Right-click: show it again" or "Right-click: hide it", S.dim[1], S.dim[2], S.dim[3])
     GameTooltip:Show()
   end)
   row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1335,6 +1336,7 @@ hiddenCheck:SetPoint("LEFT", status, "LEFT", 566, 0)
 local hint = UI.Text(status, 11, S.dim)
 hint:SetPoint("LEFT", status, "LEFT", 566, 0)
 hint:SetText("") -- (right-click to hide: in each row's tooltip)
+hint:Hide()
 
 -- Everything you're short of, the cheap way: materials for what you'd make,
 -- the item itself for the rest
@@ -1936,7 +1938,6 @@ refresh = function()
 
   hiddenCheck:SetShown(nHidden > 0)
   hiddenCheck:Refresh()
-  hint:SetShown(nHidden == 0)
   -- your loadout in a line: what you bring, what's ready, what's short and its known cost
   local parts = { ("%d selected"):format(nPicked) }
   if nStocked > 0 then parts[#parts + 1] = ("%s%d stocked|r"):format(H.good, nStocked) end

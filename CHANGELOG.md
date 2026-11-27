@@ -3,7 +3,7 @@
 ## Unreleased
 - Consumes: the leveling list is in categories again (Food, Elixirs, Weapon, Potions, ...), each row Core, Optional or Situational; only Core starts ticked.
 - Consumes: healers level with their class's solo list; healing items are optional.
-- Consumes: raid potions, runes and on-use items start unticked; long buffs stay ticked.
+- Consumes: raid potions, runes and on-use items now start unticked (tick the ones you bring); long buffs stay ticked. Your own picks stay.
 - Consumes: "Where to get it" opens the Material Finder; "No known recipe" and "No AH price" say what's missing.
 - Consumes: choose what you bring: a round button where you bring one of a slot, a tick box for the rest; only those count toward stock and the shopping list.
 - Consumes: Owned / Target column; a target you set by hand (+ / -) stays until Auto.
