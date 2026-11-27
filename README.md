@@ -34,6 +34,7 @@ Client: WoW Forever (interface 16001).
 | `/nw journal` | Fishing Journal |
 | `/nw fishhud` | Fishing HUD on or off |
 | `/nw buffs` | Consumable tracker on or off |
+| `/nw buffs debug` · `/nw buffs auras` | What the tracker reads, and every buff on you with its spell ID |
 | `/nw options` | Settings |
 | `/nw import` | Import GatherMate2 spots |
 | `/nw import help` | The GatherMate2 import steps |

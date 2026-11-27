@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Tracker: drag it by its icons while unlocked (no bar); /nw buffs debug and /nw buffs auras show what it reads.
 - Profit: columns for materials, sells for, net profit and return; the top recipe opens on the right, with a batch size, exact figures and why Craft can't run.
 - Profit: a recipe with an unpriced material no longer counts as profitable; cooldown recipes count one at a time.
 - Consumable tracker (Settings › Consumes, /nw buffs): your loadout's buffs, time left, counts and cooldowns; click to use, right-click for Consumes.

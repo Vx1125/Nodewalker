@@ -327,15 +327,10 @@ hud:SetClampedToScreen(true)
 hud:SetMovable(true)
 hud:EnableMouse(false)
 hud:Hide()
--- a grip to drag it by (shown only while it isn't locked)
-local grip = CreateFrame("Frame", nil, hud, "BackdropTemplate")
-grip:SetPoint("BOTTOMLEFT", hud, "TOPLEFT", 0, 2)
-grip:SetSize(40, 8)
-UI.Flat(grip, S.header, S.edge)
-grip:EnableMouse(true)
-grip:RegisterForDrag("LeftButton")
-grip:SetScript("OnDragStart", function() if not (st().buffHudLock or combat()) then hud:StartMoving() hud.moving = true end end)
-grip:SetScript("OnDragStop", function()
+-- Unlocked, you drag it by any icon (no bar of its own); locked, it doesn't move
+local function dragStart() if not (st().buffHudLock or combat()) then hud:StartMoving() hud.moving = true end end
+local function dragStop()
+  if not hud.moving then return end
   hud:StopMovingOrSizing()
   hud.moving = false
   local l, top = hud:GetLeft(), hud:GetTop()
@@ -344,8 +339,7 @@ grip:SetScript("OnDragStop", function()
     hud:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, top)
     st().buffHudPos = { l, top }
   end
-end)
-UI.Tip(grip, "Consumables", "Drag to move. Lock it in Settings › Consumes.")
+end
 
 local icons = {}
 local DIM = { 0, 0, 0, 0.85 }
@@ -385,6 +379,7 @@ local function iconTip(self)
   GameTooltip:AddDoubleLine("In your bags", tostring(x.count or 0), d[1], d[2], d[3], 1, 1, 1)
   if st().buffClickUse ~= false then GameTooltip:AddDoubleLine("Click", "use it", d[1], d[2], d[3], 1, 1, 1) end
   GameTooltip:AddDoubleLine("Right-click", "in Consumes", d[1], d[2], d[3], 1, 1, 1)
+  if not st().buffHudLock then GameTooltip:AddDoubleLine("Drag", "move (lock it in Settings)", d[1], d[2], d[3], 1, 1, 1) end
   GameTooltip:Show()
 end
 
@@ -413,6 +408,9 @@ local function iconFor(i)
   -- time left above the icon; the count stays in the corner, so the two never meet
   b.time = UI.Text(b, 10, S.text, "CENTER")
   b.time:SetPoint("BOTTOM", b, "TOP", 0, 2)
+  b:RegisterForDrag("LeftButton")
+  b:SetScript("OnDragStart", dragStart)
+  b:SetScript("OnDragStop", dragStop)
   b:SetScript("OnEnter", iconTip)
   b:SetScript("OnLeave", GameTooltip_Hide)
   b:SetScript("PostClick", function(self, button, down)
@@ -501,8 +499,6 @@ local function layout()
   local w = vertical and total or maxAlong
   local h = vertical and maxAlong or total
   hud:SetSize(math.max(size, w), math.max(size, h))
-  grip:SetWidth(math.max(size, w))
-  grip:SetShown(not st().buffHudLock)
   hud:SetScale(st().buffHudScale or 1)
   hud:SetAlpha(st().buffHudAlpha or 1)
   hud:SetShown(st().buffHud and n > 0 and not contextHides() and true or false)
@@ -518,7 +514,7 @@ local function paint()
     if x and b:IsShown() then
       b.tex:SetTexture(NW.ItemIcon(x.by or x.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
       local st0 = x.state
-      local muted = st0 == "out" or st0 == "none"
+      local muted = (x.count or 0) == 0 and st0 ~= "on" and st0 ~= "expiring"
       if b.tex.SetDesaturated then b.tex:SetDesaturated(muted) end
       b.tex:SetAlpha(muted and 0.45 or 1)
       b:SetBackdropBorderColor(unpack(BORDER[st0] or DIM))
@@ -662,6 +658,101 @@ end)
 -- the loadout changed in Consumes (picks, spec, activity, strategy, loadout, level)
 if NW.OnConsumeSelection then
   NW.OnConsumeSelection(function() if on() then dirty.list = true queue(0.1) end end)
+end
+
+------------------------------------------------------------------------
+-- Diagnostics (/nw buffs debug, /nw buffs auras, /nw buffs learned): what the client says,
+-- so mappings can be checked against real output. Prints only when you ask.
+------------------------------------------------------------------------
+local function P(s) NW.Print(s) end
+local function spellName(id)
+  if not id then return "?" end
+  local ok, n = pcall(function()
+    if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(id) end
+    return (GetSpellInfo(id))
+  end)
+  return (ok and R(n) and n) or "?"
+end
+local function counts(id)
+  local a = C_Item and C_Item.GetItemCount and select(2, pcall(C_Item.GetItemCount, id))
+  local b2 = GetItemCount and select(2, pcall(GetItemCount, id))
+  return tostring(a), tostring(b2)
+end
+function T.Debug()
+  if not st().buffHud then P("tracker is off (/nw buffs)") return end
+  dirty.auras, dirty.weapon, dirty.list = true, true, true
+  update()
+  local api = (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) and "C_UnitAuras.GetAuraDataByIndex" or (UnitBuff and "UnitBuff" or "none")
+  local n = 0
+  for _ in pairs(auras) do n = n + 1 end
+  P(("aura API %s · %d auras read · hidden slots %s · in combat %s"):format(api, n, tostring(hiddenNow), tostring(combat() and true or false)))
+  for _, x in ipairs(tracked) do
+    local sp = spellOf(x.id)
+    local seenId = seen()[x.id]
+    local bagN, allN = counts(x.id)
+    local line = ("%s (item %d) · %s · bags %s, with bank %s · state %s"):format(itemName(x.id), x.id, x.kind, bagN, allN, tostring(x.state))
+    P(line)
+    if x.kind == "use" then
+      P(("   cooldown %s"):format(x.cdStart and fmtTime(x.cdStart + x.cdDur - now()) or "none"))
+    elseif x.kind == "weapon" then
+      local w = weapon
+      P(("   item spell %s %s · main hand %s id %s %s · off hand %s id %s %s · seen enchant -> item: %s"):format(
+        tostring(sp), spellName(sp), tostring(w.mh.on), tostring(w.mh.id), w.mh.exp and fmtTime(w.mh.exp - now()) or "",
+        tostring(w.oh.on), tostring(w.oh.id), w.oh.exp and fmtTime(w.oh.exp - now()) or "",
+        tostring(w.mh.id and enchSeen()[w.mh.id] or "-")))
+    else
+      local hit = (seenId and auras[seenId]) or (sp and auras[sp])
+      local why
+      if x.state == "unknown" then
+        if combat() or hiddenNow then why = "auras can't be read now"
+        elseif not sp then why = "the client gave no use spell for the item (not cached yet?)"
+        elseif x.group == "Food" then why = "food's buff is learned when you eat it with the tracker on"
+        else why = ("not on you, and its buff hasn't been confirmed: use one with the tracker on (expects aura %d)"):format(sp) end
+      end
+      P(("   item spell %s %s · seen aura %s · on you %s%s%s"):format(tostring(sp), spellName(sp), tostring(seenId or "-"),
+        hit and "yes" or "no", (hit and hit > 0) and (" · " .. fmtTime(hit - now()) .. " left") or "", why and (" · " .. why) or ""))
+      if x.alts and #x.alts > 1 then P(("   slot: %d items (any of them counts)"):format(#x.alts)) end
+    end
+  end
+end
+function T.DebugAuras()
+  local modern = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex
+  P(("your buffs via %s%s:"):format(modern and "C_UnitAuras.GetAuraDataByIndex" or "UnitBuff", combat() and " (in combat)" or ""))
+  local t0 = now()
+  for i = 1, 40 do
+    local line, done
+    if modern then
+      local ok, d = pcall(C_UnitAuras.GetAuraDataByIndex, "player", i, "HELPFUL")
+      if not ok then line = "error (hidden?)"
+      elseif not d then done = true
+      else
+        local ok2, s2 = pcall(function()
+          local e = d.expirationTime
+          return ("%s · spell %s · duration %s · %s left · from %s"):format(tostring(d.name), tostring(d.spellId), tostring(d.duration),
+            (type(e) == "number" and e > 0) and fmtTime(e - t0) or "no end", tostring(d.sourceUnit))
+        end)
+        line = ok2 and s2 or "secret values"
+      end
+    elseif UnitBuff then
+      local ok, nm, _, _, _, du, e, src, _, _, id = pcall(UnitBuff, "player", i)
+      if not ok then line = "error (hidden?)" elseif not nm then done = true else
+        line = ("%s · spell %s · duration %s · %s left · from %s"):format(tostring(nm), tostring(id), tostring(du),
+          (type(e) == "number" and e > 0) and fmtTime(e - t0) or "no end", tostring(src))
+      end
+    else done = true end
+    if done then if i == 1 then P("  (none)") end break end
+    P(("  %d. %s"):format(i, line))
+  end
+  local ok, mh, mhMs, mhC, mhID, oh, ohMs, ohC, ohID = pcall(GetWeaponEnchantInfo or function() end)
+  P(("weapon enchants: main hand %s %s id %s · off hand %s %s id %s"):format(tostring(mh), mhMs and fmtTime(mhMs / 1000) or "",
+    tostring(mhID), tostring(oh), ohMs and fmtTime(ohMs / 1000) or "", tostring(ohID)))
+end
+-- what's been learned on your characters (personal: never shipped until reviewed)
+function T.DebugLearned()
+  local n = 0
+  for item, aura in pairs(seen()) do n = n + 1 P(("buff: item %d %s -> aura %d %s"):format(item, itemName(item), aura, spellName(aura))) end
+  for ench, item in pairs(enchSeen()) do n = n + 1 P(("enchant: %d -> item %d %s"):format(ench, item, itemName(item))) end
+  if n == 0 then P("nothing learned yet") end
 end
 
 -- Back to the middle of the screen
