@@ -178,7 +178,10 @@ for _, p in ipairs(PROFS) do
     local specOnly = r.ri and FLT.RECIPE_SPEC and FLT.RECIPE_SPEC[r.ri]
     local cooldown = FLT.CRAFT_COOLDOWN and FLT.CRAFT_COOLDOWN[r.s]
     -- "known": planned only once you know it (a specialization's recipe, or no source in the data)
-    if (fee and fee[3]) or specOnly or unknownWay then kind = "known" end
+    -- fee[3]: a specialization spell id always counts; the bare flag 1 (a special trainer) only when
+    -- there's no recipe item or other source, as in One For All (Barbecued Buzzard Wing has an item)
+    local specFee = fee and fee[3] and (fee[3] ~= 1 or noOtherSource)
+    if specFee or specOnly or unknownWay then kind = "known" end
     -- reviewed corrections (tools/recipe_overrides.json, approved ones only)
     local ov = OVERRIDES[key .. "/" .. r.n]
     if ov and ov.source then kind = ov.source end

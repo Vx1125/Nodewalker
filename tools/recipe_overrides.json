@@ -49,5 +49,12 @@
   "kind": "specialization (from approved data)",
   "approved": true,
   "source": "known"
+ },
+ {
+  "recipe": "leatherworking/Wolfshead Helm",
+  "source": "known",
+  "evidence": "One For All 6.3.0's teach list gives this recipe only to Leatherworking trainers 7870/7871 (Tribal), the same evidence as the six Dragonscale/Elemental/Tribal entries above. Found by the recipe QC review, 2026-11-27.",
+  "kind": "specialization (from approved data)",
+  "approved": true
  }
 ]
