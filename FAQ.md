@@ -27,6 +27,12 @@ No. Profit is the current lowest listing, minus the auction cut, minus material 
 **Why are some prices missing?**
 Auctionator hasn't seen the item listed, or isn't installed. Scan the auction house and they fill in. Totals missing a price show a red "+?".
 
+**Does Prepare mail send anything?**
+No. At an open mailbox it fills in the name and subject and attaches what the other character's list still needs. You check it and press Send. An alt's counts are its bags as last saved, marked as such.
+
+**Why are dusts and essences never farming targets?**
+They come from disenchanting, and Nodewalker has no data on which items to break for them. Set farming targets lists them as not gathered instead of inventing a source.
+
 **Do I have to fish to level Cooking?**
 No. Cooking plans from any ingredients by default. The ingredients menu (All ingredients, Fish recipes, No fish) limits it to fish recipes or none. Fishing + Cooking is there if you want to catch your own.
 

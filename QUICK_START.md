@@ -22,7 +22,7 @@ When you enter a zone without a route, Nodewalker builds one by itself. To rebui
 
 1. Type `/nw guide`, or click a material in a profession's shopping list.
 2. Search by name, or pick a category on the left.
-3. The buttons under the name are the ways to get it: Herbalism, Mining, Fishing, Skinning, Creature loot, Vendor, Crafting.
+3. The buttons under the name are the ways to get it: Herbalism, Mining, Objects, Fishing, Skinning, Creature loot, Vendor, Crafting.
 4. For leather, cloth, meat and other creature materials: pick a zone, check the creatures, then **Build hunting route**. The overlay rings each hunting ground; **Next** in the session panel moves on.
 5. Type a number in **Target** and click **Track** to follow your progress.
 
@@ -55,9 +55,17 @@ Profit uses current listings after the auction cut. A listing isn't a sale.
 2. Open **Fishing + Cooking** and set a target for each.
 3. Do the step with the gold arrow. Fish counts update as you catch and cook.
 
-## Stock up for a raid
+## Stock up on consumables
 
 1. Type `/nw consumes`.
-2. Pick your class and spec, or **My level** while leveling.
-3. Pick how long the raid is.
-4. Click **Search missing** to find everything you're short of.
+2. Pick your spec, then **Activity** (Leveling or Raiding), **Strategy** and **Stock**.
+3. Tick what you bring. Save it with **Loadouts**.
+4. Click **Search what's short in Auctionator**.
+5. Optional: turn on the tracker in Settings › Consumes (or `/nw buffs`) to see what's missing or running out.
+
+## Share materials between characters
+
+1. On each character, open the profession's **Leveling** view once. Its shopping list is saved.
+2. On any character, open **Characters** under Professions and pick a saved list.
+3. **Available to send** shows what you carry that the list still needs. At a mailbox, **Prepare mail** fills it in; you press Send.
+4. **Set farming targets** turns what's left into Material Finder targets on the character you're playing.

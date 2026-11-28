@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Nodewalker
-## Notes: All-in-one professions: farming overlay, gathering routes, and leveling guides priced from the auction house.
+## Notes: All-in-one professions: leveling plans, materials across characters, farming overlay, profit and consumables.
 ## Author: Austin
 ## IconTexture: Interface\AddOns\Nodewalker\Media\Icon
 ## Version: @project-version@
