@@ -978,7 +978,7 @@ end
 local function kitSig(key)
   local s = NW.db.settings
   local sell = key ~= "cooking" and s.planSellBack or false
-  return "k4|" .. (s.planStrategy or "") .. "|" .. tostring(sell) .. "|" .. (s.planRecipeItems and "r" or "")
+  return "k5|" .. (s.planStrategy or "") .. "|" .. tostring(sell) .. "|" .. (s.planRecipeItems and "r" or "")
     .. "|" .. (key == "cooking" and NW.CookAllow and NW.CookAllowKey() or "")
 end
 -- The baseline kit: one plan from 1 to 300 at today's prices, ignoring
@@ -1290,6 +1290,9 @@ function NW.BuildPlan(key, from, to)
     for _, ks in ipairs(kit.steps) do
       local i = byName[ks[3]]
       local r = i and recipes[i]
+      -- the same gates as above: can't be learned yet, no skill-ups, reputation or Favor too low
+      if r and (onceOf[i] >= 1e9 or NW.NO_LEVEL[r.name]
+        or (NW.FavorBlocked and NW.FavorBlocked(r) and not isKnown(key, r))) then r = nil end
       if r then
         for sk = math.max(from, ks[1]), math.min(to, ks[2]) - 1 do
           if required(key, r) <= sk and NW.SkillUpChance(r, sk) > 0 then

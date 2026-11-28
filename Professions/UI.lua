@@ -2841,7 +2841,6 @@ end
 function NW.FavorKey()
   local k = { tostring(MS.favorStanding() or "") }
   if NW.RECIPE_REP then
-    MS.repIds = MS.repIds or {}
     if not MS.repIdList then
       local seen, list = {}, {}
       for _, n in pairs(NW.RECIPE_REP) do if not seen[n[1]] then seen[n[1]] = true list[#list + 1] = n[1] end end
