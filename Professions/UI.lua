@@ -5408,42 +5408,96 @@ function MS.prepareMail(p)
   if stacks == 0 then return #free == 0 and "No free attachment slots." or "Already attached." end
   return ("Attached %d stack%s for %s. Check the mail, then Send."):format(stacks, stacks == 1 and "" or "s", p.label)
 end
--- farming targets in Material Finder: "gather N more" for what's still remaining. A material Material
--- Finder doesn't know but a recipe makes (a component) becomes its ingredients, two levels at most;
--- recipes and tools are never gathering targets. Only this character's goals change, never a saved list.
-function MS.farmNeeds(p)
+-- farming targets in Material Finder: "gather N more" for what's still remaining, by how each item is
+-- got (Material Finder's own sources). Gathered, picked, fished, skinned and looted items become
+-- targets; a crafted component becomes its ingredients (two levels at most); vendor items, dusts and
+-- essences from disenchanting (no source data for what to break), recipes and tools never do.
+-- Only this character's goals change, never a saved list.
+MS.ACQ = { nodes = "Gathering", obj = "Objects", fishing = "Fishing", skin = "Skinning", loot = "Creature loot",
+  craft = "Crafted", vendor = "Vendor", de = "Disenchanting", recipe = "Recipes", tool = "Tools", none = "No known source" }
+MS.ACQ_ORDER = { "nodes", "obj", "fishing", "skin", "loot", "craft", "vendor", "de", "recipe", "tool", "none" }
+MS.FARM = { nodes = true, obj = true, fishing = true, skin = true, loot = true }
+function MS.acquire(id)
   local M = NW.Mat
-  local want, order = {}, {}
+  local e = M and M.Get(id)
+  if e then for _, k in ipairs(M.Sources(e)) do if MS.FARM[k] then return k end end end
+  if e and e.src.vendor then return "vendor" end
+  local r = NW.RecipeFor(id)
+  if r and r.reagents then return "craft" end
+  if NW.IsDisenchantMat and NW.IsDisenchantMat(id) then return "de" end
+  return "none"
+end
+function MS.farmNeeds(p)
+  local want, order, how = {}, {}, {}
+  local function note(k, id, n)
+    local h = how[k]
+    if not h then h = { types = 0, units = 0, seen = {} } how[k] = h end
+    if not h.seen[id] then h.seen[id] = true h.types = h.types + 1 end
+    h.units = h.units + n
+  end
   local function add(id, n, depth)
     if n <= 0 then return end
-    if M.Get(id) then
-      if not want[id] then order[#order + 1] = id end
-      want[id] = (want[id] or 0) + n
-      return
-    end
-    local r = depth < 2 and NW.RecipeFor(id)
-    if r and r.reagents then
+    local k = MS.acquire(id)
+    if k == "craft" and depth < 2 then
+      local r = NW.RecipeFor(id)
+      note("craft", id, n)
       local crafts = math.ceil(n / (r.yield or 1))
       for _, re in ipairs(r.reagents) do add(re[1], re[2] * crafts, depth + 1) end
+      return
+    end
+    if k == "craft" then k = "none" end
+    note(k, id, n)
+    if MS.FARM[k] then
+      if not want[id] then order[#order + 1] = id end
+      want[id] = (want[id] or 0) + n
     end
   end
   local _, all = MS.altEntries(p)
   for _, e in ipairs(all) do
-    if e.id and not e.recipe and e.remain > 0 and e.it and e.it.g ~= "t" then add(e.id, e.remain, 0) end
+    if e.remain > 0 then
+      if e.recipe then note("recipe", e.term, e.remain)
+      elseif e.it and e.it.g == "t" then note("tool", e.id or e.term, e.remain)
+      elseif e.id then add(e.id, e.remain, 0) end
+    end
   end
-  return want, order
+  return want, order, how
+end
+-- "Disenchanting 6 · Vendor 1": what isn't gathered, by how it's got
+function MS.farmSkipped(how)
+  local parts = {}
+  for _, k in ipairs(MS.ACQ_ORDER) do
+    if how[k] and not MS.FARM[k] and k ~= "craft" then parts[#parts + 1] = MS.ACQ[k] .. " " .. how[k].types end
+  end
+  return table.concat(parts, "  ·  ")
+end
+function MS.farmTip()
+  local p = MS.altCurrent()
+  if not p then return nil end
+  local _, _, how = MS.farmNeeds(p)
+  local lines = {}
+  for _, k in ipairs(MS.ACQ_ORDER) do
+    local h = how[k]
+    if h then
+      lines[#lines + 1] = ("%s%s: %d item type%s, %d|r"):format(MS.FARM[k] and "|cff94ba78" or "|cff938c80", MS.ACQ[k], h.types, h.types == 1 and "" or "s", h.units)
+    end
+  end
+  lines[#lines + 1] = "|cff938c80Green: set as \"gather N more\". Crafted components count as their ingredients.|r"
+  if how.de then lines[#lines + 1] = "|cff938c80Disenchanting: no data on what to break, so no targets.|r" end
+  return table.concat(lines, "\n")
 end
 function MS.setTargets(p)
   local M = NW.Mat
   if not (M and M.SetGoal and M.Get) then return "Material Finder isn't loaded." end
-  local want, order = MS.farmNeeds(p)
+  local want, order, how = MS.farmNeeds(p)
   local set, full = 0, false
   for _, id in ipairs(order) do
     local g, err = M.SetGoal(id, "more", want[id], p.key)
     if g then set = set + 1 elseif err == "full" then full = true break end
   end
-  if set == 0 then return full and "Material Finder's target list is full." or "Nothing on the list to gather." end
-  return ("%d farming target%s set in Material Finder%s."):format(set, set == 1 and "" or "s", full and " (its list is full)" or "")
+  local skipped = MS.farmSkipped(how)
+  skipped = skipped ~= "" and ("\n|cff938c80Not gathered: " .. skipped .. "|r") or ""
+  if set == 0 then return (full and "Material Finder's target list is full." or "Nothing on the list to gather.") .. skipped end
+  return ("%d farming target%s set in Material Finder%s."):format(set, set == 1 and "" or "s", full and " (its list is full)" or "") .. skipped
 end
 -- the right column's send section and buttons (made once)
 function MS.altsSendBuild()
@@ -5474,7 +5528,7 @@ function MS.altsSendBuild()
     if p then MS.altStatus = MS.setTargets(p) refresh() end
   end)
   UI.Tip(s.mail, "Prepare mail", "At an open mailbox: fills in the name and attaches what this list still needs from your bags. Nothing is sent until you press Send.")
-  UI.Tip(s.farm, "Set farming targets", "Material Finder targets for what's still remaining (gatherable materials), as \"gather N more\".")
+  UI.Tip(s.farm, "Set farming targets", function() return MS.farmTip() end)
   s.status = UI.Text(s, 11, S.gold)
   s.status:SetWidth(RIGHT_W)
   MS.altsSend = s
@@ -5527,8 +5581,14 @@ function MS.altsRight(p)
   targetSlider:Hide() MS.targets:Hide() shopBox:Hide()
   -- (another view's heading numbers, such as Profit's "worth making", don't stay behind)
   hCost:SetText("") hCostSub:SetText("")
+  -- Characters is account-wide: its own header, the selected list's profession and range
+  local prof = p and NW.PROF_BY_KEY[p.key]
+  hName:SetText("Characters")
+  hIcon:SetTexture(prof and prof.icon or "Interface\\Icons\\INV_Misc_Book_09")
+  hSkill:SetText(p and ("%s  ·  %s %s-%s"):format(p.label, prof and prof.name or p.key, p.s.from or "?", p.s.to or "?") or "No saved lists")
+  NW.SetWindowSubtitle("Characters")
   if not p then
-    rHead.text:SetText("Characters")
+    rHead.text:SetText("Shopping list")
     rTotal:SetText("|cff938c80Nothing saved yet.|r")
     shop, MS.shopAll = {}, {}
     searchBtn:Hide() MS.recipesBtn:Hide()
@@ -5537,16 +5597,12 @@ function MS.altsRight(p)
     return
   end
   local shown, all, total, unpriced, left, units = MS.altEntries(p)
-  local prof = NW.PROF_BY_KEY[p.key]
-  rHead.text:SetText(p.label .. " · " .. (prof and prof.name or p.key))
-  local money = NW.Money(total, "mid") .. (unpriced > 0 and " |cffd17665+?|r" or "")
+  rHead.text:SetText("Shopping list")
   local rem = 0
   for _, e in ipairs(all) do rem = rem + (e.remain or 0) end
   rTotal:SetText(table.concat({
-    ("Skill %s-%s  ·  %s"):format(p.s.from or "?", p.s.to or "?", MS.updated(p.s.t)),
-    ("Remaining cost  |cffd6b266%s|r"):format(money),
-    ("%d item type%s  ·  %d needed  ·  %d remaining"):format(left, left == 1 and "" or "s", units, rem),
-    p.me and "|cff938c80Your bags, live. Prices: last scan.|r"
+    p.me and ("%d needed"):format(units) or ("%d needed  ·  %d in your bags to send"):format(units, units - rem),
+    p.me and ("|cff938c80Your bags, live. %s. Prices: last scan.|r"):format(MS.updated(p.s.t))
       or ("|cff938c80%s's bags as saved %s. Prices: last scan.|r"):format(p.name, (MS.updated(p.s.t):lower():gsub("^updated ", ""))),
   }, "\n"))
   shop, MS.shopAll = shown, all
@@ -5560,7 +5616,7 @@ function MS.altsRight(p)
   searchBtn:Show()
   MS.recipesBtn:SetShown(nRecipes > 0)
   -- the numbers up top are this list's
-  MS.summary({ { "Remaining cost", NW.Money(total, "mid") .. (unpriced > 0 and " |cffd17665+?|r" or ""), S.gold }, { "Needs", ("%d (%d)"):format(left, units) } },
+  MS.summary({ { "Remaining cost", NW.Money(total, "mid") .. (unpriced > 0 and " |cffd17665+?|r" or ""), S.gold }, { "Item types", tostring(left) }, { "Remaining", tostring(rem) } },
     { { p.label .. " · " .. (prof and prof.name or p.key) }, { MS.updated(p.s.t) }, { "Costs use last-scanned auction prices, not guaranteed." } })
   MS.altsSendDraw(p, all)
 end

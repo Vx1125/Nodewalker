@@ -866,6 +866,15 @@ local DE_BLUE = { { 25, 10978 }, { 30, 11084 }, { 35, 11138 }, { 40, 11139 }, { 
 local DE_EPIC = { { 45, 11177, 3 }, { 50, 11178, 3 }, { 55, 14343, 3 }, { 60, 20725, 1 }, { 999, 20725, 1.5 } }
 local isDust = {}
 for _, id in ipairs(DUST) do isDust[id] = true end
+-- every dust, essence and shard the tables above can give
+local deMat = {}
+for _, t in ipairs({ DE_GREEN, DE_BLUE, DE_EPIC }) do
+  for _, row in ipairs(t) do
+    if type(row[2]) == "number" then deMat[row[2]] = true end
+    for i = 2, #row do if type(row[i]) == "table" then deMat[row[i][1]] = true end end
+  end
+end
+function NW.IsDisenchantMat(id) return deMat[id] or false end
 
 -- What an item is worth disenchanted, at today's prices; nil if it can't be
 -- (or the game hasn't sent the item yet). Also returns the outcomes used.
