@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0
 - New consumable tracker (Settings › Consumes, /nw buffs): reminds you what's missing or expiring from your loadout; click to use.
 - Consumes: pick Activity and Strategy, save Loadouts, choose exactly what you bring, set targets and stock sessions.
 - Consumes: Core, Optional and Situational rows; healers level with their solo list; Budget stays near your level.
