@@ -5065,7 +5065,7 @@ function MS.altEntries(p)
   local total, unpriced, left, units = 0, 0, 0, 0
   for _, it in ipairs(p.s.items or {}) do
     local e
-    if it.g == "r" then
+    if it.g == "r" or (it.g == nil and it.r) then
       local r
       for _, rr in ipairs(NW.RECIPES[p.key] or {}) do if rr.name == it.r then r = rr break end end
       e = { recipe = r or { name = it.r or "?", src = "recipe" }, key = p.key, term = it.n or it.r or "?", id = it.id }
@@ -5073,23 +5073,31 @@ function MS.altEntries(p)
       e = { id = it.id }
     end
     if e then
-      local need = it.g == "r" and 1 or (it.need or 0)
+      local need = e.recipe and 1 or (it.need or 0)
       local mine = e.id and NW.ItemCount(e.id) or 0
       local altHave = p.me and mine or (it.have or 0)
       e.full = need
       e.mailed = p.me and 0 or (e.id and MS.altMailed(p, e.id) or 0)
       e.need = math.max(0, need - math.min(altHave, need) - e.mailed)
       e.have = altHave
-      e.here = p.me and 0 or mine
-      e.sendable = not p.me and mine > 0 and e.id and MS.canMail(p, e.id) or false
-      e.remain = math.max(0, e.need - (e.sendable and math.min(mine, e.need) or 0))
+      -- Here: in your bags now (bank items need a bank trip before they can be mailed)
+      local bags = (not p.me and e.id) and MS.bagCount(e.id) or 0
+      e.owned = p.me and 0 or mine
+      e.here = bags
+      e.sendable = not p.me and bags > 0 and e.id and MS.canMail(p, e.id) or false
+      e.remain = math.max(0, e.need - (e.sendable and math.min(bags, e.need) or 0))
       e.buy = e.remain
       if e.id then e.price, e.src = MS.altPrice(e.id) end
       e.alt, e.it = p, it
       e.cost = e.price and e.price * e.remain or nil
       if e.cost then total = total + e.cost elseif e.remain > 0 then unpriced = unpriced + 1 end
       if e.need > 0 then left = left + 1 units = units + e.need end
-      local g = e.need == 0 and "owned" or it.g == "r" and "recipes" or it.g == "t" and "tools" or it.g == "c" and "crafted" or "mats"
+      local kind = it.g == "r" and "recipes" or (it.g == nil and it.r) and "recipes" or it.g == "t" and "tools" or "mats"
+      if kind == "mats" and e.id then
+        local _, mk = NW.RecipeFor(e.id)
+        if mk == p.key then kind = "crafted" end -- (bars and bolts from other professions are materials)
+      end
+      local g = e.need == 0 and "owned" or kind
       table.insert(groups[g], e)
     end
   end
@@ -5134,7 +5142,7 @@ function MS.altRemove(p)
   StaticPopup_Show("NODEWALKER_REMOVE_PLAN", (NW.PROF_BY_KEY[p.key] or {}).name or p.key, p.label, go)
 end
 MS.CHAR_H, MS.CHAR_MAX, MS.CLIST_H = 28, 3, 24
-MS.CCOL = { 238, 178, 128, 86 } -- right edges: the name stops at [1]; Needed, Here, Remaining at [2..4]
+MS.CCOL = { 270, 214, 166, 100 } -- right edges: the name stops at [1]; Needed, Here, Remaining at [2..4]
 function MS.altsBuild()
   local f = CreateFrame("Frame", nil, mid)
   f:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, 0)
@@ -5337,7 +5345,7 @@ function MS.altSendable(p, all)
     if e.id and e.need > 0 and e.sendable then
       local bags = MS.bagCount(e.id)
       local n = math.min(bags, e.need)
-      if n > 0 then out[#out + 1] = { e = e, n = n, bank = math.min(e.here, e.need) - n } types = types + 1 units = units + n end
+      if n > 0 then out[#out + 1] = { e = e, n = n } types = types + 1 units = units + n end
     end
   end
   table.sort(out, function(a, b) return a.n * (a.e.price or 0) > b.n * (b.e.price or 0) end)
@@ -5386,17 +5394,39 @@ function MS.prepareMail(p)
   if stacks == 0 then return #free == 0 and "No free attachment slots." or "Already attached." end
   return ("Attached %d stack%s for %s. Check the mail, then Send."):format(stacks, stacks == 1 and "" or "s", p.label)
 end
--- farming targets in Material Finder: "gather N more" for what's still remaining, gatherable ones
+-- farming targets in Material Finder: "gather N more" for what's still remaining. A material Material
+-- Finder doesn't know but a recipe makes (a component) becomes its ingredients, two levels at most;
+-- recipes and tools are never gathering targets. Only this character's goals change, never a saved list.
+function MS.farmNeeds(p)
+  local M = NW.Mat
+  local want, order = {}, {}
+  local function add(id, n, depth)
+    if n <= 0 then return end
+    if M.Get(id) then
+      if not want[id] then order[#order + 1] = id end
+      want[id] = (want[id] or 0) + n
+      return
+    end
+    local r = depth < 2 and NW.RecipeFor(id)
+    if r and r.reagents then
+      local crafts = math.ceil(n / (r.yield or 1))
+      for _, re in ipairs(r.reagents) do add(re[1], re[2] * crafts, depth + 1) end
+    end
+  end
+  local _, all = MS.altEntries(p)
+  for _, e in ipairs(all) do
+    if e.id and not e.recipe and e.remain > 0 and e.it and e.it.g ~= "t" then add(e.id, e.remain, 0) end
+  end
+  return want, order
+end
 function MS.setTargets(p)
   local M = NW.Mat
   if not (M and M.SetGoal and M.Get) then return "Material Finder isn't loaded." end
-  local _, all = MS.altEntries(p)
+  local want, order = MS.farmNeeds(p)
   local set, full = 0, false
-  for _, e in ipairs(all) do
-    if e.id and e.remain > 0 and not e.recipe and M.Get(e.id) then
-      local g, err = M.SetGoal(e.id, "more", e.remain, p.key)
-      if g then set = set + 1 elseif err == "full" then full = true break end
-    end
+  for _, id in ipairs(order) do
+    local g, err = M.SetGoal(id, "more", want[id], p.key)
+    if g then set = set + 1 elseif err == "full" then full = true break end
   end
   if set == 0 then return full and "Material Finder's target list is full." or "Nothing on the list to gather." end
   return ("%d farming target%s set in Material Finder%s."):format(set, set == 1 and "" or "s", full and " (its list is full)" or "")
@@ -5494,12 +5524,14 @@ function MS.altsRight(p)
   local prof = NW.PROF_BY_KEY[p.key]
   rHead.text:SetText(p.label .. " · " .. (prof and prof.name or p.key))
   local money = NW.Money(total, "mid") .. (unpriced > 0 and " |cffd17665+?|r" or "")
+  local rem = 0
+  for _, e in ipairs(all) do rem = rem + (e.remain or 0) end
   rTotal:SetText(table.concat({
     ("Skill %s-%s  ·  %s"):format(p.s.from or "?", p.s.to or "?", MS.updated(p.s.t)),
-    ("Needs %d material%s (%d item%s)"):format(left, left == 1 and "" or "s", units, units == 1 and "" or "s"),
-    ("|cffd6b266%s|r for what's remaining, at last-scanned prices"):format(money),
-    p.me and "|cff938c80Counts: your bags and bank, live.|r"
-      or ("|cff938c80Counts: %s's bags as saved (%s), not live.|r"):format(p.name, (MS.updated(p.s.t):lower():gsub("^updated ", ""))),
+    ("Remaining cost  |cffd6b266%s|r"):format(money),
+    ("Needed  %d item%s (%d material%s)  ·  Remaining  %d"):format(units, units == 1 and "" or "s", left, left == 1 and "" or "s", rem),
+    p.me and "|cff938c80Your bags, live. Prices: last scan.|r"
+      or ("|cff938c80%s's bags as saved %s. Prices: last scan.|r"):format(p.name, (MS.updated(p.s.t):lower():gsub("^updated ", ""))),
   }, "\n"))
   shop, MS.shopAll = shown, all
   local nRecipes = 0
@@ -5566,12 +5598,15 @@ function MS.altTip(e)
     local mine = NW.ItemCount(e.id) or 0
     local ok, why = MS.canMail(p, e.id)
     local bags = MS.bagCount(e.id)
-    GameTooltip:AddDoubleLine("You have now", mine .. (mine > bags and (" (" .. (mine - bags) .. " in the bank)") or "")
-      .. (mine > 0 and (ok and "  |cff94ba78can mail|r" or ("  |cffd17665" .. (why or "") .. "|r")) or ""), d[1], d[2], d[3], 1, 1, 1)
+    GameTooltip:AddDoubleLine("You own", mine, d[1], d[2], d[3], 1, 1, 1)
+    if mine > bags then GameTooltip:AddDoubleLine("  in the bank (not in Here)", mine - bags, d[1], d[2], d[3], 0.58, 0.55, 0.5) end
+    GameTooltip:AddDoubleLine("  in your bags (Here)", bags, d[1], d[2], d[3], 1, 1, 1)
+    GameTooltip:AddDoubleLine("  can mail", ok and bags or 0, d[1], d[2], d[3], ok and 0.58 or 0.82, ok and 0.73 or 0.4, ok and 0.47 or 0.4)
+    if not ok and why and why ~= "" and mine > 0 then GameTooltip:AddLine("  " .. why, 0.82, 0.4, 0.4) end
   end
   local shared = MS.altShared(p, e.id)
   if #shared > 0 then
-    GameTooltip:AddLine("Also on other saved lists:", d[1], d[2], d[3])
+    GameTooltip:AddLine("Also needed by other saved lists (your stock isn't split between them):", d[1], d[2], d[3], true)
     for _, l in ipairs(shared) do GameTooltip:AddLine("  " .. l, 1, 1, 1) end
   end
 end
