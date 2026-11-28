@@ -17,7 +17,7 @@
 - Recipes and smelting rebuilt from licensed data; specialization and unlisted recipes are planned once you know them.
 - Recipes that need a reputation show it, and plans skip them until your standing is high enough.
 - Plans weigh recipes to buy against costly trainer recipes, and skip recipes you can't buy on your side.
-- Professions: an Alts tab shows the last shopping list each of your characters saved.
+- Professions: a Characters tab shows the last shopping list each of your characters saved.
 - Fixed stutter: closed pages no longer redraw on bag, skill and price updates.
 
 ## 1.3.0

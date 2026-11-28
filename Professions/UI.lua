@@ -213,9 +213,9 @@ do
     { "fishcook", "Fishing + Cooking", "Level both from the fish you catch." }, -- Cooking only
     { "missing", "Missing recipes", "Recipes you don't know yet and where each comes from." },
     { "profit", "Profit", "What each craft earns at today's prices." },
-    { "alts", "Alts", "The last shopping list each of your characters saved." },
+    { "alts", "Characters", "Each of your characters' saved shopping lists." },
   }
-  local WIDTHS = { 84, 136, 124, 76, 52 }
+  local WIDTHS = { 76, 136, 124, 72, 84 }
   for i, v in ipairs(VIEWS) do
     local b = CreateFrame("Button", nil, viewRow, "BackdropTemplate")
     b:SetSize(WIDTHS[i], 26)
@@ -255,6 +255,8 @@ do
       if on then x = x + WIDTHS[i] + 4 end
       b.hide = not on
     end
+    -- the search box takes what's left of the row
+    if MS.search then MS.search:SetWidth(math.max(100, MID_W - x)) end
   end
   -- the Fishing + Cooking plan (Fishing.lua) shows the same row as Cooking's
   NW.COOK_VIEWS = VIEWS
@@ -381,6 +383,7 @@ profitFilters:SetPoint("RIGHT", 0, 0)
 local search = CreateFrame("EditBox", nil, mid, "BackdropTemplate")
 search:SetSize(176, 24)
 search:SetPoint("RIGHT", viewRow, "RIGHT", 0, 0)
+MS.search = search
 UI.Flat(search, S.sunk, S.edge)
 search:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 12, "")
 search:SetTextColor(unpack(S.text))
@@ -1029,7 +1032,9 @@ for i = 1, SHOP_ROWS do
     end
     -- any other material Material Finder knows, away from the auction house: where to get it
     if not ahOpen() and not IsShiftKeyDown() and not e.recipe and NW.FindMaterial and NW.Mat and NW.Mat.Get(e.id) then
-      NW.FindMaterial(e.id, selected, e.buy and e.buy > 0 and e.buy or nil)
+      -- from a saved character's list: Back returns to Characters on that list
+      if e.alt then MS.charsReturn = e.alt.key end
+      NW.FindMaterial(e.id, e.alt and e.alt.key or selected, e.buy and e.buy > 0 and e.buy or nil)
       return
     end
     -- Shift-click searches even when you already have enough
@@ -1638,19 +1643,26 @@ drawShop = function()
     row.entry = e
     if e then
       row:Show()
+      MS.paintShopRow(row, e)
+    else
+      row:Hide()
     end
-    if e and e.header then
+  end
+end
+-- one shopping-list row (also the Characters view's rows)
+function MS.paintShopRow(row, e)
+    if e.header then
       -- a group: recipes, materials, vendor supplies, what you already have
       row.icon:SetTexture(("Interface\\Buttons\\UI-%sButton-Up"):format(e.folded and "Plus" or "Minus"))
       row.name:SetText("|cffd6b266" .. e.header .. "|r")
       row.cost:SetText("|cff938c80" .. e.count .. "|r")
-    elseif e and e.recipe then
+    elseif e.recipe then
       -- (the group already says it's a recipe)
       row.icon:SetTexture(e.id and itemIcon(e.id) or "Interface\\Icons\\INV_Scroll_03")
       local shown = e.term:gsub("^[%a ]+: ", "")
       row.name:SetText("|cffff8040" .. shown .. "|r")
       row.cost:SetText((e.buy == 0 and "|cff94ba78Have|r") or (e.cost and NW.Money(e.cost, "mid")) or "|cff938c80find|r")
-    elseif e and card then
+    elseif card then
       -- how many one craft takes, the name (gold: you can make it), and how many
       -- you really have (not capped at one craft's worth), or what's still to buy
       row.icon:SetTexture(itemIcon(e.id))
@@ -1675,10 +1687,7 @@ drawShop = function()
       local tag = e.src == "vendor" and " |cff938c80v|r" or e.src == "est" and " |cffd17665~|r"
         or (e.scarce or (e.stats and e.stats.flag)) and " |cffffd133!|r" or ""
       row.cost:SetText((e.buy == 0 and "|cff94ba78have|r") or (NW.Money(e.cost, "mid") .. tag))
-    else
-      row:Hide()
     end
-  end
 end
 
 -- The fixed views (Leveling, Profit, gathering): each row in its slot, heading parts off
@@ -4163,7 +4172,7 @@ refresh = function()
   scrollDraw = isProfit and function() drawProfitRows(p.key) end
     or isMissing and function() drawMissingRows(p.key) end
     or (not isCraft and function() drawGatherRows(p.key) end) or nil
-  if isProfit then drawProfit(p) elseif isMissing then drawMissing(p) elseif isCraft then drawCraft(p) else drawGather(p) end
+  if isProfit then drawProfit(p) elseif isMissing then drawMissing(p) elseif isCraft then if mode ~= "alts" then drawCraft(p) end else drawGather(p) end
   -- Profit opened its top recipe: lay the page out again with it
   if MS.reopen then MS.reopen = nil return MS.refresh() end
   if showCard then drawCard() end
@@ -4188,7 +4197,9 @@ function NW.ToggleProfessions() NW.ToggleWindow("profs") end
 ------------------------------------------------------------------------
 function NW.OpenProfession(key)
   if key then selected = key; st().profSelected = key end
-  mode = openMode(selected or key or "alchemy")
+  local back = MS.charsReturn and MS.charsReturn == selected
+  MS.charsReturn = nil
+  mode = back and "alts" or openMode(selected or key or "alchemy")
   if NW.window:IsShown() then NW.ShowTab("profs") else st().lastTab = "profs"; NW.window:Show() end
 end
 
@@ -4934,9 +4945,10 @@ do
   NW.On("GET_ITEM_INFO_RECEIVED", function() NW.findDirty = true end)
 end
 
--- Alts: the last shopping list each character saved (NodewalkerDB.altShop), read-only.
+-- Characters: the last shopping list each character saved (NodewalkerDB.altShop), read-only.
 -- Saved whenever a Leveling plan builds its list: one compact snapshot per character and
--- profession (item IDs, counts, group), never the plan or the catalog. Opening Alts plans nothing.
+-- profession (item IDs, counts, group), never the plan or the catalog. The view plans nothing.
+-- Keys stay "Name-Realm" as saved (Forever's client can report an empty realm: "Name-").
 function MS.charKey() return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?") end
 function MS.snapshotShop(key, from, to, spend, list, plan)
   local db = NW.db
@@ -4961,22 +4973,30 @@ function MS.snapshotShop(key, from, to, spend, list, plan)
   db.altShop[ck][key] = { t = time(), from = from, to = to, spend = spend, class = class,
     faction = UnitFactionGroup and UnitFactionGroup("player") or nil, bags = st().planUseBags ~= false, items = items }
 end
--- how old a saved list is, in words
-function MS.ago(t)
+-- "Updated just now", "Updated 10 min ago"
+function MS.updated(t)
   local s = math.max(0, time() - (t or 0))
-  if s < 3600 then return ("%d min ago"):format(math.floor(s / 60)) end
-  if s < 86400 then return ("%d h ago"):format(math.floor(s / 3600)) end
-  return ("%d days ago"):format(math.floor(s / 86400))
+  if s < 60 then return "Updated just now" end
+  if s < 3600 then return ("Updated %d min ago"):format(math.floor(s / 60)) end
+  if s < 86400 then return ("Updated %d h ago"):format(math.floor(s / 3600)) end
+  return ("Updated %d days ago"):format(math.floor(s / 86400))
 end
--- the saved lists, newest character first; yours marked
+function MS.myRealm() local r = GetRealmName and GetRealmName() if r and r ~= "" then return r end end
+-- the saved plans, yours first; names without the internal key, a realm only when it tells two apart
 function MS.altPlans()
-  local out = {}
-  local me, realm = MS.charKey(), GetRealmName() or "?"
+  local out, names = {}, {}
+  local me, myRealm = MS.charKey(), MS.myRealm()
   for ck, profs in pairs(NW.db and NW.db.altShop or {}) do
+    local name = ck:match("^([^%-]+)") or ck
+    local realm = ck:sub(#name + 2)
+    if realm == "" or realm == "?" then realm = nil end
+    names[name] = (names[name] or 0) + 1
     for key, s in pairs(profs) do
-      local name, rlm = ck:match("^(.-)%-(.+)$")
-      out[#out + 1] = { ck = ck, key = key, s = s, me = ck == me, name = name or ck, realm = rlm or "?", sameRealm = rlm == realm }
+      out[#out + 1] = { ck = ck, key = key, s = s, me = ck == me, name = name, realm = realm, sameRealm = realm == myRealm }
     end
+  end
+  for _, p in ipairs(out) do
+    p.label = p.name .. ((p.realm and (not p.sameRealm or names[p.name] > 1)) and (" (" .. p.realm .. ")") or "")
   end
   table.sort(out, function(a, b)
     if a.me ~= b.me then return a.me end
@@ -4985,24 +5005,24 @@ function MS.altPlans()
   end)
   return out
 end
--- one item's live numbers for a saved list: the alt's saved count, yours now, what's left to buy
-function MS.altItem(p, it)
-  local mine = NW.ItemCount and NW.ItemCount(it.id) or 0
-  local altHave = p.me and mine or (it.have or 0)
-  local buy = math.max(0, (it.need or 0) - math.min(altHave, it.need or 0))
-  local price, src = NW.Price(it.id)
-  return altHave, buy, price, src, mine
+-- today's price for a saved list: the auction house or a vendor only (another profession's
+-- crafting costs don't apply to it)
+function MS.altPrice(id)
+  local vendor, ah = NW.PriceParts(id)
+  if vendor and (not ah or vendor <= ah) then return vendor, "vendor" end
+  if ah then return ah, "ah" end
 end
 -- whether your current character can send it: same realm and faction, not bound
 function MS.canMail(p, id)
-  if p.me or not p.sameRealm then return false, p.me and "" or "other realm" end
+  if p.me then return false, "" end
+  if not p.sameRealm then return false, "other realm" end
   local fac = UnitFactionGroup and UnitFactionGroup("player")
   if p.s.faction and fac and p.s.faction ~= fac then return false, "other faction" end
   local bind = C_Item and C_Item.GetItemInfo and select(14, C_Item.GetItemInfo(id))
   if bind == 1 or bind == 4 then return false, "soulbound" end
   return true
 end
--- other saved lists that need the same item (so totals don't read as yours alone)
+-- other saved lists that still need the same item (so one stack isn't read as covering all)
 function MS.altShared(p, id)
   local out = {}
   for _, q in ipairs(MS.altPlans()) do
@@ -5011,34 +5031,36 @@ function MS.altShared(p, id)
         if it.id == id and it.g ~= "r" then
           local h = q.me and (NW.ItemCount and NW.ItemCount(id) or 0) or (it.have or 0)
           local left = math.max(0, (it.need or 0) - h)
-          if left > 0 then out[#out + 1] = ("%s %s: %d"):format(q.name, (NW.PROF_BY_KEY[q.key] or {}).name or q.key, left) end
+          if left > 0 then out[#out + 1] = ("%s, %s: %d"):format(q.label, (NW.PROF_BY_KEY[q.key] or {}).name or q.key, left) end
         end
       end
     end
   end
   return out
 end
--- the selected list as shopping-list entries (the right panel's rows and searches)
+-- the selected list as shopping-list entries: an alt's counts are its bags as saved, yours are live
 function MS.altEntries(p)
   local groups = { recipes = {}, mats = {}, crafted = {}, tools = {}, owned = {} }
-  local total, unpriced = 0, 0
+  local total, unpriced, left = 0, 0, 0
   for _, it in ipairs(p.s.items or {}) do
+    local e
     if it.g == "r" then
       local r
       for _, rr in ipairs(NW.RECIPES[p.key] or {}) do if rr.name == it.r then r = rr break end end
       local have = p.me and math.min(1, it.id and NW.ItemCount(it.id) or 0) or (it.have or 0)
-      local e = { recipe = r or { name = it.r or "?", src = "recipe" }, key = p.key, term = it.n or it.r or "?", id = it.id, need = 1, have = have, buy = 1 - have, alt = p, it = it }
-      if it.id then
-        local price, src = NW.Price(it.id)
-        if price and (src == "ah" or src == "vendor") then e.price, e.src, e.cost = price, src, price * e.buy end
-      end
-      if e.cost then total = total + e.cost elseif e.buy > 0 then unpriced = unpriced + 1 end
-      table.insert(e.buy == 0 and groups.owned or groups.recipes, e)
+      e = { recipe = r or { name = it.r or "?", src = "recipe" }, key = p.key, term = it.n or it.r or "?", id = it.id, need = 1, have = have, buy = 1 - have }
+      if it.id then e.price, e.src = MS.altPrice(it.id) end
     elseif it.id then
-      local have, buy, price, src = MS.altItem(p, it)
-      local e = { id = it.id, need = it.need or 0, have = have, buy = buy, price = price, src = src, cost = price and price * buy or nil, alt = p, it = it }
-      if e.cost then total = total + e.cost elseif buy > 0 then unpriced = unpriced + 1 end
-      local g = buy == 0 and "owned" or it.g == "t" and "tools" or it.g == "c" and "crafted" or "mats"
+      local have = p.me and (NW.ItemCount and NW.ItemCount(it.id) or 0) or (it.have or 0)
+      e = { id = it.id, need = it.need or 0, have = have, buy = math.max(0, (it.need or 0) - math.min(have, it.need or 0)) }
+      e.price, e.src = MS.altPrice(it.id)
+    end
+    if e then
+      e.alt, e.it = p, it
+      e.cost = e.price and e.price * e.buy or nil
+      if e.cost then total = total + e.cost elseif e.buy > 0 then unpriced = unpriced + 1 end
+      if e.buy > 0 then left = left + 1 end
+      local g = e.buy == 0 and "owned" or it.g == "r" and "recipes" or it.g == "t" and "tools" or it.g == "c" and "crafted" or "mats"
       table.insert(groups[g], e)
     end
   end
@@ -5058,47 +5080,78 @@ function MS.altEntries(p)
       end
     end
   end
-  return shown, all, total, unpriced
+  return shown, all, total, unpriced, left
 end
 -- the selected list, or the first one
 function MS.altCurrent()
   local plans = MS.altPlans()
   for _, p in ipairs(plans) do if MS.altSel == p.ck .. "|" .. p.key then return p, plans end end
   local p = plans[1]
-  if p then MS.altSel = p.ck .. "|" .. p.key end
+  MS.altSel = p and (p.ck .. "|" .. p.key) or nil
   return p, plans
 end
-MS.ALT_LINE = 34
+-- remove a saved plan, after asking
+function MS.altRemove(p)
+  local function go()
+    local all = NW.db.altShop
+    if all and all[p.ck] then all[p.ck][p.key] = nil if not next(all[p.ck]) then all[p.ck] = nil end end
+    if MS.altSel == p.ck .. "|" .. p.key then MS.altSel = nil end
+    refresh()
+  end
+  if not (StaticPopup_Show and StaticPopupDialogs) then return go() end
+  StaticPopupDialogs.NODEWALKER_REMOVE_PLAN = StaticPopupDialogs.NODEWALKER_REMOVE_PLAN or {
+    text = "Remove the saved %s plan for %s?", button1 = REMOVE or "Remove", button2 = CANCEL or "Cancel",
+    OnAccept = function(_, data) if data then data() end end, timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3 }
+  StaticPopup_Show("NODEWALKER_REMOVE_PLAN", (NW.PROF_BY_KEY[p.key] or {}).name or p.key, p.label, go)
+end
+MS.CHAR_H, MS.CHAR_MAX, MS.CLIST_H = 28, 3, 24
 function MS.altsBuild()
-  local f = CreateFrame("Frame", nil, mid, "BackdropTemplate")
-  UI.Flat(f, S.sunk, S.edge)
+  local f = CreateFrame("Frame", nil, mid)
   f:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, 0)
   f:SetPoint("BOTTOMRIGHT", stepsBox, "BOTTOMRIGHT", 0, 0)
   f:SetFrameLevel(stepsBox:GetFrameLevel() + 20)
   f:EnableMouse(true)
-  f:EnableMouseWheel(true)
-  f.offset, f.rows = 0, {}
+  f.bg = f:CreateTexture(nil, "BACKGROUND")
+  f.bg:SetAllPoints()
+  f.bg:SetColorTexture(S.bg[1], S.bg[2], S.bg[3], 1) -- (the Leveling view stays hidden under it)
+  -- the characters: a compact strip, scrolled with the wheel past four
+  f.strip = UI.Box(f)
+  f.strip:SetPoint("TOPLEFT") f.strip:SetPoint("TOPRIGHT")
+  f.strip:EnableMouseWheel(true)
+  f.strip.offset, f.strip.rows = 0, {}
+  f.strip:SetScript("OnMouseWheel", function(self, d)
+    self.offset = math.max(0, math.min(self.offset - d, math.max(0, #(f.plans or {}) - MS.CHAR_MAX)))
+    MS.altsDrawStrip()
+  end)
+  f.more = UI.Text(f, 10, S.dim, "RIGHT")
+  f.more:SetPoint("TOPRIGHT", f.strip, "BOTTOMRIGHT", -4, -2)
+  f.note = UI.Text(f, 10, S.dim)
+  f.note:SetPoint("TOPLEFT", f.strip, "BOTTOMLEFT", 2, -3)
+  f.note:SetText("Right-click: Remove saved plan.")
+  -- the selected character's list: the rest of the panel
+  f.list = UI.Box(f)
+  f.list:SetPoint("TOPLEFT", f.strip, "BOTTOMLEFT", 0, -16)
+  f.list:SetPoint("BOTTOMRIGHT")
+  f.list:EnableMouseWheel(true)
+  f.list.offset, f.list.rows = 0, {}
+  f.list:SetScript("OnMouseWheel", function(self, d)
+    self.offset = math.max(0, math.min(self.offset - d, math.max(0, #shop - #self.rows)))
+    MS.altsDrawList()
+  end)
   f.empty = UI.Text(f, 12, S.dim, "CENTER")
   f.empty:SetPoint("CENTER")
   f.empty:SetWidth(MID_W - 40)
   f.empty:SetText("No saved lists yet. Open a Leveling plan on each character: its shopping list is saved here.")
-  f.note = UI.Text(f, 10, S.dim)
-  f.note:SetPoint("BOTTOMLEFT", 8, 6)
-  f.note:SetText("Click a list to see it on the right. Right-click: forget it.")
-  f:SetScript("OnMouseWheel", function(self, d)
-    self.offset = math.max(0, math.min(self.offset - d, math.max(0, #(self.plans or {}) - #self.rows)))
-    MS.altsDraw()
-  end)
   f:Hide()
   MS.altsFrame = f
 end
-function MS.altsRow(i)
-  local f = MS.altsFrame
-  if f.rows[i] then return f.rows[i] end
-  local row = CreateFrame("Button", nil, f)
-  row:SetHeight(MS.ALT_LINE - 2)
-  row:SetPoint("TOPLEFT", 4, -4 - (i - 1) * MS.ALT_LINE)
-  row:SetPoint("RIGHT", f, "RIGHT", -4, 0)
+function MS.altsCharRow(i)
+  local strip = MS.altsFrame.strip
+  if strip.rows[i] then return strip.rows[i] end
+  local row = CreateFrame("Button", nil, strip)
+  row:SetHeight(MS.CHAR_H - 2)
+  row:SetPoint("TOPLEFT", 2, -2 - (i - 1) * MS.CHAR_H)
+  row:SetPoint("RIGHT", strip, "RIGHT", -2, 0)
   row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   UI.RowStripe(row)
   row:SetStripe(i % 2 == 0)
@@ -5110,46 +5163,67 @@ function MS.altsRow(i)
   row.bar:SetPoint("TOPLEFT") row.bar:SetPoint("BOTTOMLEFT") row.bar:SetWidth(2)
   row.bar:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
   row.icon = row:CreateTexture(nil, "ARTWORK")
-  row.icon:SetSize(24, 24)
-  row.icon:SetPoint("LEFT", 8, 0)
+  row.icon:SetSize(18, 18)
+  row.icon:SetPoint("LEFT", 6, 0)
   row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   row.top = UI.Text(row, 12, S.text)
-  row.top:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 8, 1)
-  row.top:SetPoint("RIGHT", row, "RIGHT", -110, 0)
+  row.top:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 7, 2)
+  row.top:SetPoint("RIGHT", row, "RIGHT", -120, 0)
   row.top:SetWordWrap(false)
   row.sub = UI.Text(row, 10, S.dim)
-  row.sub:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 8, -1)
-  row.sub:SetPoint("RIGHT", row, "RIGHT", -110, 0)
+  row.sub:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 7, -3)
+  row.sub:SetPoint("RIGHT", row, "RIGHT", -120, 0)
   row.sub:SetWordWrap(false)
   row.cost = UI.Text(row, 12, S.text, "RIGHT")
-  row.cost:SetPoint("TOPRIGHT", -8, -3)
+  row.cost:SetPoint("TOPRIGHT", -8, -2)
   row.count = UI.Text(row, 10, S.dim, "RIGHT")
-  row.count:SetPoint("BOTTOMRIGHT", -8, 3)
+  row.count:SetPoint("BOTTOMRIGHT", -8, 2)
   row:SetScript("OnClick", function(self, button)
     local p = self.plan
     if not p then return end
-    if button == "RightButton" then
-      local all = NW.db.altShop
-      if all[p.ck] then all[p.ck][p.key] = nil if not next(all[p.ck]) then all[p.ck] = nil end end
-      if MS.altSel == p.ck .. "|" .. p.key then MS.altSel = nil end
-    else
-      MS.altSel = p.ck .. "|" .. p.key
-    end
-    shopOffset = 0
+    if button == "RightButton" then return MS.altRemove(p) end
+    MS.altSel = p.ck .. "|" .. p.key
+    MS.altsFrame.list.offset = 0
     refresh()
   end)
-  f.rows[i] = row
+  strip.rows[i] = row
   return row
 end
-function MS.altsDraw()
+function MS.altsListRow(i)
+  local list = MS.altsFrame.list
+  if list.rows[i] then return list.rows[i] end
+  -- the shopping list's own row: same look, tooltip and clicks
+  local row = CreateFrame("Button", nil, list)
+  row:SetHeight(MS.CLIST_H)
+  row:SetPoint("TOPLEFT", 1, -2 - (i - 1) * MS.CLIST_H)
+  row:SetPoint("RIGHT", list, "RIGHT", -4, 0)
+  UI.RowStripe(row)
+  row:SetStripe(i % 2 == 0)
+  UI.RowHighlight(row)
+  row.icon = row:CreateTexture(nil, "ARTWORK")
+  row.icon:SetSize(18, 18)
+  row.icon:SetPoint("LEFT", 6, 0)
+  row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  row.name = UI.Text(row, 11, S.text)
+  row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+  row.name:SetPoint("RIGHT", row, "RIGHT", -110, 0)
+  row.name:SetWordWrap(false)
+  row.cost = UI.Text(row, 11, S.text, "RIGHT")
+  row.cost:SetPoint("RIGHT", -6, 0)
+  row:SetScript("OnEnter", shopRows[1]:GetScript("OnEnter"))
+  row:SetScript("OnLeave", shopRows[1]:GetScript("OnLeave"))
+  row:SetScript("OnClick", shopRows[1]:GetScript("OnClick"))
+  list.rows[i] = row
+  return row
+end
+function MS.altsDrawStrip()
   local f = MS.altsFrame
-  local h = f:GetHeight() or 0
-  if h < 100 then h = STEPS_BOX_H + 40 end -- (not laid out yet)
-  local nrows = math.max(1, math.floor((h - 24) / MS.ALT_LINE))
-  for i = 1, nrows do MS.altsRow(i) end
-  local plans = f.plans or {}
-  for i, row in ipairs(f.rows) do
-    local p = i <= nrows and plans[i + f.offset]
+  local strip, plans = f.strip, f.plans or {}
+  local n = math.min(#plans, MS.CHAR_MAX)
+  strip:SetHeight(math.max(1, n) * MS.CHAR_H + 4)
+  for i = 1, n do MS.altsCharRow(i) end
+  for i, row in ipairs(strip.rows) do
+    local p = i <= n and plans[i + strip.offset]
     row.plan = p or nil
     if p then
       row:Show()
@@ -5158,71 +5232,108 @@ function MS.altsDraw()
       local prof = NW.PROF_BY_KEY[p.key]
       row.icon:SetTexture(prof and prof.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
       local col = p.s.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[p.s.class]
-      local who = (col and col.colorStr and ("|c" .. col.colorStr) or "|cffe0dbd0") .. p.name .. "|r" .. (p.sameRealm and "" or ("|cff938c80-" .. p.realm .. "|r"))
-      row.top:SetText(who .. (p.me and " |cff938c80(you)|r" or "") .. "   |cffd6b266" .. (prof and prof.name or p.key) .. " " .. (p.s.from or "?") .. "-" .. (p.s.to or "?") .. "|r")
+      row.top:SetText((col and col.colorStr and ("|c" .. col.colorStr) or "|cffe0dbd0") .. p.label .. "|r" .. (p.me and " |cff938c80(you)|r" or "")
+        .. "   |cffd6b266" .. (prof and prof.name or p.key) .. " " .. (p.s.from or "?") .. "-" .. (p.s.to or "?") .. "|r")
       local old = time() - (p.s.t or 0) > 3 * 86400
-      row.sub:SetText((old and "|cffd17665" or "") .. "Saved " .. MS.ago(p.s.t) .. (old and ": may be out of date|r" or "") .. (p.me and "" or "  ·  their bags as of then"))
-      local _, all, total, unpriced = MS.altEntries(p)
-      local left = 0
-      for _, e in ipairs(all) do if e.buy > 0 then left = left + 1 end end
+      row.sub:SetText((old and "|cffd17665" or "") .. MS.updated(p.s.t) .. (old and ", may be out of date|r" or "")
+        .. (p.me and "  ·  your bags, live" or "  ·  cached bags"))
+      local _, _, total, unpriced, left = MS.altEntries(p)
       row.cost:SetText(NW.Money(total, "mid") .. (unpriced > 0 and " |cffd17665+?|r" or ""))
       row.count:SetText(left == 0 and "|cff94ba78all in bags|r" or (left .. " to buy"))
     else
       row:Hide()
     end
   end
-  f.empty:SetShown(#plans == 0)
-  f.note:SetShown(#plans > 0)
+  f.more:SetText(#plans > MS.CHAR_MAX and (("%d-%d of %d  ·  scroll for more"):format(strip.offset + 1, strip.offset + n, #plans)) or "")
 end
--- the right panel for the selected list: a plan header in place of the target, then its list
+function MS.altsDrawList()
+  local f = MS.altsFrame
+  local list = f.list
+  local h = list:GetHeight() or 0
+  if h < 60 then h = STEPS_BOX_H + 52 - (f.strip:GetHeight() or 0) - 16 end -- (not laid out yet)
+  local n = math.max(1, math.floor((h - 4) / MS.CLIST_H))
+  for i = 1, n do MS.altsListRow(i) end
+  list.offset = math.max(0, math.min(list.offset, #shop - n))
+  for i, row in ipairs(list.rows) do
+    local e = i <= n and shop[i + list.offset] or nil
+    row.entry = e
+    if e then row:Show() MS.paintShopRow(row, e) else row:Hide() end
+  end
+  list:SetShown(#shop > 0)
+end
+-- the right column for the selected list: its summary and the auction house buttons
 function MS.altsRight(p)
+  targetSlider:Hide() MS.targets:Hide() shopBox:Hide()
   if not p then
-    rHead.text:SetText("Saved shopping lists")
+    rHead.text:SetText("Characters")
     rTotal:SetText("|cff938c80Nothing saved yet.|r")
     shop, MS.shopAll = {}, {}
-    shopBox:Hide() searchBtn:Hide() MS.recipesBtn:Hide()
+    searchBtn:Hide() MS.recipesBtn:Hide()
+    MS.summary(nil)
     return
   end
-  local shown, all, total, unpriced = MS.altEntries(p)
+  local shown, all, total, unpriced, left = MS.altEntries(p)
   local prof = NW.PROF_BY_KEY[p.key]
-  rHead.text:SetText(p.name .. " · " .. (prof and prof.name or p.key))
+  rHead.text:SetText(p.label .. " · " .. (prof and prof.name or p.key))
   local mail = 0
   if not p.me then
     for _, e in ipairs(all) do
       if e.id and e.buy > 0 and (NW.ItemCount(e.id) or 0) > 0 and MS.canMail(p, e.id) then mail = mail + 1 end
     end
   end
-  rTotal:SetText(("Skill %s-%s  ·  saved %s\n%s  ·  %s"):format(p.s.from or "?", p.s.to or "?", MS.ago(p.s.t),
-    "|cffd6b266" .. NW.Money(total, "mid") .. "|r" .. (unpriced > 0 and " |cffd17665+?|r" or "") .. " at today's prices",
-    p.me and "your bags now" or (mail > 0 and ("|cff94ba78you have %d to mail|r"):format(mail) or "their bags as of then")))
-  targetSlider:Hide() MS.targets:Hide()
-  shopBox:ClearAllPoints()
-  shopBox:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -10)
-  shopBox:Show() searchBtn:Show()
+  local money = NW.Money(total, "mid") .. (unpriced > 0 and " |cffd17665+?|r" or "")
+  rTotal:SetText(table.concat({
+    ("Skill %s-%s  ·  %s"):format(p.s.from or "?", p.s.to or "?", MS.updated(p.s.t)),
+    ("|cffd6b266%s|r for %d item%s, at today's prices"):format(money, left, left == 1 and "" or "s"),
+    p.me and "|cff938c80Counts: your bags and bank, live.|r"
+      or ("|cff938c80Counts: %s's bags as saved (%s), not live.|r"):format(p.name, MS.updated(p.s.t):lower():gsub("^updated ", "")),
+    mail > 0 and ("|cff94ba78You have %d of these to mail.|r"):format(mail) or nil,
+  }, "\n"))
   shop, MS.shopAll = shown, all
   local nRecipes = 0
   for _, e in ipairs(all) do if e.recipe and e.buy > 0 then nRecipes = nRecipes + 1 end end
   MS.shopRecipes = nRecipes
+  searchBtn:ClearAllPoints()
+  searchBtn:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -12)
   searchBtn:SetWidth(nRecipes > 0 and RIGHT_W - 126 or RIGHT_W)
   searchBtn:SetText(nRecipes > 0 and "Search missing" or "Search missing in Auctionator")
+  searchBtn:Show()
   MS.recipesBtn:SetShown(nRecipes > 0)
-  shopOffset = math.min(shopOffset, math.max(0, #shop - shopVisible))
-  drawShop()
+  -- the numbers up top are this list's
+  MS.summary({ { "List cost", NW.Money(total, "gs") .. (unpriced > 0 and " |cffd17665+?|r" or ""), S.gold }, { "To buy", tostring(left) } },
+    { { p.label .. " · " .. (prof and prof.name or p.key) }, { MS.updated(p.s.t) } })
 end
 function MS.altsShow(on)
-  MS.altsOn = on
+  if MS.search then MS.search:SetShown(not on) end
   if not on then
     if MS.altsFrame then MS.altsFrame:Hide() end
+    if MS.altsMoved then
+      MS.altsMoved = nil
+      searchBtn:ClearAllPoints()
+      searchBtn:SetPoint("TOPLEFT", shopBox, "BOTTOMLEFT", 0, -8)
+    end
     return
   end
   if not MS.altsFrame then MS.altsBuild() end
+  MS.altsMoved = true
   local f = MS.altsFrame
   local p, plans = MS.altCurrent()
   f.plans = plans
-  f.offset = math.min(f.offset, math.max(0, #plans - 1))
+  f.strip.offset = math.min(f.strip.offset, math.max(0, #plans - MS.CHAR_MAX))
+  -- the selected plan stays in view
+  for i, q in ipairs(plans) do
+    if p and q.ck == p.ck and q.key == p.key then
+      if i <= f.strip.offset then f.strip.offset = i - 1
+      elseif i > f.strip.offset + MS.CHAR_MAX then f.strip.offset = i - MS.CHAR_MAX end
+      break
+    end
+  end
   f:Show()
-  MS.altsDraw()
+  f.strip:SetShown(#plans > 0) f.note:SetShown(#plans > 0)
+  f.empty:SetShown(#plans == 0)
   MS.altsRight(p)
+  MS.altsDrawStrip()
+  MS.altsDrawList()
 end
 -- a saved list's item in the shopping list's tooltip: whose bags, how fresh, what you can mail
 function MS.altTip(e)
@@ -5233,7 +5344,7 @@ function MS.altTip(e)
   if p.me then
     GameTooltip:AddDoubleLine("In your bags and bank now", e.have, d[1], d[2], d[3], 1, 1, 1)
   else
-    GameTooltip:AddDoubleLine(p.name .. " had (saved " .. MS.ago(p.s.t) .. ")", e.have, d[1], d[2], d[3], 1, 1, 1)
+    GameTooltip:AddDoubleLine(p.name .. " had (cached, " .. MS.updated(p.s.t):lower():gsub("^updated ", "") .. ")", e.have, d[1], d[2], d[3], 1, 1, 1)
     local mine = NW.ItemCount(e.id) or 0
     local ok, why = MS.canMail(p, e.id)
     GameTooltip:AddDoubleLine("You have now", mine .. (mine > 0 and (ok and "  |cff94ba78can mail|r" or ("  |cffd17665" .. (why or "") .. "|r")) or ""), d[1], d[2], d[3], 1, 1, 1)
