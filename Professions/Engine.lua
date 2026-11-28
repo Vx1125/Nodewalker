@@ -1029,13 +1029,13 @@ function NW.BuildPlan(key, from, to)
     priceMemo = {}
     NW.craftKey = key
     craftOf = {}
-    for _, r in ipairs(recipes) do if r.item and not craftOf[r.item] and not onCooldown(r) then craftOf[r.item] = r end end
+    for _, r in ipairs(recipes) do if r.item and not craftOf[r.item] and not onCooldown(r) and (r.src ~= "known" or isKnown(key, r)) then craftOf[r.item] = r end end
   end
   if planCache[cacheKey] then return planCache[cacheKey] end
 
   local _, maxSkill = NW.ProfSkill(key)
   craftOf = {}
-  for _, r in ipairs(recipes) do if r.item and not craftOf[r.item] and not onCooldown(r) then craftOf[r.item] = r end end
+  for _, r in ipairs(recipes) do if r.item and not craftOf[r.item] and not onCooldown(r) and (r.src ~= "known" or isKnown(key, r)) then craftOf[r.item] = r end end
 
   local costOf, unknownOf = {}, {}
   for i, r in ipairs(recipes) do costOf[i], unknownOf[i] = craftCost(r, sell) end

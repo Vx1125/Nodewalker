@@ -1865,7 +1865,8 @@ function F.actionDetail(a, plan)
         if b.kind == "cook" and b.phase == a.phase then
           for _, r in ipairs(NW.RECIPES.cooking or {}) do
             local fl = F.fishInRecipe(r)
-            if #fl == 1 and not seen[fl[1]] and #r.reagents <= 2 and NW.SkillUpChance(r, b.step.from) > 0
+            local ok = r.src ~= "known" or (NW.charDB.known.cooking or {})[r.name]
+            if ok and #fl == 1 and not seen[fl[1]] and #r.reagents <= 2 and NW.SkillUpChance(r, b.step.from) > 0
               and (r.orange or r.yellow) <= b.step.from and F.FISH[fl[1]].skill then
               seen[fl[1]] = true
               alt[#alt + 1] = fl[1]

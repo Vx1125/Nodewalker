@@ -716,7 +716,7 @@ for i = 1, STEP_FRAMES do
     if stp.fee then GameTooltip:AddDoubleLine("Trainer: recipe", NW.Money(stp.fee), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     if stp.rankFee and stp.rankFee > 0 then GameTooltip:AddDoubleLine("Trainer: " .. stp.rankUp.name, NW.Money(stp.rankFee), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
     local src = r.src == "trainer" and "Trainer" or r.src == "rank" and "Learned with the profession"
-      or "Recipe from a vendor or drop"
+      or r.src == "known" and "Known" or "Recipe from a vendor or drop"
     GameTooltip:AddDoubleLine("Source", src, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
     if stp.needsRecipe then
       GameTooltip:AddLine("You need this recipe first.", 1, 0.5, 0.25, true)
@@ -3895,7 +3895,7 @@ for _, row in ipairs(stepRows) do
         local n, ok
       if r.item then n, ok = itemName(r.item) end
         term = ok and n or nil
-      elseif r.src == "recipe" or r.src == "scan" then
+      elseif r.src == "recipe" or r.src == "scan" or (r.src == "known" and r.recipeItem) then
         term = (RECIPE_PREFIX[r.findKey or selected] or "") .. r.name
       end
       if term then searchAH({ { term, 1 } }) end
