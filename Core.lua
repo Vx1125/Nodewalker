@@ -61,6 +61,9 @@ local DEFAULTS = {
     buffLayout = "horizontal", buffIconSize = 32, buffHudScale = 1, buffHudAlpha = 1, buffShowCount = true,
     buffShowTime = true, buffWarnMin = 5, buffCooldowns = true, buffHideResting = false, buffHideMounted = false, buffHideEmpty = false,
     buffNotifyMissing = true, buffNotifyExpiring = true, buffNotifyStock = false, buffNotifyReady = true, buffSound = false,
+    -- Smart Tooltips (Settings › Tooltips)
+    tipOn = true, tipMode = "always", tipDisenchant = true, tipSkinning = true, tipNeeds = true,
+    tipValues = true, tipCounts = true, tipChances = true,
   },
 }
 
@@ -461,9 +464,8 @@ SlashCmdList.NODEWALKER = function(msg)
     if NW.BuffTracker then NW.BuffTracker.ForgetLearned() NW.Print("Learned buffs forgotten.") end
   elseif msg == "tips" then
     local st = NW.db.settings
-    local on = not (st.tipDisenchant ~= false and st.tipSkinning ~= false)
-    st.tipDisenchant, st.tipSkinning = on, on
-    NW.Print(on and "Disenchant and skinning tooltips on." or "Disenchant and skinning tooltips off.")
+    st.tipOn = st.tipOn == false
+    NW.Print(st.tipOn and "Smart Tooltips on." or "Smart Tooltips off.")
   elseif msg == "fishhud" then
     if NW.ToggleFishHUD then NW.ToggleFishHUD() end
   elseif msg == "window" or msg == "open" then

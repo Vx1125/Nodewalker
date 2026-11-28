@@ -14,6 +14,20 @@ International licence (CC BY-SA 4.0), separately from Nodewalker's GPL-3.0-or-la
             a single number are kept as printed. No values were altered.
   Status:   community data for WoW: Forever, not verified in game.
 
+Professions/DisenchantSkill.lua is licensed the same way (CC BY-SA 4.0), separately from the GPL code.
+
+  Source:   "Disenchanting", Warcraft Wiki contributors
+            https://warcraft.wiki.gg/wiki/Disenchanting
+            Revision: oldid 6896080 (last edited 30 September 2026)
+            Contributors: https://warcraft.wiki.gg/wiki/Disenchanting?action=history
+  Licence:  CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/
+  Retrieved: 2026-11-28, read by hand.
+  Taken:    the Enchanting skill needed to disenchant, by item level, for uncommon, rare and epic
+            items, cut to item level 100 (tools/data/disenchant_skill.json).
+  Changes:  arranged as a Lua table of (lowest item level, highest item level, skill). No values altered.
+  Status:   the page calls its tables pre-Battle for Azeroth and doesn't label them Classic; reference
+            values, not verified for WoW: Forever. It has no epic row below item level 61.
+
 No warranties are given. Warcraft content and materials are the intellectual property of Blizzard
 Entertainment; this notice covers only the wiki contributors' work.
 

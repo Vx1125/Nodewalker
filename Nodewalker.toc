@@ -17,6 +17,8 @@ OpenMapData\Reveal.lua
 Core.lua
 Widgets.lua
 Professions\Engine.lua
+Professions\DisenchantData.lua
+Professions\DisenchantSkill.lua
 Professions\Alchemy.lua
 Professions\Blacksmithing.lua
 Professions\Enchanting.lua
@@ -46,4 +48,5 @@ Professions\FishJournal.lua
 Professions\SmartFishing.lua
 Consumes.lua
 Tracker.lua
+Tooltips.lua
 Options.lua

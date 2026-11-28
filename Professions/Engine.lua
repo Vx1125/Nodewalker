@@ -846,70 +846,67 @@ local function isKnown(key, r)
   return k and k[r.name] or false
 end
 
--- Disenchanting: what an item breaks into, by quality and item level.
--- Each row: top item level, then { item, chance, average count } outcomes.
-local DUST = { 10940, 11083, 11137, 11176, 16204 }
-local DE_GREEN = { -- armour; weapons swap the dust and essence chances
-  { 15, { 10940, 0.80, 1.5 }, { 10938, 0.20, 1.5 } },
-  { 20, { 10940, 0.75, 2.5 }, { 10939, 0.20, 1.5 }, { 10978, 0.05, 1 } },
-  { 25, { 10940, 0.75, 5 }, { 10998, 0.15, 1.5 }, { 10978, 0.10, 1 } },
-  { 30, { 11083, 0.75, 1.5 }, { 11082, 0.20, 1.5 }, { 11084, 0.05, 1 } },
-  { 35, { 11083, 0.75, 3.5 }, { 11134, 0.20, 1.5 }, { 11138, 0.05, 1 } },
-  { 40, { 11137, 0.75, 1.5 }, { 11135, 0.20, 1.5 }, { 11139, 0.05, 1 } },
-  { 45, { 11137, 0.75, 3.5 }, { 11174, 0.20, 1.5 }, { 11177, 0.05, 1 } },
-  { 50, { 11176, 0.75, 1.5 }, { 11175, 0.20, 1.5 }, { 11178, 0.05, 1 } },
-  { 55, { 11176, 0.75, 3.5 }, { 16202, 0.20, 1.5 }, { 14343, 0.05, 1 } },
-  { 60, { 16204, 0.75, 1.5 }, { 16203, 0.20, 1.5 }, { 14344, 0.05, 1 } },
-  { 999, { 16204, 0.75, 3.5 }, { 16203, 0.20, 2.5 }, { 14344, 0.05, 1 } },
-}
-local DE_BLUE = { { 25, 10978 }, { 30, 11084 }, { 35, 11138 }, { 40, 11139 }, { 45, 11177 }, { 50, 11178 }, { 55, 14343 }, { 999, 14344 } }
-local DE_EPIC = { { 45, 11177, 3 }, { 50, 11178, 3 }, { 55, 14343, 3 }, { 60, 20725, 1 }, { 999, 20725, 1.5 } }
-local isDust = {}
-for _, id in ipairs(DUST) do isDust[id] = true end
--- every dust, essence and shard the tables above can give
-local deMat = {}
-for _, t in ipairs({ DE_GREEN, DE_BLUE, DE_EPIC }) do
-  for _, row in ipairs(t) do
-    if type(row[2]) == "number" then deMat[row[2]] = true end
-    for i = 2, #row do if type(row[i]) == "table" then deMat[row[i][1]] = true end end
+-- Disenchanting: what an item breaks into. Professions/DisenchantData.lua (cMaNGOS
+-- classic-db): per-item tables, read by quality, class and item level, with the items
+-- that don't follow the rule listed one by one. WoW Classic data; WoW Forever may differ.
+local deMat -- every dust, essence and shard the tables give (built on first use)
+function NW.IsDisenchantMat(id)
+  if not deMat then
+    deMat = {}
+    for _, t in pairs(NW.DE and NW.DE.T or {}) do
+      for i = 1, #t, 4 do deMat[t[i]] = true end
+    end
   end
+  return deMat[id] or false
 end
-function NW.IsDisenchantMat(id) return deMat[id] or false end
 
--- What an item is worth disenchanted, at today's prices; nil if it can't be
--- (or the game hasn't sent the item yet). Also returns the outcomes used.
--- What an item breaks into: { { item, chance, average count }, ... }, or nil
--- if it can't be disenchanted (or the game hasn't sent the item yet).
--- WoW Classic disenchanting tables; WoW Forever may differ.
-function NW.DisenchantOutcomes(itemID)
-  if type(itemID) ~= "number" then return nil end
+-- The table an item disenchants by, and "classic" (an item in WoW Classic) or "level"
+-- (an item new in WoW Forever, given its quality and item level's table); nil if it
+-- can't be disenchanted, Classic lists no disenchant for it, or the game hasn't sent it yet.
+function NW.DisenchantTable(itemID)
+  local D = NW.DE
+  if type(itemID) ~= "number" or not D or D.N[itemID] then return nil end
   local _, _, quality, ilvl, _, _, _, _, _, _, _, classID = NW.ItemInfo(itemID)
   if not quality then
     if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, itemID) end
     return nil
   end
-  if (classID ~= 2 and classID ~= 4) or quality < 2 or quality > 4 or not ilvl or ilvl < 5 then return nil end
-  if quality == 2 then
-    for _, row in ipairs(DE_GREEN) do
-      if ilvl <= row[1] then
-        local out = {}
-        for i = 2, #row do
-          local o = row[i]
-          local chance = o[2]
-          -- weapons: mostly essence, sometimes dust
-          if classID == 2 and chance ~= 0.05 and chance ~= 0.10 then chance = isDust[o[1]] and 0.20 or (1 - 0.20 - (row[4] and row[4][2] or 0)) end
-          out[#out + 1] = { o[1], chance, o[3] }
-        end
-        return out
-      end
+  if (classID ~= 2 and classID ~= 4) or quality < 2 or quality > 4 or not ilvl or ilvl < 1 then return nil end
+  local did = D.X[itemID]
+  if not did then
+    local b = D.B[quality * 10 + classID]
+    if not b then return nil end
+    for i = 1, #b, 2 do
+      if ilvl <= b[i] then did = b[i + 1] break end
     end
-    return nil
+    did = did or b[#b]
   end
-  for _, row in ipairs(quality == 3 and DE_BLUE or DE_EPIC) do
-    if ilvl <= row[1] then return { { row[2], 1, row[3] or 1 } } end
+  local t = D.T[did]
+  if not t then return nil end
+  return t, itemID <= D.maxID and "classic" or "level", quality, ilvl
+end
+
+-- What an item breaks into: { { item, chance (0-1), min, max }, ... }, or nil.
+function NW.DisenchantOutcomes(itemID)
+  local t, how, quality, ilvl = NW.DisenchantTable(itemID)
+  if not t then return nil end
+  local out = {}
+  for i = 1, #t, 4 do out[#out + 1] = { t[i], t[i + 1] / 100, t[i + 2], t[i + 3] } end
+  return out, how, quality, ilvl
+end
+
+-- Enchanting skill needed to disenchant (Professions/DisenchantSkill.lua, Warcraft Wiki);
+-- nil where the reference has no row
+function NW.DisenchantSkill(quality, ilvl)
+  local t = NW.DE_SKILL and NW.DE_SKILL[quality]
+  if not t or not ilvl then return nil end
+  for i = 1, #t, 3 do
+    if ilvl >= t[i] and ilvl <= t[i + 1] then return t[i + 2] end
   end
 end
 
+-- What an item is worth disenchanted, at today's prices; nil if it can't be
+-- (or the game hasn't sent the item yet). Also returns the outcomes used.
 function NW.DisenchantValue(itemID)
   if type(itemID) ~= "number" then return nil end
   -- Auctionator's own disenchant figure, when it has one for this client
@@ -922,7 +919,7 @@ function NW.DisenchantValue(itemID)
   local outcomes
   if de then
     outcomes = {}
-    for _, o in ipairs(de) do outcomes[#outcomes + 1] = { o[1], o[2] * o[3] } end
+    for _, o in ipairs(de) do outcomes[#outcomes + 1] = { o[1], o[2] * (o[3] + o[4]) / 2 } end
   end
   if not outcomes then return nil end
   local value = 0
@@ -1855,40 +1852,5 @@ do
     local plan = raw(...)
     NW.PerfStop("Plan", t0)
     return plan
-  end
-end
-
-------------------------------------------------------------------------
--- Item tooltips: what an uncommon, rare or epic weapon or armour piece
--- disenchants into (Settings: /nw tips).
-------------------------------------------------------------------------
-local function deTooltip(tip, itemID)
-  if not itemID or not NW.db or NW.db.settings.tipDisenchant == false then return end
-  local de = NW.DisenchantOutcomes(itemID)
-  if not de then return end
-  tip:AddLine("Disenchants into", 0.84, 0.70, 0.40)
-  local total = 0
-  for _, o in ipairs(de) do
-    local name = NW.ItemInfo(o[1]) or (NW.ItemName and NW.ItemName(o[1])) or ("item " .. o[1])
-    local count = o[3] ~= 1 and (" |cff938c80x" .. (o[3] % 1 == 0 and ("%d"):format(o[3]) or ("%.1f"):format(o[3])) .. "|r") or ""
-    tip:AddDoubleLine("  " .. name .. count, o[2] < 1 and (math.floor(o[2] * 100 + 0.5) .. "%") or "", 1, 1, 1, 0.58, 0.55, 0.50)
-    local p = auctionator(o[1])
-    total = total and p and total + p * o[2] * o[3] or nil
-  end
-  if total and total > 0 then tip:AddDoubleLine("  Value", "~" .. NW.Money(total, "mid"), 0.58, 0.55, 0.50, 1, 1, 1) end
-  tip:Show()
-end
-local function itemIDFrom(tip)
-  local _, link = tip:GetItem()
-  return link and tonumber(link:match("item:(%d+)"))
-end
-if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
-  TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tip, data)
-    if tip ~= GameTooltip and tip ~= ItemRefTooltip then return end
-    pcall(deTooltip, tip, data and data.id or itemIDFrom(tip))
-  end)
-else
-  for _, tip in ipairs({ GameTooltip, ItemRefTooltip }) do
-    if tip then tip:HookScript("OnTooltipSetItem", function(t) pcall(deTooltip, t, itemIDFrom(t)) end) end
   end
 end

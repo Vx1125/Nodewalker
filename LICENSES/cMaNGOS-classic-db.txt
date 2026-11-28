@@ -7,6 +7,13 @@ made from it. It is included unchanged as LICENSES/cMaNGOS-classic-db-LICENSE.md
 its copyright notice as LICENSES/cMaNGOS-classic-db-COPYRIGHT.md. As that notice says,
 World of Warcraft content and materials remain Blizzard's and are not covered by the GPL.
 
+Professions/DisenchantData.lua is also derived from it (tools/build_disenchant.py):
+  - disenchant_loot_template: what each disenchant table gives, its chance and its minimum
+    and maximum count. Group entries with chance 0 are given what the group's others leave.
+  - item_template: class, quality, item level and DisenchantID, to read which table an item
+    gets (D.B), the items that don't follow that (D.X) and the weapons and armour listed with
+    no disenchant (D.N).
+
 What was used, and how it was changed (tools/build_sources.py):
   - creature_template: level range, creature type, rank, and the skinning loot id
     (also used as the skinnable flag), and CreatureTypeFlags: creatures flagged for

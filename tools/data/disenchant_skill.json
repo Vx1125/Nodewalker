@@ -1,0 +1,10 @@
+{
+ "source": "Warcraft Wiki, Disenchanting (https://warcraft.wiki.gg/wiki/Disenchanting?oldid=6896080)",
+ "licence": "CC BY-SA 4.0",
+ "retrieved": "2026-11-28",
+ "method": "read by hand; the item-level tables for Enchanting skill needed to disenchant, cut to item level 100",
+ "note": "The page calls these tables pre-Battle for Azeroth and does not label them Classic. Reference values, not confirmed for WoW Forever. No epic row below item level 61 on the page, so none here.",
+ "uncommon": [[1, 20, 1], [21, 25, 25], [26, 30, 50], [31, 35, 75], [36, 40, 100], [41, 45, 125], [46, 50, 150], [51, 55, 175], [56, 60, 200], [61, 99, 225]],
+ "rare": [[10, 25, 25], [26, 30, 50], [31, 35, 75], [36, 40, 100], [41, 45, 125], [46, 50, 150], [51, 55, 175], [56, 60, 200], [61, 97, 225]],
+ "epic": [[61, 95, 225]]
+}

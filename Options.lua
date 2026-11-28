@@ -910,6 +910,26 @@ if NW.BuffTracker then
 end
 
 ------------------------------------------------------------------------
+-- Tooltips: Smart Tooltips, Nodewalker's lines in the game's own tooltips
+------------------------------------------------------------------------
+newPage("tips", "Tooltips", "Interface\\Icons\\INV_Misc_Note_01")
+heading(1, "Smart Tooltips")
+check(1, "Show Nodewalker lines", "tipOn", "In the game's item and creature tooltips. /nw tips turns them on or off.")
+track("tipMode", "Show")
+dependsOn(place(1, UI.Dropdown(page, COL_W - 20, "Show", { { "always", "Always" }, { "shift", "Hold Shift" }, { "ctrl", "Hold Ctrl" }, { "alt", "Hold Alt" } },
+  function() return s().tipMode or "always" end, function(v) s().tipMode = v end, 200), 30, 2), "tipOn")
+heading(1, "Sections")
+dependsOn(check(1, "Disenchanting", "tipDisenchant", "Uncommon, rare and epic weapons and armour: what they break into and the Enchanting skill needed."), "tipOn")
+dependsOn(check(1, "Skinning", "tipSkinning", "Creatures: the Skinning skill needed and what they give."), "tipOn")
+dependsOn(check(1, "Character needs", "tipNeeds", "Materials your saved shopping lists still need (Professions › Characters).",
+  function() if NW.Tooltips then NW.Tooltips.ForgetNeeds() end end), "tipOn")
+heading(2, "Details")
+dependsOn(check(2, "Estimated values", "tipValues", "At Auctionator prices. A missing price shows as +?, never as zero."), "tipOn")
+dependsOn(check(2, "Quantities", "tipCounts", "How many each disenchant or skin gives."), "tipOn")
+dependsOn(check(2, "Chances", "tipChances", "WoW Classic figures; WoW Forever may differ."), "tipOn")
+defaultsButton()
+
+------------------------------------------------------------------------
 -- Data & Integrations: other add-ons, where the data comes from, upkeep
 ------------------------------------------------------------------------
 newPage("data", "Data & Integrations", "Interface\\Icons\\INV_Misc_Book_09")

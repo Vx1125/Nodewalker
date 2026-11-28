@@ -1,7 +1,8 @@
 # Changelog
 
 ## Unreleased
-- Tooltips: what a green, blue or purple weapon or armour piece disenchants into, and what a creature gives when skinned and the skill it needs (/nw tips turns both off).
+- Smart Tooltips: gear shows what it disenchants into, the Enchanting skill and its value; creatures show the Skinning skill and what they give; materials show which saved character lists still need them (Settings › Tooltips, /nw tips).
+- Disenchanting now uses cMaNGOS's per-item tables: exact chances and counts, shields and off-hands right, and items Classic can't disenchant left out of Profit.
 
 ## 1.4.1
 - Quick start and FAQ updated for Consumes, Characters and the tracker.
