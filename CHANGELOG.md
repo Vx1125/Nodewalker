@@ -1,6 +1,7 @@
 # Changelog
 
-## Unreleased
+## 1.4.1
+- Quick start and FAQ updated for Consumes, Characters and the tracker.
 - Material Finder: "All herbs" (or ore) is the first row: one route past everything you can gather in a zone, with what your filters hide.
 
 ## 1.4.0
