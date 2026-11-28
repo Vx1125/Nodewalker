@@ -56,5 +56,54 @@
   "evidence": "One For All 6.3.0's teach list gives this recipe only to Leatherworking trainers 7870/7871 (Tribal), the same evidence as the six Dragonscale/Elemental/Tribal entries above. Found by the recipe QC review, 2026-11-27.",
   "kind": "specialization (from approved data)",
   "approved": true
+ },
+ {
+  "recipe": "firstaid/Minor Healing Potion",
+  "source": "trainer",
+  "evidence": "method.gg 'First Aid in WoW Forever: 1-300 Leveling Guide & Trainers' (Trainer, skill 1); warcrafttavern.com First Aid leveling guide (learned with Apprentice First Aid);  Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe.",
+  "kind": "game facts from community guides",
+  "approved": true
+ },
+ {
+  "recipe": "firstaid/Lesser Healing Potion",
+  "source": "trainer",
+  "evidence": "method.gg 'First Aid in WoW Forever: 1-300 Leveling Guide & Trainers' (Trainer, skill 55); warcrafttavern.com First Aid leveling guide (any First Aid trainer, Journeyman);  Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe.",
+  "kind": "game facts from community guides",
+  "approved": true
+ },
+ {
+  "recipe": "firstaid/Healing Potion",
+  "source": "trainer",
+  "evidence": "method.gg 'First Aid in WoW Forever: 1-300 Leveling Guide & Trainers' (Trainer, skill 110); warcrafttavern.com First Aid leveling guide (any First Aid trainer);  Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe.",
+  "kind": "game facts from community guides",
+  "approved": true
+ },
+ {
+  "recipe": "firstaid/Simple Poultice",
+  "source": "trainer",
+  "evidence": "method.gg 'First Aid in WoW Forever: 1-300 Leveling Guide & Trainers' (Trainer, skill 90) Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe.",
+  "kind": "game facts from community guides",
+  "approved": true
+ },
+ {
+  "recipe": "firstaid/Woolen Tourniquet",
+  "source": "trainer",
+  "evidence": "method.gg 'First Aid in WoW Forever: 1-300 Leveling Guide & Trainers' (Trainer, skill 120) Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe.",
+  "kind": "game facts from community guides",
+  "approved": true
+ },
+ {
+  "recipe": "engineering/Sandpaper",
+  "source": "trainer",
+  "evidence": "Warcraft Wiki 'Forever engineering schematics': Source Trainer, skill 120 (One For All's learn level, 130, is kept). Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe.",
+  "kind": "game facts from community guides",
+  "approved": true
+ },
+ {
+  "recipe": "tailoring/Mooncloth Boots",
+  "source": "known",
+  "evidence": "Warcraft Wiki 'Forever tailoring patterns': Source Quest, skill 285. A quest recipe with no item: stays planned only once known. Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe.",
+  "kind": "game facts from community guides",
+  "approved": true
  }
 ]
