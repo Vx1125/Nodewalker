@@ -32,7 +32,6 @@ R("Surgical Tourniquet",265,280,310,340,"recipe",255722,"8170:2,14047:2,8343:2",
 R("Major Healing Potion",275,290,310,330,"recipe",13446,"8925:1,3713:3,13464:1",1)
 R("Powerful Poultice",280,295,325,355,"recipe",255719,"7080:1,2692:1,2594:1",3)
 R("Heavy Runecloth Bandage",nil,290,320,350,"trainer",14530,"14047:2",1)
-R("Crystal Infused Bandage",nil,300,330,360,"trainer",23684,"23567:1,14047:10",4)
 R("Plague Doctor's Laboratory",nil,300,300,300,"recipe",279951,"4470:2,6453:2,14530:5",1)
 R("Powerful Anti-Venom",nil,300,330,360,"recipe",19440,"19441:1",3)
 NW.RecipeItems("firstaid", { ["Strong Anti-Venom"]=6454, ["Toxin Study"]=273105, ["Clever Poultice"]=255724, ["Greater Healing Potion"]=255723, ["Heavy Silk Bandage"]=16112, ["Leather Tourniquet"]=255726, ["Mageweave Bandage"]=16113, ["Superior Poultice"]=255727, ["Potent Anti-Venom"]=255728, ["Superior Healing Potion"]=255725, ["Surgical Tourniquet"]=255730, ["Major Healing Potion"]=255729, ["Powerful Poultice"]=255731, ["Plague Doctor's Laboratory"]=273118, ["Powerful Anti-Venom"]=19442 })

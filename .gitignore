@@ -3,6 +3,7 @@ texluac.out
 # Notes and working files for us only: never on GitHub or CurseForge
 CLAUDE.md
 CLAUDE.local.md
+DATA_SOURCES.md
 .claude/
 research/
 tools/reports/*.md

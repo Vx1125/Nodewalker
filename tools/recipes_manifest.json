@@ -17,6 +17,7 @@
   "Data/Professions/FirstAid.lua": "13b5ec0fe476d0d5baebcacd61d5c087f10250a32dfdb26a5241785b29a68404",
   "Data/Professions/Leatherworking.lua": "ac9a5cc55337fa884e7625095a8b8400c92cd586bf9d623c55792b3625452d59",
   "Data/Professions/Tailoring.lua": "d5ff31deb3879b74cc41e77091cd2871a87ed6173a6f1c153d6dd1efb3c984ec",
-  "Data/ProfessionFees.lua": "3abd99fa3e20338f2e2a8e66d97106978c2078a6c1a1ac01b118f5410ac786b9"
+  "Data/ProfessionFees.lua": "3abd99fa3e20338f2e2a8e66d97106978c2078a6c1a1ac01b118f5410ac786b9",
+  "Data/Smelting.lua": "66fb3b580ada06dc5da7a4bf85fc725df444c5a405c472a73c2eb2ad6c7a68d8"
  }
 }

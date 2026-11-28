@@ -17,6 +17,7 @@ ignore:
   - research
   - CLAUDE.md
   - CLAUDE.local.md
+  - DATA_SOURCES.md
   - .claude
   - .gitignore
   - .pkgmeta

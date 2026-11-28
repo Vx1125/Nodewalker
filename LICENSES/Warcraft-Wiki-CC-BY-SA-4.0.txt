@@ -1,0 +1,20 @@
+Professions/SmeltingColours.lua is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International licence (CC BY-SA 4.0), separately from Nodewalker's GPL-3.0-or-later code.
+
+  Source:   "Forever mining techniques", Warcraft Wiki contributors
+            https://warcraft.wiki.gg/wiki/Forever_mining_techniques
+            Revision: oldid 6982733 (last edited 17 November 2026)
+            Contributors: https://warcraft.wiki.gg/wiki/Forever_mining_techniques?action=history
+  Licence:  CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/
+            (Warcraft Wiki's copyright policy: https://warcraft.wiki.gg/wiki/Warcraft_Wiki:Copyrights)
+  Retrieved: 2026-11-27, read by hand.
+  Taken:    the skill-up numbers (yellow, green, grey) for each smelted bar in the page's smelting table.
+  Changes:  arranged as a Lua table keyed by bar name. The page's learn-level column is not used
+            (learn levels come from the Forever client data in One For All); rows where the page prints
+            a single number are kept as printed. No values were altered.
+  Status:   community data for WoW: Forever, not verified in game.
+
+No warranties are given. Warcraft content and materials are the intellectual property of Blizzard
+Entertainment; this notice covers only the wiki contributors' work.
+
+The full licence text: https://creativecommons.org/licenses/by-sa/4.0/legalcode

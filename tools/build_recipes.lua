@@ -6,7 +6,9 @@
 -- Reads   <OneForAll>/Data/Professions/<Profession>.lua and Data/ProfessionFees.lua (checked against
 --         tools/recipes_manifest.json: version and SHA-256 of each file; a mismatch stops the build).
 -- Writes  Professions/Catalog.lua (every recipe), and the leveling lists Professions/<Profession>.lua
---         for the eight crafting professions (every recipe with skill colours, specializations left out). Mining (smelting) isn't in One For All: not written here.
+--         for the eight crafting professions: every recipe with skill colours, except a specialization's
+--         (trainer flag or RECIPE_SPEC pattern), cooldown recipes (CRAFT_COOLDOWN), and Classic recipes
+--         One For All has no way of learning for (no trainer, recipe item or source). Mining (smelting) isn't in One For All: not written here.
 --
 -- What each value is taken from (and what isn't used):
 --   name, crafted item or spell, reagents, count     One For All (from the Forever client's DB2 tables)
@@ -38,7 +40,9 @@ end
 local manifest = assert(io.open("tools/recipes_manifest.json")):read("*a")
 local want = {}
 for file, sum in manifest:gmatch('"(Data/[^"]+)"%s*:%s*"(%x+)"') do want[file] = sum end
-local bad = 0
+local bad, n = 0, 0
+for _ in pairs(want) do n = n + 1 end
+if n < 10 then error("tools/recipes_manifest.json lists " .. n .. " files; expected 10") end
 for file, sum in pairs(want) do
   local got = sha256(OFA .. "/" .. file)
   if got ~= sum then bad = bad + 1 io.stderr:write(("checksum mismatch: %s (%s, want %s)\n"):format(file, tostring(got), sum)) end
@@ -50,6 +54,7 @@ local FLT = {}
 local function load(path) local f = assert(loadfile(path)); f("OneForAll", FLT) end
 for _, p in ipairs(PROFS) do load(OFA .. "/Data/Professions/" .. p[1] .. ".lua") end
 load(OFA .. "/Data/ProfessionFees.lua")
+load(OFA .. "/Data/Smelting.lua")
 
 local function clean(s) return (tostring(s):gsub("[;|]", ",")) end
 -- Reviewed corrections: tools/recipe_overrides.json, one per recipe, each with its evidence; only
@@ -144,7 +149,8 @@ for _, p in ipairs(PROFS) do
     local total = s.dn or #(s.d or {})
     if total > nd then src[#src + 1] = "+" .. (total - nd) end
     for _, qq in ipairs(s.qs or {}) do src[#src + 1] = "Q" .. clean(qq[2]) end
-    if #src == 0 and not r.ri then src[#src + 1] = "T" end
+    -- no source at all: a trainer's only for Forever's own spells or a teach list (see the leveling rule)
+    if #src == 0 and not r.ri and ((r.s and r.s >= 1000000) or taught[r.s]) then src[#src + 1] = "T" end
     local re = {}
     for _, x in ipairs(r.r or {}) do re[#re + 1] = x[1] .. ":" .. x[2] end
     local reagents = table.concat(re, ",")
@@ -161,13 +167,21 @@ for _, p in ipairs(PROFS) do
     local noOtherSource = not r.ri and not (s0.v or s0.d or s0.qs)
     -- trainer: a fee (not a specialization's), a teach list, or (One For All's own rule, as in its
     -- Catalog codes) no recipe item and no other source: Forever's new trainer recipes have no fee data
-    local trainerTaught = (fee and not fee[3]) or (not fee and (taught[r.s] or noOtherSource))
+    -- (only for Forever's own spells, IDs from 1,000,000: a Classic recipe with no source is a quest,
+    -- reputation or drop recipe One For All has no source for, and stays out of the leveling list)
+    local foreverNew = r.s and r.s >= 1000000
+    local trainerTaught = (fee and not fee[3]) or (not fee and (taught[r.s] or (noOtherSource and foreverNew)))
     local kind = r.start and "rank" or trainerTaught and "trainer" or "recipe"
+    local unknownWay = noOtherSource and not trainerTaught and not r.start
+    -- a pattern only a specialization can learn (client ItemSparse RequiredAbility, One For All's
+    -- RECIPE_SPEC), and recipes on a long cooldown (CRAFT_COOLDOWN: "never planned for skill")
+    local specOnly = r.ri and FLT.RECIPE_SPEC and FLT.RECIPE_SPEC[r.ri]
+    local cooldown = FLT.CRAFT_COOLDOWN and FLT.CRAFT_COOLDOWN[r.s]
     -- reviewed corrections (tools/recipe_overrides.json, approved ones only)
     local ov = OVERRIDES[key .. "/" .. r.n]
     if ov and ov.source then kind = ov.source end
     if ov and ov.exclude then colours = false end
-    if colours and not (fee and fee[3]) then
+    if colours and not (fee and fee[3]) and not specOnly and not cooldown and not unknownWay then
       lev[#lev + 1] = { r = r, learn = learn, from = from, kind = kind, reagents = reagents, id = id }
     end
   end
@@ -207,6 +221,79 @@ for _, L in ipairs(leveling) do
   fh:write(table.concat(out, "\n") .. "\n") fh:close()
   counts[#counts + 1] = ("%s %d"):format(L.key, #L.list)
 end
+-- ---------- smelting (Mining) ----------
+-- Bars, items, reagents, counts and learn levels: One For All's Data/Smelting.lua (Forever client).
+-- Skill colours: Warcraft Wiki's "Forever mining techniques" (CC BY-SA 4.0), in their own file,
+-- Professions/SmeltingColours.lua, which Mining.lua reads at load. A bar the wiki lacks: no colours.
+do
+  local wj = assert(io.open("tools/data/forever_mining_wiki.json")):read("*a")
+  local rev = "oldid " .. assert(wj:match('oldid (%d+)')) .. ", last edited " .. assert(wj:match('last edited ([^,"]+)'))
+  -- which bars Classic mining trainers teach (cMaNGOS, via tools/extract_smelting_trainers.py)
+  local cj = assert(io.open("tools/data/cmangos_smelting_trainers.json")):read("*a")
+  local cmCommit = assert(cj:match('"commit"%s*:%s*"(%x+)"'))
+  local taughtAt = {}
+  for row in cj:gmatch('{%s*"teaching_spell".-%]%s*}') do
+    local req = tonumber(row:match('"reqskill"%s*:%s*(%d+)'))
+    local learns = row:match('"learns"%s*:%s*%[([^%]]*)%]')
+    for id in learns:gmatch("%d+") do taughtAt[tonumber(id)] = req end
+  end
+  local cols, single = {}, {}
+  for row in wj:gmatch('{"bar"[^}]*}') do
+    local bar = row:match('"bar"%s*:%s*"([^"]+)"')
+    local a, b, c, d = row:match('"skills"%s*:%s*%[%s*(%d+),%s*(%d+),%s*(%d+),%s*(%d+)%s*%]')
+    cols[bar] = { tonumber(a), tonumber(b), tonumber(c), tonumber(d) }
+    single[bar] = row:find('"single_value"%s*:%s*true') ~= nil
+  end
+  local co = {}
+  local function c(s) co[#co + 1] = s end
+  c("local _, NW = ...")
+  c("-- Smelting skill colours (yellow, green, grey) for WoW Forever, from Warcraft Wiki:")
+  c("-- \"Forever mining techniques\", https://warcraft.wiki.gg/wiki/Forever_mining_techniques")
+  c("-- (" .. rev .. "). Licensed CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/);")
+  c("-- this file is under the same licence, separate from Nodewalker's GPL code. Community values, not")
+  c("-- verified in game. Numbers as the page prints them; \"one value\" rows print a single number four")
+  c("-- times (the page may only know the learn level). Generated by tools/build_recipes.lua; see")
+  c("-- LICENSES/Warcraft-Wiki-CC-BY-SA-4.0.txt. Do not edit by hand.")
+  c("NW.SMELT_COLOURS = {")
+  local mo = {}
+  local function m(s) mo[#mo + 1] = s end
+  m("local _, NW = ...")
+  m("-- WoW Forever smelting. Mining itself levels by mining nodes (see the guide).")
+  m("-- Generated by tools/build_recipes.lua: bars, reagents, counts and learn levels from OneForAll – Forever")
+  m("-- 6.3.0 by Smoergi (GPL-3.0-or-later; Data/Smelting.lua, from the Forever client). Skill colours from")
+  m("-- Professions/SmeltingColours.lua (Warcraft Wiki, CC BY-SA 4.0); without one, only the learn level is known.")
+  m("-- Source: rank (known from the start); trainer where Classic mining trainers teach it (cMaNGOS classic-db,")
+  m("-- GPL-3.0, @ " .. cmCommit:sub(1, 12) .. ", same required skill; Classic reference); else recipe (not in the data).")
+  m("-- Do not edit by hand.")
+  m('local add = NW.RecipeAdder("mining")')
+  m("local C = NW.SMELT_COLOURS or {}")
+  m("local function S(name, learn, src, item, reagents, yield)")
+  m("  local col = C[name]")
+  m("  add(name, learn, col and col[1] or learn, col and col[2] or learn, col and col[3] or learn, src, item, reagents, yield)")
+  m("end")
+  local list = {}
+  for _, r in ipairs(FLT.SMELTING or {}) do list[#list + 1] = r end
+  table.sort(list, function(a, b) if a.req ~= b.req then return a.req < b.req end return a.n < b.n end)
+  for _, r in ipairs(list) do
+    local re = {}
+    for _, x in ipairs(r.r or {}) do re[#re + 1] = x[1] .. ":" .. x[2] end
+    local src = r.start and "rank" or (taughtAt[r.s] == r.req and "trainer") or "recipe"
+    if taughtAt[r.s] and taughtAt[r.s] ~= r.req then io.stderr:write(("note: %s client %d vs cMaNGOS %d\n"):format(r.n, r.req, taughtAt[r.s])) end
+    m(("S(%s,%d,%s,%d,%s,%d)"):format(q(r.n), r.req, q(src), r.i, q(table.concat(re, ",")), r.c or 1))
+    local w = cols[r.n]
+    if w then
+      if w[1] ~= r.req then io.stderr:write(("note: %s learn %d (client) vs %d (wiki)\n"):format(r.n, r.req, w[1])) end
+      c(("  [%s] = { %d, %d, %d }, -- learn %d on the page%s"):format(q(r.n), w[2], w[3], w[4], w[1], single[r.n] and "; one value" or ""))
+    end
+    report[#report + 1] = table.concat({ "mining", r.n, tostring(r.req), "client", w and w[2] or "", w and w[3] or "", w and w[4] or "",
+      src, r.i, table.concat(re, ","), r.c or 1 }, "\t")
+  end
+  c("}")
+  local fh = assert(io.open(OUT .. "/SmeltingColours.lua", "w")) fh:write(table.concat(co, "\n") .. "\n") fh:close()
+  fh = assert(io.open(OUT .. "/Mining.lua", "w")) fh:write(table.concat(mo, "\n") .. "\n") fh:close()
+  counts[#counts + 1] = ("mining %d"):format(#list)
+end
+
 local rf = io.open("tools/reports/recipes_built.tsv", "w")
 if rf then rf:write(table.concat(report, "\n") .. "\n") rf:close() end
 print("leveling recipes: " .. table.concat(counts, ", "))

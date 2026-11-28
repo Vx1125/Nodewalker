@@ -170,6 +170,6 @@ Prices come from Auctionator's last scan, so scan the auction house now and then
 
 ## Credits
 
-Minimap tiles and map reveal data: [OpenMap](https://github.com/openmap-world/openmap) (MIT). Recipe data: OneForAll – Forever by Smoergi (GPL-3.0-or-later); smelting levels: SeeMeta (pending replacement). Consumable lists follow Method's and Wowhead's WoW Forever guides.
+Minimap tiles and map reveal data: [OpenMap](https://github.com/openmap-world/openmap) (MIT). Recipe data: OneForAll – Forever by Smoergi (GPL-3.0-or-later) and cMaNGOS classic-db (GPL-3.0); smelting colours: Warcraft Wiki contributors (CC BY-SA 4.0). Consumable lists follow Method's and Wowhead's WoW Forever guides.
 
 GPL-3.0-or-later.

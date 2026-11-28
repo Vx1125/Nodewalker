@@ -69,6 +69,25 @@ def rows(path, fn):
                 ERR.append('%s:%d: %s' % (os.path.basename(path), ln, e))
 
 
+def smelt_rows():
+    """Mining.lua's S(name, learn, src, item, "reagents", yield) rows, as R rows: colours from
+    SmeltingColours.lua (CC BY-SA, kept apart), else the learn level, as Mining.lua does at load."""
+    cols = {}
+    for line in open(os.path.join(PROF, 'SmeltingColours.lua'), encoding='utf-8'):
+        m = re.match(r'\s*\["(.+?)"\] = \{ (\d+), (\d+), (\d+) \}', line)
+        if m:
+            cols[m.group(1)] = [int(x) for x in m.groups()[1:]]
+    for ln, _, v in rows(os.path.join(PROF, 'Mining.lua'), 'S'):
+        if len(v) != 6:
+            ERR.append('Mining.lua:%d: %d arguments, want 6' % (ln, len(v)))
+            continue
+        name, learn, src, item, rg, yld = v
+        if name not in cols:
+            WARN['smelting bar without wiki colours (learn level only)'].append(name)
+        c = cols.get(name, [learn] * 3)
+        yield ln, 'mining', [name, learn] + c + [src, item, rg, yld]
+
+
 def is_id(v):
     return isinstance(v, int) and v > 0 or isinstance(v, str) and re.fullmatch(r's\d+', v)
 
@@ -114,7 +133,7 @@ def main():
         if not fn.endswith('.lua') or fn == 'Catalog.lua':
             continue
         names = collections.Counter()
-        for ln, key, v in rows(os.path.join(PROF, fn), 'R'):
+        for ln, key, v in (smelt_rows() if fn == 'Mining.lua' else rows(os.path.join(PROF, fn), 'R')):
             where = '%s:%d' % (fn, ln)
             if len(v) not in (8, 9):
                 ERR.append('%s: %d arguments, want 8-9' % (where, len(v)))

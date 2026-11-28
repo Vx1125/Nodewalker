@@ -1,0 +1,26 @@
+{
+ "source": "Warcraft Wiki (warcraft.wiki.gg), page \"Forever mining techniques\", smelting table",
+ "url": "https://warcraft.wiki.gg/wiki/Forever_mining_techniques",
+ "revision": "oldid 6982733 (\"Retrieved from\" link), last edited 17 November 2026, 10:37",
+ "licence": "CC BY-SA 4.0 (\"Page content is under Creative Commons Attribution-ShareAlike 4.0 License unless otherwise noted.\")",
+ "retrieved": "2026-11-27, read by hand through a page-fetch tool (3 reads of this page, 1 of the Mining recipes page; the oldid URL itself is disallowed to tools by robots.txt and wasn't read)",
+ "applies_to": "WoW Forever (a community page; not verified in game)",
+ "imported": "the four skill numbers per bar, in the page's order (learn, yellow, green, grey). Nothing else is taken from the page: items, reagents, counts and learn levels come from One For All's Data/Smelting.lua (Forever client data).",
+ "modifications": "none to the numbers; rows where the page prints one number four times are kept as printed and marked single_value (the page may only know the learn level)",
+ "rows": [
+  {"bar": "Copper Bar", "skills": [1, 25, 47, 70]},
+  {"bar": "Tin Bar", "skills": [65, 65, 65, 75]},
+  {"bar": "Bronze Bar", "skills": [65, 65, 90, 115]},
+  {"bar": "Silver Bar", "skills": [75, 100, 112, 125]},
+  {"bar": "Iron Bar", "skills": [125, 130, 135, 140]},
+  {"bar": "Gold Bar", "skills": [155, 170, 177, 185]},
+  {"bar": "Steel Bar", "skills": [165, 165, 165, 165], "single_value": true},
+  {"bar": "Mithril Bar", "skills": [175, 175, 175, 175], "single_value": true},
+  {"bar": "Truesilver Bar", "skills": [230, 230, 230, 230], "single_value": true},
+  {"bar": "Dark Iron Bar", "skills": [230, 230, 230, 230], "single_value": true},
+  {"bar": "Thorium Bar", "skills": [250, 250, 250, 250], "single_value": true},
+  {"bar": "Azerothium Bar", "skills": [275, 275, 275, 275], "single_value": true},
+  {"bar": "Heavy Thorium Bar", "skills": [300, 300, 307, 315]},
+  {"bar": "Elementium Bar", "skills": [300, 300, 300, 300], "single_value": true}
+ ]
+}

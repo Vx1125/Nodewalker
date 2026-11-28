@@ -67,8 +67,8 @@ Buffs are recognised by spell ID: the item's own use spell from the game, or the
 ## Credits
 
 Minimap tile tables in `OpenMapData/` come from [OpenMap](https://github.com/openmap-world/openmap) (MIT, see `LICENSES/`).
-Smelting (Mining) levels: SeeMeta's WoW Forever recipe database, pending replacement.
-The recipe lists, sources and trainer fees are generated from [OneForAll – Forever](https://www.curseforge.com/wow/addons/oneforall-forever) 6.3.0 by Smoergi (GPL-3.0-or-later, see `LICENSES/OneForAll.txt`).
+The recipe lists, smelting, sources and trainer fees are generated from [OneForAll – Forever](https://www.curseforge.com/wow/addons/oneforall-forever) 6.3.0 by Smoergi (GPL-3.0-or-later, see `LICENSES/OneForAll.txt`) and [cMaNGOS classic-db](https://github.com/cmangos/classic-db) (GPL-3.0).
+Smelting skill-up colours (`Professions/SmeltingColours.lua`): [Warcraft Wiki](https://warcraft.wiki.gg/wiki/Forever_mining_techniques) contributors, CC BY-SA 4.0 (see `LICENSES/Warcraft-Wiki-CC-BY-SA-4.0.txt`).
 Consumable lists follow Method's and Wowhead's WoW Forever class guides.
 
 ## License

@@ -1,0 +1,296 @@
+{
+ "source": "cMaNGOS classic-db (GPL-3.0), npc_trainer + spell_template",
+ "commit": "13e933726f386399d9820138fbd1123e7cda86c8",
+ "dump": "ClassicDB_1_12_1_z2815.sql.gz",
+ "note": "Classic 1.12 reference data. Not verified for WoW Forever.",
+ "rows": [
+  {
+   "teaching_spell": 2582,
+   "name": "Journeyman Miner",
+   "learns": [
+    2576
+   ],
+   "cost": 500,
+   "reqskill": 50,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 3313,
+   "name": "Smelt Tin",
+   "learns": [
+    3304
+   ],
+   "cost": 50,
+   "reqskill": 65,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 3314,
+   "name": "Smelt Bronze",
+   "learns": [
+    2659
+   ],
+   "cost": 200,
+   "reqskill": 65,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 3315,
+   "name": "Smelt Gold",
+   "learns": [
+    3308
+   ],
+   "cost": 2250,
+   "reqskill": 155,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 3316,
+   "name": "Smelt Iron",
+   "learns": [
+    3307
+   ],
+   "cost": 450,
+   "reqskill": 125,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 3317,
+   "name": "Smelt Silver",
+   "learns": [
+    2658
+   ],
+   "cost": 180,
+   "reqskill": 75,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 3568,
+   "name": "Expert Miner",
+   "learns": [
+    3564
+   ],
+   "cost": 4500,
+   "reqskill": 125,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 3596,
+   "name": "Smelt Steel",
+   "learns": [
+    3569
+   ],
+   "cost": 2250,
+   "reqskill": 165,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 10099,
+   "name": "Smelt Mithril",
+   "learns": [
+    10097
+   ],
+   "cost": 4500,
+   "reqskill": 175,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 10100,
+   "name": "Smelt Truesilver",
+   "learns": [
+    10098
+   ],
+   "cost": 9000,
+   "reqskill": 230,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 10249,
+   "name": "Artisan Miner",
+   "learns": [
+    10248
+   ],
+   "cost": 50000,
+   "reqskill": 200,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  },
+  {
+   "teaching_spell": 16154,
+   "name": "Smelt Thorium",
+   "learns": [
+    16153
+   ],
+   "cost": 18000,
+   "reqskill": 250,
+   "trainers": [
+    1681,
+    1701,
+    3001,
+    3137,
+    3175,
+    3357,
+    3555,
+    4254,
+    4598,
+    5392,
+    5513,
+    6297,
+    8128
+   ]
+  }
+ ]
+}

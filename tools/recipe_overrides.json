@@ -1,5 +1,51 @@
 [
- {"recipe": "blacksmithing/Rough Bronze Bracers", "source": "recipe",
+ {
+  "recipe": "blacksmithing/Rough Bronze Bracers",
+  "source": "recipe",
   "evidence": "Austin, in game (reported 2026-11-26 while leveling): no Forever blacksmithing trainer teaches it. One For All has no fee, recipe item or source for it, so it would count as a trainer recipe.",
-  "kind": "user-reported trainer observation", "approved": false}
+  "kind": "user-reported trainer observation",
+  "approved": false
+ },
+ {
+  "recipe": "leatherworking/Dragonscale Gauntlets",
+  "exclude": true,
+  "evidence": "One For All 6.3.0's teach lists give this recipe only to Leatherworking trainers 7866/7867 (Dragonscale), 7868/7869 (Elemental) or 7870/7871 (Tribal); QuestieDB titles 7870 'Tribal Leatherworking Trainer'. The client's RECIPE_SPEC (ItemSparse RequiredAbility) shows Forever keeps these specializations (spells 10656, 10658, 10660). One For All's fee table has no specialization flag for it.",
+  "kind": "specialization (from approved data)",
+  "approved": true
+ },
+ {
+  "recipe": "leatherworking/Dragonscale Breastplate",
+  "exclude": true,
+  "evidence": "One For All 6.3.0's teach lists give this recipe only to Leatherworking trainers 7866/7867 (Dragonscale), 7868/7869 (Elemental) or 7870/7871 (Tribal); QuestieDB titles 7870 'Tribal Leatherworking Trainer'. The client's RECIPE_SPEC (ItemSparse RequiredAbility) shows Forever keeps these specializations (spells 10656, 10658, 10660). One For All's fee table has no specialization flag for it.",
+  "kind": "specialization (from approved data)",
+  "approved": true
+ },
+ {
+  "recipe": "leatherworking/Blue Dragonscale Leggings",
+  "exclude": true,
+  "evidence": "One For All 6.3.0's teach lists give this recipe only to Leatherworking trainers 7866/7867 (Dragonscale), 7868/7869 (Elemental) or 7870/7871 (Tribal); QuestieDB titles 7870 'Tribal Leatherworking Trainer'. The client's RECIPE_SPEC (ItemSparse RequiredAbility) shows Forever keeps these specializations (spells 10656, 10658, 10660). One For All's fee table has no specialization flag for it.",
+  "kind": "specialization (from approved data)",
+  "approved": true
+ },
+ {
+  "recipe": "leatherworking/Green Dragonscale Gauntlets",
+  "exclude": true,
+  "evidence": "One For All 6.3.0's teach lists give this recipe only to Leatherworking trainers 7866/7867 (Dragonscale), 7868/7869 (Elemental) or 7870/7871 (Tribal); QuestieDB titles 7870 'Tribal Leatherworking Trainer'. The client's RECIPE_SPEC (ItemSparse RequiredAbility) shows Forever keeps these specializations (spells 10656, 10658, 10660). One For All's fee table has no specialization flag for it.",
+  "kind": "specialization (from approved data)",
+  "approved": true
+ },
+ {
+  "recipe": "leatherworking/Gauntlets of the Sea",
+  "exclude": true,
+  "evidence": "One For All 6.3.0's teach lists give this recipe only to Leatherworking trainers 7866/7867 (Dragonscale), 7868/7869 (Elemental) or 7870/7871 (Tribal); QuestieDB titles 7870 'Tribal Leatherworking Trainer'. The client's RECIPE_SPEC (ItemSparse RequiredAbility) shows Forever keeps these specializations (spells 10656, 10658, 10660). One For All's fee table has no specialization flag for it.",
+  "kind": "specialization (from approved data)",
+  "approved": true
+ },
+ {
+  "recipe": "leatherworking/Helm of Fire",
+  "exclude": true,
+  "evidence": "One For All 6.3.0's teach lists give this recipe only to Leatherworking trainers 7866/7867 (Dragonscale), 7868/7869 (Elemental) or 7870/7871 (Tribal); QuestieDB titles 7870 'Tribal Leatherworking Trainer'. The client's RECIPE_SPEC (ItemSparse RequiredAbility) shows Forever keeps these specializations (spells 10656, 10658, 10660). One For All's fee table has no specialization flag for it.",
+  "kind": "specialization (from approved data)",
+  "approved": true
+ }
 ]

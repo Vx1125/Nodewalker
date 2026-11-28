@@ -1,5 +1,5 @@
 Professions/Catalog.lua and the leveling lists Professions/{Alchemy,Blacksmithing,Cooking,Enchanting,
-Engineering,FirstAid,Leatherworking,Tailoring}.lua are generated from the recipe data of
+Engineering,FirstAid,Leatherworking,Tailoring,Mining}.lua are generated from the recipe data of
 OneForAll – Forever by Smoergi, licensed GPL-3.0-or-later.
 
   CurseForge: https://www.curseforge.com/wow/addons/oneforall-forever  (project ID 1714201, GPLv3)
@@ -13,8 +13,11 @@ OneForAll – Forever by Smoergi, licensed GPL-3.0-or-later.
     ac9a5cc55337fa884e7625095a8b8400c92cd586bf9d623c55792b3625452d59  Data/Professions/Leatherworking.lua
     d5ff31deb3879b74cc41e77091cd2871a87ed6173a6f1c153d6dd1efb3c984ec  Data/Professions/Tailoring.lua
     3abd99fa3e20338f2e2a8e66d97106978c2078a6c1a1ac01b118f5410ac786b9  Data/ProfessionFees.lua
+    66fb3b580ada06dc5da7a4bf85fc725df444c5a405c472a73c2eb2ad6c7a68d8  Data/Smelting.lua
   Method: tools/build_recipes.lua in Nodewalker's repository (deterministic; it reads only these
-  files). Nothing is edited by hand.
+  files, plus tools/data/cmangos_smelting_trainers.json for which bars
+  trainers teach and Professions/SmeltingColours.lua for smelting colours; see below). Nothing is
+  edited by hand.
 
 One For All states that this data comes from:
   - the WoW Forever client database (build 1.60.1.70205), via wago.tools DB2 exports: names, items,
@@ -25,6 +28,11 @@ One For All states that this data comes from:
 One For All notes that some learn levels (marked rw=true) come from wowtbc.gg and that some recipe
 sources come from Wowhead Forever. Nodewalker leaves the rw=true learn levels out (unknown instead);
 a Classic trainer level (CMaNGOS) is used only where Forever's skill colours agree with it.
+Mining.lua: bars, reagents, counts and learn levels from Data/Smelting.lua (Forever client data). Which
+bars a trainer teaches comes from cMaNGOS classic-db (GPL-3.0, npc_trainer and spell_template at
+commit 13e933726f38, see cMaNGOS-classic-db.txt), as Classic reference data. Skill-up colours come
+from Warcraft Wiki (CC BY-SA 4.0) and live in their own file, Professions/SmeltingColours.lua (see
+Warcraft-Wiki-CC-BY-SA-4.0.txt).
 World of Warcraft game data remains Blizzard's and is not covered by the GPL.
 
 The full text of the GNU General Public License version 3 is in LICENSE, and at
