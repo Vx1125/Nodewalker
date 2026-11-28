@@ -5511,6 +5511,8 @@ end
 -- the right column for the selected list: its summary and the auction house buttons
 function MS.altsRight(p)
   targetSlider:Hide() MS.targets:Hide() shopBox:Hide()
+  -- (another view's heading numbers, such as Profit's "worth making", don't stay behind)
+  hCost:SetText("") hCostSub:SetText("")
   if not p then
     rHead.text:SetText("Characters")
     rTotal:SetText("|cff938c80Nothing saved yet.|r")
@@ -5529,7 +5531,8 @@ function MS.altsRight(p)
   rTotal:SetText(table.concat({
     ("Skill %s-%s  ·  %s"):format(p.s.from or "?", p.s.to or "?", MS.updated(p.s.t)),
     ("Remaining cost  |cffd6b266%s|r"):format(money),
-    ("Needed  %d item%s (%d material%s)  ·  Remaining  %d"):format(units, units == 1 and "" or "s", left, left == 1 and "" or "s", rem),
+    ("Needed  %d item%s (%d material%s)"):format(units, units == 1 and "" or "s", left, left == 1 and "" or "s"),
+    ("Remaining  %d item%s"):format(rem, rem == 1 and "" or "s"),
     p.me and "|cff938c80Your bags, live. Prices: last scan.|r"
       or ("|cff938c80%s's bags as saved %s. Prices: last scan.|r"):format(p.name, (MS.updated(p.s.t):lower():gsub("^updated ", ""))),
   }, "\n"))
