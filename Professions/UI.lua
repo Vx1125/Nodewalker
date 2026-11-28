@@ -1236,7 +1236,8 @@ local searchBtn = UI.Button(right, "Search missing in Auctionator", RIGHT_W, fun
     if e.header then
       -- (a group heading)
     elseif e.recipe then
-      if e.buy > 0 then items[#items + 1] = { e.term, 1 } end
+      -- (Characters keeps recipes to their own button)
+      if e.buy > 0 and not MS.altsOn then items[#items + 1] = { e.term, 1 } end
     elseif e.buy > 0 and e.src ~= "vendor" then
       local n, ok = itemName(e.id)
       if ok then items[#items + 1] = { n, e.buy } end
@@ -5165,7 +5166,7 @@ function MS.altsBuild()
   f.more:SetPoint("TOPRIGHT", f.strip, "BOTTOMRIGHT", -4, -2)
   f.note = UI.Text(f, 10, S.dim)
   f.note:SetPoint("TOPLEFT", f.strip, "BOTTOMLEFT", 2, -3)
-  f.note:SetText("Right-click: Remove saved plan.")
+  f.note:SetText("")
   -- the selected character's list: the rest of the panel
   f.list = UI.Box(f)
   f.list:SetPoint("TOPLEFT", f.strip, "BOTTOMLEFT", 0, -16)
@@ -5173,7 +5174,7 @@ function MS.altsBuild()
   f.list:EnableMouseWheel(true)
   f.list.offset, f.list.rows = 0, {}
   f.caps = {}
-  for c, label in ipairs({ "Needed", "Here", "Remaining", "Cost" }) do
+  for c, label in ipairs({ "Needed", "In bags", "Remaining", "Cost" }) do
     local fs = UI.Text(f.list, 10, S.dim, "RIGHT")
     fs:SetPoint("TOPRIGHT", f.list, "TOPRIGHT", c < 4 and -(MS.CCOL[c + 1] + 1) or -11, -4)
     fs:SetText(label)
@@ -5181,7 +5182,7 @@ function MS.altsBuild()
   end
   f.capName = UI.Text(f.list, 10, S.dim)
   f.capName:SetPoint("TOPLEFT", 31, -4)
-  f.capName:SetText("Material")
+  f.capName:SetText("Item")
   f.list:SetScript("OnMouseWheel", function(self, d)
     self.offset = math.max(0, math.min(self.offset - d, math.max(0, #shop - #self.rows)))
     MS.altsDrawList()
@@ -5226,6 +5227,19 @@ function MS.altsCharRow(i)
   row.cost:SetPoint("TOPRIGHT", -8, -2)
   row.count = UI.Text(row, 10, S.dim, "RIGHT")
   row.count:SetPoint("BOTTOMRIGHT", -8, 2)
+  row:SetScript("OnEnter", function(self)
+    local p = self.plan
+    if not p then return end
+    local prof = NW.PROF_BY_KEY[p.key]
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(p.label .. " · " .. (prof and prof.name or p.key), 1, 1, 1)
+    GameTooltip:AddLine(("Skill %s-%s  ·  %s"):format(p.s.from or "?", p.s.to or "?", MS.updated(p.s.t)), S.dim[1], S.dim[2], S.dim[3])
+    GameTooltip:AddLine(p.me and "Your bags, live." or (p.name .. "'s bags as saved, not live."), S.dim[1], S.dim[2], S.dim[3])
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("Click: show this list. Right-click: Remove saved plan.", S.gold[1], S.gold[2], S.gold[3], true)
+    GameTooltip:Show()
+  end)
+  row:SetScript("OnLeave", GameTooltip_Hide)
   row:SetScript("OnClick", function(self, button)
     local p = self.plan
     if not p then return end
@@ -5531,8 +5545,7 @@ function MS.altsRight(p)
   rTotal:SetText(table.concat({
     ("Skill %s-%s  ·  %s"):format(p.s.from or "?", p.s.to or "?", MS.updated(p.s.t)),
     ("Remaining cost  |cffd6b266%s|r"):format(money),
-    ("Needed  %d item%s (%d material%s)"):format(units, units == 1 and "" or "s", left, left == 1 and "" or "s"),
-    ("Remaining  %d item%s"):format(rem, rem == 1 and "" or "s"),
+    ("%d item type%s  ·  %d needed  ·  %d remaining"):format(left, left == 1 and "" or "s", units, rem),
     p.me and "|cff938c80Your bags, live. Prices: last scan.|r"
       or ("|cff938c80%s's bags as saved %s. Prices: last scan.|r"):format(p.name, (MS.updated(p.s.t):lower():gsub("^updated ", ""))),
   }, "\n"))
@@ -5543,7 +5556,7 @@ function MS.altsRight(p)
   searchBtn:ClearAllPoints()
   searchBtn:SetPoint("TOPLEFT", rTotal, "BOTTOMLEFT", 0, -12)
   searchBtn:SetWidth(nRecipes > 0 and RIGHT_W - 126 or RIGHT_W)
-  searchBtn:SetText(nRecipes > 0 and "Search missing" or "Search missing in Auctionator")
+  searchBtn:SetText(nRecipes > 0 and "Search materials" or "Search materials in Auctionator")
   searchBtn:Show()
   MS.recipesBtn:SetShown(nRecipes > 0)
   -- the numbers up top are this list's
