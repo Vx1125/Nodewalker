@@ -106,6 +106,7 @@ local report = { "profession\tname\tlearn\tlearn_from\tyellow\tgreen\tgrey\tsour
 -- ---------- Catalog.lua ----------
 local cat = {}
 local function w(s) cat[#cat + 1] = s end
+local usedRI = {} -- recipe items in the catalog (for NW.RECIPE_REP)
 w("local _, NW = ...")
 w("")
 w("-- Every recipe in WoW Forever, with where it comes from, the item that teaches it and the trainer's fee.")
@@ -161,6 +162,7 @@ for _, p in ipairs(PROFS) do
     local colours = y > 0
     if not colours then y = learn or 1 g, gr = nil, nil end
     local id = r.i and tostring(r.i) or ('"s' .. r.s .. '"')
+    if r.ri then usedRI[r.ri] = true end
     -- learn 0: unknown (the addon then treats the recipe as learnable at yellow; see Engine.lua required())
     w(("C(%s,%d,%d,%d,%d,%s,%s,%s,%s,%s,%d)"):format(q(r.n), learn or 0, y, g or y, gr or y, id,
       r.ri and tostring(r.ri) or "nil", fee and tostring(fee[1]) or "nil", q(table.concat(src, ";")), q(reagents), r.c or 1))
@@ -198,6 +200,23 @@ for _, p in ipairs(PROFS) do
     return a.r.n < b.r.n
   end)
   leveling[#leveling + 1] = { file = file, key = key, prof = prof, list = lev }
+end
+-- recipe items that need a reputation (One For All's FLT.RECIPE_REP, from the client's ItemSparse):
+-- [item] = { faction ID, standing as the game reports it (5 Friendly, 6 Honored, 7 Revered, 8 Exalted) }
+do
+  local ids = {}
+  for item in pairs(FLT.RECIPE_REP or {}) do if usedRI[item] then ids[#ids + 1] = item end end
+  table.sort(ids)
+  w("-- recipe items that need a reputation: [item] = { faction ID, standing (5 Friendly ... 8 Exalted) } (client ItemSparse)")
+  local parts = {}
+  for _, item in ipairs(ids) do
+    local n = FLT.RECIPE_REP[item]
+    parts[#parts + 1] = ("[%d]={%d,%d}"):format(item, n[1], n[2] + 1)
+  end
+  for i = 1, #parts, 8 do
+    w((i == 1 and "NW.RECIPE_REP = { " or "  ") .. table.concat(parts, ", ", i, math.min(i + 7, #parts)) .. ",")
+  end
+  w("}")
 end
 local f = assert(io.open(OUT .. "/Catalog.lua", "w"))
 f:write(table.concat(cat, "\n") .. "\n") f:close()

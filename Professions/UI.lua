@@ -2791,14 +2791,67 @@ function MS.favorRepText(r, plain)
   return (have >= need and "|cff94ba78" or "|cffd17665") .. text .. "|r"
 end
 function MS.standingName(n) return STANDING_NAME[n] end
--- a Favor recipe you can't buy yet: reputation too low (only when the game says your standing)
+-- a recipe item that needs a reputation (NW.RECIPE_REP, client data): faction ID, standing (5-8)
+function MS.itemRep(r)
+  local n = r and r.recipeItem and NW.RECIPE_REP and NW.RECIPE_REP[r.recipeItem]
+  if n then return n[1], n[2] end
+end
+-- a faction's name and your standing (1-8); cached a few seconds
+MS.repCache = {}
+function MS.factionStanding(id)
+  local now = GetTime()
+  local c = MS.repCache[id]
+  if c and now - c.at < 5 then return c.name, c.standing end
+  local name, standing
+  if C_Reputation and C_Reputation.GetFactionDataByID then
+    local ok, d = pcall(C_Reputation.GetFactionDataByID, id)
+    if ok and type(d) == "table" then name, standing = d.name, d.reaction end
+  end
+  if not name and GetFactionInfoByID then
+    local ok, n, _, sid = pcall(GetFactionInfoByID, id)
+    if ok then name, standing = n, sid end
+  end
+  MS.repCache[id] = { at = now, name = name, standing = standing }
+  return name, standing
+end
+-- "Honored, Thorium Brotherhood", green when you have it, red when you don't
+function MS.itemRepText(r, plain)
+  local id, need = MS.itemRep(r)
+  if not id then return nil end
+  local name, have = MS.factionStanding(id)
+  local text = STANDING_NAME[need] .. (name and (", " .. name) or "")
+  if plain or not have then return text end
+  return (have >= need and "|cff94ba78" or "|cffd17665") .. text .. "|r"
+end
+-- a recipe you can't buy yet: Favor or the recipe item's reputation too low (only when the game says your standing)
 function NW.FavorBlocked(r)
   local need = MS.favorRep(r)
-  if not need then return false end
-  local have = MS.favorStanding()
-  return have ~= nil and have < need
+  if need then
+    local have = MS.favorStanding()
+    if have ~= nil and have < need then return true end
+  end
+  local id, needR = MS.itemRep(r)
+  if id then
+    local _, have = MS.factionStanding(id)
+    if have ~= nil and have < needR then return true end
+  end
+  return false
 end
-function NW.FavorKey() return tostring(MS.favorStanding() or "") end
+-- part of the plan cache key: standings that gate recipes
+function NW.FavorKey()
+  local k = { tostring(MS.favorStanding() or "") }
+  if NW.RECIPE_REP then
+    MS.repIds = MS.repIds or {}
+    if not MS.repIdList then
+      local seen, list = {}, {}
+      for _, n in pairs(NW.RECIPE_REP) do if not seen[n[1]] then seen[n[1]] = true list[#list + 1] = n[1] end end
+      table.sort(list)
+      MS.repIdList = list
+    end
+    for _, id in ipairs(MS.repIdList) do local _, s = MS.factionStanding(id) k[#k + 1] = tostring(s or "") end
+  end
+  return table.concat(k, ",")
+end
 function MS.merchantShort(r)
   local rep = MS.favorRepText(r)
   return "Merchant's Favor  ·  " .. (rep and (rep .. "|cffd6b266  ·  ") or "") .. MS.FAVOR[MS.myFaction()][2]
@@ -2864,6 +2917,9 @@ local function whereText(r)
     end
   end
   if #parts == 0 and other then parts[1] = "Sold to the other faction: auction house" end
+  -- a recipe item that needs a reputation
+  local itemRep = MS.itemRepText(r, true)
+  if itemRep then parts[#parts + 1] = "Needs " .. itemRep end
   -- Favor vendors want reputation for some recipes
   if fav then
     local repText = MS.favorRepText(r, true)
@@ -3520,6 +3576,10 @@ function MS.fillAcquisition(key, r)
       local have = MS.favorStanding()
       rows[#rows + 1] = { "Reputation", MS.favorRepText(r) .. (have and ("  |cff938c80you: %s|r"):format(MS.standingName(have) or "below Neutral") or "") }
     end
+  end
+  if kind ~= "merchant" and MS.itemRep(r) then
+    local _, have = MS.factionStanding((MS.itemRep(r)))
+    rows[#rows + 1] = { "Reputation", MS.itemRepText(r) .. (have and ("  |cff938c80you: %s|r"):format(MS.standingName(have) or "below Neutral") or "") }
   end
   -- the game's own source lines ("Vendor: ...", "Zone: ...", "Cost: ...")
   local e = r.scanned or scanOf(key, r)

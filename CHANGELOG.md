@@ -15,6 +15,7 @@
 - Leveling: material icons, parts and tools under their step, unpriced recipes marked, cheaper plans.
 - Routes: a Back button to where the route came from.
 - Recipes and smelting rebuilt from licensed data; specialization and unlisted recipes are planned once you know them.
+- Recipes that need a reputation show it, and plans skip them until your standing is high enough.
 
 ## 1.3.0
 

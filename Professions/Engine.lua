@@ -1128,7 +1128,7 @@ function NW.BuildPlan(key, from, to)
         end
         if NW.NO_LEVEL[r.name] or notTaught then avail = nil end
         if allow and avail ~= nil and not allow(r, sk) then avail = nil end
-        -- a Merchant's Favor recipe your reputation can't buy yet (unless you know it)
+        -- a recipe your reputation can't buy yet: Merchant's Favor or the recipe item's faction (unless you know it)
         if avail ~= nil and NW.FavorBlocked and NW.FavorBlocked(r) and not isKnown(key, r) then avail = nil end
         local needsRecipe = not avail
         if avail ~= nil and (avail or pass >= 2 or s.planRecipeItems) and required(key, r) <= sk then
