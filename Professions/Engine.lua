@@ -1130,6 +1130,7 @@ function NW.BuildPlan(key, from, to)
     -- passes: what you can learn now, then recipes to buy, both while they
     -- still give a point at least a quarter of the time; only then anything.
     -- Otherwise the plan rides the last trainer recipe nearly to grey.
+    local p1, p1C, p1N -- the best of what you can learn now
     for pass = 1, 3 do
       local floor = pass < 3 and 0.25 or 0
       for i, r in ipairs(recipes) do
@@ -1150,8 +1151,8 @@ function NW.BuildPlan(key, from, to)
         if avail ~= nil and (avail or pass >= 2 or s.planRecipeItems) and required(key, r) <= sk then
           local p = NW.SkillUpChance(r, sk)
           if p > 0 and p >= floor and onceOf[i] < 1e9 and not (r.cooldownMat and pass < 3) then -- (1e9: can't be learned yet)
-            -- unknown prices count as expensive so priced options win
-            local c = (math.max(0, costOf[i] - ownedValue(i)) + (r.guessExtra or 0) + unknownOf[i] * 10000 + effort) / p
+            -- unknown prices count as expensive (10g each) so priced options win
+            local c = (math.max(0, costOf[i] - ownedValue(i)) + (r.guessExtra or 0) + unknownOf[i] * 100000 + effort) / p
             -- Fewest crafts: the best skill-up chance wins; cost only breaks ties
             if strategy == "crafts" then c = 1 / p + c * 1e-7 end
             if needsRecipe then c = c * 1.15 end -- slight nudge toward what you can learn now
@@ -1164,7 +1165,16 @@ function NW.BuildPlan(key, from, to)
           end
         end
       end
-      if best then break end
+      -- a trainer recipe first, but a recipe to buy wins when it costs less than half
+      -- (Arcanite Skeleton Key at 250 costs ten times what Ebon Shiv does)
+      if pass == 1 then
+        if best then p1, p1C, p1N = best, bestCost, bestNeeds best, bestCost, bestNeeds = nil, nil, nil end
+      elseif pass == 2 then
+        if p1 and (not best or bestCost >= p1C * 0.5) then best, bestCost, bestNeeds = p1, p1C, p1N end
+        if best then break end
+      elseif best then
+        break
+      end
     end
     -- keep the step you're on while it's still a good pick
     if stickyOn then
