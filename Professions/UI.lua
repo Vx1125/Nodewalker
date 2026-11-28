@@ -213,8 +213,9 @@ do
     { "fishcook", "Fishing + Cooking", "Level both from the fish you catch." }, -- Cooking only
     { "missing", "Missing recipes", "Recipes you don't know yet and where each comes from." },
     { "profit", "Profit", "What each craft earns at today's prices." },
+    { "alts", "Alts", "The last shopping list each of your characters saved." },
   }
-  local WIDTHS = { 84, 136, 124, 76 }
+  local WIDTHS = { 84, 136, 124, 76, 52 }
   for i, v in ipairs(VIEWS) do
     local b = CreateFrame("Button", nil, viewRow, "BackdropTemplate")
     b:SetSize(WIDTHS[i], 26)
@@ -1927,6 +1928,7 @@ local function drawCraft(p)
   MS.shopRecipes = #groups.recipes
   MS.shopAll = list
   shop = grouped
+  if searchText == "" then MS.snapshotShop(p.key, from, to, spend, list) end
   -- the recipes get their own search when there are any to buy
   searchBtn:SetWidth(MS.shopRecipes > 0 and RIGHT_W - 126 or RIGHT_W)
   searchBtn:SetText(MS.shopRecipes > 0 and "Search missing" or "Search missing in Auctionator")
@@ -4155,6 +4157,7 @@ refresh = function()
   if showCard then drawCard() end
   if MS.sumHit and not isProfit then MS.sumHit:Hide() end
   if craftMsg and GetTime() - craftMsgAt < 4 then priceLine:SetText("|cffd6b266" .. craftMsg .. "|r") end
+  MS.altsShow(isCraft and mode == "alts")
 end
 MS.refresh = refresh -- (refresh can't name itself: it's at Lua 5.1's limit of 60 upvalues)
 NW.RefreshProfessions = function() if page:IsShown() then refresh() end end
@@ -4905,4 +4908,153 @@ do
   end
   NW.On("BAG_UPDATE_DELAYED", function() NW.findDirty = true end)
   NW.On("GET_ITEM_INFO_RECEIVED", function() NW.findDirty = true end)
+end
+
+-- Alts: the last shopping list each character saved (NodewalkerDB.altShop), read-only.
+-- Saved whenever a Leveling plan builds its list; one per character and profession.
+function MS.charKey() return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?") end
+function MS.snapshotShop(key, from, to, spend, list)
+  local db = NW.db
+  if not db then return end
+  db.altShop = db.altShop or {}
+  local ck = MS.charKey()
+  db.altShop[ck] = db.altShop[ck] or {}
+  local items = {}
+  for _, e in ipairs(list) do
+    if e.id or e.recipe then
+      local name = e.recipe and e.term or nil
+      if not name and e.id then
+        local n, ok = itemName(e.id)
+        name = ok and n or nil
+      end
+      items[#items + 1] = { id = e.id, n = name, need = e.need, have = math.min(e.have or 0, e.need or 0), buy = e.buy,
+        cost = e.cost, r = e.recipe and true or nil, v = e.src == "vendor" or nil }
+    end
+  end
+  local class = UnitClass and select(2, UnitClass("player")) or nil
+  db.altShop[ck][key] = { t = time(), from = from, to = to, spend = spend, class = class, items = items }
+end
+MS.ALT_LINE = 18
+function MS.altsBuild()
+  local f = CreateFrame("Frame", nil, mid, "BackdropTemplate")
+  UI.Flat(f, S.sunk, S.edge)
+  f:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, 0)
+  f:SetPoint("BOTTOMRIGHT", stepsBox, "BOTTOMRIGHT", 0, 0)
+  f:SetFrameLevel(stepsBox:GetFrameLevel() + 20)
+  f:EnableMouse(true)
+  f:EnableMouseWheel(true)
+  f.offset, f.lines, f.rows = 0, {}, {}
+  f.empty = UI.Text(f, 12, S.dim, "CENTER")
+  f.empty:SetPoint("CENTER")
+  f.empty:SetText("No saved lists yet. Open a Leveling plan on each character to save its list.")
+  f.empty:SetWidth(MID_W - 40)
+  f:SetScript("OnMouseWheel", function(self, d)
+    self.offset = math.max(0, math.min(self.offset - d * 3, math.max(0, #self.lines - #self.rows)))
+    MS.altsDraw()
+  end)
+  f:Hide()
+  MS.altsFrame = f
+end
+function MS.altsRow(i)
+  local f = MS.altsFrame
+  local row = f.rows[i]
+  if row then return row end
+  row = CreateFrame("Button", nil, f)
+  row:SetHeight(MS.ALT_LINE)
+  row:SetPoint("TOPLEFT", 8, -6 - (i - 1) * MS.ALT_LINE)
+  row:SetPoint("RIGHT", f, "RIGHT", -10, 0)
+  row.icon = row:CreateTexture(nil, "ARTWORK")
+  row.icon:SetSize(14, 14)
+  row.icon:SetPoint("LEFT", 0, 0)
+  row.left = UI.Text(row, 12, S.text)
+  row.left:SetPoint("LEFT", 20, 0)
+  row.left:SetPoint("RIGHT", row, "RIGHT", -90, 0)
+  row.left:SetWordWrap(false)
+  row.right = UI.Text(row, 12, S.text, "RIGHT")
+  row.right:SetPoint("RIGHT", 0, 0)
+  row:SetScript("OnEnter", function(self)
+    if self.id then
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      if not pcall(GameTooltip.SetItemByID, GameTooltip, self.id) then GameTooltip:SetText(self.left:GetText() or "") end
+      GameTooltip:Show()
+    end
+  end)
+  row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  f.rows[i] = row
+  return row
+end
+-- every saved list as lines: a heading per character and profession, then what to buy
+function MS.altsLines()
+  local lines = {}
+  local all = NW.db and NW.db.altShop or {}
+  local me, realm = MS.charKey(), GetRealmName() or "?"
+  local chars = {}
+  for ck in pairs(all) do chars[#chars + 1] = ck end
+  table.sort(chars, function(a, b) if (a == me) ~= (b == me) then return a ~= me end return a < b end)
+  for _, ck in ipairs(chars) do
+    local keys = {}
+    for key in pairs(all[ck]) do keys[#keys + 1] = key end
+    table.sort(keys)
+    for _, key in ipairs(keys) do
+      local s = all[ck][key]
+      local who = ck:gsub("%-" .. realm:gsub("%p", "%%%0") .. "$", "")
+      local col = s.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[s.class]
+      local prof = NW.PROF_BY_KEY[key]
+      lines[#lines + 1] = { head = true,
+        left = (col and ("|c" .. (col.colorStr or "ffe0dbd0")) or "|cffe0dbd0") .. who .. "|r" .. (ck == me and " |cff938c80(this character)|r" or "")
+          .. "  |cffd6b266" .. (prof and prof.name or key) .. " " .. (s.from or "?") .. "-" .. (s.to or "?") .. "|r",
+        right = "|cff938c80" .. date("%b %d %H:%M", s.t or 0) .. "|r" }
+      local have, n = 0, 0
+      for _, it in ipairs(s.items or {}) do
+        if (it.buy or 0) > 0 then
+          n = n + 1
+          local name = it.n or (it.id and (itemName(it.id))) or "?"
+          lines[#lines + 1] = { id = it.id, recipe = it.r,
+            left = it.r and ("|cffff8040" .. name .. "|r") or ("|cffd6b266%d|r%s  |cffe0dbd0%s|r"):format(it.buy, (it.have or 0) > 0 and ("|cff938c80/" .. it.need .. "|r") or "", name),
+            right = it.cost and (NW.Money(it.cost, "mid") .. (it.v and " |cff938c80v|r" or "")) or "|cff938c80no price|r" }
+        else
+          have = have + 1
+        end
+      end
+      if n == 0 then lines[#lines + 1] = { left = "|cff94ba78Everything on the list is in the bags.|r", right = "" } end
+      lines[#lines + 1] = { left = (have > 0 and ("|cff938c80Already have %d more.|r"):format(have) or ""),
+        right = s.spend and ("|cff938c80total|r " .. NW.Money(s.spend, "mid")) or "" }
+      lines[#lines + 1] = { left = "", right = "" }
+    end
+  end
+  return lines
+end
+function MS.altsDraw()
+  local f = MS.altsFrame
+  local h = f:GetHeight() or 0
+  if h < 100 then h = STEPS_BOX_H + 40 end -- (not laid out yet)
+  local nrows = math.max(1, math.floor((h - 12) / MS.ALT_LINE))
+  for i = 1, nrows do MS.altsRow(i) end
+  for i, row in ipairs(f.rows) do
+    local l = i <= nrows and f.lines[i + f.offset]
+    row.id = l and l.id or nil
+    if l then
+      row:Show()
+      row.left:SetText(l.left or "")
+      row.right:SetText(l.right or "")
+      if l.id then row.icon:SetTexture(itemIcon(l.id)) row.icon:Show()
+      elseif l.recipe then row.icon:SetTexture("Interface\\Icons\\INV_Scroll_03") row.icon:Show()
+      else row.icon:Hide() end
+    else
+      row:Hide()
+    end
+  end
+  f.empty:SetShown(#f.lines == 0)
+end
+function MS.altsShow(on)
+  if not on then
+    if MS.altsFrame then MS.altsFrame:Hide() end
+    return
+  end
+  if not MS.altsFrame then MS.altsBuild() end
+  local f = MS.altsFrame
+  f.lines = MS.altsLines()
+  f.offset = math.min(f.offset, math.max(0, #f.lines - 1))
+  f:Show()
+  MS.altsDraw()
 end

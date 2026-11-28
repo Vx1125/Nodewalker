@@ -16,6 +16,8 @@
 - Routes: a Back button to where the route came from.
 - Recipes and smelting rebuilt from licensed data; specialization and unlisted recipes are planned once you know them.
 - Recipes that need a reputation show it, and plans skip them until your standing is high enough.
+- Plans weigh recipes to buy against costly trainer recipes, and skip recipes you can't buy on your side.
+- Professions: an Alts tab shows the last shopping list each of your characters saved.
 
 ## 1.3.0
 

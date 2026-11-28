@@ -1111,7 +1111,7 @@ function NW.BuildPlan(key, from, to)
   local stickyI, stickyC, stickyNeeds
   for sk = from, to - 1 do
     local best, bestCost, bestNeeds
-    local here = {}
+    local here, here2 = {}, {} -- here2: recipes to buy weighed beside a trainer pick
     costAt[sk] = here
     -- Known recipes: the trainer's are fair game once nothing you know is still
     -- likely to give a point (under half a chance), not only once it's grey
@@ -1130,7 +1130,7 @@ function NW.BuildPlan(key, from, to)
     -- passes: what you can learn now, then recipes to buy, both while they
     -- still give a point at least a quarter of the time; only then anything.
     -- Otherwise the plan rides the last trainer recipe nearly to grey.
-    local p1, p1C, p1N -- the best of what you can learn now
+    local b2, b2C -- the best recipe to buy, weighed in pass 1
     for pass = 1, 3 do
       local floor = pass < 3 and 0.25 or 0
       for i, r in ipairs(recipes) do
@@ -1148,7 +1148,8 @@ function NW.BuildPlan(key, from, to)
         -- a recipe your reputation can't buy yet: Merchant's Favor or the recipe item's faction (unless you know it)
         if avail ~= nil and NW.FavorBlocked and NW.FavorBlocked(r) and not isKnown(key, r) then avail = nil end
         local needsRecipe = not avail
-        if avail ~= nil and (avail or pass >= 2 or s.planRecipeItems) and required(key, r) <= sk then
+        -- pass 1 also weighs the recipes to buy (in their own best, b2): no second pass over everything
+        if avail ~= nil and (avail or pass >= 1 or s.planRecipeItems) and required(key, r) <= sk then
           local p = NW.SkillUpChance(r, sk)
           if p > 0 and p >= floor and onceOf[i] < 1e9 and not (r.cooldownMat and pass < 3) then -- (1e9: can't be learned yet)
             -- unknown prices count as expensive (10g each) so priced options win
@@ -1159,22 +1160,24 @@ function NW.BuildPlan(key, from, to)
             if not owned[i] and onceOf[i] > 0 and strategy ~= "crafts" then
               c = c + onceOf[i] / math.max(1, math.min(r.green + (r.grey - r.green) / 2, to) - sk)
             end
-            if not here[i] then here[i] = { c, needsRecipe, p } end
-            if not best or c < bestCost then best, bestCost, bestNeeds = i, c, needsRecipe end
+            if pass == 1 and needsRecipe and not s.planRecipeItems then
+              if not b2 or c < b2C then b2, b2C = i, c end
+              if not here2[i] then here2[i] = { c, true, p } end
+            else
+              if not here[i] then here[i] = { c, needsRecipe, p } end
+              if not best or c < bestCost then best, bestCost, bestNeeds = i, c, needsRecipe end
+            end
             if stickyOn and r.name == sticky then stickyI, stickyC, stickyNeeds = i, c, needsRecipe end
           end
         end
       end
       -- a trainer recipe first, but a recipe to buy wins when it costs less than half
       -- (Arcanite Skeleton Key at 250 costs ten times what Ebon Shiv does)
-      if pass == 1 then
-        if best then p1, p1C, p1N = best, bestCost, bestNeeds best, bestCost, bestNeeds = nil, nil, nil end
-      elseif pass == 2 then
-        if p1 and (not best or bestCost >= p1C * 0.5) then best, bestCost, bestNeeds = p1, p1C, p1N end
-        if best then break end
-      elseif best then
-        break
+      if pass == 1 and b2 and (not best or b2C < bestCost * 0.5) then
+        best, bestCost, bestNeeds = b2, b2C, true
+        if not here[b2] then here[b2] = { b2C, true, NW.SkillUpChance(recipes[b2], sk) } end
       end
+      if best then break end
     end
     -- keep the step you're on while it's still a good pick
     if stickyOn then
@@ -1191,7 +1194,7 @@ function NW.BuildPlan(key, from, to)
     -- that's still orange or yellow takes over if it costs about the same.
     -- (At half again the cost, riding added 2-10% to whole plans.)
     local prev = sk > from and pick[sk - 1]
-    local cur = prev and here[prev.i]
+    local cur = prev and (here[prev.i] or here2[prev.i])
     if cur and best ~= prev.i and sk < recipes[prev.i].green and cur[3] >= 0.25 and cur[1] <= bestCost * 1.1 then
       best, bestCost, bestNeeds = prev.i, cur[1], cur[2]
     end
