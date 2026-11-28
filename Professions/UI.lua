@@ -199,6 +199,7 @@ do
       if w > 0 then x = x + math.ceil(w) + 18 end
     end
     box:SetWidth(math.max(SUM_W, x))
+    MS.sumW = math.max(SUM_W, x)
     box.lines = lines
   end
 end
@@ -5585,7 +5586,7 @@ function MS.altsRight(p)
   local prof = p and NW.PROF_BY_KEY[p.key]
   hName:SetText("Characters")
   hIcon:SetTexture(prof and prof.icon or "Interface\\Icons\\INV_Misc_Book_09")
-  hSkill:SetText(p and ("%s  ·  %s %s-%s"):format(p.label, prof and prof.name or p.key, p.s.from or "?", p.s.to or "?") or "No saved lists")
+  hSkill:SetText(p and ("%s %s-%s  ·  %s"):format(prof and prof.name or p.key, p.s.from or "?", p.s.to or "?", p.label) or "No saved lists")
   NW.SetWindowSubtitle("Characters")
   if not p then
     rHead.text:SetText("Shopping list")
@@ -5618,12 +5619,15 @@ function MS.altsRight(p)
   -- the numbers up top are this list's
   MS.summary({ { "Remaining cost", NW.Money(total, "mid") .. (unpriced > 0 and " |cffd17665+?|r" or ""), S.gold }, { "Item types", tostring(left) }, { "Remaining", tostring(rem) } },
     { { p.label .. " · " .. (prof and prof.name or p.key) }, { MS.updated(p.s.t) }, { "Costs use last-scanned auction prices, not guaranteed." } })
+  -- the plan's name and range use the room the three numbers leave
+  hSkill:SetWidth(math.max(120, MID_W - 48 - (MS.sumW or 272) - 12))
   MS.altsSendDraw(p, all)
 end
 function MS.altsShow(on)
   MS.altsOn = on
   if MS.search then MS.search:SetShown(not on) end
   if not on then
+    hSkill:SetWidth(MID_W - 48 - 272)
     if MS.altsFrame then MS.altsFrame:Hide() end
     if MS.altsSend then MS.altsSend:Hide() end
     MS.altStatus = nil
