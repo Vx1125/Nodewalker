@@ -110,7 +110,12 @@ local RARE = { ["Black Lotus"] = 0.02, ["Silver Vein"] = 0.15, ["Ooze Covered Si
 -- Ranked zones: { mapID, name, note, recommended, count, loop, rate, gold, pts }
 local function rankZones(entry, both)
   local sig = totalNodes()
-  if both then sig = ("%d:%s:%s"):format(sig, tostring(NW.GetSkill("herb")), tostring(NW.GetSkill("ore"))) end
+  if both then
+    local st0, hid = NW.db.settings, 0
+    for _ in pairs(st0.hiddenNodes or {}) do hid = hid + 1 end
+    sig = ("%d:%s:%s:%s:%s:%s:%s:%d"):format(sig, tostring((NW.GetSkill("herb"))), tostring((NW.GetSkill("ore"))),
+      tostring(st0.includeHerb), tostring(st0.includeOre), tostring(st0.onlyGatherable), tostring(st0.onlySkillUps), hid)
+  end
   local c = cache[entry[1]]
   if c and c.sig == sig then return c.rows end
   local rows, seen = {}, {}
@@ -721,7 +726,7 @@ W.huntSort = UI.Dropdown(tbl, 136, "", sortItems(), function() return st().huntS
 W.huntSort:SetPoint("TOPRIGHT", 0, 1)
 W.nodeSort = UI.Dropdown(tbl, 136, "", { { "best", "Best" }, { "rate", "Spots per minute" }, { "gold", "Theoretical g/h" }, { "count", "Known spots" }, { "loop", "Shortest loop" } },
   function() return st().guideSort or "best" end, function(v) st().guideSort = v ~= "best" and v or nil; refresh() end, 136,
-  "Best: known spots passed per minute on a mounted loop through all of them, scaled down for zones with under 25 known spots. For Herbs and ore: theoretical gold per hour the same way.\nZones with fewer than 3 known spots come last.")
+  "Best: known spots passed per minute on a mounted loop through all of them, scaled down for zones with under 25 known spots. For all herbs and ore: theoretical gold per hour the same way.\nZones with fewer than 3 known spots come last.")
 W.nodeSort:SetPoint("TOPRIGHT", 0, 1)
 
 ------------------------------------------------------------------------
@@ -1421,7 +1426,8 @@ local function viewNodes(e)
   -- side
   sideReset(row and row.name or "")
   if row then
-    sideStat("Known spots", tostring(row.count))
+    local all = both and row.mapID and #(NW.db.nodes[row.mapID] or {}) or 0
+    sideStat("Known spots", tostring(row.count) .. (all > row.count and (DIM .. " of " .. all .. "|r") or ""))
     if row.rate then
       sideStat("Loop", fmtTime(row.loop / NW.MOUNT_YPS))
       sideStat("Spots per minute", ("%.1f"):format(row.rate))
@@ -2103,7 +2109,14 @@ end
 ------------------------------------------------------------------------
 -- Refresh
 ------------------------------------------------------------------------
-local BOTH = { id = "both", name = "Herbs and ore", cat = "herb", src = { nodes = true }, nodeKind = "both", uses = 0 }
+local BOTH = { id = "both", name = "All herbs and ore", cat = "herb", src = { nodes = true }, nodeKind = "both", uses = 0 }
+-- named for what you can gather: "All herbs", "All ore", or both
+local function bothName()
+  local h, o = NW.GetSkill("herb"), NW.GetSkill("ore")
+  if h and not o then return "All herbs", "herb" end
+  if o and not h then return "All ore", "ore" end
+  return "All herbs and ore", "node"
+end
 local function ownedText(e)
   if type(e.id) ~= "number" then return "" end
   local g = M.Goal(e.id)
@@ -2115,11 +2128,14 @@ local function ownedText(e)
   return n > 0 and tostring(n) or DIM .. "0|r"
 end
 local function iconOf(e)
-  if e.id == "both" then return NW.NodeIcon("Peacebloom", "herb") end
+  if e.id == "both" then
+    if NW.GetSkill("ore") and not NW.GetSkill("herb") then return NW.NodeIcon("Copper Vein", "ore") end
+    return NW.NodeIcon("Peacebloom", "herb")
+  end
   return NW.ItemIcon(e.id) or (e.src.nodes and NW.NodeIcon(e.name, e.nodeKind)) or "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 local function subText(e)
-  if e.id == "both" then return "Every node you can gather" end
+  if e.id == "both" then return "One route past every node you can gather" end
   local parts = {}
   for _, k in ipairs(M.Sources(e)) do parts[#parts + 1] = M.SourceText(e, k) end
   local nn = e.src.nodes and M.NodeNames(e.id)
@@ -2249,12 +2265,12 @@ function W.drawRows()
         local sk = skillOf(x)
         local p = type(x.id) == "number" and NW.Price and NW.Price(x.id)
         txt = (sk and tostring(sk) or "") .. ((sk and p) and "  ·  " or "") .. (p and NW.Money(p, true) or "")
-        if x.id == "both" then txt = "" end
+        if x.id == "both" then txt = DIM .. "whole zone|r" end
       end
       r.right:SetText(txt)
       -- the name gets what the number leaves, a point smaller if that's not enough
       r.name:SetWidth(math.max(60, L_W - 2 - 28 - 16 - (r.right:GetStringWidth() or 0)))
-      UI.FitText(r.name, (M.ACCENT[x.cat] or "") .. M.Name(x) .. "|r", 12, 10)
+      UI.FitText(r.name, (x.id == "both" and "|cffd6b266" or M.ACCENT[x.cat] or "") .. M.Name(x) .. "|r", 12, 10)
       r:SetSelected(x == e)
     end
   end
@@ -2313,7 +2329,6 @@ refresh = function()
     end
     list = f
   end
-  if searchText == "" and (sel.cat == "herb" or sel.cat == "ore") and not (s.matHave or s.matPriced) then table.insert(list, 1, BOTH) end
   local by = s.matSort
   if by then
     local key = {}
@@ -2326,6 +2341,11 @@ refresh = function()
       if key[a] ~= key[b] then return key[a] < key[b] end
       return M.Name(a) < M.Name(b)
     end)
+  end
+  -- the whole-zone route for everything you can gather: always the first row
+  if searchText == "" and (sel.cat == "herb" or sel.cat == "ore" or sel.cat == "all" or not sel.cat) and not (s.matHave or s.matPriced) then
+    BOTH.name = bothName()
+    table.insert(list, 1, BOTH)
   end
   -- One selection: the material must be in the list on screen. A category or
   -- search that leaves it out picks the first result (or nothing), and
@@ -2382,6 +2402,14 @@ refresh = function()
   W.name:SetText(M.Name(e))
   local cat = M.CAT[e.cat]
   local subParts = { cat and (cat.short or cat.label) or "" }
+  if e.id == "both" then
+    -- what the route takes in, and what your filters leave out
+    local _, what = bothName()
+    local hid = 0
+    for _ in pairs(NW.db.settings.hiddenNodes or {}) do hid = hid + 1 end
+    subParts = { ("One route past every %s you can gather"):format(what) }
+    if hid > 0 then subParts[#subParts + 1] = ("|cffd17665%d hidden in Settings|r"):format(hid) end
+  end
   if e.uses and e.uses > 0 then subParts[#subParts + 1] = ("Used in %d recipe%s"):format(e.uses, e.uses == 1 and "" or "s") end
   local p, psrc
   if type(e.id) == "number" and NW.Price then p, psrc = NW.Price(e.id) end

@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Material Finder: "All herbs" (or ore) is the first row: one route past everything you can gather in a zone, with what your filters hide.
+
 ## 1.4.0
 - New consumable tracker (Settings › Consumes, /nw buffs): reminds you what's missing or expiring from your loadout; click to use.
 - Consumes: pick Activity and Strategy, save Loadouts, choose exactly what you bring, set targets and stock sessions.
