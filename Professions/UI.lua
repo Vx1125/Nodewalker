@@ -4970,6 +4970,13 @@ function MS.snapshotShop(key, from, to, spend, list, plan)
     end
   end
   local class = UnitClass and select(2, UnitClass("player")) or nil
+  -- mail sent to this character counts until it updates after opening a mailbox
+  local sent = db.altSent and db.altSent[ck]
+  if sent then
+    local seen = NW.charDB and NW.charDB.mailSeenAt or 0
+    for id, m in pairs(sent) do if (m.t or 0) <= seen then sent[id] = nil end end
+    if not next(sent) then db.altSent[ck] = nil end
+  end
   db.altShop[ck][key] = { t = time(), from = from, to = to, spend = spend, class = class,
     faction = UnitFactionGroup and UnitFactionGroup("player") or nil, bags = st().planUseBags ~= false, items = items }
 end
@@ -5038,29 +5045,51 @@ function MS.altShared(p, id)
   end
   return out
 end
--- the selected list as shopping-list entries: an alt's counts are its bags as saved, yours are live
+-- bags only (what can go in the mail now), and bags plus bank
+function MS.bagCount(id)
+  if C_Item and C_Item.GetItemCount then return C_Item.GetItemCount(id, false) or 0 end
+  if GetItemCount then return GetItemCount(id, false) or 0 end
+  return 0
+end
+-- what you've mailed a character since its list was saved (sent mail, server-confirmed)
+function MS.altMailed(p, id)
+  -- (records stay until the character saves after opening a mailbox: those are the uncollected ones)
+  local m = NW.db and NW.db.altSent and NW.db.altSent[p.ck] and NW.db.altSent[p.ck][id]
+  return m and m.n or 0
+end
+-- the selected list as entries. Needed: what the character still needs (its bags as saved, less
+-- what you've mailed it since). Here: what you hold now. Remaining: what neither covers. An alt's
+-- needs only drop when mail is sent, never because you happen to hold the item.
 function MS.altEntries(p)
   local groups = { recipes = {}, mats = {}, crafted = {}, tools = {}, owned = {} }
-  local total, unpriced, left = 0, 0, 0
+  local total, unpriced, left, units = 0, 0, 0, 0
   for _, it in ipairs(p.s.items or {}) do
     local e
     if it.g == "r" then
       local r
       for _, rr in ipairs(NW.RECIPES[p.key] or {}) do if rr.name == it.r then r = rr break end end
-      local have = p.me and math.min(1, it.id and NW.ItemCount(it.id) or 0) or (it.have or 0)
-      e = { recipe = r or { name = it.r or "?", src = "recipe" }, key = p.key, term = it.n or it.r or "?", id = it.id, need = 1, have = have, buy = 1 - have }
-      if it.id then e.price, e.src = MS.altPrice(it.id) end
+      e = { recipe = r or { name = it.r or "?", src = "recipe" }, key = p.key, term = it.n or it.r or "?", id = it.id }
     elseif it.id then
-      local have = p.me and (NW.ItemCount and NW.ItemCount(it.id) or 0) or (it.have or 0)
-      e = { id = it.id, need = it.need or 0, have = have, buy = math.max(0, (it.need or 0) - math.min(have, it.need or 0)) }
-      e.price, e.src = MS.altPrice(it.id)
+      e = { id = it.id }
     end
     if e then
+      local need = it.g == "r" and 1 or (it.need or 0)
+      local mine = e.id and NW.ItemCount(e.id) or 0
+      local altHave = p.me and mine or (it.have or 0)
+      e.full = need
+      e.mailed = p.me and 0 or (e.id and MS.altMailed(p, e.id) or 0)
+      e.need = math.max(0, need - math.min(altHave, need) - e.mailed)
+      e.have = altHave
+      e.here = p.me and 0 or mine
+      e.sendable = not p.me and mine > 0 and e.id and MS.canMail(p, e.id) or false
+      e.remain = math.max(0, e.need - (e.sendable and math.min(mine, e.need) or 0))
+      e.buy = e.remain
+      if e.id then e.price, e.src = MS.altPrice(e.id) end
       e.alt, e.it = p, it
-      e.cost = e.price and e.price * e.buy or nil
-      if e.cost then total = total + e.cost elseif e.buy > 0 then unpriced = unpriced + 1 end
-      if e.buy > 0 then left = left + 1 end
-      local g = e.buy == 0 and "owned" or it.g == "r" and "recipes" or it.g == "t" and "tools" or it.g == "c" and "crafted" or "mats"
+      e.cost = e.price and e.price * e.remain or nil
+      if e.cost then total = total + e.cost elseif e.remain > 0 then unpriced = unpriced + 1 end
+      if e.need > 0 then left = left + 1 units = units + e.need end
+      local g = e.need == 0 and "owned" or it.g == "r" and "recipes" or it.g == "t" and "tools" or it.g == "c" and "crafted" or "mats"
       table.insert(groups[g], e)
     end
   end
@@ -5068,7 +5097,7 @@ function MS.altEntries(p)
   local folds = st().shopFolds or {}
   local shown, all = {}, {}
   for _, g in ipairs({ { "recipes", "Recipes to buy" }, { "mats", "Materials" }, { "crafted", "Crafted components" },
-    { "tools", "Tools" }, { "owned", "Already have" } }) do
+    { "tools", "Tools" }, { "owned", "Already covered" } }) do
     local items = groups[g[1]]
     if #items > 0 then
       local fo = folds[g[1]]
@@ -5080,7 +5109,7 @@ function MS.altEntries(p)
       end
     end
   end
-  return shown, all, total, unpriced, left
+  return shown, all, total, unpriced, left, units
 end
 -- the selected list, or the first one
 function MS.altCurrent()
@@ -5105,6 +5134,7 @@ function MS.altRemove(p)
   StaticPopup_Show("NODEWALKER_REMOVE_PLAN", (NW.PROF_BY_KEY[p.key] or {}).name or p.key, p.label, go)
 end
 MS.CHAR_H, MS.CHAR_MAX, MS.CLIST_H = 28, 3, 24
+MS.CCOL = { 238, 178, 128, 86 } -- right edges: the name stops at [1]; Needed, Here, Remaining at [2..4]
 function MS.altsBuild()
   local f = CreateFrame("Frame", nil, mid)
   f:SetPoint("TOPLEFT", optRow, "TOPLEFT", 0, 0)
@@ -5134,6 +5164,16 @@ function MS.altsBuild()
   f.list:SetPoint("BOTTOMRIGHT")
   f.list:EnableMouseWheel(true)
   f.list.offset, f.list.rows = 0, {}
+  f.caps = {}
+  for c, label in ipairs({ "Needed", "Here", "Remaining", "Cost" }) do
+    local fs = UI.Text(f.list, 10, S.dim, "RIGHT")
+    fs:SetPoint("TOPRIGHT", f.list, "TOPRIGHT", c < 4 and -(MS.CCOL[c + 1] + 1) or -11, -4)
+    fs:SetText(label)
+    f.caps[c] = fs
+  end
+  f.capName = UI.Text(f.list, 10, S.dim)
+  f.capName:SetPoint("TOPLEFT", 31, -4)
+  f.capName:SetText("Material")
   f.list:SetScript("OnMouseWheel", function(self, d)
     self.offset = math.max(0, math.min(self.offset - d, math.max(0, #shop - #self.rows)))
     MS.altsDrawList()
@@ -5184,6 +5224,7 @@ function MS.altsCharRow(i)
     if button == "RightButton" then return MS.altRemove(p) end
     MS.altSel = p.ck .. "|" .. p.key
     MS.altsFrame.list.offset = 0
+    MS.altStatus = nil
     refresh()
   end)
   strip.rows[i] = row
@@ -5195,7 +5236,7 @@ function MS.altsListRow(i)
   -- the shopping list's own row: same look, tooltip and clicks
   local row = CreateFrame("Button", nil, list)
   row:SetHeight(MS.CLIST_H)
-  row:SetPoint("TOPLEFT", 1, -2 - (i - 1) * MS.CLIST_H)
+  row:SetPoint("TOPLEFT", 1, -18 - (i - 1) * MS.CLIST_H)
   row:SetPoint("RIGHT", list, "RIGHT", -4, 0)
   UI.RowStripe(row)
   row:SetStripe(i % 2 == 0)
@@ -5206,10 +5247,17 @@ function MS.altsListRow(i)
   row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   row.name = UI.Text(row, 11, S.text)
   row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-  row.name:SetPoint("RIGHT", row, "RIGHT", -110, 0)
+  row.name:SetPoint("RIGHT", row, "RIGHT", -MS.CCOL[1] - 8, 0)
   row.name:SetWordWrap(false)
   row.cost = UI.Text(row, 11, S.text, "RIGHT")
   row.cost:SetPoint("RIGHT", -6, 0)
+  -- Needed | Here | Remaining, right-aligned before Cost
+  row.cols = {}
+  for c = 1, 3 do
+    local fs = UI.Text(row, 11, S.text, "RIGHT")
+    fs:SetPoint("RIGHT", row, "RIGHT", -MS.CCOL[c + 1], 0)
+    row.cols[c] = fs
+  end
   row:SetScript("OnEnter", shopRows[1]:GetScript("OnEnter"))
   row:SetScript("OnLeave", shopRows[1]:GetScript("OnLeave"))
   row:SetScript("OnClick", shopRows[1]:GetScript("OnClick"))
@@ -5251,15 +5299,184 @@ function MS.altsDrawList()
   local list = f.list
   local h = list:GetHeight() or 0
   if h < 60 then h = STEPS_BOX_H + 52 - (f.strip:GetHeight() or 0) - 16 end -- (not laid out yet)
-  local n = math.max(1, math.floor((h - 4) / MS.CLIST_H))
+  local n = math.max(1, math.floor((h - 20) / MS.CLIST_H))
   for i = 1, n do MS.altsListRow(i) end
   list.offset = math.max(0, math.min(list.offset, #shop - n))
   for i, row in ipairs(list.rows) do
     local e = i <= n and shop[i + list.offset] or nil
     row.entry = e
-    if e then row:Show() MS.paintShopRow(row, e) else row:Hide() end
+    if e then row:Show() MS.paintCharRow(row, e) else row:Hide() end
   end
   list:SetShown(#shop > 0)
+end
+-- a Characters list row: the shopping list's look, with Needed | Here | Remaining | Cost
+function MS.paintCharRow(row, e)
+  MS.paintShopRow(row, e)
+  local c = row.cols
+  if e.header or not e.alt then
+    for i = 1, 3 do c[i]:SetText("") end
+    return
+  end
+  local nm, okn
+  if e.recipe then nm = (e.term:gsub("^[%a ]+: ", "")) else nm, okn = itemName(e.id) end
+  if not e.recipe and not okn and e.it and e.it.n then nm = e.it.n end
+  row.name:SetText((e.recipe and "|cffff8040" or "|cffe0dbd0") .. nm .. "|r")
+  local p = e.alt
+  c[1]:SetText(e.need > 0 and ("|cffd6b266%d|r"):format(e.need) or "|cff94ba780|r")
+  if p.me then c[2]:SetText("|cff938c80-|r")
+  elseif e.here > 0 then c[2]:SetText(e.sendable and ("|cff94ba78%d|r"):format(e.here) or ("|cff938c80%d|r"):format(e.here))
+  else c[2]:SetText("|cff938c800|r") end
+  c[3]:SetText(e.remain > 0 and ("|cffe0dbd0%d|r"):format(e.remain) or "|cff94ba780|r")
+  row.cost:SetText(e.remain == 0 and "|cff94ba78-|r" or (e.cost and NW.Money(e.cost, "mid") .. (e.src == "vendor" and " |cff938c80v|r" or "")) or "|cff938c80no price|r")
+end
+-- what you can send this character now: bag items it still needs (bank items need a bank trip first)
+function MS.altSendable(p, all)
+  local out, types, units = {}, 0, 0
+  if p.me then return out, 0, 0 end
+  for _, e in ipairs(all) do
+    if e.id and e.need > 0 and e.sendable then
+      local bags = MS.bagCount(e.id)
+      local n = math.min(bags, e.need)
+      if n > 0 then out[#out + 1] = { e = e, n = n, bank = math.min(e.here, e.need) - n } types = types + 1 units = units + n end
+    end
+  end
+  table.sort(out, function(a, b) return a.n * (a.e.price or 0) > b.n * (b.e.price or 0) end)
+  return out, types, units
+end
+-- Prepare mail (player-initiated, at an open mailbox): the recipient, a subject, and the stacks
+-- it needs, up to the free attachment slots. Nothing is sent: you check it and press Send.
+function MS.prepareMail(p)
+  if not (MailFrame and MailFrame:IsShown()) then return "Open a mailbox first." end
+  if not (C_Container and C_Container.PickupContainerItem and ClickSendMailItemButton and GetSendMailItem) then return "The client doesn't allow attaching items here." end
+  local ok, why = MS.canMail(p, 0)
+  if not ok and why ~= "soulbound" then return "Can't mail " .. p.label .. ": " .. (why or "") .. "." end
+  local _, all = MS.altEntries(p)
+  local list = MS.altSendable(p, all)
+  if #list == 0 then return "Nothing in your bags for " .. p.label .. "'s list." end
+  if MailFrameTab2 and SendMailFrame and not SendMailFrame:IsShown() then MailFrameTab2:Click() end
+  if SendMailNameEditBox then SendMailNameEditBox:SetText(p.name) end
+  if SendMailSubjectEditBox and (SendMailSubjectEditBox:GetText() or "") == "" then
+    SendMailSubjectEditBox:SetText(((NW.PROF_BY_KEY[p.key] or {}).name or "Profession") .. " materials")
+  end
+  -- what's attached already (preparing twice adds nothing twice)
+  local maxA = ATTACHMENTS_MAX_SEND or 12
+  local attached, free = {}, {}
+  for i = 1, maxA do
+    local _, itemID, _, count = GetSendMailItem(i)
+    if itemID then attached[itemID] = (attached[itemID] or 0) + (count or 1) else free[#free + 1] = i end
+  end
+  local stacks = 0
+  for _, s in ipairs(list) do
+    local want = s.n - (attached[s.e.id] or 0)
+    for bag = 0, (NUM_BAG_SLOTS or 4) do
+      for slot = 1, (C_Container.GetContainerNumSlots(bag) or 0) do
+        if want <= 0 or #free == 0 then break end
+        local info = C_Container.GetContainerItemInfo(bag, slot)
+        if info and info.itemID == s.e.id and not info.isBound and not info.isLocked then
+          local take = math.min(info.stackCount or 1, want)
+          ClearCursor()
+          if take < (info.stackCount or 1) then C_Container.SplitContainerItem(bag, slot, take) else C_Container.PickupContainerItem(bag, slot) end
+          ClickSendMailItemButton(table.remove(free, 1))
+          ClearCursor()
+          want, stacks = want - take, stacks + 1
+        end
+      end
+    end
+  end
+  if stacks == 0 then return #free == 0 and "No free attachment slots." or "Already attached." end
+  return ("Attached %d stack%s for %s. Check the mail, then Send."):format(stacks, stacks == 1 and "" or "s", p.label)
+end
+-- farming targets in Material Finder: "gather N more" for what's still remaining, gatherable ones
+function MS.setTargets(p)
+  local M = NW.Mat
+  if not (M and M.SetGoal and M.Get) then return "Material Finder isn't loaded." end
+  local _, all = MS.altEntries(p)
+  local set, full = 0, false
+  for _, e in ipairs(all) do
+    if e.id and e.remain > 0 and not e.recipe and M.Get(e.id) then
+      local g, err = M.SetGoal(e.id, "more", e.remain, p.key)
+      if g then set = set + 1 elseif err == "full" then full = true break end
+    end
+  end
+  if set == 0 then return full and "Material Finder's target list is full." or "Nothing on the list to gather." end
+  return ("%d farming target%s set in Material Finder%s."):format(set, set == 1 and "" or "s", full and " (its list is full)" or "")
+end
+-- the right column's send section and buttons (made once)
+function MS.altsSendBuild()
+  local s = CreateFrame("Frame", nil, right)
+  s:SetSize(RIGHT_W, 200)
+  s.head = UI.Heading(s, "Available to send", RIGHT_W)
+  s.head:SetPoint("TOPLEFT")
+  s.sum = UI.Text(s, 11, S.dim)
+  s.sum:SetPoint("TOPLEFT", s.head, "BOTTOMLEFT", 0, -6)
+  s.sum:SetWidth(RIGHT_W)
+  s.lines = {}
+  for i = 1, 6 do
+    local l = CreateFrame("Frame", nil, s)
+    l:SetSize(RIGHT_W, 18)
+    l:SetPoint("TOPLEFT", s.sum, "BOTTOMLEFT", 0, -4 - (i - 1) * 18)
+    l.icon = l:CreateTexture(nil, "ARTWORK")
+    l.icon:SetSize(14, 14) l.icon:SetPoint("LEFT", 2, 0) l.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    l.name = UI.Text(l, 11, S.text) l.name:SetPoint("LEFT", 22, 0) l.name:SetWidth(RIGHT_W - 90) l.name:SetWordWrap(false)
+    l.n = UI.Text(l, 11, S.good, "RIGHT") l.n:SetPoint("RIGHT", -2, 0)
+    s.lines[i] = l
+  end
+  s.mail = UI.Button(s, "Prepare mail", math.floor((RIGHT_W - 6) / 2), function()
+    local p = MS.altCurrent()
+    if p then MS.altStatus = MS.prepareMail(p) refresh() end
+  end)
+  s.farm = UI.Button(s, "Set farming targets", RIGHT_W - math.floor((RIGHT_W - 6) / 2) - 6, function()
+    local p = MS.altCurrent()
+    if p then MS.altStatus = MS.setTargets(p) refresh() end
+  end)
+  UI.Tip(s.mail, "Prepare mail", "At an open mailbox: fills in the name and attaches what this list still needs from your bags. Nothing is sent until you press Send.")
+  UI.Tip(s.farm, "Set farming targets", "Material Finder targets for what's still remaining (gatherable materials), as \"gather N more\".")
+  s.status = UI.Text(s, 11, S.gold)
+  s.status:SetWidth(RIGHT_W)
+  MS.altsSend = s
+end
+function MS.altsSendDraw(p, all)
+  if not MS.altsSend then MS.altsSendBuild() end
+  local s = MS.altsSend
+  s:ClearAllPoints()
+  s:SetPoint("TOPLEFT", searchBtn, "BOTTOMLEFT", 0, -14)
+  s:Show()
+  local list, types, units = MS.altSendable(p, all)
+  local n = math.min(#list, #s.lines)
+  if p.me then
+    s.sum:SetText("This is your own list: nothing to send.")
+  elseif not p.sameRealm then
+    s.sum:SetText("Another realm: mail can't reach " .. p.label .. ".")
+  elseif #list == 0 then
+    s.sum:SetText("Nothing in your bags that " .. p.label .. "'s list still needs.")
+  else
+    s.sum:SetText(("%d material%s, %d item%s in your bags"):format(types, types == 1 and "" or "s", units, units == 1 and "" or "s")
+      .. (#list > n and (" (top %d shown)"):format(n) or ""))
+  end
+  for i, l in ipairs(s.lines) do
+    local x = i <= n and list[i]
+    if x then
+      l:Show()
+      l.icon:SetTexture(itemIcon(x.e.id))
+      local nm, okn = itemName(x.e.id)
+      if not okn and x.e.it and x.e.it.n then nm = x.e.it.n end
+      l.name:SetText(nm .. ("|cff938c80  needs %d|r"):format(x.e.need))
+      l.n:SetText(tostring(x.n))
+    else
+      l:Hide()
+    end
+  end
+  local last = n > 0 and s.lines[n] or s.sum
+  s.mail:ClearAllPoints()
+  s.mail:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -10)
+  s.farm:ClearAllPoints()
+  s.farm:SetPoint("LEFT", s.mail, "RIGHT", 6, 0)
+  local mailbox = MailFrame and MailFrame:IsShown()
+  s.mail:SetEnabled(#list > 0 and mailbox and true or false)
+  s.mail:SetAlpha(#list > 0 and mailbox and 1 or 0.5)
+  s.status:ClearAllPoints()
+  s.status:SetPoint("TOPLEFT", s.mail, "BOTTOMLEFT", 0, -8)
+  s.status:SetText(MS.altStatus or (#list > 0 and not mailbox and "|cff938c80Open a mailbox to prepare mail.|r" or ""))
 end
 -- the right column for the selected list: its summary and the auction house buttons
 function MS.altsRight(p)
@@ -5269,25 +5486,20 @@ function MS.altsRight(p)
     rTotal:SetText("|cff938c80Nothing saved yet.|r")
     shop, MS.shopAll = {}, {}
     searchBtn:Hide() MS.recipesBtn:Hide()
+    if MS.altsSend then MS.altsSend:Hide() end
     MS.summary(nil)
     return
   end
-  local shown, all, total, unpriced, left = MS.altEntries(p)
+  local shown, all, total, unpriced, left, units = MS.altEntries(p)
   local prof = NW.PROF_BY_KEY[p.key]
   rHead.text:SetText(p.label .. " · " .. (prof and prof.name or p.key))
-  local mail = 0
-  if not p.me then
-    for _, e in ipairs(all) do
-      if e.id and e.buy > 0 and (NW.ItemCount(e.id) or 0) > 0 and MS.canMail(p, e.id) then mail = mail + 1 end
-    end
-  end
   local money = NW.Money(total, "mid") .. (unpriced > 0 and " |cffd17665+?|r" or "")
   rTotal:SetText(table.concat({
     ("Skill %s-%s  ·  %s"):format(p.s.from or "?", p.s.to or "?", MS.updated(p.s.t)),
-    ("|cffd6b266%s|r for %d item%s, at today's prices"):format(money, left, left == 1 and "" or "s"),
+    ("Needs %d material%s (%d item%s)"):format(left, left == 1 and "" or "s", units, units == 1 and "" or "s"),
+    ("|cffd6b266%s|r for what's remaining, at last-scanned prices"):format(money),
     p.me and "|cff938c80Counts: your bags and bank, live.|r"
-      or ("|cff938c80Counts: %s's bags as saved (%s), not live.|r"):format(p.name, MS.updated(p.s.t):lower():gsub("^updated ", "")),
-    mail > 0 and ("|cff94ba78You have %d of these to mail.|r"):format(mail) or nil,
+      or ("|cff938c80Counts: %s's bags as saved (%s), not live.|r"):format(p.name, (MS.updated(p.s.t):lower():gsub("^updated ", ""))),
   }, "\n"))
   shop, MS.shopAll = shown, all
   local nRecipes = 0
@@ -5300,13 +5512,17 @@ function MS.altsRight(p)
   searchBtn:Show()
   MS.recipesBtn:SetShown(nRecipes > 0)
   -- the numbers up top are this list's
-  MS.summary({ { "List cost", NW.Money(total, "gs") .. (unpriced > 0 and " |cffd17665+?|r" or ""), S.gold }, { "To buy", tostring(left) } },
-    { { p.label .. " · " .. (prof and prof.name or p.key) }, { MS.updated(p.s.t) } })
+  MS.summary({ { "Remaining cost", NW.Money(total, "mid") .. (unpriced > 0 and " |cffd17665+?|r" or ""), S.gold }, { "Needs", ("%d (%d)"):format(left, units) } },
+    { { p.label .. " · " .. (prof and prof.name or p.key) }, { MS.updated(p.s.t) }, { "Costs use last-scanned auction prices, not guaranteed." } })
+  MS.altsSendDraw(p, all)
 end
 function MS.altsShow(on)
+  MS.altsOn = on
   if MS.search then MS.search:SetShown(not on) end
   if not on then
     if MS.altsFrame then MS.altsFrame:Hide() end
+    if MS.altsSend then MS.altsSend:Hide() end
+    MS.altStatus = nil
     if MS.altsMoved then
       MS.altsMoved = nil
       searchBtn:ClearAllPoints()
@@ -5344,10 +5560,14 @@ function MS.altTip(e)
   if p.me then
     GameTooltip:AddDoubleLine("In your bags and bank now", e.have, d[1], d[2], d[3], 1, 1, 1)
   else
-    GameTooltip:AddDoubleLine(p.name .. " had (cached, " .. MS.updated(p.s.t):lower():gsub("^updated ", "") .. ")", e.have, d[1], d[2], d[3], 1, 1, 1)
+    GameTooltip:AddDoubleLine("The plan needs", e.full, d[1], d[2], d[3], 1, 1, 1)
+    GameTooltip:AddDoubleLine(p.name .. " had (cached, " .. (MS.updated(p.s.t):lower():gsub("^updated ", "")) .. ")", e.have, d[1], d[2], d[3], 1, 1, 1)
+    if (e.mailed or 0) > 0 then GameTooltip:AddDoubleLine("You mailed since", e.mailed, d[1], d[2], d[3], 0.58, 0.73, 0.47) end
     local mine = NW.ItemCount(e.id) or 0
     local ok, why = MS.canMail(p, e.id)
-    GameTooltip:AddDoubleLine("You have now", mine .. (mine > 0 and (ok and "  |cff94ba78can mail|r" or ("  |cffd17665" .. (why or "") .. "|r")) or ""), d[1], d[2], d[3], 1, 1, 1)
+    local bags = MS.bagCount(e.id)
+    GameTooltip:AddDoubleLine("You have now", mine .. (mine > bags and (" (" .. (mine - bags) .. " in the bank)") or "")
+      .. (mine > 0 and (ok and "  |cff94ba78can mail|r" or ("  |cffd17665" .. (why or "") .. "|r")) or ""), d[1], d[2], d[3], 1, 1, 1)
   end
   local shared = MS.altShared(p, e.id)
   if #shared > 0 then
@@ -5355,3 +5575,47 @@ function MS.altTip(e)
     for _, l in ipairs(shared) do GameTooltip:AddLine("  " .. l, 1, 1, 1) end
   end
 end
+
+-- Mail you send to a saved character counts against its list once the server confirms it
+-- (MAIL_SEND_SUCCESS); a character that has opened a mailbox since clears it when it next saves.
+NW.On("MAIL_SHOW", function()
+  if NW.charDB then NW.charDB.mailSeenAt = time() end
+  if MS.altsOn then refresh() end
+end)
+NW.On("MAIL_CLOSED", function() if MS.altsOn then MS.altStatus = nil refresh() end end)
+if type(SendMail) == "function" then
+  hooksecurefunc("SendMail", function(to)
+    MS.mailOut = nil
+    if not (to and GetSendMailItem) then return end
+    local items = {}
+    for i = 1, (ATTACHMENTS_MAX_SEND or 12) do
+      local _, itemID, _, count = GetSendMailItem(i)
+      if itemID then items[itemID] = (items[itemID] or 0) + (count or 1) end
+    end
+    if next(items) then MS.mailOut = { to = to, items = items } end
+  end)
+end
+NW.On("MAIL_SEND_SUCCESS", function()
+  local out = MS.mailOut
+  MS.mailOut = nil
+  if not (out and NW.db and NW.db.altShop) then return end
+  local name, realm = out.to:match("^([^%-]+)%-?(.*)$")
+  name = (name or out.to):lower()
+  local myRealm = MS.myRealm()
+  local ck
+  for k in pairs(NW.db.altShop) do
+    local n = k:match("^([^%-]+)") or k
+    local r = k:sub(#n + 2)
+    if n:lower() == name and (realm == "" or realm == r) and (r == "" or r == "?" or not myRealm or r == myRealm or realm == r) then ck = k break end
+  end
+  if not ck then return end
+  NW.db.altSent = NW.db.altSent or {}
+  local sent = NW.db.altSent[ck] or {}
+  NW.db.altSent[ck] = sent
+  local now = time()
+  for id, n in pairs(out.items) do
+    local m = sent[id]
+    if m then m.n, m.t = m.n + n, now else sent[id] = { n = n, t = now } end
+  end
+  if MS.altsOn then refresh() end
+end)
