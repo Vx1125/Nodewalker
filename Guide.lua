@@ -2260,7 +2260,7 @@ function W.drawRows()
 end
 
 refresh = function()
-  if not page:IsShown() then return end
+  if not page:IsVisible() then return end
   W.routeEdit = nil
   local s = st()
   sel.cat = sel.cat or s.matCat or "herb"
@@ -2588,7 +2588,7 @@ end
 -- live: bags, objectives, routes, your log
 local queued
 local function later()
-  if queued or not page:IsShown() then return end
+  if queued or not page:IsVisible() then return end
   queued = true
   C_Timer.After(0.3, function() queued = false; refresh() end)
 end

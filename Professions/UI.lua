@@ -440,7 +440,7 @@ function NW.OnLiveListings()
   livePending = true
   C_Timer.After(0.6, function()
     livePending = nil
-    if page:IsShown() then refresh() end
+    if page:IsVisible() then refresh() end
   end)
 end
 
@@ -448,8 +448,8 @@ end
 local craftMsg, craftMsgAt
 function NW.CraftStatus(msg)
   craftMsg, craftMsgAt = msg, GetTime()
-  if page:IsShown() then refresh() end
-  C_Timer.After(4.1, function() if page:IsShown() then refresh() end end)
+  if page:IsVisible() then refresh() end
+  C_Timer.After(4.1, function() if page:IsVisible() then refresh() end end)
 end
 local STEP_H, STEP_ROWS, STEP_FRAMES, HEAD_ROW_H = 38, 10, 15, 24
 -- Leveling's columns: Skill | Recipe | Materials | Crafts | Cost (row x).
@@ -1856,15 +1856,24 @@ local function drawCraft(p)
   end
   -- what bought or found recipes would save
   if not st().planRecipeItems and st().planStrategy ~= "known" then
-    st().planRecipeItems = true
-    NW.kitHold = true -- a what-if: neither follows nor replaces the kit
-    local alt = NW.BuildPlan(p.key, from, to)
-    NW.kitHold = nil
-    st().planRecipeItems = false
-    NW.BuildPlan(p.key, from, to) -- back to this profession's prices
+    -- a second whole plan: kept a minute per profession and range, not rebuilt on every bag update
+    MS.whatIf = MS.whatIf or {}
+    local wk = p.key .. ":" .. from .. ":" .. to
+    local w = MS.whatIf[p.key] -- (one per profession: bounded)
+    if not w or w.k ~= wk or GetTime() - w.at > 60 then
+      st().planRecipeItems = true
+      NW.kitHold = true -- a what-if: neither follows nor replaces the kit
+      local alt = NW.BuildPlan(p.key, from, to)
+      NW.kitHold = nil
+      st().planRecipeItems = false
+      NW.BuildPlan(p.key, from, to) -- back to this profession's prices
+      w = { k = wk, at = GetTime(), total = alt.total, spend = alt.spend or alt.total }
+      MS.whatIf[p.key] = w
+    end
+    local alt = w
     if alt.total < plan.total * 0.85 then
       MS.planLines[#MS.planLines + 1] = { " " }
-      MS.planLines[#MS.planLines + 1] = { "|cff94ba78With purchasable recipes|r", NW.Money(alt.spend or alt.total, "mid") }
+      MS.planLines[#MS.planLines + 1] = { "|cff94ba78With purchasable recipes|r", NW.Money(alt.spend, "mid") }
     end
   end
   local list, total = NW.ShoppingList(p.key, plan)
@@ -4014,7 +4023,7 @@ local function matsCost(r)
   return full, toBuy, unpriced
 end
 refresh = function()
-  if not page:IsShown() then return end
+  if not page:IsVisible() then return end
   selected = selected or st().profSelected
   if selected == "find" then selected = nil end -- (Find a craft has its own tab now)
   if not selected then
@@ -4160,7 +4169,14 @@ refresh = function()
   MS.altsShow(isCraft and mode == "alts")
 end
 MS.refresh = refresh -- (refresh can't name itself: it's at Lua 5.1's limit of 60 upvalues)
-NW.RefreshProfessions = function() if page:IsShown() then refresh() end end
+-- /nw perf times every redraw
+refresh = function() local t0 = NW.PerfStart() MS.refresh() NW.PerfStop("Professions redraw", t0) end
+-- plans changed (bags, skills, prices): one redraw for events that come together
+NW.RefreshProfessions = function()
+  if not page:IsVisible() or MS.refreshQueued then return end
+  MS.refreshQueued = true
+  C_Timer.After(0.25, function() MS.refreshQueued = nil if page:IsVisible() then refresh() end end)
+end
 
 function NW.ToggleProfessions() NW.ToggleWindow("profs") end
 
@@ -4603,7 +4619,12 @@ NW.On("ADDON_LOADED", function(name)
     end)
   end
 end)
-NW.On("TRADE_SKILL_LIST_UPDATE", function() if tradeTab:IsShown() then updateNext() end end)
+-- (the list updates many times a craft: one look a moment later)
+NW.On("TRADE_SKILL_LIST_UPDATE", function()
+  if not tradeTab:IsShown() or MS.nextQueued then return end
+  MS.nextQueued = true
+  C_Timer.After(0.5, function() MS.nextQueued = nil if tradeTab:IsShown() then updateNext() end end)
+end)
 NW.On("SKILL_LINES_CHANGED", function() if tradeTab:IsShown() then C_Timer.After(0.2, updateNext) end end)
 
 ------------------------------------------------------------------------
@@ -4856,7 +4877,7 @@ do
   end
 
   function NW.RefreshFind()
-    if not fpage:IsShown() then return end
+    if not fpage:IsVisible() then return end
     -- matches: name first, then anything made from a material with that name
     wipe(results)
     if text ~= "" then

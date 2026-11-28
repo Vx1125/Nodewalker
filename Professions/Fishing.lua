@@ -2025,7 +2025,7 @@ function F.header()
 end
 
 function F.Redraw()
-  if not fp:IsShown() then return end
+  if not fp:IsVisible() then return end
   F.header()
   local t = tab()
   for k, b in pairs(W.tabs) do b:SetSelected(k == t) end

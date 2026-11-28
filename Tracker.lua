@@ -632,6 +632,10 @@ update = function()
   dirty.tick = false
   if paint() and hud:IsShown() then startTicker() elseif not hud:IsShown() then stopTicker() end
 end
+do
+  local raw = update
+  update = function() local t0 = NW.PerfStart() raw() NW.PerfStop("Consume tracker", t0) end
+end
 T.Update = update
 local function queue(delay)
   if queued then return end

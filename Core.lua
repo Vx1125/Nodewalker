@@ -149,7 +149,7 @@ end
 -- /nw perf on, and not saved. Nothing here collects garbage on its own;
 -- /nw perf gc does it once, when asked.
 ------------------------------------------------------------------------
-NW.Perf = { on = false, stats = {}, pools = {} }
+NW.Perf = { on = false, stats = {}, pools = {}, spikes = {} }
 function NW.PerfStart()
   return NW.Perf.on and debugprofilestop and debugprofilestop() or nil
 end
@@ -160,6 +160,12 @@ function NW.PerfStop(name, t0)
   if not s then s = { n = 0, total = 0, max = 0 }; NW.Perf.stats[name] = s end
   s.n, s.total, s.last = s.n + 1, s.total + ms, ms
   if ms > s.max then s.max = ms end
+  -- the slow ones, newest last (a stutter is one of these)
+  if ms >= 20 then
+    local sp = NW.Perf.spikes
+    sp[#sp + 1] = { name = name, ms = ms, at = GetTime() }
+    if #sp > 12 then table.remove(sp, 1) end
+  end
 end
 -- KB the client charges to Nodewalker, garbage included (nil if the client can't say)
 function NW.PerfMem()
@@ -201,6 +207,11 @@ function NW.PerfReport()
   for _, k in ipairs(names) do
     local s = P.stats[k]
     NW.Print(("%s: last %.1f ms, mean %.1f ms, max %.1f ms (%d runs)"):format(k, s.last, s.total / s.n, s.max, s.n))
+  end
+  if #P.spikes > 0 then
+    NW.Print("Slowest moments (20 ms or more), newest last:")
+    local now = GetTime()
+    for _, sp in ipairs(P.spikes) do NW.Print(("  %s: %.0f ms, %.0f s ago"):format(sp.name, sp.ms, now - sp.at)) end
   end
 end
 
@@ -361,10 +372,12 @@ end
 frame:SetScript("OnEvent", function(_, event, ...)
   local list = handlers[event]
   if not list then return end
+  local t0 = NW.Perf.on and NW.PerfStart()
   for _, fn in ipairs(list) do
     local ok, err = pcall(fn, ...)
     if not ok then NW.Print("error in " .. event .. ": " .. tostring(err)) end
   end
+  if t0 then NW.PerfStop("event " .. event, t0) end
 end)
 
 -- Choices that belong to one character (their consumes, their profession page)

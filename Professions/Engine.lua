@@ -1825,3 +1825,14 @@ end
 
 -- colours the profession window showed before (see noteColor above)
 table.insert(NW.OnLoad, function() if NW.ApplyColors then NW.ApplyColors() end end)
+
+-- /nw perf times every plan (a cached one is near 0 ms)
+do
+  local raw = NW.BuildPlan
+  NW.BuildPlan = function(...)
+    local t0 = NW.PerfStart()
+    local plan = raw(...)
+    NW.PerfStop("Plan", t0)
+    return plan
+  end
+end

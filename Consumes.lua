@@ -516,11 +516,11 @@ end)
 local function st() return NW.db.settings end
 local refresh
 local page = UI.AddTab("consumes", "Consumes", function() refresh() end)
-NW.On("GET_ITEM_INFO_RECEIVED", function() if page:IsShown() then page.dirty = true end end)
-NW.On("BAG_UPDATE_DELAYED", function() if page:IsShown() then page.dirty = true end end)
+NW.On("GET_ITEM_INFO_RECEIVED", function() if page:IsVisible() then page.dirty = true end end)
+NW.On("BAG_UPDATE_DELAYED", function() if page:IsVisible() then page.dirty = true end end)
 -- Search AH works only at the auction house
-NW.On("AUCTION_HOUSE_SHOW", function() if page:IsShown() then page.dirty = true end end)
-NW.On("AUCTION_HOUSE_CLOSED", function() if page:IsShown() then page.dirty = true end end)
+NW.On("AUCTION_HOUSE_SHOW", function() if page:IsVisible() then page.dirty = true end end)
+NW.On("AUCTION_HOUSE_CLOSED", function() if page:IsVisible() then page.dirty = true end end)
 page:SetScript("OnUpdate", function(self) if self.dirty then self.dirty = false refresh() end end)
 
 local selectedItem
@@ -1999,7 +1999,7 @@ local function drawDetail()
 end
 
 refresh = function()
-  if not page:IsShown() and not page.headless then return end
+  if not page:IsVisible() and not page.headless then return end
   local list = currentList()
   local mode = listMode()
   local strat = strategy()
@@ -2290,7 +2290,7 @@ function page.snapshot()
 end
 -- rebuild = true: work it out again now (level, loadout or bags changed with the tab closed)
 function NW.ConsumeSelection(rebuild)
-  if (rebuild or not snap) and not page:IsShown() then
+  if (rebuild or not snap) and not page:IsVisible() then
     page.headless = true
     local ok, err = pcall(refresh)
     page.headless = nil
@@ -2304,4 +2304,10 @@ function NW.ShowConsume(id)
   selectedItem, offset = id, 0
   if NW.window:IsShown() then NW.ShowTab("consumes") else st().lastTab = "consumes"; NW.window:Show() end
   refresh()
+end
+
+-- /nw perf times every Consumes refresh (the tracker asks for one headless)
+do
+  local raw = refresh
+  refresh = function(...) local t0 = NW.PerfStart() raw(...) NW.PerfStop("Consumes refresh", t0) end
 end

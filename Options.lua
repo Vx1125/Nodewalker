@@ -655,7 +655,7 @@ section("herb", "Herbalism", 3)
 section("ore", "Mining", 2)
 
 refreshNodes = function()
-  if not nodesPage:IsShown() then return end
+  if not nodesPage:IsVisible() then return end
   local q = (nodeSearch:GetText() or ""):lower()
   searchHint:SetShown(q == "" and not nodeSearch:HasFocus())
   local open = s().nodesOpen
@@ -712,7 +712,7 @@ refreshNodes = function()
 end
 nodeSearch:SetScript("OnEditFocusGained", function() searchHint:Hide() end)
 nodeSearch:SetScript("OnEditFocusLost", function() refreshNodes() end)
-NW.RefreshNodeOptions = function() if nodesPage:IsShown() then refreshNodes() end end
+NW.RefreshNodeOptions = function() if nodesPage:IsVisible() then refreshNodes() end end
 
 ------------------------------------------------------------------------
 -- Fishing: Smart Fishing, lures, gear, the HUD, the Journal, notices
