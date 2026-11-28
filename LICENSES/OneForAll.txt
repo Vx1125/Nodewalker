@@ -34,6 +34,10 @@ bars a trainer teaches comes from cMaNGOS classic-db (GPL-3.0, npc_trainer and s
 commit 13e933726f38, see cMaNGOS-classic-db.txt), as Classic reference data. Skill-up colours come
 from Warcraft Wiki (CC BY-SA 4.0) and live in their own file, Professions/SmeltingColours.lua (see
 Warcraft-Wiki-CC-BY-SA-4.0.txt).
+Recipes One For All has no source for: Classic recipe items, their vendors and reputation, and teaching
+quests from cMaNGOS classic-db (tools/extract_recipe_sources.py, Classic reference), and trainer sources
+for Forever's new recipes from Wowhead's and other Forever guides (tools/recipe_overrides.json, with the
+evidence for each).
 World of Warcraft game data remains Blizzard's and is not covered by the GPL.
 
 The full text of the GNU General Public License version 3 is in LICENSE, and at

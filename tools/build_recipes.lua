@@ -56,6 +56,36 @@ for _, p in ipairs(PROFS) do load(OFA .. "/Data/Professions/" .. p[1] .. ".lua")
 load(OFA .. "/Data/ProfessionFees.lua")
 load(OFA .. "/Data/Smelting.lua")
 
+-- Classic reference for recipes One For All has no source for (tools/extract_recipe_sources.py, cMaNGOS):
+-- a recipe item (with its vendors, quests and reputation) becomes a recipe-item recipe; a recipe a quest
+-- teaches shows the quest and stays planned only once known. Marked r.classicRef.
+CLASSIC_SRC = {}
+do
+  local byS = {}
+  for _, e in ipairs(dofile("tools/data/classic_recipe_sources.lua")) do byS[e.spell] = e end
+  for _, p in ipairs(PROFS) do
+    for _, r in ipairs(FLT.PROFESSION_RECIPES[p[2]] or {}) do
+      local e = byS[r.s]
+      if e and not r.ri and not r.src and not r.start then
+        local src = { v = {}, qs = {} }
+        local it = e.items[1]
+        if it then
+          r.ri, r.rn = it.item, it.name
+          for _, v in ipairs(it.vendors) do src.v[#src.v + 1] = { v.npc, v.name, "?" } end
+          for _, qq in ipairs(it.quests) do src.qs[#src.qs + 1] = { qq.id, qq.title } end
+          if it.rep and FLT.RECIPE_REP and not FLT.RECIPE_REP[it.item] then FLT.RECIPE_REP[it.item] = { it.rep[1], it.rep[2] } end
+        end
+        for _, qq in ipairs(e.quests) do src.qs[#src.qs + 1] = { qq.id, qq.title } end
+        if #src.v > 0 or #src.qs > 0 or r.ri then
+          r.src, r.classicRef = src, true
+          r.questOnly = not r.ri
+          CLASSIC_SRC[#CLASSIC_SRC + 1] = r.n
+        end
+      end
+    end
+  end
+end
+
 local function clean(s) return (tostring(s):gsub("[;|]", ",")) end
 -- Reviewed corrections: tools/recipe_overrides.json, one per recipe, each with its evidence; only
 -- entries marked "approved": true are applied (a user's in-game report waits for that review)
@@ -184,6 +214,7 @@ for _, p in ipairs(PROFS) do
     -- there's no recipe item or other source, as in One For All (Barbecued Buzzard Wing has an item)
     local specFee = fee and fee[3] and (fee[3] ~= 1 or noOtherSource)
     if specFee or specOnly or unknownWay then kind = "known" end
+    if r.questOnly and kind == "recipe" then kind = "known" end -- a quest teaches it: planned once known
     -- reviewed corrections (tools/recipe_overrides.json, approved ones only)
     local ov = OVERRIDES[key .. "/" .. r.n]
     if ov and ov.source then kind = ov.source end

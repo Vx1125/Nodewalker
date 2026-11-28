@@ -95,7 +95,7 @@
  {
   "recipe": "engineering/Sandpaper",
   "source": "trainer",
-  "evidence": "Warcraft Wiki 'Forever engineering schematics': Source Trainer, skill 120 (One For All's learn level, 130, is kept). Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe.",
+  "evidence": "Warcraft Wiki 'Forever engineering schematics': Source Trainer, skill 120 (One For All's learn level, 130, is kept). Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe. Also Wowhead's Forever professions overview: Source Trainer.",
   "kind": "game facts from community guides",
   "approved": true
  },
@@ -104,6 +104,97 @@
   "source": "known",
   "evidence": "Warcraft Wiki 'Forever tailoring patterns': Source Quest, skill 285. A quest recipe with no item: stays planned only once known. Retrieved 2026-11-27. One For All 6.3.0 has no source for it; v1.3.0 (SeeMeta) listed it as a trainer recipe.",
   "kind": "game facts from community guides",
+  "approved": true
+ },
+ {
+  "recipe": "alchemy/Mana Well",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "alchemy/Cerulean Dye",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "alchemy/Magenta Dye",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "alchemy/Viridian Dye",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "alchemy/Sulfuric Acid",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "blacksmithing/Sharpening Wheel",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "enchanting/Enchanted Lute",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "engineering/Reagent Bot",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "leatherworking/Camp Tent",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "tailoring/Faction Banner",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "cooking/Spinefin Halibut",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "firstaid/First Aid Kit",
+  "source": "trainer",
+  "evidence": "Wowhead 'WoW Forever Professions Overview' (https://www.wowhead.com/forever/guide/professions/overview), new-recipe table: Source Trainer. Retrieved 2026-11-27. One For All 6.3.0 has no source for it.",
+  "kind": "game facts (Wowhead)",
+  "approved": true
+ },
+ {
+  "recipe": "alchemy/Elixir of Minor Strength",
+  "source": "trainer",
+  "evidence": "Classic's Elixir of Lion's Strength (same spell, 2329) is a starting Alchemy recipe learned from the trainer at Apprentice; Forever renamed it and One For All gives learn 15 (wowtbc.gg). No Forever source found; Classic reference. 2026-11-27.",
+  "kind": "Classic reference",
   "approved": true
  }
 ]
