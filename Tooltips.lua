@@ -41,10 +41,18 @@ local function itemName(id)
   return d and d[1] or ("item " .. id)
 end
 local function range(a, b) return a == b and tostring(a) or (a .. "-" .. b) end
+-- " x2-3", nothing for exactly one
+local function count(a, b) if a == 1 and b == 1 then return "" end return " " .. DIMHEX .. "x" .. range(a, b) .. "|r" end
 local function pct(c)
-  if c >= 0.995 then return "" end
+  if c >= 0.9995 then return "" end
   local p = c * 100
-  return p < 1 and ("%.1f%%"):format(p) or ("%d%%"):format(math.floor(p + 0.5))
+  if math.abs(p - math.floor(p + 0.5)) < 0.05 then return ("%d%%"):format(math.floor(p + 0.5)) end
+  return ("%.1f%%"):format(p)
+end
+-- bag count (not the bank), as Characters counts it
+local function bagCount(id)
+  if C_Item and C_Item.GetItemCount then return C_Item.GetItemCount(id, false) or 0 end
+  return GetItemCount and GetItemCount(id, false) or 0
 end
 -- auction price, or nil (never zero)
 local function auction(id)
@@ -60,25 +68,26 @@ local function money(v) return NW.Money(v, "mid") end
 ------------------------------------------------------------------------
 function TT.Disenchant(tip, itemID)
   if not on("tipDisenchant") then return end
-  local out, how, quality, ilvl = NW.DisenchantOutcomes(itemID)
+  local out, how, quality, ilvl, incomplete = NW.DisenchantOutcomes(itemID)
   if not out then return end
   local skill = NW.DisenchantSkill(quality, ilvl)
   local have = NW.ProfSkill and NW.ProfSkill("enchanting")
   local c = GOLD
   if skill and have and have < skill then c = RED end
   tip:AddDoubleLine("Disenchant" .. (skill and ("  " .. DIMHEX .. "Enchanting " .. skill .. "|r") or ""),
-    how == "classic" and "Classic data" or "by item level", c[1], c[2], c[3], DIM[1], DIM[2], DIM[3])
+    incomplete and "incomplete data" or (how == "classic" and "Classic data" or "by item level"), c[1], c[2], c[3], DIM[1], DIM[2], DIM[3])
   local counts, chances = on("tipCounts"), on("tipChances")
   local value, missing = 0, false
   for _, o in ipairs(out) do
-    local left = "  " .. icon(o[1]) .. itemName(o[1]) .. (counts and (" " .. DIMHEX .. "x" .. range(o[3], o[4]) .. "|r") or "")
+    local left = "  " .. icon(o[1]) .. itemName(o[1]) .. (counts and count(o[3], o[4]) or "")
     tip:AddDoubleLine(left, chances and pct(o[2]) or "", 1, 1, 1, DIM[1], DIM[2], DIM[3])
     local p = auction(o[1])
     if p then value = value + p * o[2] * (o[3] + o[4]) / 2 else missing = true end
   end
   if on("tipValues") then
     local parts = {}
-    if value > 0 then parts[#parts + 1] = "~" .. money(value) .. (missing and " |cffd17665+?|r" or "")
+    if incomplete then parts[#parts + 1] = "|cffd17665?|r"
+    elseif value > 0 then parts[#parts + 1] = "~" .. money(value) .. (missing and " |cffd17665+?|r" or "")
     else parts[#parts + 1] = "no price" end
     local sell = select(11, NW.ItemInfo(itemID))
     if sell and sell > 0 then parts[#parts + 1] = DIMHEX .. "vendor|r " .. money(sell) end
@@ -143,7 +152,7 @@ function TT.Skinning(tip, unit)
   local value, missing = 0, false
   for i = 1, math.min(3, #list) do
     local o = list[i]
-    local left = "  " .. icon(o[1]) .. itemName(o[1]) .. (counts and (" " .. DIMHEX .. "x" .. range(o[3], o[4]) .. "|r") or "")
+    local left = "  " .. icon(o[1]) .. itemName(o[1]) .. (counts and count(o[3], o[4]) or "")
     tip:AddDoubleLine(left, chances and pct(o[2] / 100) or "", 1, 1, 1, DIM[1], DIM[2], DIM[3])
   end
   for _, o in ipairs(list) do
@@ -188,21 +197,35 @@ function TT.Needs(tip, itemID)
   local l = needs()[itemID]
   if not l then return end
   local me = (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
-  local bags = GetItemCount(itemID) or 0
-  local rows, mine, alts = {}, 0, 0
+  local bags = bagCount(itemID)
+  -- one row per character: its plans' needs added up, its bags and your mail to it counted once
+  local per, order = {}, {}
   for _, r in ipairs(l) do
+    local c = per[r.ck]
+    if not c then
+      c = { need = 0, have = 0, sent = r.sent, profs = {} }
+      per[r.ck] = c
+      order[#order + 1] = r.ck
+    end
+    c.need = c.need + r.need
+    c.have = math.max(c.have, r.have) -- the same bags, seen by each plan
+    local prof = NW.PROF_BY_KEY and NW.PROF_BY_KEY[r.key]
+    c.profs[#c.profs + 1] = prof and prof.name or r.key
+  end
+  local rows, mine, alts = {}, 0, 0
+  for _, ck in ipairs(order) do
+    local c = per[ck]
     local left
-    if r.ck == me then
-      left = math.max(0, r.need - bags)
-      mine = mine + r.need
+    if ck == me then
+      left = math.max(0, c.need - bags)
+      mine = c.need
     else
-      left = math.max(0, r.need - r.have - r.sent)
+      left = math.max(0, c.need - c.have - c.sent)
       alts = alts + left
     end
-    if left > 0 or r.ck == me then
-      local prof = NW.PROF_BY_KEY and NW.PROF_BY_KEY[r.key]
-      rows[#rows + 1] = { (r.ck == me and "You" or (r.ck:gsub("%-$", ""))) .. " " .. DIMHEX .. "· " .. (prof and prof.name or r.key) .. "|r",
-        left, r.ck == me }
+    if left > 0 or ck == me then
+      rows[#rows + 1] = { (ck == me and "You" or (ck:gsub("%-%??$", ""))) .. " " .. DIMHEX .. "· " .. table.concat(c.profs, ", ") .. "|r",
+        left, ck == me }
     end
   end
   local spare = math.max(0, bags - mine)
@@ -239,12 +262,13 @@ local function onItem(tip, data)
   local id = itemFrom(tip, data)
   if not id then return end
   local mark = "i" .. id
-  if done[tip] == mark then return end
-  done[tip] = mark
+  local d = done[tip]
+  if d and d[1] == mark and tip:NumLines() >= d[2] then return end -- this fill has them already
   watch(tip)
   local n = tip:NumLines()
   pcall(TT.Disenchant, tip, id)
   pcall(TT.Needs, tip, id)
+  done[tip] = { mark, tip:NumLines() }
   if tip:NumLines() > n then tip:Show() end
 end
 
@@ -257,11 +281,12 @@ local function onUnit(tip)
   local npc = npcOf(unit)
   if not npc then return end
   local mark = "u" .. npc
-  if done[tip] == mark then return end
-  done[tip] = mark
+  local d = done[tip]
+  if d and d[1] == mark and tip:NumLines() >= d[2] then return end
   watch(tip)
   local n = tip:NumLines()
   pcall(TT.Skinning, tip, unit)
+  done[tip] = { mark, tip:NumLines() }
   if tip:NumLines() > n then tip:Show() end
 end
 TT.OnItem, TT.OnUnit = onItem, onUnit

@@ -860,13 +860,27 @@ function NW.IsDisenchantMat(id)
   return deMat[id] or false
 end
 
+-- Is this item ID one WoW Classic has? (D.R: first, last, ... ranges)
+local function inClassic(id)
+  local R = NW.DE.R
+  local lo, hi = 1, #R / 2
+  while lo <= hi do
+    local mid = math.floor((lo + hi) / 2)
+    if id < R[mid * 2 - 1] then hi = mid - 1
+    elseif id > R[mid * 2] then lo = mid + 1
+    else return true end
+  end
+  return false
+end
+
 -- The table an item disenchants by, and "classic" (an item in WoW Classic) or "level"
--- (an item new in WoW Forever, given its quality and item level's table); nil if it
+-- (an item new in WoW Forever, given its quality, class and item level's table); nil if it
 -- can't be disenchanted, Classic lists no disenchant for it, or the game hasn't sent it yet.
+-- The fifth return is true where the Classic table is incomplete.
 function NW.DisenchantTable(itemID)
   local D = NW.DE
   if type(itemID) ~= "number" or not D or D.N[itemID] then return nil end
-  local _, _, quality, ilvl, _, _, _, _, _, _, _, classID = NW.ItemInfo(itemID)
+  local _, _, quality, ilvl, _, _, _, _, _, _, _, classID, subclassID = NW.ItemInfo(itemID)
   if not quality then
     if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, itemID) end
     return nil
@@ -874,7 +888,7 @@ function NW.DisenchantTable(itemID)
   if (classID ~= 2 and classID ~= 4) or quality < 2 or quality > 4 or not ilvl or ilvl < 1 then return nil end
   local did = D.X[itemID]
   if not did then
-    local b = D.B[quality * 10 + classID]
+    local b = (subclassID and D.S[quality * 1000 + classID * 100 + subclassID]) or D.B[quality * 10 + classID]
     if not b then return nil end
     for i = 1, #b, 2 do
       if ilvl <= b[i] then did = b[i + 1] break end
@@ -883,16 +897,16 @@ function NW.DisenchantTable(itemID)
   end
   local t = D.T[did]
   if not t then return nil end
-  return t, itemID <= D.maxID and "classic" or "level", quality, ilvl
+  return t, inClassic(itemID) and "classic" or "level", quality, ilvl, D.I[did] or false
 end
 
 -- What an item breaks into: { { item, chance (0-1), min, max }, ... }, or nil.
 function NW.DisenchantOutcomes(itemID)
-  local t, how, quality, ilvl = NW.DisenchantTable(itemID)
+  local t, how, quality, ilvl, incomplete = NW.DisenchantTable(itemID)
   if not t then return nil end
   local out = {}
   for i = 1, #t, 4 do out[#out + 1] = { t[i], t[i + 1] / 100, t[i + 2], t[i + 3] } end
-  return out, how, quality, ilvl
+  return out, how, quality, ilvl, incomplete
 end
 
 -- Enchanting skill needed to disenchant (Professions/DisenchantSkill.lua, Warcraft Wiki);
@@ -915,7 +929,8 @@ function NW.DisenchantValue(itemID)
     local ok, v = pcall(api.GetDisenchantPriceByItemID, ADDON, itemID)
     if ok and type(v) == "number" and v > 0 then return v end
   end
-  local de = NW.DisenchantOutcomes(itemID)
+  local de, _, _, _, incomplete = NW.DisenchantOutcomes(itemID)
+  if incomplete then return nil end -- part of what it gives isn't known: no value rather than too low a one
   local outcomes
   if de then
     outcomes = {}
