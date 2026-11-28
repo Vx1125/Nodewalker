@@ -445,7 +445,7 @@ function DR.hunt(d, here, ppx, ppy)
   local e = NW.Mat and NW.Mat.Get(d.item)
   local lines = {}
   lines[#lines + 1] = gold .. "Proposed: " .. (e and e.name or d.label or ("item " .. tostring(d.item))) .. "|r"
-    .. dim .. (d.method == "skin" and ", skinning" or ", creature loot") .. "|r"
+    .. dim .. (d.method == "skin" and ", skinning" or d.method == "obj" and ", objects" or ", creature loot") .. "|r"
   local len = NW.Hunt.DraftLength(d)
   lines[#lines + 1] = ("%d ground%s"):format(n, n == 1 and "" or "s") .. (len and len > 0 and ("  ·  %d yd loop"):format(math.floor(len)) or "")
   local active = NW.charDB and NW.charDB.hunt
@@ -455,8 +455,10 @@ function DR.hunt(d, here, ppx, ppy)
   else
     lines[#lines + 1] = dim .. "Not active until you start it.|r"
   end
-  lines[#lines + 1] = dim .. (d.opts.elites and "Elites and rares in" or "Elites and rares left out")
-    .. (d.method == "skin" and d.opts.skill and (", Skinning " .. d.opts.skill) or "") .. "|r"
+  if d.method ~= "obj" then
+    lines[#lines + 1] = dim .. (d.opts.elites and "Elites and rares in" or "Elites and rares left out")
+      .. (d.method == "skin" and d.opts.skill and (", Skinning " .. d.opts.skill) or "") .. "|r"
+  end
   stats:SetText(table.concat(lines, "\n"))
   btnOptimize:SetEnabled(n > 2)
   if not drawMode then drawHint:SetText("Click a grey ring to add it; right-click a gold one to leave it out.") end

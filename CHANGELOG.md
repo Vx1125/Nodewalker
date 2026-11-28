@@ -18,6 +18,7 @@
 - Recipes that need a reputation show it, and plans skip them until your standing is high enough.
 - Plans weigh recipes to buy against costly trainer recipes, and skip recipes you can't buy on your side.
 - Professions: a Characters tab shows the last shopping list each of your characters saved.
+- Material Finder: Power Crystals (red, yellow, green, blue), with crystal spots in Un'Goro Crater.
 - Fixed stutter: closed pages no longer redraw on bag, skill and price updates.
 
 ## 1.3.0

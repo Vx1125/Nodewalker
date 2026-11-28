@@ -1,5 +1,5 @@
 {
- "_comment": "Inputs for tools/build_sources.py. zones: open-world zone list (index order is stable; Alterac Valley kept at index 2 for compatibility but excluded). items: [category, display name] per item id. vendor_items: items whose vendors are listed. city_zones: creature points in capitals are not used as hunting grounds (vendors there are still listed).",
+ "_comment": "Inputs for tools/build_sources.py. zones: open-world zone list (index order is stable; Alterac Valley kept at index 2 for compatibility but excluded). items: [category, display name] per item id. vendor_items: items whose vendors are listed. city_zones: creature points in capitals are not used as hunting grounds (vendors there are still listed). object_items: items whose world-object sources (pfQuest O: crystals you pick up) are listed; never chests or containers.",
  "pins": {
   "cmangos": "13e933726f386399d9820138fbd1123e7cda86c8",
   "pfquest": "104f35678ca39ab1fb78b655f815cc7016f5e0c8"
@@ -636,6 +636,22 @@
   "21024": [
    "reagent",
    "Chimaerok Tenderloin"
+  ],
+  "11184": [
+   "reagent",
+   "Blue Power Crystal"
+  ],
+  "11185": [
+   "reagent",
+   "Green Power Crystal"
+  ],
+  "11186": [
+   "reagent",
+   "Red Power Crystal"
+  ],
+  "11188": [
+   "reagent",
+   "Yellow Power Crystal"
   ]
  },
  "vendor_items": [
@@ -735,5 +751,11 @@
   "Orgrimmar",
   "Stormwind City",
   "Undercity"
+ ],
+ "object_items": [
+  11184,
+  11185,
+  11186,
+  11188
  ]
 }

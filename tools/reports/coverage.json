@@ -831,6 +831,46 @@
   "loot_kept": 29,
   "vendor_kept": 0
  },
+ "11184": {
+  "name": "Blue Power Crystal",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 37,
+  "loot_kept": 36,
+  "vendor_kept": 0,
+  "obj_candidates": 2,
+  "obj_kept": 1
+ },
+ "11185": {
+  "name": "Green Power Crystal",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 36,
+  "loot_kept": 35,
+  "vendor_kept": 0,
+  "obj_candidates": 2,
+  "obj_kept": 1
+ },
+ "11186": {
+  "name": "Red Power Crystal",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 37,
+  "loot_kept": 36,
+  "vendor_kept": 0,
+  "obj_candidates": 2,
+  "obj_kept": 1
+ },
+ "11188": {
+  "name": "Yellow Power Crystal",
+  "skin_candidates": 0,
+  "skin_kept": 0,
+  "loot_candidates": 37,
+  "loot_kept": 36,
+  "vendor_kept": 0,
+  "obj_candidates": 2,
+  "obj_kept": 1
+ },
  "12037": {
   "name": "Mystery Meat",
   "skin_candidates": 0,

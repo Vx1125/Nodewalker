@@ -571,7 +571,7 @@ W.req.text:SetPoint("RIGHT")
 W.req.text:SetWidth(260)
 W.req.text:SetWordWrap(false)
 W.srcBtns = {}
-local SRC_ORDER = { "nodes", "fishing", "skin", "loot", "vendor", "craft" }
+local SRC_ORDER = { "nodes", "obj", "fishing", "skin", "loot", "vendor", "craft" }
 for _, k in ipairs(SRC_ORDER) do
   local b = UI.Button(right, k, 90, function() sel.src = k; sel.zone = nil; W.zoneOffset = 0; refresh() end, 24)
   tabMark(b)
@@ -859,7 +859,7 @@ local getHot, resetHots = UI.Pool(function()
     for i = 1, math.min(5, #list) do
       local u = list[i].u
       if u then
-        local lv = u.min == u.max and tostring(u.min) or (u.min .. "-" .. u.max)
+        local lv = u.object and "" or u.min == u.max and tostring(u.min) or (u.min .. "-" .. u.max)
         local right2 = lv
         if self.method == "skin" then
           local req = H.SkinReq(u.max)
@@ -1548,11 +1548,12 @@ local function viewHunt(e, method)
     zones = f
   end
   local skill = NW.ProfSkill and NW.ProfSkill("skinning")
-  local GOT = method == "skin" and "Skinned" or "Looted"
-  W.tblHead.text:SetText("Grounds")
+  local OBJ = method == "obj"
+  local GOT = method == "skin" and "Skinned" or (OBJ and "Picked" or "Looted")
+  W.tblHead.text:SetText(OBJ and "Zones" or "Grounds")
   W.huntSort:Show()
   W.colName:SetText("Zone")
-  if method == "skin" then setCols({ "Spawns", "Skill", GOT }, 1) else setCols({ "Level", "Spawns", GOT }, 2) end
+  if method == "skin" then setCols({ "Spawns", "Skill", GOT }, 1) elseif OBJ then setCols({ "", "Spots", GOT }, 2) else setCols({ "Level", "Spawns", GOT }, 2) end
   local pick = zones[1]
   for _, z in ipairs(zones) do if sel.zone == z.name then pick = z end end
   local hunt = H.Route()
@@ -1569,7 +1570,7 @@ local function viewHunt(e, method)
         r.cells[1]:SetText(z.n)
         r.cells[2]:SetText(req and ((SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r") or dash())
       else
-        r.cells[1]:SetText(lv(z.minL, z.maxL))
+        r.cells[1]:SetText(OBJ and "" or lv(z.minL, z.maxL))
         r.cells[2]:SetText(z.n)
       end
       r.cells[3]:SetText(mine > 0 and (TEAL .. mine .. "|r") or dash())
@@ -1579,16 +1580,16 @@ local function viewHunt(e, method)
         local zz = self.row
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(zz.name, 1, 1, 1)
-        GameTooltip:AddDoubleLine("Creature levels", lv(zz.minL, zz.maxL), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-        GameTooltip:AddDoubleLine("Known spawn points", zz.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-        GameTooltip:AddDoubleLine("Expected per clear", ("~%d"):format(math.floor(zz.w + 0.5)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-        GameTooltip:AddDoubleLine("Hunting grounds", #zz.grounds, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        if not OBJ then GameTooltip:AddDoubleLine("Creature levels", lv(zz.minL, zz.maxL), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        GameTooltip:AddDoubleLine(OBJ and "Known spots" or "Known spawn points", zz.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        if not OBJ then GameTooltip:AddDoubleLine("Expected per clear", ("~%d"):format(math.floor(zz.w + 0.5)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        GameTooltip:AddDoubleLine(OBJ and "Areas" or "Hunting grounds", #zz.grounds, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
         local m2 = zz.mapID and NW.GatherLog and NW.GatherLog.ZoneCount(zz.mapID, e.id) or 0
         if m2 > 0 then GameTooltip:AddDoubleLine("You collected here", m2, 0.35, 0.75, 0.72, 1, 1, 1) end
         if method == "skin" then GameTooltip:AddLine("Skill: the most any creature here needs (Classic rule).", S.dim[1], S.dim[2], S.dim[3], true) end
         GameTooltip:AddLine(GOT .. ": what you've collected here yourself.", S.dim[1], S.dim[2], S.dim[3], true)
         if not zz.mapID then GameTooltip:AddLine("Not on your client's map list", S.bad[1], S.bad[2], S.bad[3]) end
-        GameTooltip:AddLine("Classic data (pfQuest, cMaNGOS): creatures and chances may differ in WoW Forever.", S.dim[1], S.dim[2], S.dim[3], true)
+        GameTooltip:AddLine(OBJ and "Classic data (pfQuest): spots may differ in WoW Forever." or "Classic data (pfQuest, cMaNGOS): creatures and chances may differ in WoW Forever.", S.dim[1], S.dim[2], S.dim[3], true)
         GameTooltip:Show()
       end
     end
@@ -1616,9 +1617,9 @@ local function viewHunt(e, method)
   W.fold:Show()
   W.cN = #list
   W.cOffset = math.max(0, math.min(W.cOffset or 0, #list - #W.crows))
-  W.fold.text:SetText((ground and "Creatures in this ground" or (method == "skin" and "Creatures to skin" or "Creatures"))
+  W.fold.text:SetText((ground and (OBJ and "Objects here" or "Creatures in this ground") or (method == "skin" and "Creatures to skin" or (OBJ and "Objects" or "Creatures")))
     .. (#list > #W.crows and ("  ·  %d-%d of %d"):format(W.cOffset + 1, math.min(#list, W.cOffset + #W.crows), #list) or ("  ·  " .. #list)))
-  W.fold.c1:SetText("Level"); W.fold.c2:SetText("Chance"); W.fold.c3:SetText(method == "skin" and "Skill" or ""); W.fold.n:SetText("Spawns")
+  W.fold.c1:SetText(OBJ and "" or "Level"); W.fold.c2:SetText("Chance"); W.fold.c3:SetText(method == "skin" and "Skill" or ""); W.fold.n:SetText("Spawns")
   local shown = 0
   for i, r in ipairs(W.crows) do
     local c = open and list[i + W.cOffset]
@@ -1629,7 +1630,7 @@ local function viewHunt(e, method)
       local u = c.u
       r:SetSelected(npcSel == c)
       r.name:SetText(u.name)
-      r.lvl:SetText(lv(u.min, u.max))
+      r.lvl:SetText(OBJ and "" or lv(u.min, u.max))
       r.ch:SetText(H.ChanceText(c.s.chance))
       r.extra:SetText(c.n)
       if method == "skin" then
@@ -1642,25 +1643,25 @@ local function viewHunt(e, method)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(u.name, 1, 1, 1)
         local kind = (H.TYPE[u.type] or "") .. ((u.rank and u.rank > 0) and ("  ·  " .. (H.RANK[u.rank] or "")) or "")
-        if kind ~= "" then GameTooltip:AddLine(kind, S.dim[1], S.dim[2], S.dim[3]) end
-        GameTooltip:AddDoubleLine("Level", lv(u.min, u.max), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
-        GameTooltip:AddDoubleLine(method == "skin" and "Skinning gives it" or "Drops it (ordinary loot)", H.ChanceText(c.s.chance, true) .. (c.s.calc and " (calculated)" or ""), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+        if kind ~= "" and not OBJ then GameTooltip:AddLine(kind, S.dim[1], S.dim[2], S.dim[3]) end
+        if not OBJ then GameTooltip:AddDoubleLine("Level", lv(u.min, u.max), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
+        GameTooltip:AddDoubleLine(method == "skin" and "Skinning gives it" or (OBJ and "Gives it" or "Drops it (ordinary loot)"), H.ChanceText(c.s.chance, true) .. (c.s.calc and " (calculated)" or ""), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
         if c.s.max and c.s.max > 1 then GameTooltip:AddDoubleLine("Each time", c.s.min .. "-" .. c.s.max, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         if method == "skin" then GameTooltip:AddDoubleLine("Skinning needed", H.SkinReq(u.max) .. " (Classic rule)", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         GameTooltip:AddDoubleLine(ground and "Known spawns in this ground" or "Known spawns here", c.n, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
         if u.respawn and u.respawn > 0 then GameTooltip:AddDoubleLine("Respawn (Classic)", ("~%d min"):format(math.ceil(u.respawn / 60)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         local mine = NW.GatherLog and NW.GatherLog.Npc(u.npc)
-        if mine and (mine.skin + mine.loot) > 0 then
+        if mine and (mine.skin + mine.loot + (mine.obj or 0)) > 0 then
           local got = mine.items[e.id] or 0
-          local times = method == "skin" and mine.skin or mine.loot
+          local times = method == "skin" and mine.skin or (OBJ and (mine.obj or 0) or mine.loot)
           GameTooltip:AddLine(" ")
           GameTooltip:AddLine("Your own log (not the server's drop rate)", 0.35, 0.75, 0.72)
-          GameTooltip:AddDoubleLine(method == "skin" and "You skinned" or "You looted", times .. "x", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+          GameTooltip:AddDoubleLine(method == "skin" and "You skinned" or (OBJ and "You picked" or "You looted"), times .. "x", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
           GameTooltip:AddDoubleLine("It gave you", got, S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
           if times >= 10 then GameTooltip:AddDoubleLine("Each time", ("%.2f"):format(got / times), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
         end
-        GameTooltip:AddLine("Classic data (pfQuest, cMaNGOS)", S.dim[1], S.dim[2], S.dim[3])
-        GameTooltip:AddLine(npcSel == c and "Click: show all creatures" or "Click: show only its spawns on the map", S.gold[1], S.gold[2], S.gold[3])
+        GameTooltip:AddLine(OBJ and "Classic data (pfQuest)" or "Classic data (pfQuest, cMaNGOS)", S.dim[1], S.dim[2], S.dim[3])
+        GameTooltip:AddLine(npcSel == c and (OBJ and "Click: show all objects" or "Click: show all creatures") or "Click: show only its spawns on the map", S.gold[1], S.gold[2], S.gold[3])
         GameTooltip:Show()
       end
     end
@@ -1670,7 +1671,7 @@ local function viewHunt(e, method)
       function(v) st().huntSkill = v end, skill and "Leaves out creatures above your Skinning skill (Classic rule: level × 5 from level 20)."
         or "Has no effect until you learn Skinning: every creature is shown.")
   end
-  setCheck(method == "skin" and W.checkB or W.checkA, "Include elites and rares", function() return st().huntElites end, function(v) st().huntElites = v end)
+  if not OBJ then setCheck(method == "skin" and W.checkB or W.checkA, "Include elites and rares", function() return st().huntElites end, function(v) st().huntElites = v end) end
   -- clicks: a ground on the map, a creature in the list, the map's empty space
   W.onHot = function(gr)
     if not gr then return end
@@ -1700,28 +1701,28 @@ local function viewHunt(e, method)
       for _, gr in ipairs(pick.grounds) do ring(gr, "hunted") end
       local pts = H.SpawnsIn(npcSel.u.npc, pick.name)
       for _, c in ipairs(pts) do dotAt(c[1], c[2], 6, 0.95, 0.82, 0.50, 0.95) end
-      W.caption:SetText(("%s  ·  %d known spawn points  ·  Classic data"):format(npcSel.u.name, #pts))
-      W.capTip = "Where this creature spawned in WoW Classic. Not where one is now. Click it again in the list, or Show all, for every creature."
+      W.caption:SetText(("%s  ·  %d known %s  ·  Classic data"):format(npcSel.u.name, #pts, OBJ and "spots" or "spawn points"))
+      W.capTip = OBJ and "Where it spawned in WoW Classic. Not where one is now." or "Where this creature spawned in WoW Classic. Not where one is now. Click it again in the list, or Show all, for every creature."
     elseif mode == "known" or mode == "heat" then
       if mode == "known" then
         for _, b in pairs(pick.bins) do
           for _, c in ipairs(b.cells) do dotAt(c[1], c[2], 4, 0.85, 0.72, 0.45, 0.8) end
         end
-        W.caption:SetText("Known spawn points  ·  Classic data")
+        W.caption:SetText(OBJ and "Known spots  ·  Classic data" or "Known spawn points  ·  Classic data")
       else
         drawBins(pick.bins, 3)
-        W.caption:SetText("Expected per clear  ·  Classic data")
+        W.caption:SetText(OBJ and "Known spots per area  ·  Classic data" or "Expected per clear  ·  Classic data")
       end
-      W.capTip = "Where creatures that give it spawned in WoW Classic; the heatmap weights each spawn by its drop chance and count. Not creatures alive now. Click a ring to select that hunting ground."
+      W.capTip = OBJ and "Where it spawned in WoW Classic, not objects up now. Click a ring to select that area." or "Where creatures that give it spawned in WoW Classic; the heatmap weights each spawn by its drop chance and count. Not creatures alive now. Click a ring to select that hunting ground."
       for i, gr in ipairs(pick.grounds) do
         ring(gr, gr == ground and "selected" or "plain")
-        hot(gr, gr, method, "Hunting ground " .. i, gr)
+        hot(gr, gr, method, (OBJ and "Area " or "Hunting ground ") .. i, gr)
       end
     elseif mode == "mine" then
       local n = drawMine(pick.mapID, e.id)
       if ground then ring(ground, "selected") end
       W.caption:SetText(n > 0 and (TEAL .. "Where you collected it|r") or "Nothing collected here yet")
-      W.capTip = n > 0 and "Your own gathering log: where you skinned or looted it. Purchases, mail and trades aren't counted." or nil
+      W.capTip = n > 0 and "Your own gathering log: where you skinned, looted or picked it. Purchases, mail and trades aren't counted." or nil
     else
       local stops, states, cur = plan, nil, 1
       if active then
@@ -1735,9 +1736,9 @@ local function viewHunt(e, method)
         hot(s2, gr or { npcs = {}, n = s2.n, respawn = s2.respawn }, method, "Ground " .. i .. (states and states[i] and ("  ·  " .. states[i]) or ""), gr)
       end
       local len = H.Length(pick.mapID, stops)
-      W.caption:SetText(#stops == 1 and "One area: stay and hunt" or
-        (("%d grounds  ·  ~%d yd loop, straight lines"):format(#stops, len and math.floor(len / 10 + 0.5) * 10 or 0)))
-      W.capTip = "Hunting grounds from Classic spawn data. Distances are straight lines, not paths. Click a ring to select it."
+      W.caption:SetText(#stops == 1 and (OBJ and "One area" or "One area: stay and hunt") or
+        (("%d %s  ·  ~%d yd loop, straight lines"):format(#stops, OBJ and "areas" or "grounds", len and math.floor(len / 10 + 0.5) * 10 or 0)))
+      W.capTip = (OBJ and "Areas" or "Hunting grounds") .. " from Classic spawn data. Distances are straight lines, not paths. Click a ring to select it."
     end
   end
   -- side column: the creature, else the ground, else the route, else the zone
@@ -1745,24 +1746,24 @@ local function viewHunt(e, method)
   if npcSel then
     local u = npcSel.u
     sideReset(u.name)
-    sideStat("Level", lv(u.min, u.max) .. ((u.rank and u.rank > 0) and ("  " .. (H.RANK[u.rank] or "")) or ""))
-    sideStat(method == "skin" and "Skinning gives it" or "Drops it", H.ChanceText(npcSel.s.chance, true) .. (npcSel.s.calc and " (calculated)" or ""))
+    if not OBJ then sideStat("Level", lv(u.min, u.max) .. ((u.rank and u.rank > 0) and ("  " .. (H.RANK[u.rank] or "")) or "")) end
+    sideStat(method == "skin" and "Skinning gives it" or (OBJ and "Gives it" or "Drops it"), H.ChanceText(npcSel.s.chance, true) .. (npcSel.s.calc and " (calculated)" or ""))
     if method == "skin" then
       local req = H.SkinReq(u.max)
       sideStat("Skinning needed", (SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r")
     end
-    sideStat("Known spawns here", tostring(#H.SpawnsIn(u.npc, pick.name)))
+    sideStat(OBJ and "Known spots here" or "Known spawns here", tostring(#H.SpawnsIn(u.npc, pick.name)))
     local mine = NW.GatherLog and NW.GatherLog.Npc(u.npc)
-    if mine and (mine.skin + mine.loot) > 0 then
-      sideStat(method == "skin" and "You skinned" or "You looted", TEAL .. ((method == "skin" and mine.skin or mine.loot) .. "x") .. "|r")
+    if mine and (mine.skin + mine.loot + (mine.obj or 0)) > 0 then
+      sideStat(method == "skin" and "You skinned" or (OBJ and "You picked" or "You looted"), TEAL .. ((method == "skin" and mine.skin or (OBJ and mine.obj or mine.loot)) .. "x") .. "|r")
     end
     sideButton("showAll", function() sel.npc, sel.ground = nil, nil; refresh() end)
   elseif ground then
     local idx
     for i, gr in ipairs(pick.grounds) do if gr == ground then idx = i end end
-    sideReset("Ground " .. (idx or ""))
-    sideStat("Creature levels", lv(ground.minL, ground.maxL))
-    sideStat("Spawn points", tostring(ground.n))
+    sideReset((OBJ and "Area " or "Ground ") .. (idx or ""))
+    if not OBJ then sideStat("Creature levels", lv(ground.minL, ground.maxL)) end
+    sideStat(OBJ and "Spots" or "Spawn points", tostring(ground.n))
     if method == "skin" and ground.maxL then
       local req = H.SkinReq(ground.maxL)
       sideStat("Skinning needed", (SKILL_HEX[NW.SkillColor(req, skill)] or "") .. req .. "|r")
@@ -1793,9 +1794,9 @@ local function viewHunt(e, method)
   else
     sideReset(pick and pick.name or "")
     if pick then
-      sideStat("Creature levels", lv(pick.minL, pick.maxL))
-      sideStat("Hunting grounds", tostring(#pick.grounds))
-      sideStat("Spawn points", tostring(pick.n))
+      if not OBJ then sideStat("Creature levels", lv(pick.minL, pick.maxL)) end
+      sideStat(OBJ and "Areas" or "Hunting grounds", tostring(#pick.grounds))
+      sideStat(OBJ and "Spots" or "Spawn points", tostring(pick.n))
       if plan[1] and plan[1].respawn then sideStat("Respawn (Classic)", ("~%d min"):format(math.ceil(plan[1].respawn / 60))) end
       local mine = pick.mapID and NW.GatherLog and NW.GatherLog.ZoneCount(pick.mapID, e.id) or 0
       if mine > 0 then sideStat("You collected here", TEAL .. mine .. "|r") end
@@ -1806,7 +1807,7 @@ local function viewHunt(e, method)
   for _, n in pairs(g.out or {}) do outN = outN + n end
   if #zones == 0 then
     W.mapNone:SetText(st().huntSort == "mine" and "You haven't collected it anywhere yet."
-      or (outN > 0 and "No creatures left with these filters." or "No known spawns outdoors."))
+      or (outN > 0 and "No creatures left with these filters." or (OBJ and "No known spots outdoors." or "No known spawns outdoors.")))
   elseif g.out and g.out.skill then
     W.note:SetText(("%d creature%s need more Skinning"):format(g.out.skill, g.out.skill == 1 and "" or "s"))
   end
@@ -1814,7 +1815,7 @@ local function viewHunt(e, method)
   local ok = pick ~= nil and pick.mapID ~= nil
   if ground then
     action(W.main, "Farm this area", function() NW.ProposeRoute(H.Propose(e.id, method, pick, huntOpts(method), ground)) end,
-      "Farm this area", "A route of just this hunting ground: stay and hunt. Opens in Routes to review and start.", ok)
+      "Farm this area", OBJ and "A route of just this area. Opens in Routes to review and start." or "A route of just this hunting ground: stay and hunt. Opens in Routes to review and start.", ok)
     if active then
       if inRoute then
         action(W.second, "Remove from route", function() H.RemoveStop(inRoute); refresh() end)
@@ -1822,20 +1823,20 @@ local function viewHunt(e, method)
         action(W.second, "Add to route", function() H.AddGround(ground); refresh() end, "Add to route", "Joins the loop where it adds the least distance.")
       end
     end
-    action(W.third, "Show on map", function() if NW.PinMap then NW.PinMap(pick.mapID, ground.x * 100, ground.y * 100, "Hunting ground") end end)
+    action(W.third, "Show on map", function() if NW.PinMap then NW.PinMap(pick.mapID, ground.x * 100, ground.y * 100, OBJ and M.Name(e) or "Hunting ground") end end)
   else
     if active then
       action(W.main, "Stop route", function() H.Stop(); refresh() end)
       if W.note:GetText() == "" then W.note:SetText("Next and Skip are in the session panel too") end
     else
-      action(W.main, #plan > 1 and "Build hunting route" or "Hunt here", function()
+      action(W.main, #plan > 1 and (OBJ and "Build route" or "Build hunting route") or (OBJ and "Farm here" or "Hunt here"), function()
         if pick then NW.ProposeRoute(H.Propose(e.id, method, pick, huntOpts(method))) end
-      end, "Hunting route", "Circles the densest hunting grounds, nearest first. Opens in Routes to review; your current hunt stays until you start the new one. Straight-line distances, not paths. Click a ring on the map to farm one ground.",
+      end, OBJ and "Route" or "Hunting route", OBJ and "Circles the densest areas of known spots, nearest first. Opens in Routes to review. Straight-line distances, not paths." or "Circles the densest hunting grounds, nearest first. Opens in Routes to review; your current hunt stays until you start the new one. Straight-line distances, not paths. Click a ring on the map to farm one ground.",
         ok and #plan > 0)
     end
     action(W.second, "Show on map", function()
       local s2 = (active and hunt.stops[hunt.cur]) or plan[1]
-      if s2 and NW.PinMap then NW.PinMap(pick.mapID, s2.x * 100, s2.y * 100, "Hunting ground") end
+      if s2 and NW.PinMap then NW.PinMap(pick.mapID, s2.x * 100, s2.y * 100, OBJ and M.Name(e) or "Hunting ground") end
     end, nil, nil, ok and plan[1] ~= nil)
   end
 end
@@ -2034,7 +2035,7 @@ local function viewCraft(e)
   local farmWhere = {}
   for _, m in ipairs(missingList) do
     local me = M.Get(m.id)
-    if not (me and (me.src.nodes or me.src.skin or me.src.loot or me.src.fishing)) then farmable = false
+    if not (me and (me.src.nodes or me.src.obj or me.src.skin or me.src.loot or me.src.fishing)) then farmable = false
     else farmWhere[#farmWhere + 1] = NW.ItemName(m.id) or ("item " .. m.id) end
   end
   local ways = {}
@@ -2482,7 +2483,7 @@ refresh = function()
   resetViews()
   if sel.src == "nodes" then viewNodes(e)
   elseif sel.src == "fishing" then viewFishing(e)
-  elseif sel.src == "skin" or sel.src == "loot" then viewHunt(e, sel.src)
+  elseif sel.src == "skin" or sel.src == "loot" or sel.src == "obj" then viewHunt(e, sel.src)
   elseif sel.src == "vendor" then viewVendor(e)
   elseif sel.src == "craft" then viewCraft(e); tbl:Hide()
   else

@@ -8,6 +8,7 @@ local _, NW = ...
 --   fishing  Professions/Fishing.lua's fish data
 --   skin     skinning loot     (Materials/SourceData.lua, Classic data)
 --   loot     ordinary creature loot (Materials/SourceData.lua, Classic data)
+--   obj      world objects you pick up (Power Crystals; Materials/SourceData.lua, Classic data)
 --   vendor   vendors (Engine.lua's vendor prices; vendor NPCs from SourceData.lua)
 --   craft    a recipe makes it (NW.RecipeFor)
 -- The auction house is an action on every material, not a provider.
@@ -32,7 +33,7 @@ M.CATS = {
 }
 M.CAT = {}
 for _, c in ipairs(M.CATS) do M.CAT[c.key] = c end
-M.SOURCE_LABEL = { nodes = "Gathering", fishing = "Fishing", skin = "Skinning", loot = "Creature loot", vendor = "Vendor", craft = "Crafting" }
+M.SOURCE_LABEL = { nodes = "Gathering", fishing = "Fishing", obj = "Objects", skin = "Skinning", loot = "Creature loot", vendor = "Vendor", craft = "Crafting" }
 -- category accents (restrained: they tell kinds apart, they don't decorate)
 M.ACCENT = {
   herb = "|cff8fb878", ore = "|cffa8a49c", leather = "|cffb88f68", fish = "|cff7aa0c1", cloth = "|cffa58fb8",
@@ -98,6 +99,7 @@ function M.Build()
       local e = add(id, d[2], d[1])
       if #d.skin > 0 then e.src.skin = true end
       if #d.loot > 0 then e.src.loot = true end
+      if d.obj and #d.obj > 0 then e.src.obj = true end
     end
   end
   -- reagents: how many recipes use each; what a recipe makes that others use
@@ -163,6 +165,7 @@ local function buildIndex()
     if e.src.skin then words[#words + 1] = "skinning" end
     if e.src.vendor then words[#words + 1] = "vendor" end
     if e.src.loot then words[#words + 1] = "drop" end
+    if e.src.obj then words[#words + 1] = "object" end
     for _, n in ipairs(nodeNames(e.id) or {}) do words[#words + 1] = n:lower() end
     index[#index + 1] = { e = e, text = table.concat(words, "|") }
   end
@@ -197,7 +200,7 @@ function M.Counts()
 end
 
 -- The provider list for a material, in the order the details show them
-local ORDER = { "nodes", "fishing", "skin", "loot", "vendor", "craft" }
+local ORDER = { "nodes", "obj", "fishing", "skin", "loot", "vendor", "craft" }
 function M.Sources(e)
   local out = {}
   for _, k in ipairs(ORDER) do if e.src[k] then out[#out + 1] = k end end

@@ -3,7 +3,9 @@ local _, NW = ...
 ------------------------------------------------------------------------
 -- Hunting Grounds: where creatures that give a material live, for any
 -- creature material (skinning loot or ordinary loot: leather, cloth, meat,
--- elementals, reagents).
+-- elementals, reagents), and world objects you pick up (method "obj": Power
+-- Crystals). Objects are keyed by their negative object ID, so they never
+-- collide with creature IDs.
 --
 -- Data: Materials/SourceData.lua (Classic 1.12: pfQuest spawns and loot
 -- chances, cMaNGOS skinning loot). Known spawns are where a creature has
@@ -43,7 +45,13 @@ function H.SkinReq(level)
 end
 
 function H.Unit(npc)
-  local u = src() and src().units[npc]
+  local S = src()
+  if npc and npc < 0 then
+    local o = S and S.objects and S.objects[-npc]
+    if not o then return nil end
+    return { npc = npc, name = o[1], respawn = o[2], object = true }
+  end
+  local u = S and S.units[npc]
   if not u then return nil end
   return { npc = npc, name = u[1], min = u[2], max = u[3], type = u[4], rank = u[5], fac = u[6], respawn = u[7], skin = u[8] }
 end
@@ -78,6 +86,11 @@ function H.Sources(id, method)
   local d = src() and src().items[id]
   local out = {}
   if not d then return out end
+  if method == "obj" then
+    local t = d.obj or {}
+    for i = 1, #t, 2 do out[#out + 1] = { npc = -t[i], chance = t[i + 1], method = "obj" } end
+    return out
+  end
   if method ~= "loot" then
     local t = d.skin
     for i = 1, #t, 4 do out[#out + 1] = { npc = t[i], chance = t[i + 1], min = t[i + 2], max = t[i + 3], method = "skin", calc = isCalc(id, t[i]) } end
@@ -93,6 +106,7 @@ function H.Has(id, method)
   if not d then return false end
   if method == "skin" then return #d.skin > 0 end
   if method == "loot" then return #d.loot > 0 end
+  if method == "obj" then return d.obj ~= nil and #d.obj > 0 end
   return #d.skin + #d.loot > 0
 end
 
@@ -133,13 +147,19 @@ local function decode(S, str, fn)
   end
 end
 
+-- spawn table of a creature, or of a world object (negative ID)
+local function spawnsOf(S, npc)
+  if npc < 0 then return S.ospawns and S.ospawns[-npc] end
+  return S.spawns[npc]
+end
+
 -- Known spawn points of one creature in one zone: { { x, y } } (map fractions, point centres)
 local zoneIndex
 function H.SpawnsIn(npc, zoneName)
   local S = src()
   if not S then return {} end
   if not zoneIndex then zoneIndex = {} for i, z in ipairs(S.zones) do zoneIndex[z] = i end end
-  local zi, sp, out = zoneIndex[zoneName], S.spawns[npc], {}
+  local zi, sp, out = zoneIndex[zoneName], spawnsOf(S, npc), {}
   if not (zi and sp) then return out end
   for i = 1, #sp, 2 do
     if sp[i] == zi then
@@ -252,7 +272,7 @@ function H.Grounds(id, method, opts)
     local u = H.Unit(s.npc)
     local why = "nodata"
     if u then why = H.Why(u, s.method, opts) end
-    local sp = S.spawns[s.npc]
+    local sp = spawnsOf(S, s.npc)
     if why then
       out[why] = (out[why] or 0) + 1
     elseif sp then

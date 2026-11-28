@@ -8,6 +8,8 @@ local _, NW = ...
 --   herb   from a game object within 3 s of your Herb Gathering cast
 --   ore    from a game object within 3 s of your Mining cast
 --   loot   from a creature with no Skinning cast before it (ordinary loot)
+--   obj    from a world object in the source data (Power Crystals); stored as
+--          npcs[-objectID]
 -- Anything else (chests, containers, mail, trades, vendors, the bank,
 -- crafting, pick pocketing) never comes through here. Without
 -- GetLootSourceInfo, only windows right after a gathering cast count, with no
@@ -116,6 +118,7 @@ function GL.Classify(slot)
     return "loot", npc
   end
   if kind == "GameObject" and (recent == "herb" or recent == "ore") then return recent, nil end
+  if kind == "GameObject" and npc and NW.SRC and NW.SRC.objects and NW.SRC.objects[npc] then return "obj", -npc end
   return nil
 end
 
@@ -181,7 +184,7 @@ function GL.Record(id, qty, method, npc, newWindow)
     if newWindow then s.events = s.events or {}; s.events[method] = (s.events[method] or 0) + 1 end
     -- herbs and ore are valued from the loot message (Nodes.lua); creature materials here
     -- (within a few seconds of a node, Nodes.lua values every loot message itself)
-    if (method == "skin" or method == "loot") and NW.Price and not (s.lootUntil and GetTime() <= s.lootUntil) then
+    if (method == "skin" or method == "loot" or method == "obj") and NW.Price and not (s.lootUntil and GetTime() <= s.lootUntil) then
       local price, from = NW.Price(id)
       if price and (from == "ah" or from == "vendor") then s.value = (s.value or 0) + price * qty end
     end
@@ -302,11 +305,11 @@ function GL.Spots(mapID, id, scope)
 end
 -- what one creature has given you: windows by method, items
 function GL.Npc(npc, scope)
-  local o = { skin = 0, loot = 0, items = {} }
+  local o = { skin = 0, loot = 0, obj = 0, items = {} }
   for _, l in ipairs(GL.logs(scope)) do
     local c = l.npcs[npc]
     if c then
-      o.skin, o.loot = o.skin + (c.skin or 0), o.loot + (c.loot or 0)
+      o.skin, o.loot, o.obj = o.skin + (c.skin or 0), o.loot + (c.loot or 0), o.obj + (c.obj or 0)
       for id, n in pairs(c.items) do o.items[id] = (o.items[id] or 0) + n end
     end
   end

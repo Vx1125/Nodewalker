@@ -4,7 +4,8 @@
 Inputs, both pinned by git commit, are recorded in the build manifest:
   cMaNGOS classic-db (GPL-3.0)  Full_DB/ClassicDB_*.sql.gz: creature levels, types, ranks,
                                  skinning loot, creature loot references.
-  pfQuest (MIT, Shagu)           db/*.lua: creature spawns, ordinary loot chances, vendors, names.
+  pfQuest (MIT, Shagu)           db/*.lua: creature spawns, ordinary loot chances, vendors, names,
+                                 and, for the items in object_items only, world objects (O) and their spawns.
 Both are WoW Classic 1.12 data, not WoW Forever data.
 
 Rules (see tools/README.md):
@@ -207,6 +208,8 @@ def load_pfquest(root, cache):
         'zone_names': ('enUS/zones.lua', 'pfDB["zones"]["enUS"]'),
         'unit_names': ('enUS/units.lua', 'pfDB["units"]["enUS"]'),
         'item_names': ('enUS/items.lua', 'pfDB["items"]["enUS"]'),
+        'objects': ('objects.lua', 'pfDB["objects"]["data"]'),
+        'object_names': ('enUS/objects.lua', 'pfDB["objects"]["enUS"]'),
     }
     out, sums = {}, {}
     for k, (f, marker) in files.items():
@@ -277,7 +280,8 @@ class Build:
         self.city_zones = set(cfg.get('city_zones', []))   # vendors only: creature points there are not hunting grounds
         self.items = {int(k): v for k, v in cfg['items'].items()}
         self.rejected = []          # (item, method, npc, chance, reason, detail)
-        self.kept = collections.defaultdict(lambda: {'skin': [], 'loot': []})
+        self.kept = collections.defaultdict(lambda: {'skin': [], 'loot': [], 'obj': []})
+        self.object_items = set(int(i) for i in cfg.get('object_items', []))
         self.candidates = collections.Counter()
         self.calc = collections.defaultdict(set)   # item -> npcs whose chance was calculated
         self.cm = cm
@@ -285,10 +289,11 @@ class Build:
         self.coord_stats = collections.Counter()
 
     # spawn points per zone for one creature, after the zone and coordinate checks
-    def placement(self, npc):
-        if npc in self._place:
-            return self._place[npc]
-        u = self.pf['units'].get(npc) or {}
+    def placement(self, npc, obj=False):
+        key = ('o', npc) if obj else npc
+        if key in self._place:
+            return self._place[key]
+        u = self.pf['objects' if obj else 'units'].get(npc) or {}
         by_zone = collections.OrderedDict()
         bad, other, bg, city, recs = 0, collections.Counter(), 0, 0, 0
         for _, p in sorted((u.get('coords') or {}).items()):
@@ -322,7 +327,7 @@ class Build:
             cells[zi] = keep
         res = {'cells': cells, 'n': sum(len(v) for v in cells.values()), 'records': recs, 'bad': bad,
                'other': other, 'battleground': bg, 'city': city, 'respawn': self.respawn(u)}
-        self._place[npc] = res
+        self._place[key] = res
         return res
 
     @staticmethod
@@ -476,6 +481,32 @@ class Build:
                 self.reject(item, 'loot', npc, None, 'reference-no-chance',
                             'pfQuest reference %d; no cMaNGOS reference table at the pinned commit gives this item a chance' % ref)
 
+    # world objects (pfQuest O) for the items listed in object_items: crystals and the like that
+    # you pick up in the open world. Chests and containers are never listed there.
+    def obj_sources(self):
+        for item in sorted(self.object_items):
+            O = ((self.pf['items'].get(item) or {}).get('O')) or {}
+            seen = {}
+            for obj, chance in sorted(O.items()):
+                self.candidates[(item, 'obj')] += 1
+                name = self.pf['object_names'].get(obj)
+                if not name:
+                    self.reject(item, 'obj', obj, chance, 'unknown-object', 'not in pfQuest object names')
+                    continue
+                if chance is None or chance <= 0 or chance > 100:
+                    self.reject(item, 'obj', obj, chance, 'impossible-probability', 'chance %r' % chance)
+                    continue
+                pl = self.placement(obj, True)
+                if pl['n'] == 0:
+                    self.reject(item, 'obj', obj, chance, 'no-spawns', 'no open-world coordinates')
+                    continue
+                sig = tuple((zi, tuple(p)) for zi, p in pl['cells'].items())
+                if sig in seen:
+                    self.reject(item, 'obj', obj, chance, 'duplicate-spawns', 'same points as object %d' % seen[sig])
+                    continue
+                seen[sig] = obj
+                self.kept[item]['obj'].append((obj, chance, 1, 1, 'pfquest'))
+
     def legacy_cap(self):
         for item, d in self.kept.items():
             for method in ('skin', 'loot'):
@@ -523,6 +554,8 @@ class Build:
             self.ref_tables[r[LT_ENTRY]].append(r)
         self.skin_sources()
         self.loot_sources()
+        if not self.legacy:
+            self.obj_sources()
         if self.legacy:
             self.legacy_cap()
         self.vend, self.vend_at = self.vendors()
@@ -539,13 +572,17 @@ class Build:
             name = self.pf['unit_names'].get(npc) or r[CT_NAME]
             self.units[npc] = (name, r[CT_MINLVL], r[CT_MAXLVL], r[CT_TYPE], r[CT_RANK], pfu.get('fac') or '',
                                self.placement(npc)['respawn'], really_skinned(r))
+        objs = set()
+        for d in self.kept.values():
+            objs.update(s[0] for s in d['obj'])
+        self.objects = {o: (self.pf['object_names'][o], self.placement(o, True)['respawn']) for o in sorted(objs)}
         self.integrity()
 
     def integrity(self):
         """kept + rejected must equal candidates for every item and method: no silent loss."""
         kept = collections.Counter()
         for item, d in self.kept.items():
-            for m in ('skin', 'loot'):
+            for m in ('skin', 'loot', 'obj'):
                 kept[(item, m)] += len(d[m])
         for item, npcs in self.vend.items():
             kept[(item, 'vendor')] += len(npcs)
@@ -612,7 +649,19 @@ def write_lua(b, path, manifest):
             parts.append('%d,"%s"' % (zi, ''.join('%0*d%0*d' % (w, x, w, y) for x, y in pts)))
         L.append('[%d]={%s},' % (npc, ','.join(parts)))
     L.append('}')
-    L.append('-- [item] = { name, category, loot = { npc, chance, ... }, skin = { npc, chance, min, max, ... } }')
+    if b.objects:
+        L.append('-- world objects you pick up (pfQuest O, only for config object_items): [object] = { name, respawn seconds }')
+        L.append('S.objects = {')
+        for o, (name, rs) in b.objects.items():
+            L.append('[%d]={%s,%s},' % (o, luastr(name), num(rs)))
+        L.append('}')
+        L.append('-- [object] = { zone index, "points", ... }')
+        L.append('S.ospawns = {')
+        for o in b.objects:
+            parts = ['%d,"%s"' % (zi, ''.join('%0*d%0*d' % (w, x, w, y) for x, y in pts)) for zi, pts in b.placement(o, True)['cells'].items()]
+            L.append('[%d]={%s},' % (o, ','.join(parts)))
+        L.append('}')
+    L.append('-- [item] = { name, category, loot = { npc, chance, ... }, skin = { npc, chance, min, max, ... }, obj = { object, chance, ... } }')
     L.append('-- sorted by chance; chances are percent')
     L.append('S.items = {')
     for item in sorted(b.items):
@@ -622,7 +671,8 @@ def write_lua(b, path, manifest):
         loot = sorted(d['loot'], key=lambda s: (-s[1], s[0]))
         sk = ','.join('%d,%s,%d,%d' % (s[0], num(chance_out(s[1], b.legacy, 'skin')), s[2], s[3]) for s in skin)
         lo = ','.join('%d,%s' % (s[0], num(chance_out(s[1], b.legacy, 'loot'))) for s in loot)
-        L.append('[%d]={%s,%s,loot={%s},skin={%s}},' % (item, luastr(name), luastr(cat), lo, sk))
+        ob = ','.join('%d,%s' % (s[0], num(chance_out(s[1], b.legacy, 'loot'))) for s in sorted(d.get('obj', []), key=lambda s: (-s[1], s[0])))
+        L.append('[%d]={%s,%s,loot={%s},skin={%s}%s},' % (item, luastr(name), luastr(cat), lo, sk, (',obj={%s}' % ob) if ob else ''))
     L.append('}')
     L.append('-- [item] = { npc, ... } whose chance was calculated (cMaNGOS groups or reference tables)')
     L.append('S.calc = {')
@@ -659,16 +709,19 @@ def write_reports(b, rdir, manifest):
     reasons = collections.Counter((r[1], r[4]) for r in b.rejected)
     cov = {}
     for item in sorted(b.items):
-        d = b.kept.get(item) or {'skin': [], 'loot': []}
+        d = b.kept.get(item) or {'skin': [], 'loot': [], 'obj': []}
         cov[item] = {
             'name': b.items[item][1],
             'skin_candidates': b.candidates[(item, 'skin')], 'skin_kept': len(d['skin']),
             'loot_candidates': b.candidates[(item, 'loot')], 'loot_kept': len(d['loot']),
             'vendor_kept': len(b.vend.get(item, [])),
         }
+        if item in b.object_items:
+            cov[item].update({'obj_candidates': b.candidates[(item, 'obj')], 'obj_kept': len(d['obj'])})
     manifest['counts'] = {
         'items': len(b.items), 'units': len(b.units), 'vendors': sum(len(v) for v in b.vend.values()),
         'skin_kept': sum(len(d['skin']) for d in b.kept.values()), 'loot_kept': sum(len(d['loot']) for d in b.kept.values()),
+        'obj_kept': sum(len(d['obj']) for d in b.kept.values()), 'objects': len(b.objects),
         'rejected': len(b.rejected), 'config_items_unknown_upstream': b.unknown_items, 'rejected_by_reason': {'%s/%s' % k: v for k, v in sorted(reasons.items())},
         'spawn_records_open_world': sum(b.placement(n)['records'] for n in b.units),
         'spawn_points_written': sum(b.placement(n)['n'] for n in b.units),
