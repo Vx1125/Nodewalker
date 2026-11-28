@@ -1049,7 +1049,10 @@ function MS.rh.tip(icon)
   GameTooltip:SetOwner(icon, "ANCHOR_RIGHT")
   if icon.kind == "recipe" then
     local r = c.recipe
-    GameTooltip:SetText("Needs recipe", 1, 0.5, 0.25)
+    -- the recipe item itself (Pattern: ..., Plans: ...), else its name
+    local shown = r and r.recipeItem and pcall(GameTooltip.SetItemByID, GameTooltip, r.recipeItem)
+    if shown then GameTooltip:AddLine(" ")
+    else GameTooltip:SetText(r and ("Recipe: " .. r.name) or "Needs recipe", 1, 0.5, 0.25) end
     if r then GameTooltip:AddLine((sourceText(selected, r)), 1, 1, 1, true) end
     GameTooltip:AddLine("On the shopping list under Recipes to buy.", S.dim[1], S.dim[2], S.dim[3], true)
     GameTooltip:Show()

@@ -947,6 +947,18 @@ local function craftCost(r, sell)
   return math.max(cost, 0), unknown
 end
 
+-- a vendor of your faction, or a neutral one, sells the recipe item (Catalog "V" codes)
+function NW.OwnVendor(r)
+  local w = r.where
+  if not w or w == "" then return false end
+  local fac = (UnitFactionGroup and UnitFactionGroup("player")) == "Alliance" and "A" or "H"
+  for tok in w:gmatch("[^;]+") do
+    if tok == "F" then return true end -- Merchant's Favor: your faction's vendor
+    if tok:sub(1, 1) == "V" and (tok:sub(2, 2) == "*" or tok:sub(2, 2) == fac) then return true end
+  end
+  return false
+end
+
 -- The skill caps where you must train the next rank before going on
 local RANK_AT = {}
 for _, r in ipairs(NW.RANKS) do if r.skill then RANK_AT[r.cap - 75] = r end end
@@ -1056,8 +1068,12 @@ function NW.BuildPlan(key, from, to)
     else
       local price, src = nil, nil
       if r.recipeItem then price, src = NW.Price(r.recipeItem) end
-      onceOf[i] = (price and (src == "ah" or src == "vendor")) and price or 10000 -- unpriced: assume about 1g
-      if price and (src == "ah" or src == "vendor") then buyOf[i] = price end
+      local priced = price and (src == "ah" or src == "vendor")
+      onceOf[i] = priced and price or 10000 -- unpriced: assume about 1g
+      if priced then buyOf[i] = price end
+      -- not on the auction house: plan it only if a vendor on your side (or a neutral one) sells it; a drop,
+      -- the other faction's vendor or no source at all (seasonal, removed, unknown) isn't a plan step
+      if not priced and not r.scanned and not NW.OwnVendor(r) then onceOf[i] = 1e9 end
     end
   end
   local owned = {}
