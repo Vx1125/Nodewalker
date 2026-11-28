@@ -14,6 +14,7 @@
 - Gathering: ranges with resource icons, trainer rows, zones and routes; Mining Smelting view.
 - Leveling: material icons, parts and tools under their step, unpriced recipes marked, cheaper plans.
 - Routes: a Back button to where the route came from.
+- Recipes and smelting rebuilt from licensed data; specialization and unlisted recipes are planned once you know them.
 
 ## 1.3.0
 

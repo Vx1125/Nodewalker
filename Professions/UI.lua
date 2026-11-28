@@ -2890,6 +2890,7 @@ function sourceText(key, r, rank)
     return ("Trainer at skill %d"):format(req), "later"
   end
   local w, fav = whereText(r)
+  if r.src == "known" and not (w and w ~= "") then return "Source unknown", "other" end
   if w and w ~= "" then return (fav and ("|cffd6b266" .. w .. "|r") or w), fav and "merchant" or "drop" end
   if fav or isForeverNew(r) then return "|cffd6b266" .. MS.merchantShort(r) .. "|r", "merchant" end
   return "Vendor or world drop  ·  click to search the AH", "drop"
@@ -2929,6 +2930,7 @@ function MS.shortSource(key, r, rank)
     return ("Trainer  ·  Skill %d"):format(req), "later"
   end
   local w, fav = whereText(r)
+  if r.src == "known" and not (w and w ~= "") then return "Source unknown", "other" end
   if fav or (isForeverNew(r) and not (w and w ~= "")) then return "|cffd6b266" .. MS.merchantShort(r) .. "|r", "merchant" end
   if w and w ~= "" then
     local first, more = MS.firstPart(w)
@@ -3819,7 +3821,7 @@ for _, row in ipairs(stepRows) do
       else
         GameTooltip:AddLine("No skill-up range in Nodewalker's data.", S.dim[1], S.dim[2], S.dim[3], true)
       end
-      GameTooltip:AddDoubleLine("Learn", (r.src == "rank" and "with Mining" or ("from the trainer at %d"):format(r.orange or r.yellow)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
+      GameTooltip:AddDoubleLine("Learn", (r.src == "rank" and "with Mining" or ((r.src == "trainer" and "from the trainer at %d" or "at %d")):format(r.orange or r.yellow)), S.dim[1], S.dim[2], S.dim[3], 1, 1, 1)
       if (r.yield or 1) > 1 then GameTooltip:AddDoubleLine("Makes", r.yield .. " per smelt", S.dim[1], S.dim[2], S.dim[3], 1, 1, 1) end
       GameTooltip:Show()
       return

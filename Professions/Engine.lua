@@ -1049,6 +1049,8 @@ function NW.BuildPlan(key, from, to)
       onceOf[i] = 0
     elseif NW.NotYet(r) then
       onceOf[i] = 1e9 -- can't be learned yet
+    elseif r.src == "known" then
+      onceOf[i] = 1e9 -- a specialization's, or no source in the data: only once you know it
     elseif r.src == "trainer" or r.src == "rank" then
       onceOf[i] = r.fee or 0
     else
