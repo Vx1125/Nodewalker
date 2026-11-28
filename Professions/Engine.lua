@@ -878,6 +878,38 @@ function NW.IsDisenchantMat(id) return deMat[id] or false end
 
 -- What an item is worth disenchanted, at today's prices; nil if it can't be
 -- (or the game hasn't sent the item yet). Also returns the outcomes used.
+-- What an item breaks into: { { item, chance, average count }, ... }, or nil
+-- if it can't be disenchanted (or the game hasn't sent the item yet).
+-- WoW Classic disenchanting tables; WoW Forever may differ.
+function NW.DisenchantOutcomes(itemID)
+  if type(itemID) ~= "number" then return nil end
+  local _, _, quality, ilvl, _, _, _, _, _, _, _, classID = NW.ItemInfo(itemID)
+  if not quality then
+    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, itemID) end
+    return nil
+  end
+  if (classID ~= 2 and classID ~= 4) or quality < 2 or quality > 4 or not ilvl or ilvl < 5 then return nil end
+  if quality == 2 then
+    for _, row in ipairs(DE_GREEN) do
+      if ilvl <= row[1] then
+        local out = {}
+        for i = 2, #row do
+          local o = row[i]
+          local chance = o[2]
+          -- weapons: mostly essence, sometimes dust
+          if classID == 2 and chance ~= 0.05 and chance ~= 0.10 then chance = isDust[o[1]] and 0.20 or (1 - 0.20 - (row[4] and row[4][2] or 0)) end
+          out[#out + 1] = { o[1], chance, o[3] }
+        end
+        return out
+      end
+    end
+    return nil
+  end
+  for _, row in ipairs(quality == 3 and DE_BLUE or DE_EPIC) do
+    if ilvl <= row[1] then return { { row[2], 1, row[3] or 1 } } end
+  end
+end
+
 function NW.DisenchantValue(itemID)
   if type(itemID) ~= "number" then return nil end
   -- Auctionator's own disenchant figure, when it has one for this client
@@ -886,31 +918,11 @@ function NW.DisenchantValue(itemID)
     local ok, v = pcall(api.GetDisenchantPriceByItemID, ADDON, itemID)
     if ok and type(v) == "number" and v > 0 then return v end
   end
-  local _, _, quality, ilvl, _, _, _, _, _, _, _, classID = NW.ItemInfo(itemID)
-  if not quality then
-    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, itemID) end
-    return nil
-  end
-  if (classID ~= 2 and classID ~= 4) or quality < 2 or quality > 4 or not ilvl or ilvl < 5 then return nil end
+  local de = NW.DisenchantOutcomes(itemID)
   local outcomes
-  if quality == 2 then
-    for _, row in ipairs(DE_GREEN) do
-      if ilvl <= row[1] then
-        outcomes = {}
-        for i = 2, #row do
-          local o = row[i]
-          local chance = o[2]
-          -- weapons: mostly essence, sometimes dust
-          if classID == 2 and chance ~= 0.05 and chance ~= 0.10 then chance = isDust[o[1]] and 0.20 or (1 - 0.20 - (row[4] and row[4][2] or 0)) end
-          outcomes[#outcomes + 1] = { o[1], chance * o[3] }
-        end
-        break
-      end
-    end
-  else
-    for _, row in ipairs(quality == 3 and DE_BLUE or DE_EPIC) do
-      if ilvl <= row[1] then outcomes = { { row[2], row[3] or 1 } } break end
-    end
+  if de then
+    outcomes = {}
+    for _, o in ipairs(de) do outcomes[#outcomes + 1] = { o[1], o[2] * o[3] } end
   end
   if not outcomes then return nil end
   local value = 0
@@ -1843,5 +1855,40 @@ do
     local plan = raw(...)
     NW.PerfStop("Plan", t0)
     return plan
+  end
+end
+
+------------------------------------------------------------------------
+-- Item tooltips: what an uncommon, rare or epic weapon or armour piece
+-- disenchants into (Settings: /nw tips).
+------------------------------------------------------------------------
+local function deTooltip(tip, itemID)
+  if not itemID or not NW.db or NW.db.settings.tipDisenchant == false then return end
+  local de = NW.DisenchantOutcomes(itemID)
+  if not de then return end
+  tip:AddLine("Disenchants into", 0.84, 0.70, 0.40)
+  local total = 0
+  for _, o in ipairs(de) do
+    local name = NW.ItemInfo(o[1]) or (NW.ItemName and NW.ItemName(o[1])) or ("item " .. o[1])
+    local count = o[3] ~= 1 and (" |cff938c80x" .. (o[3] % 1 == 0 and ("%d"):format(o[3]) or ("%.1f"):format(o[3])) .. "|r") or ""
+    tip:AddDoubleLine("  " .. name .. count, o[2] < 1 and (math.floor(o[2] * 100 + 0.5) .. "%") or "", 1, 1, 1, 0.58, 0.55, 0.50)
+    local p = auctionator(o[1])
+    total = total and p and total + p * o[2] * o[3] or nil
+  end
+  if total and total > 0 then tip:AddDoubleLine("  Value", "~" .. NW.Money(total, "mid"), 0.58, 0.55, 0.50, 1, 1, 1) end
+  tip:Show()
+end
+local function itemIDFrom(tip)
+  local _, link = tip:GetItem()
+  return link and tonumber(link:match("item:(%d+)"))
+end
+if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
+  TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tip, data)
+    if tip ~= GameTooltip and tip ~= ItemRefTooltip then return end
+    pcall(deTooltip, tip, data and data.id or itemIDFrom(tip))
+  end)
+else
+  for _, tip in ipairs({ GameTooltip, ItemRefTooltip }) do
+    if tip then tip:HookScript("OnTooltipSetItem", function(t) pcall(deTooltip, t, itemIDFrom(t)) end) end
   end
 end

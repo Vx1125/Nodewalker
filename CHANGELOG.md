@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Tooltips: what a green, blue or purple weapon or armour piece disenchants into, and what a creature gives when skinned and the skill it needs (/nw tips turns both off).
+
 ## 1.4.1
 - Quick start and FAQ updated for Consumes, Characters and the tracker.
 - Material Finder: "All herbs" (or ore) is the first row: one route past everything you can gather in a zone, with what your filters hide.

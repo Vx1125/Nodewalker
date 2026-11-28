@@ -762,3 +762,54 @@ function H.DrawOverlay(mapID, api)
   end
   for k = nLabels + 1, #labels do labels[k]:Hide() end
 end
+
+------------------------------------------------------------------------
+-- Creature tooltips: what skinning a creature gives and the skill it needs
+-- (WoW Classic data and rule; Settings: /nw tips).
+------------------------------------------------------------------------
+local skinOf -- [npc] = { { item, chance }, ... }, built on first use
+local function skinIndex()
+  if skinOf then return skinOf end
+  skinOf = {}
+  local S = src()
+  for id, d in pairs(S and S.items or {}) do
+    local t = d.skin
+    for i = 1, #(t or {}), 4 do
+      local l = skinOf[t[i]] or {}
+      l[#l + 1] = { id, t[i + 1] }
+      skinOf[t[i]] = l
+    end
+  end
+  for _, l in pairs(skinOf) do table.sort(l, function(a, b) return a[2] > b[2] end) end
+  return skinOf
+end
+local function unitTooltip(tip)
+  if not NW.db or NW.db.settings.tipSkinning == false then return end
+  local _, unit = tip:GetUnit()
+  if not unit or UnitIsPlayer(unit) then return end
+  local guid = UnitGUID(unit)
+  local npc = guid and tonumber(guid:match("^Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
+  local list = npc and skinIndex()[npc]
+  if not list then return end
+  local S = src()
+  local names = {}
+  for i = 1, math.min(3, #list) do
+    local id = list[i][1]
+    names[#names + 1] = NW.ItemInfo(id) or (S.items[id] and S.items[id][1]) or ("item " .. id)
+  end
+  local lvl = UnitLevel(unit)
+  local req = H.SkinReq(lvl and lvl > 0 and lvl or (S.units[npc] and S.units[npc][3]))
+  local have = NW.ProfSkill and NW.ProfSkill("skinning")
+  local r, g, b = 0.84, 0.70, 0.40
+  if have and req and have < req then r, g, b = 0.82, 0.46, 0.40 end
+  tip:AddDoubleLine(req and ("Skinning " .. req) or "Skinning", table.concat(names, ", "), r, g, b, 1, 1, 1)
+  tip:Show()
+end
+if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
+  TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tip)
+    if tip == GameTooltip then pcall(unitTooltip, tip) end
+  end)
+elseif GameTooltip then
+  GameTooltip:HookScript("OnTooltipSetUnit", function(t) pcall(unitTooltip, t) end)
+end
+

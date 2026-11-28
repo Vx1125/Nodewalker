@@ -459,6 +459,11 @@ SlashCmdList.NODEWALKER = function(msg)
     if NW.BuffTracker then NW.BuffTracker.DebugLearned() end
   elseif msg == "buffs reset" then
     if NW.BuffTracker then NW.BuffTracker.ForgetLearned() NW.Print("Learned buffs forgotten.") end
+  elseif msg == "tips" then
+    local st = NW.db.settings
+    local on = not (st.tipDisenchant ~= false and st.tipSkinning ~= false)
+    st.tipDisenchant, st.tipSkinning = on, on
+    NW.Print(on and "Disenchant and skinning tooltips on." or "Disenchant and skinning tooltips off.")
   elseif msg == "fishhud" then
     if NW.ToggleFishHUD then NW.ToggleFishHUD() end
   elseif msg == "window" or msg == "open" then
