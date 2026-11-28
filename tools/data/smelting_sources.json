@@ -1,0 +1,9 @@
+{
+ "_comment": "How smelting bars are learned where neither the client data nor cMaNGOS says. Game facts (usable from any source, decision 2026-11-27). Read by tools/build_recipes.lua: src sets Mining.lua's source; the rest is provenance.",
+ "rows": [
+  {"bar": "Azerothium Bar", "src": "trainer", "scope": "Forever (community)", "fact": "taught by trainers", "source": "https://warcraft.wiki.gg/wiki/Azerothium_Bar", "retrieved": "2026-11-27"},
+  {"bar": "Dark Iron Bar", "src": "recipe", "scope": "Classic reference", "fact": "taught by Gloom'rel (Summoners' Tomb, Blackrock Depths) after the quest The Spectral Chalice (20 Gold Bar, 10 Truesilver Bar, 2 Star Ruby)", "source": "https://wowpedia.fandom.com/wiki/Smelt_Dark_Iron; https://warcraft.wiki.gg/wiki/Smelt", "retrieved": "2026-11-27"},
+  {"bar": "Elementium Bar", "src": "recipe", "scope": "Classic reference", "fact": "book: Goblin's Guide to Elementium (Classic Enchanted Elementium Bar)", "source": "https://warcraft.wiki.gg/wiki/Smelt", "retrieved": "2026-11-27"},
+  {"bar": "Heavy Thorium Bar", "src": "recipe", "scope": "Forever", "fact": "unknown: no source found (warcrafttavern.com Forever mining guide lists it as new, nothing on how it's learned)", "source": "https://www.warcrafttavern.com/forever/guides/mining/", "retrieved": "2026-11-27"}
+ ]
+}

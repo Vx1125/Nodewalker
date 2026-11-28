@@ -26,8 +26,9 @@ One For All states that this data comes from:
   - CMaNGOS classic-db (GPL-3.0): trainer fees, ranks and required skill (npc_trainer);
   - ProfessionDB / LibProfessionDB (MIT, below): which recipes are Merchant's Favor recipes.
 One For All notes that some learn levels (marked rw=true) come from wowtbc.gg and that some recipe
-sources come from Wowhead Forever. Nodewalker leaves the rw=true learn levels out (unknown instead);
-a Classic trainer level (CMaNGOS) is used only where Forever's skill colours agree with it.
+sources come from Wowhead Forever. Nodewalker uses learn levels in this order: the client's, the
+rw=true Forever level (wowtbc.gg), then a Classic trainer level (CMaNGOS) where Forever's skill
+colours agree with it.
 Mining.lua: bars, reagents, counts and learn levels from Data/Smelting.lua (Forever client data). Which
 bars a trainer teaches comes from cMaNGOS classic-db (GPL-3.0, npc_trainer and spell_template at
 commit 13e933726f38, see cMaNGOS-classic-db.txt), as Classic reference data. Skill-up colours come

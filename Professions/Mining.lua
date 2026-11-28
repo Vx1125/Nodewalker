@@ -4,7 +4,8 @@ local _, NW = ...
 -- 6.3.0 by Smoergi (GPL-3.0-or-later; Data/Smelting.lua, from the Forever client). Skill colours from
 -- Professions/SmeltingColours.lua (Warcraft Wiki, CC BY-SA 4.0); without one, only the learn level is known.
 -- Source: rank (known from the start); trainer where Classic mining trainers teach it (cMaNGOS classic-db,
--- GPL-3.0, @ 13e933726f38, same required skill; Classic reference); else recipe (not in the data).
+-- GPL-3.0, @ 13e933726f38, same required skill; Classic reference), or per
+-- tools/data/smelting_sources.json (Azerothium: the wiki); else recipe (not a trainer's, or unknown).
 -- Do not edit by hand.
 local add = NW.RecipeAdder("mining")
 local C = NW.SMELT_COLOURS or {}
@@ -23,6 +24,6 @@ S("Mithril Bar",175,"trainer",3860,"3858:1",1)
 S("Dark Iron Bar",230,"recipe",11371,"11370:8",1)
 S("Truesilver Bar",230,"trainer",6037,"7911:1",1)
 S("Thorium Bar",250,"trainer",12359,"10620:1",1)
-S("Azerothium Bar",275,"recipe",249726,"249426:2,3857:1",1)
+S("Azerothium Bar",275,"trainer",249726,"249426:2,3857:1",1)
 S("Elementium Bar",300,"recipe",17771,"18562:1,12360:10,17010:1,18567:3",1)
 S("Heavy Thorium Bar",300,"recipe",251291,"248815:1",1)
