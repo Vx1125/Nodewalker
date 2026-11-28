@@ -8,7 +8,7 @@ Your complete profession companion for WoW Forever. Nodewalker plans profession 
 - [Quick start](QUICK_START.md) · [FAQ](FAQ.md) · [Changelog](CHANGELOG.md)
 - Bugs and ideas: [GitHub issues](https://github.com/Vx1125/Nodewalker/issues)
 
-![Farming overlay](screenshots/overlay.jpg)
+![Farming overlay](screenshots/promo/banner.jpg)
 
 ## Features
 

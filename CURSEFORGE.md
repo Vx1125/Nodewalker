@@ -1,4 +1,4 @@
-![Nodewalker](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/banner.jpg)
+![Nodewalker](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/banner-v1.jpg)
 
 # Gather. Craft. Profit. Prepare.
 
@@ -8,7 +8,7 @@ Nodewalker plans your professions, finds every material you need, shows you wher
 
 Plan on your crafting character, gather on your farming character, and send the materials where they're needed.
 
-![Farming overlay](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/overlay.jpg)
+![Farming overlay](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/overlay-v1.jpg)
 
 ## Professions
 
@@ -28,7 +28,7 @@ Level any crafting profession from 1 to 300 at today's auction prices.
 
 Costs and craft counts are estimates: prices move and skill-ups are random.
 
-![Leveling](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/professions.jpg)
+![Leveling](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/professions-v1.jpg)
 
 ## Material Finder
 
@@ -46,7 +46,7 @@ Every material in one place, with each way to get it.
 
 Creature spawns and drop chances are WoW Classic data and may differ in WoW Forever. Gold per hour assumes every known spot is up; real income is lower.
 
-![Material Finder](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/material-finder.jpg)
+![Material Finder](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/material-finder-v1.jpg)
 
 ## Farming Overlay
 
@@ -64,7 +64,7 @@ A Diablo-style map in the middle of your screen: see-through, click-through, wit
 
 **Routes:** a short loop with every known spot in sight along the way, built when you enter a zone. **Optimize loop** rebuilds it; draw avoid zones and it goes around them. Distances are straight lines, not paths.
 
-![Routes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/routes.jpg)
+![Routes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/routes-v1.jpg)
 
 ## Characters
 
@@ -78,7 +78,7 @@ Every character's shopping list, in one window.
 - **Search materials** and **Search recipes** in Auctionator, for just what's still remaining
 - **Set farming targets:** what the list needs becomes Material Finder targets on the character you're playing; crafted parts become their ingredients, and vendor items, recipes, tools and disenchanted materials are left out
 
-![Characters](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/characters.jpg)
+![Characters](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/characters-v1.jpg)
 
 ## Missing Recipes
 
@@ -87,7 +87,7 @@ Every character's shopping list, in one window.
 - Reputation needed, and your faction's trainers and vendors on your map
 - How many you're missing of the profession's full list
 
-![Missing recipes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/missing-recipes.jpg)
+![Missing recipes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/missing-recipes-v1.jpg)
 
 ## Profit
 
@@ -101,7 +101,7 @@ Which crafts are worth a look.
 
 Listings aren't sales. Profit means worth a look, not guaranteed gold.
 
-![Profit](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/profit.jpg)
+![Profit](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/profit-v1.jpg)
 
 ## Find a Craft
 
@@ -109,7 +109,7 @@ Listings aren't sales. Profit means worth a look, not guaranteed gold.
 - What the materials cost, what's left after your bags, and the item's auction price ready-made
 - Auctionator searches for the materials, the item or the recipe
 
-![Find a craft](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/find-a-craft.jpg)
+![Find a craft](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/find-a-craft-v1.jpg)
 
 ## Consumes
 
@@ -122,7 +122,7 @@ Listings aren't sales. Profit means worth a look, not guaranteed gold.
 - **Loadouts** saved per character
 - One Auctionator search for everything you're short of
 
-![Consumes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/consumes.jpg)
+![Consumes](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/consumes-v1.jpg)
 
 ## Consume Tracker
 
@@ -137,7 +137,7 @@ A small on-screen bar for the consumables in your loadout. No other addon needed
 
 A buff Nodewalker hasn't confirmed yet shows as unknown until you use it once. In combat the game hides buffs from addons, so the tracker counts down what it saw before the pull.
 
-![Consume Tracker](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/tracker.jpg)
+![Consume Tracker](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/tracker-v1.jpg)
 
 ## Fishing
 
@@ -151,7 +151,7 @@ A buff Nodewalker hasn't confirmed yet shows as unknown until you use it once. I
 
 Zone fishing skill and catch rates aren't published for WoW Forever, so Nodewalker doesn't guess them.
 
-![Fishing Journal](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/web/fishing.jpg)
+![Fishing Journal](https://raw.githubusercontent.com/Vx1125/Nodewalker/main/screenshots/cf/fishing-v1.jpg)
 
 ## Getting started
 
